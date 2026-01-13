@@ -1,0 +1,238 @@
+import { useMemo, useCallback } from "react";
+import useAuthStore from "@/modules/auth/store/authStore";
+import {
+  PERMISSIONS,
+  canCreate,
+  canRead,
+  canUpdate,
+  canDelete,
+  canExport,
+  getFleetTypeAccess,
+  canAccessFleetType,
+  getMeasurementTypeForFleet,
+  shouldAutoAttachWeighBridge,
+  canSelectWeighBridge as canSelectWeighBridgePermission,
+  getFilterType,
+  isReadOnly,
+  filterDataByRole,
+  getRoleDescription,
+} from "@/shared/permissions/rolePermissions";
+
+/**
+ * Main permissions hook with fleet type access support
+ */
+export const usePermissions = (module = "timbangan") => {
+  const { user } = useAuthStore();
+
+  const userRole = user?.role;
+  const userSatker =
+    user?.satker ||
+    user?.subsatker ||
+    user?.work_unit?.subsatker ||
+    user?.work_unit?.satker ||
+    (typeof user?.work_unit === "string" ? user?.work_unit : null);
+  
+  const userCompany = user?.company;
+  const userWeighBridge = user?.weigh_bridge;
+
+  const permissions = useMemo(() => {
+    if (!userRole) {
+      return {
+        canCreate: false,
+        canRead: false,
+        canUpdate: false,
+        canDelete: false,
+        canExport: false,
+        isReadOnly: false,
+        
+        // Fleet type access
+        allowedFleetTypes: [],
+        canAccessFleetType: () => false,
+        getMeasurementType: () => null,
+        autoWeighBridge: false,
+        canSelectWeighBridge: false,
+        
+        // Filtering
+        filterType: null,
+        filterValue: null,
+        
+        roleDescription: "No role assigned",
+      };
+    }
+
+    const fleetTypeAccess = getFleetTypeAccess(userRole);
+    const filterType = getFilterType(userRole);
+    
+    // Determine filter value based on filter type
+    let filterValue = null;
+    switch (filterType) {
+      case 'company':
+        filterValue = userCompany?.id;
+        break;
+      case 'subsatker':
+        filterValue = userSatker;
+        break;
+      case 'weigh_bridge':
+        filterValue = userWeighBridge?.id;
+        break;
+    }
+
+    return {
+      canCreate: canCreate(userRole, module),
+      canRead: canRead(userRole, module),
+      canUpdate: canUpdate(userRole, module),
+      canDelete: canDelete(userRole, module),
+      canExport: canExport(userRole, module),
+      isReadOnly: isReadOnly(userRole),
+      
+      // Fleet type access
+      allowedFleetTypes: fleetTypeAccess?.allowedTypes || [],
+      canAccessFleetType: (type) => canAccessFleetType(userRole, type),
+      getMeasurementType: (type) => getMeasurementTypeForFleet(userRole, type),
+      autoWeighBridge: shouldAutoAttachWeighBridge(userRole),
+      canSelectWeighBridge: canSelectWeighBridgePermission(userRole),
+      
+      // Filtering
+      filterType,
+      filterValue,
+      filterBy: filterType, // alias
+      
+      roleDescription: getRoleDescription(userRole),
+    };
+  }, [userRole, module, userSatker, userCompany, userWeighBridge]);
+
+  /**
+   * Filter data based on role permissions
+   */
+  const filterDataBySatker = (data = []) => {
+    if (!userRole || !data || data.length === 0) return data;
+    return filterDataByRole(data, userRole, user);
+  };
+
+  /**
+   * Check if user can access specific data
+   */
+  const checkDataAccess = (item) => {
+    if (!userRole) return false;
+    if (isReadOnly(userRole)) {
+      // Apply role-based filtering
+      const filtered = filterDataByRole([item], userRole, user);
+      return filtered.length > 0;
+    }
+    return true;
+  };
+
+  /**
+   * Get disabled message for specific action
+   */
+  const getDisabledMessage = (action) => {
+    if (!userRole) return "Please login to continue";
+
+    if (permissions.isReadOnly) {
+      return "Anda hanya memiliki akses read-only untuk data ini";
+    }
+
+    const messages = {
+      create: "Anda tidak memiliki akses untuk membuat data",
+      update: "Anda tidak memiliki akses untuk mengedit data",
+      delete: "Anda tidak memiliki akses untuk menghapus data",
+      export: "Anda tidak memiliki akses untuk export data",
+    };
+
+    return messages[action] || "Akses ditolak";
+  };
+
+  /**
+   * Check if button should be shown based on permission
+   */
+  const shouldShowButton = (action) => {
+    if (permissions.isReadOnly && ['create', 'update', 'delete'].includes(action)) {
+      return false;
+    }
+
+    const actionMap = {
+      create: permissions.canCreate,
+      update: permissions.canUpdate,
+      delete: permissions.canDelete,
+      export: permissions.canExport,
+    };
+
+    return actionMap[action] !== undefined ? actionMap[action] : false;
+  };
+
+  /**
+   * Get fleet form configuration based on role and fleet type
+   */
+/**
+ * Get fleet form configuration based on role and fleet type
+ */
+/**
+ * Get fleet form configuration based on role and fleet type
+ */
+const getFleetFormConfig = useCallback((fleetType) => {
+  const measurementType = permissions.getMeasurementType(fleetType);
+  const autoWB = permissions.autoWeighBridge;
+  
+  return {
+    // Weigh Bridge Config
+    showWeighBridgeSelect: permissions.canSelectWeighBridge && !autoWB,
+    autoWeighBridge: autoWB,
+    weighBridgeValue: autoWB ? userWeighBridge?.id : null,
+    
+    // Measurement Type Config
+    showMeasurementTypeSelect: !measurementType && !autoWB,
+    autoMeasurementType: measurementType,
+    measurementTypeValue: measurementType,
+    measurementTypeDisabled: !!measurementType,
+  };
+}, [permissions, userWeighBridge]); 
+  return {
+    user,
+    userRole,
+    userSatker,
+    userCompany,
+    userWeighBridge,
+
+    ...permissions,
+    
+    checkDataAccess,
+    filterDataBySatker,
+    getDisabledMessage,
+    shouldShowButton,
+    getFleetFormConfig,
+
+    PERMISSIONS,
+  };
+};
+
+/**
+ * Specialized hook for Fleet permissions with type access
+ */
+export const useFleetPermissions = () => {
+  const basePermissions = usePermissions("fleet");
+  
+  return {
+    ...basePermissions,
+    
+    // Fleet-specific helper
+    isFleetTypeAllowed: (type) => {
+      return basePermissions.allowedFleetTypes.includes(type);
+    },
+    
+    // Get available fleet types for user
+    getAvailableFleetTypes: () => {
+      return basePermissions.allowedFleetTypes;
+    },
+    
+    // Check if user should see fleet type in menu
+    shouldShowFleetTypeMenu: (type) => {
+      return basePermissions.canAccessFleetType(type);
+    },
+  };
+};
+
+export const useTimbanganPermissions = () => usePermissions("timbangan");
+export const useDumptruckPermissions = () => usePermissions("dumptruck");
+export const useMasterDataPermissions = () => usePermissions("masterData");
+
+export default usePermissions;
