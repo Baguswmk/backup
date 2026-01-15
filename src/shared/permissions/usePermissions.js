@@ -26,12 +26,10 @@ export const usePermissions = (module = "timbangan") => {
 
   const userRole = user?.role;
   const userSatker =
-    user?.satker ||
-    user?.subsatker ||
     user?.work_unit?.subsatker ||
     user?.work_unit?.satker ||
     (typeof user?.work_unit === "string" ? user?.work_unit : null);
-  
+
   const userCompany = user?.company;
   const userWeighBridge = user?.weigh_bridge;
 
@@ -44,35 +42,35 @@ export const usePermissions = (module = "timbangan") => {
         canDelete: false,
         canExport: false,
         isReadOnly: false,
-        
+
         // Fleet type access
         allowedFleetTypes: [],
         canAccessFleetType: () => false,
         getMeasurementType: () => null,
         autoWeighBridge: false,
         canSelectWeighBridge: false,
-        
+
         // Filtering
         filterType: null,
         filterValue: null,
-        
+
         roleDescription: "No role assigned",
       };
     }
 
     const fleetTypeAccess = getFleetTypeAccess(userRole);
     const filterType = getFilterType(userRole);
-    
+
     // Determine filter value based on filter type
     let filterValue = null;
     switch (filterType) {
-      case 'company':
+      case "company":
         filterValue = userCompany?.id;
         break;
-      case 'subsatker':
+      case "subsatker":
         filterValue = userSatker;
         break;
-      case 'weigh_bridge':
+      case "weigh_bridge":
         filterValue = userWeighBridge?.id;
         break;
     }
@@ -84,19 +82,19 @@ export const usePermissions = (module = "timbangan") => {
       canDelete: canDelete(userRole, module),
       canExport: canExport(userRole, module),
       isReadOnly: isReadOnly(userRole),
-      
+
       // Fleet type access
       allowedFleetTypes: fleetTypeAccess?.allowedTypes || [],
       canAccessFleetType: (type) => canAccessFleetType(userRole, type),
       getMeasurementType: (type) => getMeasurementTypeForFleet(userRole, type),
       autoWeighBridge: shouldAutoAttachWeighBridge(userRole),
       canSelectWeighBridge: canSelectWeighBridgePermission(userRole),
-      
+
       // Filtering
       filterType,
       filterValue,
       filterBy: filterType, // alias
-      
+
       roleDescription: getRoleDescription(userRole),
     };
   }, [userRole, module, userSatker, userCompany, userWeighBridge]);
@@ -123,6 +121,23 @@ export const usePermissions = (module = "timbangan") => {
   };
 
   /**
+   * Validate CCR subsatker - returns null if valid, or feedback message if invalid
+   */
+  const validateCCRSubsatker = useCallback(() => {
+    if (userRole?.toLowerCase() !== "ccr") return null;
+
+    if (!userSatker) {
+      return {
+        isValid: false,
+        message:
+          "Data tidak dapat difilter karena subsatker tidak ditemukan. Silakan hubungi admin untuk konfigurasi work unit Anda.",
+      };
+    }
+
+    return { isValid: true };
+  }, [userRole, userSatker]);
+
+  /**
    * Get disabled message for specific action
    */
   const getDisabledMessage = (action) => {
@@ -146,7 +161,10 @@ export const usePermissions = (module = "timbangan") => {
    * Check if button should be shown based on permission
    */
   const shouldShowButton = (action) => {
-    if (permissions.isReadOnly && ['create', 'update', 'delete'].includes(action)) {
+    if (
+      permissions.isReadOnly &&
+      ["create", "update", "delete"].includes(action)
+    ) {
       return false;
     }
 
@@ -163,29 +181,33 @@ export const usePermissions = (module = "timbangan") => {
   /**
    * Get fleet form configuration based on role and fleet type
    */
-/**
- * Get fleet form configuration based on role and fleet type
- */
-/**
- * Get fleet form configuration based on role and fleet type
- */
-const getFleetFormConfig = useCallback((fleetType) => {
-  const measurementType = permissions.getMeasurementType(fleetType);
-  const autoWB = permissions.autoWeighBridge;
-  
-  return {
-    // Weigh Bridge Config
-    showWeighBridgeSelect: permissions.canSelectWeighBridge && !autoWB,
-    autoWeighBridge: autoWB,
-    weighBridgeValue: autoWB ? userWeighBridge?.id : null,
-    
-    // Measurement Type Config
-    showMeasurementTypeSelect: !measurementType && !autoWB,
-    autoMeasurementType: measurementType,
-    measurementTypeValue: measurementType,
-    measurementTypeDisabled: !!measurementType,
-  };
-}, [permissions, userWeighBridge]); 
+  /**
+   * Get fleet form configuration based on role and fleet type
+   */
+  /**
+   * Get fleet form configuration based on role and fleet type
+   */
+  const getFleetFormConfig = useCallback(
+    (fleetType) => {
+      const measurementType = permissions.getMeasurementType(fleetType);
+      const autoWB = permissions.autoWeighBridge;
+
+      return {
+        // Weigh Bridge Config
+        showWeighBridgeSelect: permissions.canSelectWeighBridge && !autoWB,
+        autoWeighBridge: autoWB,
+        weighBridgeValue: autoWB ? userWeighBridge?.id : null,
+
+        // Measurement Type Config
+        showMeasurementTypeSelect: !measurementType && !autoWB,
+        autoMeasurementType: measurementType,
+        measurementTypeValue: measurementType,
+        measurementTypeDisabled: !!measurementType,
+      };
+    },
+    [permissions, userWeighBridge]
+  );
+
   return {
     user,
     userRole,
@@ -194,9 +216,10 @@ const getFleetFormConfig = useCallback((fleetType) => {
     userWeighBridge,
 
     ...permissions,
-    
+
     checkDataAccess,
     filterDataBySatker,
+    validateCCRSubsatker,
     getDisabledMessage,
     shouldShowButton,
     getFleetFormConfig,
@@ -210,20 +233,20 @@ const getFleetFormConfig = useCallback((fleetType) => {
  */
 export const useFleetPermissions = () => {
   const basePermissions = usePermissions("fleet");
-  
+
   return {
     ...basePermissions,
-    
+
     // Fleet-specific helper
     isFleetTypeAllowed: (type) => {
       return basePermissions.allowedFleetTypes.includes(type);
     },
-    
+
     // Get available fleet types for user
     getAvailableFleetTypes: () => {
       return basePermissions.allowedFleetTypes;
     },
-    
+
     // Check if user should see fleet type in menu
     shouldShowFleetTypeMenu: (type) => {
       return basePermissions.canAccessFleetType(type);

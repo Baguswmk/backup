@@ -1,190 +1,264 @@
 export const PERMISSIONS = {
-  // CRUD Permissions
-  CREATE: 'create',
-  READ: 'read',
-  UPDATE: 'update',
-  DELETE: 'delete',
-  
-  // Special Permissions
-  APPROVE: 'approve',
-  EXPORT: 'export',
-  MANAGE_FLEET: 'manage_fleet',
-  MANAGE_DUMPTRUCK: 'manage_dumptruck',
-  MANAGE_MASTER_DATA: 'manage_master_data',
-  VIEW_ALL_SATKER: 'view_all_satker',
-  MANAGE_USERS: 'manage_users',
-  UPDATE_TARE_WEIGHT: 'update_tare_weight',
+  CREATE: "create",
+  READ: "read",
+  UPDATE: "update",
+  DELETE: "delete",
+  APPROVE: "approve",
+  EXPORT: "export",
+  MANAGE_FLEET: "manage_fleet",
+  MANAGE_DUMPTRUCK: "manage_dumptruck",
+  MANAGE_MASTER_DATA: "manage_master_data",
+  VIEW_ALL_SATKER: "view_all_satker",
+  MANAGE_USERS: "manage_users",
+  UPDATE_TARE_WEIGHT: "update_tare_weight",
 };
 
-// Line 7-60 di rolePermissions.js - REPLACE dengan ini:
-
 export const FLEET_TYPE_ACCESS = {
-   'super_admin': {
-    allowedTypes: ['Jembatan', 'FOB', 'Bypass', 'BeltScale'],
+  super_admin: {
+    allowedTypes: ["Jembatan", "FOB", "Bypass", "BeltScale"],
     filterBy: null,
     readOnly: false,
     autoWeighBridge: false,
     canSelectWeighBridge: true,
     measurementTypeMap: {
-      'Jembatan': 'Timbangan',
-      'FOB': 'Timbangan',
-      'Bypass': 'Bypass',
-      'BeltScale': 'BeltScale'
-    }
+      Jembatan: "Timbangan",
+      FOB: "FOB",
+      Bypass: "Bypass",
+      BeltScale: "BeltScale",
+    },
   },
-  'operator_jt': {
-    allowedTypes: ['Jembatan'], 
+  operator_jt: {
+    allowedTypes: ["Jembatan"], // ✅ FIXED: Only Timbangan Internal
     autoWeighBridge: true,
-    autoMeasurementType: 'Timbangan',
+    autoMeasurementType: "Timbangan",
     canSelectWeighBridge: false,
     measurementTypeMap: {
-      'Jembatan': 'Timbangan'
-    }
+      Jembatan: "Timbangan",
+    },
   },
-  'ccr': {
-    allowedTypes: ['Jembatan', 'FOB', 'Bypass', 'BeltScale'],
+  ccr: {
+    allowedTypes: ["Jembatan", "FOB", "Bypass", "BeltScale"],
     autoWeighBridge: false,
     autoMeasurementType: null,
     canSelectWeighBridge: true,
     measurementTypeMap: {
-      'Jembatan': 'Timbangan',
-      'FOB': 'Timbangan', 
-      'Bypass': 'Bypass',
-      'BeltScale': 'BeltScale'
-    }
+      Jembatan: "Timbangan",
+      FOB: "FOB",
+      Bypass: "Bypass",
+      BeltScale: "BeltScale",
+    },
   },
-  'pengawas': {
-    allowedTypes: ['Jembatan', 'FOB', 'Bypass', 'BeltScale'],
-    filterBy: 'company',
+  pengawas: {
+    allowedTypes: ["Jembatan", "FOB", "Bypass", "BeltScale"],
+    filterBy: "subsatker",
     readOnly: true,
     autoWeighBridge: false,
     canSelectWeighBridge: false,
+    measurementTypeMap: {
+      Jembatan: "Timbangan",
+      FOB: "FOB",
+      Bypass: "Bypass",
+      BeltScale: "BeltScale",
+    },
   },
-  'checker': {
-    allowedTypes: ['Jembatan', 'FOB', 'Bypass', 'BeltScale'],
-    filterBy: 'company',
+  evaluator: {
+    allowedTypes: ["Jembatan", "FOB", "Bypass", "BeltScale"],
+    filterBy: "subsatker",
     readOnly: true,
     autoWeighBridge: false,
     canSelectWeighBridge: false,
+    measurementTypeMap: {
+      Jembatan: "Timbangan",
+      FOB: "FOB",
+      Bypass: "Bypass",
+      BeltScale: "BeltScale",
+    },
   },
-  'admin': {
-    allowedTypes: ['Jembatan', 'FOB', 'Bypass', 'BeltScale'],
-    filterBy: 'company',
+  checker: {
+    allowedTypes: ["Jembatan", "FOB", "Bypass", "BeltScale"],
+    filterBy: "company",
     readOnly: true,
     autoWeighBridge: false,
     canSelectWeighBridge: false,
+    measurementTypeMap: {
+      Jembatan: "Timbangan",
+      FOB: "FOB",
+      Bypass: "Bypass",
+      BeltScale: "BeltScale",
+    },
   },
-  'pic': {
-    allowedTypes: ['Jembatan', 'FOB', 'Bypass', 'BeltScale'],
-    filterBy: 'subsatker',
+  admin: {
+    allowedTypes: ["Jembatan", "FOB", "Bypass", "BeltScale"],
+    filterBy: "company",
     readOnly: true,
     autoWeighBridge: false,
     canSelectWeighBridge: false,
+    measurementTypeMap: {
+      Jembatan: "Timbangan",
+      FOB: "FOB",
+      Bypass: "Bypass",
+      BeltScale: "BeltScale",
+    },
   },
-  'evaluator': {
-    allowedTypes: ['Jembatan', 'FOB', 'Bypass', 'BeltScale'],
-    filterBy: 'subsatker',
+  pic: {
+    allowedTypes: ["Jembatan", "FOB", "Bypass", "BeltScale"],
+    filterBy: "subsatker",
     readOnly: true,
     autoWeighBridge: false,
     canSelectWeighBridge: false,
+    measurementTypeMap: {
+      Jembatan: "Timbangan",
+      FOB: "FOB",
+      Bypass: "Bypass",
+      BeltScale: "BeltScale",
+    },
   },
- 
+  mitra: {
+    allowedTypes: ["Jembatan", "FOB", "Bypass", "BeltScale"],
+    filterBy: "company",
+    readOnly: true,
+    autoWeighBridge: false,
+    canSelectWeighBridge: false,
+    measurementTypeMap: {
+      Jembatan: "Timbangan",
+      FOB: "FOB",
+      Bypass: "Bypass",
+      BeltScale: "BeltScale",
+    },
+  },
 };
 
 export const ROLE_PERMISSIONS = {
-  // 🔴 READ ONLY ROLES - Hanya bisa melihat (Filter by Company)
-  'checker': {
-    timbangan: [PERMISSIONS.READ, PERMISSIONS.EXPORT],
-    fleet: [PERMISSIONS.READ],
-    dumptruck: [PERMISSIONS.READ],
-    masterData: [],
-    filterBy: 'company',
-    description: 'Hanya bisa melihat dan export data timbangan (filter by company)'
-  },
-  
-  'pengawas': {
-    timbangan: [PERMISSIONS.READ, PERMISSIONS.EXPORT],
-    fleet: [PERMISSIONS.READ],
-    dumptruck: [PERMISSIONS.READ],
-    masterData: [],
-    filterBy: 'company',
-    description: 'Hanya bisa melihat dan export (filter by company)'
-  },
-  
-  'admin': {
-    timbangan: [PERMISSIONS.READ, PERMISSIONS.EXPORT],
-    fleet: [PERMISSIONS.READ],
-    dumptruck: [PERMISSIONS.READ],
-    masterData: [],
-    filterBy: 'company',
-    description: 'Hanya bisa melihat (filter by company)'
-  },
-
-  // 🟡 READ ONLY ROLES - Filter by Subsatker
-  'pic': {
-    timbangan: [PERMISSIONS.READ, PERMISSIONS.EXPORT],
-    fleet: [PERMISSIONS.READ],
-    dumptruck: [PERMISSIONS.READ],
-    masterData: [],
-    filterBy: 'subsatker',
-    description: 'Hanya bisa melihat dan export data (filter by subsatker)'
-  },
-  
-  'evaluator': {
-    timbangan: [PERMISSIONS.READ, PERMISSIONS.EXPORT],
-    fleet: [PERMISSIONS.READ],
-    dumptruck: [PERMISSIONS.READ],
-    masterData: [],
-    filterBy: 'subsatker',
-    description: 'Hanya bisa melihat dan export data untuk evaluasi (filter by subsatker)'
-  },
-
-  // 🟢 OPERATOR JT - Full CRUD, auto weigh_bridge, hanya Timbangan
-  'operator_jt': {
-    timbangan: [PERMISSIONS.READ, PERMISSIONS.UPDATE, PERMISSIONS.EXPORT, PERMISSIONS.CREATE],
-    fleet: [PERMISSIONS.READ, PERMISSIONS.UPDATE, PERMISSIONS.CREATE],
-    dumptruck: [PERMISSIONS.READ, PERMISSIONS.UPDATE],
-    masterData: [PERMISSIONS.READ, PERMISSIONS.UPDATE_TARE_WEIGHT],
-    masterDataCategories: ['units'],
-    filterBy: 'weigh_bridge',
-    fleetTypes: ['Timbangan'], // Hanya bisa akses Timbangan
+  operator_jt: {
+    timbangan: [
+      PERMISSIONS.READ,
+      PERMISSIONS.CREATE,
+      PERMISSIONS.UPDATE,
+      PERMISSIONS.EXPORT,
+    ],
+    fleet: [PERMISSIONS.READ, PERMISSIONS.CREATE, PERMISSIONS.UPDATE],
+    dumptruck: [PERMISSIONS.READ, PERMISSIONS.CREATE, PERMISSIONS.UPDATE],
+    masterData: [PERMISSIONS.READ, PERMISSIONS.CREATE, PERMISSIONS.UPDATE],
+    masterDataCategories: ["units"], // ✅ ADDED - operator_jt can only access units
+    filterBy: "weigh_bridge",
+    fleetTypes: ["Timbangan"],
     autoWeighBridge: true,
-    description: 'Full CRUD untuk fleet Timbangan (Jembatan), auto weigh_bridge'
+    autoMeasurementType: "Timbangan",
+    canSelectWeighBridge: false,
+    description: "CRU untuk Timbangan Internal only, filter by weigh_bridge",
   },
 
-  // 🔵 CCR - Full CRUD, manual weigh_bridge selection, semua fleet types
-  'ccr': {
-    timbangan: [PERMISSIONS.READ, PERMISSIONS.CREATE, PERMISSIONS.UPDATE, PERMISSIONS.DELETE, PERMISSIONS.EXPORT],
-    fleet: [PERMISSIONS.READ, PERMISSIONS.CREATE, PERMISSIONS.UPDATE, PERMISSIONS.DELETE, PERMISSIONS.MANAGE_FLEET],
-    dumptruck: [PERMISSIONS.READ, PERMISSIONS.CREATE, PERMISSIONS.UPDATE, PERMISSIONS.DELETE, PERMISSIONS.MANAGE_DUMPTRUCK],
-    masterData: [PERMISSIONS.READ],
-    fleetTypes: ['Timbangan', 'FOB', 'Bypass', 'BeltScale'],
+  checker: {
+    timbangan: [
+      PERMISSIONS.READ,
+      PERMISSIONS.CREATE,
+      PERMISSIONS.UPDATE,
+      PERMISSIONS.DELETE,
+      PERMISSIONS.EXPORT,
+    ],
+    fleet: [
+      PERMISSIONS.READ,
+      PERMISSIONS.CREATE,
+      PERMISSIONS.UPDATE,
+      PERMISSIONS.DELETE,
+    ],
+    dumptruck: [
+      PERMISSIONS.READ,
+      PERMISSIONS.CREATE,
+      PERMISSIONS.UPDATE,
+      PERMISSIONS.DELETE,
+    ],
+    masterData: [
+      PERMISSIONS.READ,
+      PERMISSIONS.CREATE,
+      PERMISSIONS.UPDATE,
+      PERMISSIONS.DELETE,
+    ],
+    filterBy: "subsatker",
+    fleetTypes: ["Timbangan", "BeltScale", "Bypass"],
     canSelectWeighBridge: true,
-    description: 'Full CRUD untuk semua fleet types, manual weigh_bridge selection'
+    canDeleteWithRitase: true, // ✅ ADDED - CCR can delete fleet with ritase
+    description: "CRUD untuk Timbangan/BeltScale/Bypass, filter by subsatker",
   },
 
-  // 🟣 SUPER ADMIN - Full access tanpa batasan
-  'super_admin': {
-    timbangan: [PERMISSIONS.READ, PERMISSIONS.CREATE, PERMISSIONS.UPDATE, PERMISSIONS.DELETE, PERMISSIONS.EXPORT, PERMISSIONS.APPROVE],
-    fleet: [PERMISSIONS.READ, PERMISSIONS.CREATE, PERMISSIONS.UPDATE, PERMISSIONS.DELETE, PERMISSIONS.MANAGE_FLEET],
-    dumptruck: [PERMISSIONS.READ, PERMISSIONS.CREATE, PERMISSIONS.UPDATE, PERMISSIONS.DELETE, PERMISSIONS.MANAGE_DUMPTRUCK],
-    masterData: [PERMISSIONS.READ, PERMISSIONS.CREATE, PERMISSIONS.UPDATE, PERMISSIONS.DELETE, PERMISSIONS.MANAGE_MASTER_DATA],
-    users: [PERMISSIONS.READ, PERMISSIONS.CREATE, PERMISSIONS.UPDATE, PERMISSIONS.DELETE, PERMISSIONS.MANAGE_USERS],
-    satkerRestricted: false,
-    viewAllSatker: true,
-    fleetTypes: ['Timbangan', 'FOB', 'Bypass', 'BeltScale'],
-    canSelectWeighBridge: true,
-    description: 'Full access tanpa batasan'
+  pengawas: {
+    timbangan: [PERMISSIONS.READ, PERMISSIONS.EXPORT],
+    fleet: [PERMISSIONS.READ],
+    dumptruck: [PERMISSIONS.READ],
+    masterData: [],
+    filterBy: "subsatker",
+    fleetTypes: ["Timbangan", "BeltScale", "Bypass"],
+    description: "Read only, filter by subsatker",
   },
 
-  // Legacy role - keep for backward compatibility
-  'mitra': {
+  evaluator: {
+    timbangan: [PERMISSIONS.READ, PERMISSIONS.EXPORT],
+    fleet: [PERMISSIONS.READ],
+    dumptruck: [PERMISSIONS.READ],
+    masterData: [],
+    filterBy: "subsatker",
+    fleetTypes: ["Timbangan", "BeltScale", "Bypass"],
+    description: "Read only, filter by subsatker",
+  },
+
+  admin: {
+    timbangan: [PERMISSIONS.READ, PERMISSIONS.EXPORT],
+    fleet: [PERMISSIONS.READ],
+    dumptruck: [PERMISSIONS.READ],
+    masterData: [],
+    filterBy: "company",
+    fleetTypes: ["Timbangan", "BeltScale", "Bypass"],
+    description: "Read only, filter by company",
+  },
+
+  mitra: {
     timbangan: [PERMISSIONS.READ],
     fleet: [PERMISSIONS.READ],
     dumptruck: [PERMISSIONS.READ],
     masterData: [],
-    filterBy: 'company',
-    description: 'Akses terbatas hanya untuk melihat data'
+    filterBy: "company",
+    fleetTypes: ["Timbangan", "BeltScale", "Bypass"],
+    description: "Read only, filter by company",
+  },
+
+  super_admin: {
+    timbangan: [
+      PERMISSIONS.READ,
+      PERMISSIONS.CREATE,
+      PERMISSIONS.UPDATE,
+      PERMISSIONS.DELETE,
+      PERMISSIONS.EXPORT,
+    ],
+    fleet: [
+      PERMISSIONS.READ,
+      PERMISSIONS.CREATE,
+      PERMISSIONS.UPDATE,
+      PERMISSIONS.DELETE,
+    ],
+    dumptruck: [
+      PERMISSIONS.READ,
+      PERMISSIONS.CREATE,
+      PERMISSIONS.UPDATE,
+      PERMISSIONS.DELETE,
+    ],
+    masterData: [
+      PERMISSIONS.READ,
+      PERMISSIONS.CREATE,
+      PERMISSIONS.UPDATE,
+      PERMISSIONS.DELETE,
+      PERMISSIONS.MANAGE_MASTER_DATA,
+    ],
+    users: [
+      PERMISSIONS.READ,
+      PERMISSIONS.CREATE,
+      PERMISSIONS.UPDATE,
+      PERMISSIONS.DELETE,
+      PERMISSIONS.MANAGE_USERS,
+    ],
+    filterBy: null,
+    fleetTypes: ["Timbangan", "BeltScale", "Bypass"],
+    canSelectWeighBridge: true,
+    description: "Full access, no filter",
   },
 };
 
@@ -202,10 +276,10 @@ export const getFleetTypeAccess = (userRole) => {
 export const canAccessFleetType = (userRole, fleetType) => {
   const rolePerms = ROLE_PERMISSIONS[userRole?.toLowerCase()];
   if (!rolePerms) return false;
-  
+
   const allowedTypes = rolePerms.fleetTypes;
-  if (!allowedTypes) return true; // No restriction
-  
+  if (!allowedTypes) return true;
+
   return allowedTypes.includes(fleetType);
 };
 
@@ -214,19 +288,17 @@ export const canAccessFleetType = (userRole, fleetType) => {
  */
 export const getMeasurementTypeForFleet = (userRole, fleetType) => {
   const access = getFleetTypeAccess(userRole?.toLowerCase());
-  
+
   if (!access) return null;
-  
-  // Auto measurement type (untuk operator_jt)
+
   if (access.autoMeasurementType) {
     return access.autoMeasurementType;
   }
-  
-  // Mapped measurement type (untuk ccr)
+
   if (access.measurementTypeMap) {
     return access.measurementTypeMap[fleetType] || null;
   }
-  
+
   return null;
 };
 
@@ -259,7 +331,14 @@ export const getFilterType = (userRole) => {
  */
 export const isReadOnly = (userRole) => {
   const roleLower = userRole?.toLowerCase();
-  const readOnlyRoles = ['checker', 'pengawas', 'admin', 'pic', 'evaluator', 'mitra'];
+  const readOnlyRoles = [
+    "checker",
+    "pengawas",
+    "admin",
+    "pic",
+    "evaluator",
+    "mitra",
+  ];
   return readOnlyRoles.includes(roleLower);
 };
 
@@ -268,63 +347,58 @@ export const isReadOnly = (userRole) => {
  */
 export const filterDataByRole = (data, userRole, user) => {
   const filterType = getFilterType(userRole);
-  
-  if (!filterType) return data; // No filter
-  
+
+  if (!filterType) return data;
+
   switch (filterType) {
-    case 'company': {
+    case "company": {
       const userCompanyId = user?.company?.id;
       if (!userCompanyId) return data;
-      
-      return data.filter(item => {
-        const itemCompanyId = item.excavatorCompanyId || 
-                            item.company?.id || 
-                            item.companyId;
+
+      return data.filter((item) => {
+        const itemCompanyId =
+          item.excavatorCompanyId || item.company?.id || item.companyId;
         return String(itemCompanyId) === String(userCompanyId);
       });
     }
-    
-    case 'subsatker': {
-      const userSubsatker = user?.work_unit?.subsatker || 
-                           user?.subsatker;
+
+    case "subsatker": {
+      const userSubsatker = user?.work_unit?.subsatker || user?.subsatker;
       if (!userSubsatker) return data;
-      
-      return data.filter(item => {
-        const itemSubsatker = item.workUnit || 
-                             item.subsatker ||
-                             item.work_unit?.subsatker;
+
+      return data.filter((item) => {
+        const itemSubsatker =
+          item.workUnit || item.subsatker || item.work_unit?.subsatker;
         return itemSubsatker === userSubsatker;
       });
     }
-    
-    case 'weigh_bridge': {
+
+    case "weigh_bridge": {
       const userWeighBridgeId = user?.weigh_bridge?.id;
       if (!userWeighBridgeId) return data;
-      
-      return data.filter(item => {
-        const itemWbId = item.weightBridgeId || 
-                        item.weigh_bridge?.id;
+
+      return data.filter((item) => {
+        const itemWbId = item.weightBridgeId || item.weigh_bridge?.id;
         return String(itemWbId) === String(userWeighBridgeId);
       });
     }
-    
+
     default:
       return data;
   }
 };
 
-// Export existing functions with updates
 export const hasPermission = (userRole, module, permission) => {
   if (!userRole || !module || !permission) return false;
-  
+
   const roleLower = userRole.toLowerCase();
   const rolePerms = ROLE_PERMISSIONS[roleLower];
-  
+
   if (!rolePerms) return false;
-  
+
   const modulePerms = rolePerms[module];
   if (!modulePerms) return false;
-  
+
   return modulePerms.includes(permission);
 };
 
@@ -351,7 +425,7 @@ export const canExport = (userRole, module) => {
 export const getRoleDescription = (userRole) => {
   const roleLower = userRole?.toLowerCase();
   const rolePerms = ROLE_PERMISSIONS[roleLower];
-  return rolePerms?.description || 'No description available';
+  return rolePerms?.description || "No description available";
 };
 
 /**
@@ -359,18 +433,16 @@ export const getRoleDescription = (userRole) => {
  */
 export const canAccessMasterDataCategory = (userRole, categoryId) => {
   if (!userRole || !categoryId) return false;
-  
+
   const roleLower = userRole.toLowerCase();
   const rolePerms = ROLE_PERMISSIONS[roleLower];
-  
+
   if (!rolePerms) return false;
-  
-  // If no category restrictions, check if they have any masterData permission
+
   if (!rolePerms.masterDataCategories) {
     return rolePerms.masterData && rolePerms.masterData.length > 0;
   }
-  
-  // Check if category is in allowed list
+
   return rolePerms.masterDataCategories.includes(categoryId);
 };
 
@@ -379,21 +451,19 @@ export const canAccessMasterDataCategory = (userRole, categoryId) => {
  */
 export const getAllowedMasterDataCategories = (userRole) => {
   if (!userRole) return [];
-  
+
   const roleLower = userRole.toLowerCase();
   const rolePerms = ROLE_PERMISSIONS[roleLower];
-  
+
   if (!rolePerms) return [];
-  
-  // If no restrictions, return all categories
+
   if (!rolePerms.masterDataCategories) {
-    // Check if they have any masterData permission
     if (rolePerms.masterData && rolePerms.masterData.length > 0) {
-      return 'all'; // Can access all categories
+      return "all";
     }
     return [];
   }
-  
+
   return rolePerms.masterDataCategories;
 };
 
@@ -402,15 +472,17 @@ export const getAllowedMasterDataCategories = (userRole) => {
  */
 export const canOnlyUpdateTareWeight = (userRole) => {
   if (!userRole) return false;
-  
+
   const roleLower = userRole.toLowerCase();
   const rolePerms = ROLE_PERMISSIONS[roleLower];
-  
+
   if (!rolePerms || !rolePerms.masterData) return false;
-  
-  return rolePerms.masterData.includes(PERMISSIONS.UPDATE_TARE_WEIGHT) &&
-         !rolePerms.masterData.includes(PERMISSIONS.CREATE) &&
-         !rolePerms.masterData.includes(PERMISSIONS.DELETE);
+
+  return (
+    rolePerms.masterData.includes(PERMISSIONS.UPDATE_TARE_WEIGHT) &&
+    !rolePerms.masterData.includes(PERMISSIONS.CREATE) &&
+    !rolePerms.masterData.includes(PERMISSIONS.DELETE)
+  );
 };
 
 export default {
