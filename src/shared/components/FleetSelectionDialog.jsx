@@ -14,7 +14,12 @@ import { useFleetPermissions } from "@/shared/permissions/usePermissions";
 import { getTodayDateRange } from "@/shared/utils/date";
 import { useDebouncedValue } from "@/shared/hooks/useDebouncedValue";
 
-const FleetSelectionDialog = ({ isOpen, onClose, onSave }) => {
+const FleetSelectionDialog = ({ 
+  isOpen, 
+  onClose, 
+  onSave,
+  measurementType = "Timbangan"
+}) => {
   const fleetConfigs = useTimbanganStore((state) => state.fleetConfigs);
   const selectedFleetIds = useTimbanganStore((state) => state.selectedFleetIds);
   const loadFleetConfigsFromAPI = useTimbanganStore((state) => state.loadFleetConfigsFromAPI);
@@ -33,17 +38,17 @@ const FleetSelectionDialog = ({ isOpen, onClose, onSave }) => {
 
   const debouncedSearch = useDebouncedValue(searchQuery, 300);
 
-    useEffect(() => {
-      if (isOpen) {
-        document.body.style.overflow = "hidden";
-      } else {
-        document.body.style.overflow = "unset";
-      }
-  
-      return () => {
-        document.body.style.overflow = "unset";
-      };
-    }, [isOpen]);
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "unset";
+    }
+
+    return () => {
+      document.body.style.overflow = "unset";
+    };
+  }, [isOpen]);
 
   useEffect(() => {
     if (isOpen) {
@@ -55,7 +60,7 @@ const FleetSelectionDialog = ({ isOpen, onClose, onSave }) => {
     if (!isOpen) return;
 
     setIsLoadingInitial(true);
-    loadFleetConfigsFromAPI(true, dateRange)
+    loadFleetConfigsFromAPI(true, dateRange, measurementType) // ✅ Pass measurementType
       .catch((error) => {
         console.error("❌ Failed to load fleet data:", error);
         showToast.error("Gagal memuat data fleet");
@@ -63,24 +68,32 @@ const FleetSelectionDialog = ({ isOpen, onClose, onSave }) => {
       .finally(() => {
         setIsLoadingInitial(false);
       });
-  }, [isOpen, dateRange.from, dateRange.to, dateRange.shift, loadFleetConfigsFromAPI]);
+  }, [isOpen, dateRange.from, dateRange.to, dateRange.shift, measurementType, loadFleetConfigsFromAPI]);
 
   const { filterDataBySatker } = useFleetPermissions();
 
+  // ✅ Filter by measurementType FIRST, then apply other filters
   const { filteredFleets, counts } = useMemo(() => {
     const accessibleFleets = filterDataBySatker(fleetConfigs);
     
-    const activeFleets = accessibleFleets.filter((fleet) => fleet.status === "ACTIVE");
+    // ✅ Filter by measurementType
+    const measurementFilteredFleets = accessibleFleets.filter((fleet) => {
+      const fleetMeasurementType = fleet.measurementType || fleet.measurement_type;
+      return fleetMeasurementType === measurementType;
+    });
+    
+    // Then filter by status
+    const activeFleets = measurementFilteredFleets.filter((fleet) => fleet.status === "ACTIVE");
     
     const countsData = {
       all: activeFleets.length,
       selected: tempSelectedIds.filter((id) =>
-        accessibleFleets.some((f) => f.id === id)
+        activeFleets.some((f) => f.id === id)
       ).length,
     };
 
     return { filteredFleets: activeFleets, counts: countsData };
-  }, [fleetConfigs, tempSelectedIds, filterDataBySatker]);
+  }, [fleetConfigs, tempSelectedIds, filterDataBySatker, measurementType]);
 
   const searchedFleets = useMemo(() => {
     if (!debouncedSearch.trim()) return filteredFleets;
@@ -121,7 +134,7 @@ const FleetSelectionDialog = ({ isOpen, onClose, onSave }) => {
   const handleRefreshFleet = useCallback(async () => {
     setIsRefreshingFleet(true);
     try {
-      await loadFleetConfigsFromAPI(true, dateRange);
+      await loadFleetConfigsFromAPI(true, dateRange, measurementType); 
       showToast.success("Data fleet berhasil diperbarui");
     } catch (error) {
       showToast.error("Gagal memperbarui data fleet");
@@ -129,16 +142,28 @@ const FleetSelectionDialog = ({ isOpen, onClose, onSave }) => {
     } finally {
       setIsRefreshingFleet(false);
     }
-  }, [loadFleetConfigsFromAPI, dateRange]);
+  }, [loadFleetConfigsFromAPI, dateRange, measurementType]);
 
   if (!isOpen) return null;
+
+  // ✅ Dynamic title based on measurementType
+  const getTitle = () => {
+    switch(measurementType) {
+      case "Bypass":
+        return "Pilih Fleet Bypass";
+      case "BeltScale":
+        return "Pilih Fleet BeltScale";
+      default:
+        return "Pilih Fleet Timbangan";
+    }
+  };
 
   return (
     <div className="detail-modal fixed inset-0 bg-black bg-opacity-50 dark:bg-opacity-70 z-50 flex items-center justify-center p-4">
       <div className="bg-white dark:bg-gray-900 rounded-lg max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col dark:border dark:border-gray-700">
         <ModalHeader
-          title="Pilih Fleet Timbangan"
-          subtitle="Pilih fleet yang ingin ditampilkan - status ACTIVE only"
+          title={getTitle()}
+          subtitle={`Pilih fleet yang ingin ditampilkan - ${measurementType} status ACTIVE only`}
           icon={Settings}
           onClose={onClose}
         />
@@ -161,7 +186,7 @@ const FleetSelectionDialog = ({ isOpen, onClose, onSave }) => {
                   setDateRange(updatedRange);
 
                   setIsRefreshingFleet(true);
-                  loadFleetConfigsFromAPI(true, updatedRange).finally(() =>
+                  loadFleetConfigsFromAPI(true, updatedRange, measurementType).finally(() =>
                     setIsRefreshingFleet(false)
                   );
                 }}
@@ -182,7 +207,7 @@ const FleetSelectionDialog = ({ isOpen, onClose, onSave }) => {
               className="flex-1 cursor-pointer dark:bg-blue-600 dark:hover:bg-blue-700 dark:text-gray-200"
               disabled={isLoadingInitial}
             >
-              Fleet Timbangan ({counts.all})
+              Fleet {measurementType} ({counts.all})
             </Button>
             
             <Button
@@ -248,12 +273,12 @@ const FleetSelectionDialog = ({ isOpen, onClose, onSave }) => {
               icon={Settings}
               title={
                 filteredFleets.length === 0
-                  ? "Tidak ada fleet ACTIVE"
+                  ? `Tidak ada fleet ${measurementType} ACTIVE`
                   : "Tidak ditemukan fleet yang sesuai pencarian"
               }
               description={
                 filteredFleets.length === 0
-                  ? "Semua fleet sedang INACTIVE atau CLOSED. Aktifkan fleet terlebih dahulu di Fleet Management."
+                  ? `Semua fleet ${measurementType} sedang INACTIVE atau CLOSED. Aktifkan fleet terlebih dahulu di Fleet Management.`
                   : "Coba ubah kata kunci pencarian"
               }
             />
@@ -311,6 +336,13 @@ const FleetSelectionDialog = ({ isOpen, onClose, onSave }) => {
                                   <CheckCircle2 className="w-3 h-3 mr-1" />
                                   {fleet.status}
                                 </Badge>
+                                {/* ✅ Show measurement type badge */}
+                                <Badge
+                                  variant="outline"
+                                  className="text-xs border-purple-300 text-purple-700 dark:border-purple-600 dark:text-purple-300"
+                                >
+                                  {measurementType}
+                                </Badge>
                               </div>
                             </div>
 
@@ -366,7 +398,7 @@ const FleetSelectionDialog = ({ isOpen, onClose, onSave }) => {
             <Button
               variant="ghost"
               onClick={onClose}
-              className="cursor-pointer hover:bg-gray-200 dark:border-gray-600 dark:hover:bg-gray-700"
+              className="cursor-pointer hover:bg-gray-200 dark:border-gray-600 dark:hover:bg-gray-700 dark:text-gray-200"
             >
               Batal
             </Button>

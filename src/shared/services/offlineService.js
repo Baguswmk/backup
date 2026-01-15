@@ -672,6 +672,22 @@ async function getCache(key, ignoreExpiry = false) {
   return cached.data;
 }
 
+async function clearCacheByPrefix(prefix) {
+  const db = await getDB();
+  const allCache = await db.getAll(STORES.CACHE);
+  let deletedCount = 0;
+  
+  const tx = db.transaction(STORES.CACHE, "readwrite");
+  for (const item of allCache) {
+    if (item.key.startsWith(prefix)) {
+      await tx.store.delete(item.key);
+      deletedCount++;
+    }
+  }
+  await tx.done;
+  
+  return { success: true, deletedCount };
+}
 
 async function clearCache(pattern = null) {
   if (!pattern) {
@@ -799,6 +815,7 @@ export const offlineService = {
   getCache,
   clearCache,
   clearAll,
+  clearCacheByPrefix,
 
   on,
   off,

@@ -133,7 +133,6 @@ export const useAuth = () => {
 
       return result;
     } catch (error) {
-      console.error("Login hook error:", error);
 
       const errorMessage =
         error?.message ||
@@ -214,7 +213,6 @@ export const useAuth = () => {
       try {
         store.checkAuth();
       } catch (error) {
-        console.error("Auth check error:", error);
         logger.error("Auth check failed", {
           error: error?.message || "Unknown error",
         });

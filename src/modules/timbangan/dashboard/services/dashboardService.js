@@ -86,7 +86,7 @@ export const dashboardService = {
       return transformedData;
     } catch (error) {
       logger.error("❌ Failed to fetch dashboard daily data", {
-        error: error.message,
+        error: error.response.data.message,
         params,
       });
 
@@ -94,8 +94,8 @@ export const dashboardService = {
       return {
         success: false,
         data: null,
-        error: error.message,
-        message: error.message || "Gagal mengambil data dashboard",
+        error: error.response.data.message,
+        message: error.response.data.message || "Gagal mengambil data dashboard",
       };
     }
   },
@@ -158,7 +158,7 @@ export const dashboardService = {
       };
     } catch (error) {
       logger.error("❌ Error transforming dashboard data", {
-        error: error.message,
+        error: error.response.data.message,
       });
       throw error;
     }
@@ -179,9 +179,9 @@ export const dashboardService = {
       return { success: true, message: "Cache berhasil dibersihkan" };
     } catch (error) {
       logger.error("❌ Failed to clear dashboard cache", {
-        error: error.message,
+        error: error.response.data.message,
       });
-      return { success: false, error: error.message };
+      return { success: false, error: error.response.data.message };
     }
   },
 };

@@ -149,18 +149,18 @@ const TimbanganInternalPage = () => {
           {
             name: "FOB",
             icon: Bus,
-            roles: [ "super_admin"],
+            roles: ["super_admin"],
             children: [
               {
                 name: "Setting Fleet FOB",
                 icon: Settings,
-                roles: [ "super_admin"],
+                roles: ["super_admin"],
                 locationId: "fleet-fob-setting",
               },
               {
                 name: "Riwayat Fleet FOB",
                 icon: History,
-                roles: [ "super_admin"],
+                roles: ["super_admin"],
                 locationId: "fleet-fob-history",
               },
             ],
@@ -256,12 +256,7 @@ const TimbanganInternalPage = () => {
           },
         ],
       },
-      // {
-      //   name: "Check Point",
-      //   icon: MapPinCheck,
-      //   roles: ["admin", "pic", "evaluator", "super_admin", "operator_jt"],
-      //   locationId: "check-point",
-      // },
+
       {
         name: "Overview",
         icon: BarChart3,

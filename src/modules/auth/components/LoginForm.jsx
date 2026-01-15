@@ -44,7 +44,6 @@ const LoginForm = ({ onSubmit, isLoading, error, clearError }) => {
       }
     } catch (err) {
       setLocalError('An unexpected error occurred. Please try again.');
-      console.error('Login error:', err);
     }
   };
 

@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
 import { Calendar as CalendarIcon, Filter, X } from 'lucide-react';
@@ -9,29 +9,20 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/shared/components/ui/popover';
-import {
-  Select,
-  SelectTrigger,
-  SelectContent,
-  SelectItem,
-  SelectValue,
-} from '@/shared/components/ui/select';
 import { cn } from '@/lib/utils';
 import { showToast } from '@/shared/utils/toast';
-import { getTodayDateRange, validateDateRange, formatDate } from '@/shared/utils/date'; // ✅ ADDED
+import { getTodayDateRange, validateDateRange, formatDate } from '@/shared/utils/date';
+import { getCurrentShift, getShiftOptions, getShiftLabel } from '@/shared/utils/shift';
 
 export const DateRangePicker = ({
   dateRange = {},
+  currentShift,
+  viewingShift,
   isLoading = false,
   onDateRangeChange,
-  shiftOptions = [
-    { value: 'All', label: 'Semua Shift' },
-    { value: 'Shift 1', label: 'Shift 1' },
-    { value: 'Shift 2', label: 'Shift 2' },
-    { value: 'Shift 3', label: 'Shift 3' },
-  ],
 }) => {
-  // ✅ IMPROVED - Use getTodayDateRange utility
+  const shiftOptions = getShiftOptions(true);
+
   const [date, setDate] = useState(() => {
     if (dateRange.from && dateRange.to) {
       return {
@@ -46,9 +37,21 @@ export const DateRangePicker = ({
     };
   });
 
-  const [shift, setShift] = useState(dateRange.shift || 'All');
-  const [isOpen, setIsOpen] = useState(false);
+  const [shift, setShift] = useState(() => {
+    return viewingShift || currentShift || getCurrentShift();
+  });
 
+  const [isOpen, setIsOpen] = useState(false);
+  
+  // ✅ Use ref to track latest shift
+  const shiftRef = useRef(shift);
+  const selectRef = useRef(null);
+  
+  useEffect(() => {
+    shiftRef.current = shift;
+  }, [shift]);
+
+  // Sync dates from parent
   useEffect(() => {
     if (dateRange.from && dateRange.to) {
       setDate({
@@ -58,15 +61,27 @@ export const DateRangePicker = ({
     }
   }, [dateRange.from, dateRange.to]);
 
+  // ✅ Sync shift ONLY when popover opens
+  useEffect(() => {
+    if (isOpen && viewingShift) {
+      setShift(viewingShift);
+    }
+  }, [isOpen]);
+
   const handleSelect = useCallback((selectedRange) => {
     setDate(selectedRange);
   }, []);
 
+  // ✅ FIXED: Immediate update without delay
   const handleShiftChange = useCallback((value) => {
     setShift(value);
-  }, []);
+    shiftRef.current = value; // ✅ Update ref immediately
+  }, [shift]);
 
   const handleApply = useCallback(() => {
+    // ✅ Get latest value from ref
+    const finalShift = shiftRef.current;
+    
     if (!date?.from) {
       showToast.error('Silakan pilih tanggal mulai');
       return;
@@ -77,7 +92,6 @@ export const DateRangePicker = ({
       return;
     }
 
-    // ✅ ADDED - Validate date range
     const startDate = format(date.from, 'yyyy-MM-dd');
     const endDate = format(date.to, 'yyyy-MM-dd');
     
@@ -87,32 +101,37 @@ export const DateRangePicker = ({
       return;
     }
 
-    onDateRangeChange({
+    const payload = {
       startDate,
       endDate,
-      shift,
+      shift: finalShift, // ✅ Use ref value
       from: startDate,
       to: endDate,
-    });
-
+    };
+    
+    
+    onDateRangeChange(payload);
     setIsOpen(false);
-  }, [date, shift, onDateRangeChange]);
+    
+  }, [date, onDateRangeChange, setIsOpen]);
 
-  // ✅ IMPROVED - Use getTodayDateRange utility
   const handleReset = useCallback(() => {
     const today = getTodayDateRange();
+    const resetShift = currentShift || getCurrentShift();
+    
     setDate({ 
       from: new Date(today.from), 
       to: new Date(today.to) 
     });
-    setShift('All');
-  }, []);
+    setShift(resetShift);
+    shiftRef.current = resetShift;
+    
+  }, [currentShift]);
 
-  // ✅ IMPROVED - Use formatDate utility
   const displayText = date?.from
     ? date.to
-      ? `${formatDate(date.from, 'dd MMM yyyy')} - ${formatDate(date.to, 'dd MMM yyyy')} | ${shift === 'All' ? 'Semua Shift' : shift}`
-      : `${formatDate(date.from, 'dd MMM yyyy')} | ${shift === 'All' ? 'Semua Shift' : shift}`
+      ? `${formatDate(date.from, 'dd MMM yyyy')} - ${formatDate(date.to, 'dd MMM yyyy')} | ${getShiftLabel(shift)}`
+      : `${formatDate(date.from, 'dd MMM yyyy')} | ${getShiftLabel(shift)}`
     : 'Pilih tanggal & shift';
 
   return (
@@ -161,24 +180,23 @@ export const DateRangePicker = ({
               <div className="space-y-3">
                 <div>
                   <label className="text-sm font-medium mb-2 block dark:text-gray-200">
-                    Pilih Shift
+                    Pilih Shift: {shift}
                   </label>
-                  <Select value={shift} onValueChange={handleShiftChange} disabled={isLoading}>
-                    <SelectTrigger className="w-full border-none cursor-pointer dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200">
-                      <SelectValue placeholder="Pilih Shift" />
-                    </SelectTrigger>
-                    <SelectContent className="dark:bg-gray-800 dark:border-gray-700 cursor-pointer bg-white border-none">
-                      {shiftOptions.map((opt) => (
-                        <SelectItem 
-                          key={opt.value} 
-                          value={opt.value}
-                          className="cursor-pointer hover:bg-gray-200 dark:text-gray-200 dark:hover:bg-gray-700"
-                        >
-                          {opt.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  
+                  {/* ✅ Native select as fallback for debugging */}
+                  <select
+                    ref={selectRef}
+                    value={shift}
+                    onChange={(e) => handleShiftChange(e.target.value)}
+                    disabled={isLoading}
+                    className="w-full p-2 border rounded cursor-pointer dark:bg-gray-700 dark:text-gray-200"
+                  >
+                    {shiftOptions.map((opt) => (
+                      <option key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
                 <div className="flex gap-2">

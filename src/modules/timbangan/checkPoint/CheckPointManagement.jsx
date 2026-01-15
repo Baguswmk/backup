@@ -214,7 +214,6 @@ const CheckPointManagement = () => {
       setShouldAutoConnect(ports.length > 0);
       setShowInputForm(true);
     } catch (error) {
-      console.warn("⚠️ Failed to check ports:", error.message);
       setShouldAutoConnect(false);
       setShowInputForm(true);
     } finally {
@@ -305,7 +304,6 @@ const CheckPointManagement = () => {
               true
             );
           } catch (error) {
-            console.error("⚠️ Gagal reload data setelah submit:", error);
             addTimbanganEntry(result.data);
           }
 
@@ -325,7 +323,6 @@ const CheckPointManagement = () => {
           showToast.error(result.error || TOAST_MESSAGES.ERROR.SAVE_FAILED);
         }
       } catch (error) {
-        console.error("❌ Error in handleAddShipment:", error);
         showToast.error(TOAST_MESSAGES.ERROR.SAVE_FAILED);
       } finally {
         setIsActionLoading(false);
@@ -373,7 +370,6 @@ const CheckPointManagement = () => {
               true
             );
           } catch (error) {
-            console.error("⚠️ Gagal reload data setelah edit:", error);
             updateTimbanganEntry(editingItem.id, result.data);
           }
         } else {
@@ -410,7 +406,6 @@ const CheckPointManagement = () => {
             true
           );
         } catch (error) {
-          console.error("⚠️ Gagal reload data setelah delete:", error);
           deleteMultipleTimbanganEntries(itemToDelete.ids);
         }
         return;
@@ -433,7 +428,6 @@ const CheckPointManagement = () => {
             true
           );
         } catch (error) {
-          console.error("⚠️ Gagal reload data setelah delete:", error);
           deleteTimbanganEntry(itemToDelete.id);
         }
       } else {
@@ -520,7 +514,6 @@ const CheckPointManagement = () => {
         firstDateRangeSet.current = true;
         setIsFleetInitialized(true);
       } catch (error) {
-        console.error("❌ Initial load error:", error);
         showToast.error(TOAST_MESSAGES.ERROR.LOAD_FAILED);
       } finally {
         setIsInitialLoading(false);

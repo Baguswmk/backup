@@ -4,6 +4,14 @@ import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import MultiSearchableSelect from "@/shared/components/MultiSearchableSelect";
 
+// Default measurement types
+const DEFAULT_MEASUREMENT_TYPES = [
+  { value: "FOB", label: "FOB" },
+  { value: "Timbangan", label: "Timbangan" },
+  { value: "Bypass", label: "Bypass" },
+  { value: "BeltScale", label: "BeltScale" },
+];
+
 const AdvancedFilter = ({
   isExpanded = false,
   dateRange = (() => {
@@ -13,6 +21,9 @@ const AdvancedFilter = ({
   })(),
   onDateRangeChange,
   filterGroups = [],
+  measurementTypes = DEFAULT_MEASUREMENT_TYPES,
+  selectedMeasurementTypes = [],
+  onMeasurementTypeChange,
   isLoading = false,
   hasActiveFilters = false,
   onResetFilters,
@@ -71,6 +82,22 @@ const AdvancedFilter = ({
                   />
                 </div>
               </div>
+            </div>
+          )}
+
+          {/* Measurement Type Filter */}
+          {onMeasurementTypeChange && (
+            <div>
+              <p className="text-sm font-medium mb-2 text-gray-900 dark:text-white">
+                Tipe Pengukuran
+              </p>
+              <MultiSearchableSelect
+                items={measurementTypes}
+                values={selectedMeasurementTypes}
+                onChange={onMeasurementTypeChange}
+                placeholder="Pilih Tipe Pengukuran"
+                disabled={isLoading}
+              />
             </div>
           )}
 

@@ -181,7 +181,7 @@ export const OfflineSyncStatus = () => {
                       size="sm"
                       variant="destructive"
                       onClick={handleClearExecute}
-                      className="flex-1 dark:bg-red-900 dark:hover:bg-red-800"
+                      className="flex-1 dark:bg-red-900 dark:hover:bg-red-800 cursor-pointer"
                     >
                       Ya, Hapus
                     </Button>
@@ -189,7 +189,7 @@ export const OfflineSyncStatus = () => {
                       size="sm"
                       variant="outline"
                       onClick={handleClearCancel}
-                      className="flex-1 dark:border-gray-600 dark:hover:bg-gray-700"
+                      className="flex-1 dark:border-gray-600 dark:hover:bg-gray-700 cursor-pointer"
                     >
                       Batal
                     </Button>
@@ -206,7 +206,7 @@ export const OfflineSyncStatus = () => {
                     size="sm"
                     onClick={handleSync}
                     disabled={!canSync}
-                    className="w-full dark:bg-blue-600 dark:hover:bg-blue-700"
+                    className="w-full dark:bg-blue-600 dark:hover:bg-blue-700 dark:text-gray-200 cursor-pointer"
                   >
                     {syncStatus.isSyncing ? (
                       <>
@@ -228,7 +228,7 @@ export const OfflineSyncStatus = () => {
                     variant="outline"
                     onClick={handleRetry}
                     disabled={!isOnline || syncStatus.isSyncing}
-                    className="w-full dark:border-gray-600 dark:hover:bg-gray-700"
+                    className="w-full dark:border-gray-600 dark:hover:bg-gray-700 dark:text-gray-200 cursor-pointer"
                   >
                     <RefreshCw className="w-4 h-4 mr-2" />
                     Ulangi Gagal ({syncStatus.failedCount})
@@ -241,7 +241,7 @@ export const OfflineSyncStatus = () => {
                     variant="destructive"
                     onClick={handleClearConfirm}
                     disabled={isClearing || syncStatus.isSyncing}
-                    className="w-full dark:bg-red-900 dark:hover:bg-red-800"
+                    className="w-full dark:bg-red-900 dark:hover:bg-red-800 cursor-pointer"
                   >
                     {isClearing ? (
                       <>

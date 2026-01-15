@@ -95,9 +95,9 @@ const DashboardFilters = () => {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="All">Semua Shift</SelectItem>
-              <SelectItem value="Shift 1">Shift 1 (06:00-14:00)</SelectItem>
-              <SelectItem value="Shift 2">Shift 2 (14:00-22:00)</SelectItem>
-              <SelectItem value="Shift 3">Shift 3 (22:00-06:00)</SelectItem>
+              <SelectItem value="Shift 1">Shift 1 (22:00-06:00)</SelectItem>
+              <SelectItem value="Shift 2">Shift 2 (06:00-14:00)</SelectItem>
+              <SelectItem value="Shift 3">Shift 3 (14:00-22:00)</SelectItem>
             </SelectContent>
           </Select>
         </div>

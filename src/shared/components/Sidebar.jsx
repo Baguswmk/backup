@@ -12,7 +12,7 @@ export const Sidebar = ({
   activeMenu,
   setActiveMenu,
   menuItems,
-  isMenuAccessible,
+  isMenuAccessible, 
   extraHeaderContent
 }) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);

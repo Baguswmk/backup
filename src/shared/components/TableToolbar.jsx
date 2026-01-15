@@ -7,6 +7,8 @@ import { useDebouncedValue } from "@/shared/hooks/useDebouncedValue"; // ✅ OPT
 
 const TableToolbar = ({
   dateRange,
+  currentShift,
+  viewingShift,
   onDateRangeChange,
   shiftOptions,
   searchQuery = "",
@@ -22,7 +24,7 @@ const TableToolbar = ({
   onDeleteSelected,
   extraActions,
 }) => {
-  // ✅ IMPROVED - Use useCallback for handlers
+
   const handleSearchChange = useCallback((e) => {
     if (onSearchChange) {
       onSearchChange(e.target.value);
@@ -40,6 +42,8 @@ const TableToolbar = ({
       <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
         <DateRangePicker
           dateRange={dateRange}
+           currentShift={currentShift}
+  viewingShift={viewingShift}
           onDateRangeChange={onDateRangeChange}
           isLoading={isRefreshing}
           shiftOptions={shiftOptions}
