@@ -77,7 +77,6 @@ export const useWeightStability = ({
     
     // ✅ TAMBAHAN: Aktifkan RFID scan saat weight locked
     if (rfidMode && sendWeightStable) {
-      console.log("🔒 Weight locked - Enabling RFID scan");
       sendWeightStable(true);
     }
   };
@@ -206,7 +205,6 @@ export const useWeightStability = ({
       return;
     }
 
-    console.log("🔓 Unlocking weight - Disabling RFID scan");
     
     // ✅ Disable RFID scan saat unlock
     if (rfidMode && sendWeightStable) {
@@ -243,7 +241,6 @@ export const useWeightStability = ({
   const resetWeightState = () => {
     // ✅ Disable RFID scan saat reset
     if (rfidMode && sendWeightStable) {
-      console.log("🔄 Resetting - Disabling RFID scan");
       sendWeightStable(false);
     }
     

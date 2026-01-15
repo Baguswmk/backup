@@ -18,6 +18,7 @@ import {
   TrendingUp,
   Lock,
   Calendar,
+  FileDown,
 } from "lucide-react";
 import Pagination from "@/shared/components/Pagination";
 import LoadingContent from "@/shared/components/LoadingContent";
@@ -70,6 +71,7 @@ export const TimbanganTable = ({
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [filterExpanded, setFilterExpanded] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
 
   const [shifts, setShifts] = useState([]);
   const [excavators, setExcavators] = useState([]);
@@ -404,6 +406,101 @@ export const TimbanganTable = ({
     handleCloseModal();
   };
 
+  const handleExportToExcel = async () => {
+    try {
+      setIsExporting(true);
+
+      const XLSX = await import("xlsx");
+      const exportData = filteredShipments.map((item, index) => ({
+        No: index + 1,
+        Tanggal: formatDate(item.tanggal || item.createdAt || item.timestamp),
+        Shift: getFirstTruthyValue(item, "fleet_shift", "shift"),
+        Waktu: formatTime(item.createdAt || item.timestamp),
+        "Hull No": getFirstTruthyValue(
+          item,
+          "hull_no",
+          "dumptruck",
+          "unit_dump_truck"
+        ),
+        Excavator: getFirstTruthyValue(
+          item,
+          "fleet_excavator",
+          "unit_exca",
+          "excavator"
+        ),
+        "Dump Truck": getFirstTruthyValue(
+          item,
+          "dumptruck",
+          "unit_dump_truck",
+          "hull_no"
+        ),
+        Operator: getFirstTruthyValue(
+          item,
+          "operator",
+          "operator_name",
+          "operatorId"
+        ),
+        "Loading Location": getFirstTruthyValue(
+          item,
+          "fleet_loading",
+          "loading_location",
+          "source"
+        ),
+        "Dumping Location": getFirstTruthyValue(
+          item,
+          "fleet_dumping",
+          "dumping_location",
+          "destination"
+        ),
+        "Net Weight (ton)": parseFloat(
+          item.net_weight || item.tonnage || 0
+        ).toFixed(2),
+        "Gross Weight (ton)": parseFloat(item.gross_weight),
+        "Tare Weight (ton)": parseFloat(item.tare_weight),
+        "Measurement Type": getFirstTruthyValue(
+          item,
+          "measurement_type",
+          "type_measurement"
+        ),
+        "Weigh Bridge": item.weigh_bridge || "-",
+      }));
+
+      const ws = XLSX.utils.json_to_sheet(exportData);
+
+      const columnWidths = [];
+      const headers = Object.keys(exportData[0] || {});
+
+      headers.forEach((header) => {
+        const maxLength = Math.max(
+          header.length,
+          ...exportData.map((row) => {
+            const value = row[header];
+            return value ? String(value).length : 0;
+          })
+        );
+        columnWidths.push({ wch: Math.min(maxLength + 2, 50) });
+      });
+
+      ws["!cols"] = columnWidths;
+
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Data Timbangan");
+
+      const date = new Date();
+      const dateStr = date.toISOString().split("T")[0];
+      const filename = `Timbangan_${dateStr}.xlsx`;
+
+      XLSX.writeFile(wb, filename);
+
+      showToast.success(`Data berhasil diexport ke ${filename}`);
+    } catch (error) {
+      console.error("Export error:", error);
+      showToast.error("Gagal export data ke Excel");
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   return (
     <>
       <Card className="border-none dark:text-gray-200">
@@ -423,21 +520,35 @@ export const TimbanganTable = ({
                   </Badge>
                 )}
               </div>
-              <div className="text-sm text-gray-600">
-                Total:{" "}
-                <span className="font-medium">
-                  {accessibleShipments.length}
-                </span>{" "}
-                data
-                {hasActiveFilters && (
-                  <>
-                    {" "}
-                    • Ditampilkan:{" "}
-                    <span className="font-medium text-blue-600">
-                      {filteredShipments.length}
-                    </span>
-                  </>
-                )}
+              <div className="flex items-center gap-3">
+                <Button
+                  onClick={handleExportToExcel}
+                  disabled={
+                    isLoading || filteredShipments.length === 0 || isExporting
+                  }
+                  variant="outline"
+                  size="sm"
+                  className="gap-2"
+                >
+                  <FileDown className="w-4 h-4" />
+                  {isExporting ? "Exporting..." : "Export Excel"}
+                </Button>
+                <div className="text-sm text-gray-600">
+                  Total:{" "}
+                  <span className="font-medium">
+                    {accessibleShipments.length}
+                  </span>{" "}
+                  data
+                  {hasActiveFilters && (
+                    <>
+                      {" "}
+                      • Ditampilkan:{" "}
+                      <span className="font-medium text-blue-600">
+                        {filteredShipments.length}
+                      </span>
+                    </>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -707,6 +818,9 @@ export const TimbanganTable = ({
                               >
                                 {shift}
                               </Badge>
+                            </td>
+                            <td className="px-4 py-3 text-sm">
+                              <span className="text-xs">{measurementType}</span>
                             </td>
                             {showActions && (
                               <td className="px-4 py-3 text-center">

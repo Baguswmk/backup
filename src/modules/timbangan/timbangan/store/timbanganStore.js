@@ -109,12 +109,10 @@ const initialState = {
     dumptrucks: createEmptyDumptruckSetup(),
   },
 
-  // ✅ LEGACY - kept for backward compatibility
   fleetConfigs: [],
   activeFleetConfigId: null,
   selectedFleetIds: [],
-  
-  // ✅ NEW - Separated by measurement_type
+
   fleetConfigsByType: {
     Timbangan: [],
     Bypass: [],
@@ -127,7 +125,7 @@ const initialState = {
     BeltScale: [],
     FOB: [],
   },
-  
+
   fleetSelectionDateRange: null,
   dtIndex: {},
   dtIndexByType: {
@@ -275,10 +273,10 @@ export const useTimbanganStore = create(
           key,
           () => {
             const state = get();
-            const configs = measurementType 
+            const configs = measurementType
               ? state.fleetConfigsByType[measurementType] || []
               : state.fleetConfigs;
-              
+
             queueIndexRebuild(() => {
               return get()._executeIndexRebuild(configs, measurementType);
             });
@@ -296,8 +294,7 @@ export const useTimbanganStore = create(
         const state = get();
         const rebuildId = Date.now();
 
-        // ✅ Get selected IDs based on measurement type
-        const selectedIds = measurementType 
+        const selectedIds = measurementType
           ? state.selectedFleetIdsByType[measurementType] || []
           : state.selectedFleetIds || [];
 
@@ -308,7 +305,11 @@ export const useTimbanganStore = create(
             selectedIds.includes(cfg.id)
           );
         } else {
-          console.warn(`⚠️ No selected fleets for ${measurementType || 'legacy'}, fallback to ALL ACTIVE fleets`);
+          console.warn(
+            `⚠️ No selected fleets for ${
+              measurementType || "legacy"
+            }, fallback to ALL ACTIVE fleets`
+          );
         }
 
         const idx = {};
@@ -337,7 +338,7 @@ export const useTimbanganStore = create(
               setting_fleet_id: fleetId,
               fleet_name: cfg.name,
               fleet_status: cfg.status,
-              measurement_type: cfg.measurementType, // ✅ ADD
+              measurement_type: cfg.measurementType,
               excavator: cfg.excavator,
               excavatorId: cfg.excavatorId,
               shift: cfg.shift,
@@ -363,7 +364,6 @@ export const useTimbanganStore = create(
           });
         });
 
-        // ✅ Update index by type or legacy
         if (measurementType) {
           set((state) => ({
             dtIndexByType: {
@@ -382,56 +382,55 @@ export const useTimbanganStore = create(
         }
       },
 
-setDumptruckIndexFromConfigs: (configs, measurementType = null) => {
-  if (!Array.isArray(configs)) {
-    console.warn("⚠️ setDumptruckIndexFromConfigs: configs must be array");
-    return;
-  }
+      setDumptruckIndexFromConfigs: (configs, measurementType = null) => {
+        if (!Array.isArray(configs)) {
+          console.warn(
+            "⚠️ setDumptruckIndexFromConfigs: configs must be array"
+          );
+          return;
+        }
 
-  // ✅ CRITICAL: Separate and store by type
-  const byType = {
-    'Timbangan': [],
-    'FOB': [],
-    'Bypass': [],
-    'BeltScale': [],
-  };
+        const byType = {
+          Timbangan: [],
+          FOB: [],
+          Bypass: [],
+          BeltScale: [],
+        };
 
-  configs.forEach(config => {
-    const type = config.measurementType;
-    
-    if (type === 'Timbangan') {
-      byType['Timbangan'].push(config);
-    } else if (type === 'FOB') {
-      byType['FOB'].push(config);
-    } else if (type === 'Bypass') {
-      byType['Bypass'].push(config);
-    } else if (type === 'BeltScale') {
-      byType['BeltScale'].push(config);
-    }
-  });
+        configs.forEach((config) => {
+          const type = config.measurementType;
 
-  // ✅ Set both global and by-type
-  set({ 
-    fleetConfigs: configs,
-    fleetConfigsByType: byType 
-  });
+          if (type === "Timbangan") {
+            byType["Timbangan"].push(config);
+          } else if (type === "FOB") {
+            byType["FOB"].push(config);
+          } else if (type === "Bypass") {
+            byType["Bypass"].push(config);
+          } else if (type === "BeltScale") {
+            byType["BeltScale"].push(config);
+          }
+        });
 
-  const state = get();
-  const selectedIds = measurementType
-    ? state.selectedFleetIdsByType[measurementType] || []
-    : state.selectedFleetIds || [];
+        set({
+          fleetConfigs: configs,
+          fleetConfigsByType: byType,
+        });
 
-  if (selectedIds.length > 0) {
-    get()._executeIndexRebuild(configs, measurementType);
-  } else {
-    get()._scheduleIndexRebuild(measurementType);
-  }
-},
+        const state = get();
+        const selectedIds = measurementType
+          ? state.selectedFleetIdsByType[measurementType] || []
+          : state.selectedFleetIds || [];
 
-      // ✅ NEW: Set fleets by type
+        if (selectedIds.length > 0) {
+          get()._executeIndexRebuild(configs, measurementType);
+        } else {
+          get()._scheduleIndexRebuild(measurementType);
+        }
+      },
+
       setSelectedFleetsByType: (fleetIds, measurementType) => {
         const ids = Array.isArray(fleetIds) ? fleetIds : [];
-        
+
         set((state) => ({
           selectedFleetIdsByType: {
             ...state.selectedFleetIdsByType,
@@ -447,12 +446,10 @@ setDumptruckIndexFromConfigs: (configs, measurementType = null) => {
         }
       },
 
-      // ✅ NEW: Get selected fleets by type
       getSelectedFleetsByType: (measurementType) => {
         return get().selectedFleetIdsByType[measurementType] || [];
       },
 
-      // ✅ LEGACY: Keep for backward compatibility
       setSelectedFleets: (fleetIds) => {
         const ids = Array.isArray(fleetIds) ? fleetIds : [];
         set({ selectedFleetIds: ids });
@@ -504,12 +501,10 @@ setDumptruckIndexFromConfigs: (configs, measurementType = null) => {
         );
       },
 
-      // ✅ UPDATED: Find by hull_no with measurement type support
       findByHullNo: (hullNo, includeHidden = false, measurementType = null) => {
         const state = get();
-        
-        // Use type-specific index if provided, otherwise legacy
-        const index = measurementType 
+
+        const index = measurementType
           ? state.dtIndexByType[measurementType] || {}
           : state.dtIndex;
 
@@ -542,21 +537,26 @@ setDumptruckIndexFromConfigs: (configs, measurementType = null) => {
           };
 
           const measurementType = newConfig.measurementType;
-          
-          // ✅ Update by type
+
           if (measurementType && state.fleetConfigsByType[measurementType]) {
-            const updatedConfigs = [...state.fleetConfigsByType[measurementType], newConfig];
-            
+            const updatedConfigs = [
+              ...state.fleetConfigsByType[measurementType],
+              newConfig,
+            ];
+
             if (newConfig.status === "ACTIVE") {
               const newSelectedIds = [
-                ...new Set([...state.selectedFleetIdsByType[measurementType], newConfig.id]),
+                ...new Set([
+                  ...state.selectedFleetIdsByType[measurementType],
+                  newConfig.id,
+                ]),
               ];
-              
+
               get().setSelectedFleetsByType(newSelectedIds, measurementType);
             }
-            
+
             get().setDumptruckIndexFromConfigs(updatedConfigs, measurementType);
-            
+
             return {
               fleetConfigsByType: {
                 ...state.fleetConfigsByType,
@@ -564,8 +564,7 @@ setDumptruckIndexFromConfigs: (configs, measurementType = null) => {
               },
             };
           }
-          
-          // ✅ Fallback to legacy
+
           const newConfigs = [...state.fleetConfigs, newConfig];
           if (newConfig.status === "ACTIVE") {
             const newSelectedIds = [
@@ -585,34 +584,49 @@ setDumptruckIndexFromConfigs: (configs, measurementType = null) => {
 
       updateFleetConfig: (configId, updates) =>
         set((state) => {
-          // Find which type this config belongs to
           let foundType = null;
-          for (const [type, configs] of Object.entries(state.fleetConfigsByType)) {
-            if (configs.some(c => c.id === configId)) {
+          for (const [type, configs] of Object.entries(
+            state.fleetConfigsByType
+          )) {
+            if (configs.some((c) => c.id === configId)) {
               foundType = type;
               break;
             }
           }
 
           if (foundType) {
-            const updatedConfigs = state.fleetConfigsByType[foundType].map((config) =>
-              config.id === configId
-                ? { ...config, ...updates, updatedAt: new Date().toISOString() }
-                : config
+            const updatedConfigs = state.fleetConfigsByType[foundType].map(
+              (config) =>
+                config.id === configId
+                  ? {
+                      ...config,
+                      ...updates,
+                      updatedAt: new Date().toISOString(),
+                    }
+                  : config
             );
 
             let newSelectedIds = [...state.selectedFleetIdsByType[foundType]];
             const updatedConfig = updatedConfigs.find((c) => c.id === configId);
 
-            if (updatedConfig?.status === "ACTIVE" && !newSelectedIds.includes(configId)) {
+            if (
+              updatedConfig?.status === "ACTIVE" &&
+              !newSelectedIds.includes(configId)
+            ) {
               newSelectedIds = [...new Set([...newSelectedIds, configId])];
             }
 
-            if (updatedConfig?.status !== "ACTIVE" && newSelectedIds.includes(configId)) {
+            if (
+              updatedConfig?.status !== "ACTIVE" &&
+              newSelectedIds.includes(configId)
+            ) {
               newSelectedIds = newSelectedIds.filter((id) => id !== configId);
             }
 
-            if (newSelectedIds.length !== state.selectedFleetIdsByType[foundType].length) {
+            if (
+              newSelectedIds.length !==
+              state.selectedFleetIdsByType[foundType].length
+            ) {
               get().setSelectedFleetsByType(newSelectedIds, foundType);
             }
             get().setDumptruckIndexFromConfigs(updatedConfigs, foundType);
@@ -629,7 +643,6 @@ setDumptruckIndexFromConfigs: (configs, measurementType = null) => {
             };
           }
 
-          // Legacy fallback
           const newConfigs = state.fleetConfigs.map((config) =>
             config.id === configId
               ? { ...config, ...updates, updatedAt: new Date().toISOString() }
@@ -639,11 +652,17 @@ setDumptruckIndexFromConfigs: (configs, measurementType = null) => {
           let newSelectedIds = [...state.selectedFleetIds];
           const updatedConfig = newConfigs.find((c) => c.id === configId);
 
-          if (updatedConfig?.status === "ACTIVE" && !newSelectedIds.includes(configId)) {
+          if (
+            updatedConfig?.status === "ACTIVE" &&
+            !newSelectedIds.includes(configId)
+          ) {
             newSelectedIds = [...new Set([...newSelectedIds, configId])];
           }
 
-          if (updatedConfig?.status !== "ACTIVE" && newSelectedIds.includes(configId)) {
+          if (
+            updatedConfig?.status !== "ACTIVE" &&
+            newSelectedIds.includes(configId)
+          ) {
             newSelectedIds = newSelectedIds.filter((id) => id !== configId);
           }
 
@@ -660,10 +679,11 @@ setDumptruckIndexFromConfigs: (configs, measurementType = null) => {
 
       deleteFleetConfig: (configId) =>
         set((state) => {
-          // Find which type this config belongs to
           let foundType = null;
-          for (const [type, configs] of Object.entries(state.fleetConfigsByType)) {
-            if (configs.some(c => c.id === configId)) {
+          for (const [type, configs] of Object.entries(
+            state.fleetConfigsByType
+          )) {
+            if (configs.some((c) => c.id === configId)) {
               foundType = type;
               break;
             }
@@ -673,9 +693,9 @@ setDumptruckIndexFromConfigs: (configs, measurementType = null) => {
             const newConfigs = state.fleetConfigsByType[foundType].filter(
               (c) => c.id !== configId
             );
-            const newSelectedFleetIds = state.selectedFleetIdsByType[foundType].filter(
-              (id) => id !== configId
-            );
+            const newSelectedFleetIds = state.selectedFleetIdsByType[
+              foundType
+            ].filter((id) => id !== configId);
 
             get().setDumptruckIndexFromConfigs(newConfigs, foundType);
 
@@ -691,9 +711,10 @@ setDumptruckIndexFromConfigs: (configs, measurementType = null) => {
             };
           }
 
-          // Legacy fallback
           const isActive = state.activeFleetConfigId === configId;
-          const newConfigs = state.fleetConfigs.filter((c) => c.id !== configId);
+          const newConfigs = state.fleetConfigs.filter(
+            (c) => c.id !== configId
+          );
           const newSelectedFleetIds = state.selectedFleetIds.filter(
             (id) => id !== configId
           );
@@ -722,7 +743,8 @@ setDumptruckIndexFromConfigs: (configs, measurementType = null) => {
             throw new Error("User belum login");
           }
 
-          const weighBridgeId = user.weigh_bridge?.id || user.weigh_bridge || null;
+          const weighBridgeId =
+            user.weigh_bridge?.id || user.weigh_bridge || null;
 
           const effectiveDateRange =
             dateRange === null
@@ -745,7 +767,6 @@ setDumptruckIndexFromConfigs: (configs, measurementType = null) => {
           });
 
           if (result.success) {
-            // ✅ Store by measurement type
             if (measurementType) {
               set((state) => ({
                 fleetConfigsByType: {
@@ -756,10 +777,9 @@ setDumptruckIndexFromConfigs: (configs, measurementType = null) => {
                 error: null,
                 lastFetchTimestamp: new Date().toISOString(),
               }));
-              
+
               get().setDumptruckIndexFromConfigs(result.data, measurementType);
             } else {
-              // Legacy fallback
               const state = get();
               const existingSelectedIds = state.selectedFleetIds || [];
               const existingSelectedFleets = state.fleetConfigs.filter((f) =>
@@ -1170,7 +1190,7 @@ setDumptruckIndexFromConfigs: (configs, measurementType = null) => {
     {
       name: "timbangan-store",
       version: 1,
-      // storage: encryptedStorage,
+
       partialize: (state) => ({
         selectedFleetIds: state.selectedFleetIds,
         masters: state.masters,

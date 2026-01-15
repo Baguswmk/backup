@@ -2,176 +2,146 @@ import { offlineService } from "@/shared/services/offlineService";
 import { logger } from "@/shared/services/log";
 
 export const beltScaleServices = {
-  /**
-   * Fetch ritase data untuk preview sebelum adjustment
-   * @param {Object} filters - {date, shift, dumping_point}
-   */
-  async fetchRitasesForAdjustment(filters) {
+  async getFleetByBeltscale(params) {
     try {
-      const params = {
-        populate: [
-          "unit_dump_truck",
-          "operator",
-          "setting_fleet",
-          "setting_fleet.unit_exca",
-          "setting_fleet.dumping_location",
-        ],
-        filters: {
-          date: { $eq: filters.date },
-          shift: { $eq: filters.shift },
-        },
-        sort: ["createdAt:asc"],
-        pagination: { pageSize: 1000 },
-      };
+      const { date, shift, dumping_location, user } = params;
 
-      // Filter by dumping point if provided
-      if (filters.dumping_point) {
-        params.filters.dumping_location = { $eq: filters.dumping_point };
+      if (!date) {
+        throw new Error("Tanggal wajib diisi");
+      }
+      if (!shift) {
+        throw new Error("Shift wajib dipilih");
+      }
+      if (!dumping_location) {
+        throw new Error("Dumping location wajib dipilih");
       }
 
-      const response = await offlineService.get("/ritases", { params });
-
-      const ritases = response.data.map((item) => ({
-        id: item.id.toString(),
-        hull_no: item.attributes.unit_dump_truck?.data?.attributes?.hull_no || "-",
-        operator: item.attributes.operator?.data?.attributes?.name || "-",
-        excavator: item.attributes.setting_fleet?.data?.attributes?.unit_exca?.data?.attributes?.hull_no || "-",
-        dumping_location: item.attributes.dumping_location || "-",
-        net_weight_original: parseFloat(item.attributes.net_weight || 0),
-        gross_weight: parseFloat(item.attributes.gross_weight || 0),
-        tare_weight: parseFloat(item.attributes.tare_weight || 0),
-        shift: item.attributes.shift,
-        date: item.attributes.date,
-        createdAt: item.attributes.createdAt,
-      }));
-
-      logger.info("✅ Fetched ritases for adjustment", {
-        count: ritases.length,
-        filters,
+      logger.info("📥 Getting fleet by BeltScale", {
+        date,
+        shift,
+        dumping_location,
       });
 
-      return { success: true, data: ritases };
-    } catch (error) {
-      logger.error("❌ Failed to fetch ritases for adjustment", {
-        error: error.message,
-        filters,
-      });
-      return { success: false, data: [], error: error.message };
-    }
-  },
+      const response = await offlineService.get(
+        "/v1/custom/setting-fleet/beltscale",
+        {
+          params: {
+            date,
+            shift,
+            dumping_location,
+          },
+        }
+      );
 
-  /**
-   * Calculate adjustment preview
-   * @param {Array} ritases - Original ritases
-   * @param {Number} targetNetWeight - Total net weight BeltScale
-   */
-  calculateAdjustment(ritases, targetNetWeight) {
-    if (!ritases || ritases.length === 0) {
-      return { success: false, error: "No ritases to adjust" };
-    }
+      const fleets = response.data || response || [];
 
-    const totalOriginal = ritases.reduce(
-      (sum, r) => sum + r.net_weight_original,
-      0
-    );
-
-    if (totalOriginal === 0) {
-      return { success: false, error: "Total original weight is 0" };
-    }
-
-    // Calculate adjustment factor
-    const adjustmentFactor = targetNetWeight / totalOriginal;
-
-    // Apply adjustment to each ritase
-    const adjusted = ritases.map((ritase) => {
-      const adjustedNetWeight = ritase.net_weight_original * adjustmentFactor;
-      const adjustedGrossWeight = adjustedNetWeight + ritase.tare_weight;
-
-      return {
-        ...ritase,
-        net_weight_adjusted: parseFloat(adjustedNetWeight.toFixed(2)),
-        gross_weight_adjusted: parseFloat(adjustedGrossWeight.toFixed(2)),
-        adjustment_factor: parseFloat(adjustmentFactor.toFixed(4)),
-        difference: parseFloat(
-          (adjustedNetWeight - ritase.net_weight_original).toFixed(2)
+      logger.info("✅ Fleet by BeltScale fetched", {
+        count: fleets.length,
+        total_tonnage: fleets.reduce(
+          (sum, f) => sum + (f.total_tonnage || 0),
+          0
         ),
-      };
-    });
+      });
 
-    const totalAdjusted = adjusted.reduce(
-      (sum, r) => sum + r.net_weight_adjusted,
-      0
-    );
-
-    return {
-      success: true,
-      data: {
-        ritases: adjusted,
-        summary: {
-          total_original: parseFloat(totalOriginal.toFixed(2)),
-          total_adjusted: parseFloat(totalAdjusted.toFixed(2)),
-          target: parseFloat(targetNetWeight),
-          adjustment_factor: parseFloat(adjustmentFactor.toFixed(4)),
-          difference: parseFloat((totalAdjusted - totalOriginal).toFixed(2)),
-          count: ritases.length,
-        },
-      },
-    };
+      return { success: true, data: fleets };
+    } catch (error) {
+      logger.error("❌ Failed to get fleet by BeltScale", {
+        error: error.response.data.message,
+        params,
+      });
+      return { success: false, data: [], error: error.response.data.message };
+    }
   },
 
   /**
-   * Submit BeltScale adjustment
-   * @param {Object} adjustmentData - {date, shift, dumping_point, net_weight_bypass, ritases}
+   * Submit BeltScale adjustment ke backend
+   * Endpoint: /v1/custom/ritase/calculate-beltscale
+   * @param {Object} adjustmentData - {setting_fleet: Array<number>, beltscale: number, created_by_user}
    */
-  async submitBypassAdjustment(adjustmentData) {
+  async submitBeltscaleAdjustment(adjustmentData) {
     try {
+      const { setting_fleet, beltscale, created_by_user } = adjustmentData;
+
+      if (
+        !setting_fleet ||
+        !Array.isArray(setting_fleet) ||
+        setting_fleet.length === 0
+      ) {
+        throw new Error("Setting fleet wajib dipilih (minimal 1)");
+      }
+
+      if (isNaN(beltscale) || beltscale <= 0) {
+        throw new Error("Beltscale tidak valid atau harus lebih dari 0");
+      }
+
       const payload = {
-        date: adjustmentData.date,
-        shift: adjustmentData.shift,
-        dumping_point: adjustmentData.dumping_point,
-        net_weight_bypass: parseFloat(adjustmentData.net_weight_bypass),
-        ritases: adjustmentData.ritases.map((r) => ({
-          id: r.id,
-          net_weight_adjusted: r.net_weight_adjusted,
-          gross_weight_adjusted: r.gross_weight_adjusted,
-        })),
-        created_by_user: adjustmentData.created_by_user || null,
+        setting_fleet: setting_fleet.map((id) => parseInt(id)),
+        beltscale: parseFloat(beltscale),
       };
 
-      logger.info("📤 Submitting BeltScale adjustment", payload);
+      if (created_by_user) {
+        payload.created_by_user = parseInt(created_by_user);
+      }
 
-      // Hit custom endpoint untuk batch update
+      logger.info("📤 Submitting BeltScale adjustment", {
+        fleet_count: payload.setting_fleet.length,
+        beltscale: payload.beltscale,
+      });
+
       const response = await offlineService.post(
-        "/v1/custom/BeltScale-adjustment",
+        "/v1/custom/ritase/calculate-beltscale",
         payload
       );
 
+      const result = response.data || response || [];
+
       logger.info("✅ BeltScale adjustment submitted", {
-        affected: response.data?.affected_count || 0,
+        fleets: result.length,
+        total_tonnage_after: result.reduce(
+          (sum, fleet) => sum + (fleet.total_tonnage || 0),
+          0
+        ),
       });
 
       return {
         success: true,
-        data: response.data,
-        message: `${response.data?.affected_count || 0} ritase berhasil di-adjust`,
+        data: {
+          fleets: result,
+          summary: {
+            beltscale: payload.beltscale,
+            total_after: result.reduce(
+              (sum, fleet) => sum + (fleet.total_tonnage || 0),
+              0
+            ),
+            updated_count: result.length,
+          },
+        },
+        message: `BeltScale adjustment berhasil untuk ${result.length} fleet`,
       };
     } catch (error) {
       logger.error("❌ Failed to submit BeltScale adjustment", {
-        error: error.message,
+        error: error.response.data.message,
       });
       throw error;
     }
   },
 
   /**
-   * Get BeltScale adjustment history
+   * Get BeltScale adjustment history (optional - if you want to show history)
    */
-  async getBypassHistory(filters = {}) {
+  async getBeltscaleHistory(filters = {}) {
     try {
       const params = {
-        filters: {},
+        filters: {
+          measurement_type: { $eq: "BeltScale" },
+        },
         sort: ["createdAt:desc"],
         pagination: { pageSize: 50 },
+        populate: [
+          "setting_fleet",
+          "setting_fleet.unit_exca",
+          "created_by_user",
+        ],
       };
 
       if (filters.startDate) {
@@ -182,16 +152,16 @@ export const beltScaleServices = {
         params.filters.date.$lte = filters.endDate;
       }
 
-      const response = await offlineService.get("/BeltScale-adjustments", {
+      const response = await offlineService.get("/ritases", {
         params,
       });
 
       return { success: true, data: response.data };
     } catch (error) {
       logger.error("❌ Failed to fetch BeltScale history", {
-        error: error.message,
+        error: error.response.data.message,
       });
-      return { success: false, data: [], error: error.message };
+      return { success: false, data: [], error: error.response.data.message };
     }
   },
 };

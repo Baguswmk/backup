@@ -109,7 +109,6 @@ export const useRFIDWebSocket = (options = {}) => {
     socket.on("rfid-detected", (data) => {
       if (!isMountedRef.current) return;
       
-      console.log("📡 RFID Data received:", data);
       
       // ✅ Hanya terima data kalau scan sudah diaktifkan
       if (!scanEnabledRef.current) {
@@ -120,7 +119,6 @@ export const useRFIDWebSocket = (options = {}) => {
         return;
       }
       
-      console.log("✅ RFID data diterima - Scan aktif");
       setLastScan(data); 
       onRfidScan?.(data); 
     });
@@ -196,11 +194,7 @@ export const useRFIDWebSocket = (options = {}) => {
         return;
       }
 
-      // ✅ Update scan enabled status
       scanEnabledRef.current = isStable;
-      
-      console.log("📤 Sending start-scan:", isStable);
-      console.log("🎯 Scan status:", isStable ? "ENABLED" : "DISABLED");
       
       socketRef.current.emit("start-scan", isStable);
     },

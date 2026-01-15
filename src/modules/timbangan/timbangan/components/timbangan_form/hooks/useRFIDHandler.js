@@ -20,7 +20,6 @@ export const useRFIDHandler = ({
   const [autoSubmitting, setAutoSubmitting] = useState(false);
 
   const handleRfidScanFromBackend = (scanData) => {
-    console.log("📡 RFID Scan Data received:", scanData);
     
     if (!scanData) {
       console.warn("⚠️ Invalid scan data - data is null/undefined");
@@ -40,23 +39,10 @@ export const useRFIDHandler = ({
 
     if (!epcValue) {
       console.warn("⚠️ Invalid scan data - EPC value not found");
-      console.log("Received data:", scanData);
       return;
     }
 
-    console.log("🔍 Searching for EPC:", epcValue);
     setLastRfidEpc(epcValue);
-
-    // ✅ FIXED: Find match in dtIndex dengan logging
-    // const match = Object.values(dtIndex).find(
-    //   (dt) => {
-    //     const isMatch = dt.rfid_uid === epcValue || dt.rfid_epc === epcValue;
-    //     if (isMatch) {
-    //       console.log("✅ Match found:", dt.hull_no);
-    //     }
-    //     return isMatch;
-    //   }
-    // );
 
     const match = Object.values(dtIndex).find(
       (dt) => dt.rfid === epcValue
@@ -64,12 +50,6 @@ export const useRFIDHandler = ({
 
     if (!match) {
       console.warn("❌ RFID not found in dtIndex:", epcValue);
-      console.log("Available RFIDs:", Object.values(dtIndex).map(dt => ({
-        hull_no: dt.hull_no,
-        rfid_uid: dt.rfid_uid,
-        rfid_epc: dt.rfid_epc
-      })));
-      
       setRfidMatchStatus({
         success: false,
         message: "RFID tidak terdaftar di fleet aktif",
@@ -80,11 +60,6 @@ export const useRFIDHandler = ({
       return;
     }
 
-    console.log("✅ RFID Match found:", {
-      hull_no: match.hull_no,
-      operator: match.operator_name,
-      fleet: match.fleet_name,
-    });
 
     updateField("rfid", epcValue);
 
@@ -106,11 +81,8 @@ export const useRFIDHandler = ({
 
     // Auto-submit if weight is locked and form is valid
     if (insertedWeight !== null && isValid) {
-      console.log("🚀 Triggering auto-submit...");
       handleAutoSubmitAfterRFID();
-    } else {
-      console.log("⏳ Waiting for form to be valid before auto-submit");
-    }
+    } 
   };
 
   // Auto-submit after RFID
@@ -123,11 +95,9 @@ export const useRFIDHandler = ({
     setAutoSubmitting(true);
 
     try {
-      console.log("📤 Auto-submitting form...");
       const result = await handleSubmit();
 
       if (result.success && onSubmit) {
-        console.log("✅ Auto-submit successful");
         onSubmit(result);
 
         // Reset for next ritase
@@ -181,7 +151,7 @@ export const useRFIDHandler = ({
     reconnectRfid,
     setRfidWaitingSubmit,
     sendWeightStable,
-    
+
     //dtmode
     // rfidMode: false,
     // rfidConnected: false,

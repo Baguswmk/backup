@@ -1,28 +1,36 @@
 import React, { useState, useMemo } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/shared/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/shared/components/ui/card";
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
 import { Label } from "@/shared/components/ui/label";
 import { Alert, AlertDescription } from "@/shared/components/ui/alert";
 import { Badge } from "@/shared/components/ui/badge";
+import { Checkbox } from "@/shared/components/ui/checkbox";
 import SearchableSelect from "@/shared/components/SearchableSelect";
 import {
   Calendar as CalendarIcon,
   AlertCircle,
   TrendingUp,
-  TrendingDown,
   Loader2,
   Eye,
   Save,
   RotateCcw,
   CheckCircle2,
-  XCircle,
   Edit3,
   X,
 } from "lucide-react";
 import { format } from "date-fns";
 import { id as localeId } from "date-fns/locale";
-import { Popover, PopoverContent, PopoverTrigger } from "@/shared/components/ui/popover";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/shared/components/ui/popover";
 import { Calendar } from "@/shared/components/ui/calendar";
 import { beltScaleServices } from "@/modules/timbangan/timbangan/services/beltscaleServices";
 import { useFleet } from "@/modules/timbangan/fleet/hooks/useFleet";
@@ -30,36 +38,27 @@ import useAuthStore from "@/modules/auth/store/authStore";
 import { formatWeight } from "@/shared/utils/number";
 import { showToast } from "@/shared/utils/toast";
 
-const BypassAdjustmentForm = ({ onSubmit, isSubmitting = false }) => {
+const BeltScaleAdjustmentForm = ({ onSubmit, isSubmitting = false }) => {
   const { user } = useAuthStore();
   const { masters } = useFleet(user ? { user } : null);
 
-  // Form State
   const [formData, setFormData] = useState({
     date: format(new Date(), "yyyy-MM-dd"),
     shift: "",
-    dumping_point: "",
+    dumping_location: "",
   });
 
-  // Preview State
   const [isLoadingPreview, setIsLoadingPreview] = useState(false);
-  const [previewRitases, setPreviewRitases] = useState([]);
+  const [fleetList, setFleetList] = useState([]);
   const [showPreview, setShowPreview] = useState(false);
+  const [selectedFleetIds, setSelectedFleetIds] = useState([]);
 
-  // Adjustment Modal State
   const [showAdjustModal, setShowAdjustModal] = useState(false);
-  const [selectedFleet, setSelectedFleet] = useState(null);
   const [beltscaleWeight, setBeltscaleWeight] = useState("");
-  const [adjustmentPreview, setAdjustmentPreview] = useState(null);
+  const [isSubmittingAdjustment, setIsSubmittingAdjustment] = useState(false);
 
-  // Confirmation Modal State
-  const [showConfirmModal, setShowConfirmModal] = useState(false);
-  const [finalAdjustmentData, setFinalAdjustmentData] = useState(null);
-
-  // Validation
   const [errors, setErrors] = useState({});
 
-  // Options
   const shiftOptions = useMemo(() => {
     return (masters.shifts || []).map((s) => ({
       value: s.name,
@@ -70,40 +69,23 @@ const BypassAdjustmentForm = ({ onSubmit, isSubmitting = false }) => {
 
   const dumpingLocationOptions = useMemo(() => {
     return (masters.dumpingLocations || []).map((loc) => ({
-      value: loc.name,
+      value: loc.id,
       label: loc.name,
       hint: loc.type,
     }));
   }, [masters.dumpingLocations]);
 
-  // Group ritases by setting_fleet (excavator)
-  const groupedFleets = useMemo(() => {
-    if (!previewRitases || previewRitases.length === 0) return [];
+  const selectedFleetData = useMemo(() => {
+    return fleetList.filter((fleet) => selectedFleetIds.includes(fleet.id));
+  }, [fleetList, selectedFleetIds]);
 
-    const groups = {};
-    previewRitases.forEach((ritase) => {
-      const key = `${ritase.excavator}_${ritase.dumping_location}`;
-      if (!groups[key]) {
-        groups[key] = {
-          excavator: ritase.excavator,
-          dumping_location: ritase.dumping_location,
-          ritases: [],
-          total_original: 0,
-          dump_trucks: new Set(),
-        };
-      }
-      groups[key].ritases.push(ritase);
-      groups[key].total_original += ritase.net_weight_original;
-      groups[key].dump_trucks.add(ritase.hull_no);
-    });
+  const totalTonnage = useMemo(() => {
+    return selectedFleetData.reduce(
+      (sum, fleet) => sum + (fleet.total_tonnage || 0),
+      0
+    );
+  }, [selectedFleetData]);
 
-    return Object.values(groups).map((group) => ({
-      ...group,
-      dump_trucks: Array.from(group.dump_trucks),
-    }));
-  }, [previewRitases]);
-
-  // Update field
   const updateField = (field, value) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
     setErrors((prev) => {
@@ -112,19 +94,18 @@ const BypassAdjustmentForm = ({ onSubmit, isSubmitting = false }) => {
     });
   };
 
-  // Validate form
   const validateForm = () => {
     const newErrors = {};
 
     if (!formData.date) newErrors.date = "Tanggal wajib diisi";
     if (!formData.shift) newErrors.shift = "Shift wajib dipilih";
-    if (!formData.dumping_point) newErrors.dumping_point = "Dumping point wajib dipilih";
+    if (!formData.dumping_location)
+      newErrors.dumping_location = "Dumping location wajib dipilih";
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
-  // Load preview
   const handleLoadPreview = async () => {
     if (!validateForm()) {
       showToast.error("Mohon lengkapi form terlebih dahulu");
@@ -134,26 +115,30 @@ const BypassAdjustmentForm = ({ onSubmit, isSubmitting = false }) => {
     setIsLoadingPreview(true);
 
     try {
-      const result = await beltScaleServices.fetchRitasesForAdjustment({
+      const result = await beltScaleServices.getFleetByBeltscale({
         date: formData.date,
         shift: formData.shift,
-        dumping_point: formData.dumping_point,
+        dumping_location: formData.dumping_location,
+        user,
       });
 
       if (!result.success) {
-        throw new Error(result.error || "Gagal memuat data ritase");
+        throw new Error(result.error || "Gagal memuat data fleet");
       }
 
       if (result.data.length === 0) {
-        showToast.warning("Tidak ada data ritase untuk filter yang dipilih");
-        setPreviewRitases([]);
+        showToast.warning("Tidak ada data fleet untuk filter yang dipilih");
+        setFleetList([]);
         setShowPreview(false);
+        setSelectedFleetIds([]);
         return;
       }
 
-      setPreviewRitases(result.data);
+      setFleetList(result.data);
+
+      setSelectedFleetIds(result.data.map((fleet) => fleet.id));
       setShowPreview(true);
-      showToast.success(`Preview loaded: ${result.data.length} ritase`);
+      showToast.success(`Preview loaded: ${result.data.length} fleet`);
     } catch (error) {
       showToast.error(error.message || "Gagal memuat preview");
       console.error("Preview error:", error);
@@ -162,83 +147,64 @@ const BypassAdjustmentForm = ({ onSubmit, isSubmitting = false }) => {
     }
   };
 
-  // Handle adjust fleet
-  const handleAdjustFleet = (fleet) => {
-    setSelectedFleet(fleet);
+  const handleToggleFleet = (fleetId) => {
+    setSelectedFleetIds((prev) => {
+      if (prev.includes(fleetId)) {
+        return prev.filter((id) => id !== fleetId);
+      } else {
+        return [...prev, fleetId];
+      }
+    });
+  };
+
+  const handleToggleSelectAll = () => {
+    if (selectedFleetIds.length === fleetList.length) {
+      setSelectedFleetIds([]);
+    } else {
+      setSelectedFleetIds(fleetList.map((fleet) => fleet.id));
+    }
+  };
+
+  const handleOpenAdjustModal = () => {
+    if (selectedFleetIds.length === 0) {
+      showToast.error("Pilih minimal 1 fleet untuk di-adjust");
+      return;
+    }
     setBeltscaleWeight("");
-    setAdjustmentPreview(null);
     setShowAdjustModal(true);
   };
 
-  // Calculate adjustment when beltscale weight changes
-  const calculateAdjustmentPreview = (weight) => {
-    if (!selectedFleet || !weight || parseFloat(weight) <= 0) {
-      setAdjustmentPreview(null);
-      return;
-    }
-
-    const adjustment = beltScaleServices.calculateAdjustment(
-      selectedFleet.ritases,
-      parseFloat(weight)
-    );
-
-    if (adjustment.success) {
-      setAdjustmentPreview(adjustment.data);
-    }
-  };
-
-  // Handle beltscale weight change
   const handleBeltscaleWeightChange = (value) => {
     setBeltscaleWeight(value);
-    calculateAdjustmentPreview(value);
   };
 
-  // Handle save from adjust modal
-  const handleSaveAdjustment = () => {
+  const handleSubmitAdjustment = async () => {
     if (!beltscaleWeight || parseFloat(beltscaleWeight) <= 0) {
-      showToast.error("Net weight BeltScale harus lebih dari 0");
+      showToast.error("Beltscale weight harus lebih dari 0");
       return;
     }
 
-    if (!adjustmentPreview) {
-      showToast.error("Gagal menghitung adjustment");
+    if (selectedFleetIds.length === 0) {
+      showToast.error("Pilih minimal 1 fleet");
       return;
     }
 
-    // Prepare final data
-    setFinalAdjustmentData({
-      ...formData,
-      net_weight_bypass: parseFloat(beltscaleWeight),
-      ritases: adjustmentPreview.ritases,
-      summary: adjustmentPreview.summary,
-      fleet: selectedFleet,
-    });
-
-    // Close adjust modal and show confirmation
-    setShowAdjustModal(false);
-    setShowConfirmModal(true);
-  };
-
-  // Handle final submit
-  const handleFinalSubmit = async () => {
-    if (!finalAdjustmentData) return;
+    setIsSubmittingAdjustment(true);
 
     try {
-      const result = await beltScaleServices.submitBypassAdjustment({
-        date: finalAdjustmentData.date,
-        shift: finalAdjustmentData.shift,
-        dumping_point: finalAdjustmentData.dumping_point,
-        net_weight_bypass: finalAdjustmentData.net_weight_bypass,
-        ritases: finalAdjustmentData.ritases,
+      const result = await beltScaleServices.submitBeltscaleAdjustment({
+        setting_fleet: selectedFleetIds,
+        beltscale: parseFloat(beltscaleWeight),
         created_by_user: user?.id || null,
       });
 
       if (result.success) {
-        showToast.success(result.message || "Adjustment berhasil disimpan");
+        showToast.success(
+          result.message || "BeltScale adjustment berhasil disimpan"
+        );
 
-        // Reset all states
         handleReset();
-        setShowConfirmModal(false);
+        setShowAdjustModal(false);
 
         if (onSubmit) {
           onSubmit(result);
@@ -246,49 +212,51 @@ const BypassAdjustmentForm = ({ onSubmit, isSubmitting = false }) => {
       }
     } catch (error) {
       showToast.error(error.message || "Gagal menyimpan adjustment");
+    } finally {
+      setIsSubmittingAdjustment(false);
     }
   };
 
-  // Reset
   const handleReset = () => {
     setFormData({
       date: format(new Date(), "yyyy-MM-dd"),
       shift: "",
-      dumping_point: "",
+      dumping_location: "",
     });
-    setPreviewRitases([]);
+    setFleetList([]);
     setShowPreview(false);
-    setSelectedFleet(null);
+    setSelectedFleetIds([]);
     setBeltscaleWeight("");
-    setAdjustmentPreview(null);
-    setFinalAdjustmentData(null);
     setErrors({});
   };
 
   return (
     <div className="max-w-6xl mx-auto space-y-6">
       {/* Input Form */}
-      <Card className="border-none">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <CalendarIcon className="w-5 h-5" />
+      <Card className="border border-gray-200 dark:border-gray-700 shadow-sm dark:shadow-lg dark:shadow-gray-900/50 bg-white dark:bg-gray-800">
+        <CardHeader className="border-b border-gray-200 dark:border-gray-700">
+          <CardTitle className="flex items-center gap-2 text-gray-900 dark:text-white">
+            <CalendarIcon className="w-5 h-5 text-blue-600 dark:text-blue-400" />
             Filter Data BeltScale
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-4 pt-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {/* Date */}
             <div>
-              <Label htmlFor="date" className="mb-2">
+              <Label
+                htmlFor="date"
+                className="mb-2 text-gray-700 dark:text-gray-300"
+              >
                 Tanggal *
               </Label>
               <Popover>
                 <PopoverTrigger asChild>
                   <Button
                     variant="ghost"
-                    className="w-full justify-start text-left font-normal bg-gray-200 cursor-pointer"
+                    className="w-full justify-start text-left font-normal bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 border border-gray-300 dark:border-gray-600 cursor-pointer transition-colors text-gray-900 dark:text-gray-100"
                   >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    <CalendarIcon className="mr-2 h-4 w-4 text-gray-600 dark:text-gray-400" />
                     {formData.date
                       ? format(new Date(formData.date), "dd MMMM yyyy", {
                           locale: localeId,
@@ -296,10 +264,15 @@ const BypassAdjustmentForm = ({ onSubmit, isSubmitting = false }) => {
                       : "Pilih tanggal"}
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto p-0 bg-white" align="start">
+                <PopoverContent
+                  className="w-auto p-0 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-lg dark:shadow-xl"
+                  align="start"
+                >
                   <Calendar
                     mode="single"
-                    selected={formData.date ? new Date(formData.date) : undefined}
+                    selected={
+                      formData.date ? new Date(formData.date) : undefined
+                    }
                     onSelect={(date) => {
                       if (date) {
                         updateField("date", format(date, "yyyy-MM-dd"));
@@ -307,18 +280,23 @@ const BypassAdjustmentForm = ({ onSubmit, isSubmitting = false }) => {
                     }}
                     locale={localeId}
                     initialFocus
+                    className="dark:text-gray-100"
                   />
                 </PopoverContent>
               </Popover>
               {errors.date && (
-                <p className="text-sm text-red-500 mt-1">{errors.date}</p>
+                <p className="text-sm text-red-500 dark:text-red-400 mt-1">
+                  {errors.date}
+                </p>
               )}
             </div>
 
             {/* Shift */}
             <div>
-              <Label className="mb-2">Shift *</Label>
-              <div className="bg-gray-200 rounded">
+              <Label className="mb-2 text-gray-700 dark:text-gray-300">
+                Shift *
+              </Label>
+              <div className="bg-gray-100 dark:bg-gray-700 rounded border border-gray-300 dark:border-gray-600">
                 <SearchableSelect
                   items={shiftOptions}
                   value={formData.shift}
@@ -328,38 +306,42 @@ const BypassAdjustmentForm = ({ onSubmit, isSubmitting = false }) => {
                 />
               </div>
               {errors.shift && (
-                <p className="text-sm text-red-500 mt-1">{errors.shift}</p>
+                <p className="text-sm text-red-500 dark:text-red-400 mt-1">
+                  {errors.shift}
+                </p>
               )}
             </div>
 
-            {/* Dumping Point */}
+            {/* Dumping Location */}
             <div>
-              <Label className="mb-2">Dumping Point *</Label>
-              <div className="bg-gray-200 rounded">
+              <Label className="mb-2 text-gray-700 dark:text-gray-300">
+                Dumping Location *
+              </Label>
+              <div className="bg-gray-100 dark:bg-gray-700 rounded border border-gray-300 dark:border-gray-600">
                 <SearchableSelect
                   items={dumpingLocationOptions}
-                  value={formData.dumping_point}
-                  onChange={(value) => updateField("dumping_point", value)}
-                  placeholder="Pilih dumping point..."
-                  error={!!errors.dumping_point}
+                  value={formData.dumping_location}
+                  onChange={(value) => updateField("dumping_location", value)}
+                  placeholder="Pilih dumping location..."
+                  error={!!errors.dumping_location}
                 />
               </div>
-              {errors.dumping_point && (
-                <p className="text-sm text-red-500 mt-1">
-                  {errors.dumping_point}
+              {errors.dumping_location && (
+                <p className="text-sm text-red-500 dark:text-red-400 mt-1">
+                  {errors.dumping_location}
                 </p>
               )}
             </div>
           </div>
 
           {/* Actions */}
-          <div className="flex items-center justify-end gap-2 pt-4">
+          <div className="flex items-center justify-end gap-2 pt-4 border-t border-gray-200 dark:border-gray-700">
             <Button
               type="button"
               variant="ghost"
               onClick={handleReset}
               disabled={isLoadingPreview}
-              className="cursor-pointer hover:bg-gray-200"
+              className="cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-700 dark:text-gray-300 transition-colors"
             >
               <RotateCcw className="w-4 h-4 mr-2" />
               Reset
@@ -369,7 +351,7 @@ const BypassAdjustmentForm = ({ onSubmit, isSubmitting = false }) => {
               type="button"
               onClick={handleLoadPreview}
               disabled={isLoadingPreview}
-              className="cursor-pointer hover:bg-gray-200"
+              className="cursor-pointer bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-700 text-white transition-colors"
             >
               {isLoadingPreview ? (
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -382,82 +364,141 @@ const BypassAdjustmentForm = ({ onSubmit, isSubmitting = false }) => {
         </CardContent>
       </Card>
 
-      {/* Preview Section - Grouped by Fleet */}
-      {showPreview && groupedFleets.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">
-              Data Setting Fleet & Dump Truck
+      {/* Preview Section - Fleet List */}
+      {showPreview && fleetList.length > 0 && (
+        <Card className="border border-gray-200 dark:border-gray-700 shadow-sm dark:shadow-lg dark:shadow-gray-900/50 bg-white dark:bg-gray-800">
+          <CardHeader className="flex flex-row items-center justify-between border-b border-gray-200 dark:border-gray-700">
+            <CardTitle className="text-base text-gray-900 dark:text-white">
+              Data Setting Fleet ({selectedFleetIds.length} / {fleetList.length}{" "}
+              dipilih)
             </CardTitle>
+            <div className="flex items-center gap-3">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleToggleSelectAll}
+                className="cursor-pointer border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-gray-300 transition-colors"
+              >
+                <Checkbox
+                  checked={selectedFleetIds.length === fleetList.length}
+                  className="mr-2"
+                />
+                Select All
+              </Button>
+              <Button
+                onClick={handleOpenAdjustModal}
+                disabled={selectedFleetIds.length === 0}
+                className="cursor-pointer bg-green-600 hover:bg-green-700 dark:bg-green-600 dark:hover:bg-green-700 text-white transition-colors disabled:bg-gray-300 dark:disabled:bg-gray-700"
+              >
+                <Edit3 className="w-4 h-4 mr-2" />
+                Adjustment ({selectedFleetIds.length})
+              </Button>
+            </div>
           </CardHeader>
-          <CardContent>
+          <CardContent className="p-0">
             <div className="overflow-x-auto">
               <table className="w-full table-auto">
-                <thead className="bg-gray-50">
+                <thead className="bg-gray-50 dark:bg-gray-900/50 border-b border-gray-200 dark:border-gray-700">
                   <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-600">
+                    <th className="px-4 py-3 text-center">
+                      <Checkbox
+                        checked={selectedFleetIds.length === fleetList.length}
+                        onCheckedChange={handleToggleSelectAll}
+                      />
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 dark:text-gray-300 uppercase tracking-wider">
+                      Tanggal
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 dark:text-gray-300 uppercase tracking-wider">
+                      Shift
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 dark:text-gray-300 uppercase tracking-wider">
                       Excavator
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-600">
-                      Dumping Location
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 dark:text-gray-300 uppercase tracking-wider">
+                      Loading
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-600">
-                      Dump Trucks
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 dark:text-gray-300 uppercase tracking-wider">
+                      Dumping
                     </th>
-                    <th className="px-4 py-3 text-center text-xs font-medium text-gray-600">
-                      Jumlah Ritase
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 dark:text-gray-300 uppercase tracking-wider">
+                      Coal Type
                     </th>
-                    <th className="px-4 py-3 text-center text-xs font-medium text-gray-600">
-                      Total Net Weight (ton)
+                    <th className="px-4 py-3 text-center text-xs font-medium text-gray-600 dark:text-gray-300 uppercase tracking-wider">
+                      Jarak (km)
                     </th>
-                    <th className="px-4 py-3 text-center text-xs font-medium text-gray-600">
-                      Action
+                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-600 dark:text-gray-300 uppercase tracking-wider">
+                      Total Tonnage
                     </th>
                   </tr>
                 </thead>
-                <tbody>
-                  {groupedFleets.map((fleet, index) => (
-                    <tr key={index} className="border-b hover:bg-gray-50">
+                <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                  {fleetList.map((fleet) => (
+                    <tr
+                      key={fleet.id}
+                      className={`transition-colors ${
+                        selectedFleetIds.includes(fleet.id)
+                          ? "bg-blue-50 dark:bg-blue-950/30"
+                          : "hover:bg-gray-50 dark:hover:bg-gray-700/50"
+                      }`}
+                    >
+                      <td className="px-4 py-3 text-center">
+                        <Checkbox
+                          checked={selectedFleetIds.includes(fleet.id)}
+                          onCheckedChange={() => handleToggleFleet(fleet.id)}
+                        />
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">
+                        {fleet.date
+                          ? format(new Date(fleet.date), "dd MMM yyyy", {
+                              locale: localeId,
+                            })
+                          : "-"}
+                      </td>
                       <td className="px-4 py-3">
-                        <Badge variant="outline" className="font-semibold">
-                          {fleet.excavator}
+                        <Badge
+                          variant="outline"
+                          className="dark:text-gray-300 dark:border-gray-600"
+                        >
+                          {fleet.shift || "-"}
                         </Badge>
                       </td>
-                      <td className="px-4 py-3 text-sm">{fleet.dumping_location}</td>
                       <td className="px-4 py-3">
-                        <div className="flex flex-wrap gap-1">
-                          {fleet.dump_trucks.map((truck, idx) => (
-                            <Badge
-                              key={idx}
-                              variant="secondary"
-                              className="text-xs"
-                            >
-                              {truck}
-                            </Badge>
-                          ))}
-                        </div>
+                        <Badge className="font-semibold bg-blue-600 dark:bg-blue-600 text-white">
+                          {fleet.unit_exca || "-"}
+                        </Badge>
                       </td>
-                      <td className="px-4 py-3 text-center">
-                        <span className="font-bold text-blue-600">
-                          {fleet.ritases.length}
-                        </span>
+                      <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">
+                        {fleet.loading_location || "-"}
                       </td>
-                      <td className="px-4 py-3 text-center font-medium">
-                        {formatWeight(fleet.total_original)}
+                      <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">
+                        {fleet.dumping_location || "-"}
                       </td>
-                      <td className="px-4 py-3 text-center">
-                        <Button
-                          size="sm"
-                          onClick={() => handleAdjustFleet(fleet)}
-                          className="cursor-pointer"
-                        >
-                          <Edit3 className="w-3 h-3 mr-1" />
-                          Adjust
-                        </Button>
+                      <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">
+                        {fleet.coal_type || "-"}
+                      </td>
+                      <td className="px-4 py-3 text-center text-sm text-gray-900 dark:text-gray-100">
+                        {fleet.distance || 0}
+                      </td>
+                      <td className="px-4 py-3 text-right font-bold text-blue-600 dark:text-blue-400">
+                        {formatWeight(fleet.total_tonnage || 0)} ton
                       </td>
                     </tr>
                   ))}
                 </tbody>
+                <tfoot className="bg-gray-100 dark:bg-gray-900/50 font-bold border-t-2 border-gray-300 dark:border-gray-600">
+                  <tr>
+                    <td
+                      colSpan="8"
+                      className="px-4 py-3 text-right text-gray-900 dark:text-gray-200"
+                    >
+                      Total Tonnage (Selected):
+                    </td>
+                    <td className="px-4 py-3 text-right text-lg text-green-600 dark:text-green-400">
+                      {formatWeight(totalTonnage)} ton
+                    </td>
+                  </tr>
+                </tfoot>
               </table>
             </div>
           </CardContent>
@@ -466,64 +507,92 @@ const BypassAdjustmentForm = ({ onSubmit, isSubmitting = false }) => {
 
       {/* Help Info */}
       {!showPreview && (
-        <Alert>
-          <AlertCircle className="w-4 h-4" />
-          <AlertDescription>
+        <Alert className="border-blue-200 bg-blue-50 dark:bg-blue-950/50 dark:border-blue-800/50">
+          <AlertCircle className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+          <AlertDescription className="text-gray-900 dark:text-gray-100">
             <p className="font-medium mb-2">Cara Penggunaan:</p>
-            <ol className="text-sm space-y-1 ml-4 list-decimal">
-              <li>Pilih tanggal, shift, dan dumping point</li>
+            <ol className="text-sm space-y-1 ml-4 list-decimal text-gray-700 dark:text-gray-300">
+              <li>Pilih tanggal, shift, dan dumping location</li>
               <li>Klik "Load Preview" untuk melihat data setting fleet</li>
-              <li>Pilih fleet yang ingin di-adjust dengan klik tombol "Adjust"</li>
-              <li>Input net weight BeltScale pada popup</li>
-              <li>Review dan konfirmasi adjustment</li>
+              <li>
+                Pilih fleet mana saja yang ingin di-adjust (default: semua fleet
+                dipilih)
+              </li>
+              <li>Klik tombol "Adjustment" untuk input net weight BeltScale</li>
+              <li>Konfirmasi dan submit adjustment</li>
             </ol>
           </AlertDescription>
         </Alert>
       )}
 
       {/* Modal: Input Net Weight BeltScale */}
-      {showAdjustModal && selectedFleet && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-          <Card className="max-w-3xl w-full max-h-[90vh] overflow-auto">
-            <CardHeader className="sticky top-0 bg-white z-10 border-b">
+      {showAdjustModal && (
+        <div className="fixed inset-0 bg-black/50 dark:bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 transition-all">
+          <Card className="max-w-2xl w-full max-h-[90vh] overflow-auto shadow-2xl dark:shadow-gray-900/50 border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
+            <CardHeader className="sticky top-0 bg-white dark:bg-gray-800 z-10 border-b border-gray-200 dark:border-gray-700">
               <div className="flex items-center justify-between">
-                <CardTitle className="flex items-center gap-2">
-                  <TrendingUp className="w-5 h-5" />
+                <CardTitle className="flex items-center gap-2 text-gray-900 dark:text-white">
+                  <TrendingUp className="w-5 h-5 text-green-600 dark:text-green-400" />
                   Input Net Weight BeltScale
                 </CardTitle>
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={() => setShowAdjustModal(false)}
-                  className="h-8 w-8 p-0"
+                  className="h-8 w-8 p-0 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400 transition-colors"
                 >
                   <X className="h-4 w-4" />
                 </Button>
               </div>
             </CardHeader>
             <CardContent className="space-y-4 pt-4">
-              {/* Fleet Info */}
-              <Alert className="border-blue-200 bg-blue-50">
+              {/* Summary Info */}
+              <Alert className="border-blue-200 bg-blue-50 dark:bg-blue-950/50 dark:border-blue-800/50">
                 <AlertDescription>
                   <div className="grid grid-cols-2 gap-3 text-sm">
                     <div className="flex justify-between">
-                      <span className="font-medium">Excavator:</span>
-                      <Badge variant="outline">{selectedFleet.excavator}</Badge>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="font-medium">Dumping Point:</span>
-                      <span>{selectedFleet.dumping_location}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="font-medium">Jumlah Ritase:</span>
-                      <span className="font-bold text-blue-600">
-                        {selectedFleet.ritases.length}
+                      <span className="font-medium text-blue-900 dark:text-blue-200">
+                        Tanggal:
+                      </span>
+                      <span className="text-blue-800 dark:text-blue-100">
+                        {format(new Date(formData.date), "dd MMM yyyy", {
+                          locale: localeId,
+                        })}
                       </span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="font-medium">Total Original:</span>
-                      <span className="font-bold">
-                        {formatWeight(selectedFleet.total_original)} ton
+                      <span className="font-medium text-blue-900 dark:text-blue-200">
+                        Shift:
+                      </span>
+                      <Badge
+                        variant="outline"
+                        className="dark:border-blue-600 dark:text-blue-300"
+                      >
+                        {formData.shift}
+                      </Badge>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="font-medium text-blue-900 dark:text-blue-200">
+                        Dumping:
+                      </span>
+                      <span className="text-blue-800 dark:text-blue-100">
+                        {formData.dumping_location}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="font-medium text-blue-900 dark:text-blue-200">
+                        Fleet Selected:
+                      </span>
+                      <span className="font-bold text-blue-600 dark:text-blue-400">
+                        {selectedFleetIds.length} fleet
+                      </span>
+                    </div>
+                    <div className="flex justify-between col-span-2 pt-2 border-t border-blue-200 dark:border-blue-800">
+                      <span className="font-medium text-blue-900 dark:text-blue-200">
+                        Total Tonnage Original:
+                      </span>
+                      <span className="font-bold text-lg text-blue-800 dark:text-blue-100">
+                        {formatWeight(totalTonnage)} ton
                       </span>
                     </div>
                   </div>
@@ -532,7 +601,10 @@ const BypassAdjustmentForm = ({ onSubmit, isSubmitting = false }) => {
 
               {/* Input Net Weight */}
               <div>
-                <Label htmlFor="beltscale_weight" className="mb-2">
+                <Label
+                  htmlFor="beltscale_weight"
+                  className="mb-2 text-gray-700 dark:text-gray-300"
+                >
                   Net Weight BeltScale (ton) *
                 </Label>
                 <Input
@@ -547,260 +619,83 @@ const BypassAdjustmentForm = ({ onSubmit, isSubmitting = false }) => {
                     }
                   }}
                   placeholder="0.00"
-                  className="text-lg font-semibold"
+                  className="text-lg font-semibold bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100 focus:border-blue-500 dark:focus:border-blue-400"
                 />
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  Masukkan total berat aktual dari BeltScale
+                </p>
               </div>
 
-              {/* Preview Adjustment Summary */}
-              {adjustmentPreview && (
-                <Alert className="border-green-200 bg-green-50">
-                  <CheckCircle2 className="w-4 h-4 text-green-600" />
+              {/* Preview Difference */}
+              {beltscaleWeight && parseFloat(beltscaleWeight) > 0 && (
+                <Alert
+                  className={`${
+                    parseFloat(beltscaleWeight) > totalTonnage
+                      ? "border-green-200 bg-green-50 dark:bg-green-950/50 dark:border-green-800/50"
+                      : "border-yellow-200 bg-yellow-50 dark:bg-yellow-950/50 dark:border-yellow-800/50"
+                  }`}
+                >
                   <AlertDescription>
-                    <div className="grid grid-cols-2 gap-3 text-sm">
-                      <div className="flex justify-between">
-                        <span>Adjustment Factor:</span>
-                        <Badge variant="outline" className="font-mono">
-                          {adjustmentPreview.summary.adjustment_factor}x
-                        </Badge>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Total After Adjust:</span>
-                        <span className="font-bold text-green-600">
-                          {formatWeight(adjustmentPreview.summary.total_adjusted)}{" "}
-                          ton
-                        </span>
-                      </div>
-                      <div className="flex justify-between col-span-2">
-                        <span>Difference:</span>
-                        <span
-                          className={`font-bold ${
-                            adjustmentPreview.summary.difference >= 0
-                              ? "text-green-600"
-                              : "text-red-600"
-                          }`}
-                        >
-                          {adjustmentPreview.summary.difference >= 0 ? "+" : ""}
-                          {formatWeight(adjustmentPreview.summary.difference)} ton
-                        </span>
-                      </div>
+                    <div className="flex justify-between items-center">
+                      <span className="font-medium text-gray-900 dark:text-gray-100">
+                        Selisih:
+                      </span>
+                      <span
+                        className={`text-xl font-bold ${
+                          parseFloat(beltscaleWeight) > totalTonnage
+                            ? "text-green-600 dark:text-green-400"
+                            : "text-yellow-600 dark:text-yellow-400"
+                        }`}
+                      >
+                        {parseFloat(beltscaleWeight) > totalTonnage ? "+" : ""}
+                        {formatWeight(
+                          parseFloat(beltscaleWeight) - totalTonnage
+                        )}{" "}
+                        ton
+                      </span>
                     </div>
                   </AlertDescription>
                 </Alert>
               )}
 
-              {/* Detail Ritase */}
-              {adjustmentPreview && (
-                <div>
-                  <h4 className="font-semibold mb-2 text-sm">Detail Ritase:</h4>
-                  <div className="max-h-60 overflow-y-auto border rounded">
-                    <table className="w-full text-sm">
-                      <thead className="bg-gray-50 sticky top-0">
-                        <tr>
-                          <th className="px-3 py-2 text-left text-xs">
-                            Hull No
-                          </th>
-                          <th className="px-3 py-2 text-center text-xs">
-                            Original
-                          </th>
-                          <th className="px-3 py-2 text-center text-xs">
-                            Adjusted
-                          </th>
-                          <th className="px-3 py-2 text-center text-xs">
-                            Diff
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {adjustmentPreview.ritases.map((ritase) => (
-                          <tr key={ritase.id} className="border-b">
-                            <td className="px-3 py-2 font-mono font-semibold text-blue-600">
-                              {ritase.hull_no}
-                            </td>
-                            <td className="px-3 py-2 text-center">
-                              {formatWeight(ritase.net_weight_original)}
-                            </td>
-                            <td className="px-3 py-2 text-center font-bold text-green-600">
-                              {formatWeight(ritase.net_weight_adjusted)}
-                            </td>
-                            <td className="px-3 py-2 text-center">
-                              <span
-                                className={`${
-                                  ritase.difference >= 0
-                                    ? "text-green-600"
-                                    : "text-red-600"
-                                }`}
-                              >
-                                {ritase.difference >= 0 ? "+" : ""}
-                                {formatWeight(ritase.difference)}
-                              </span>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              )}
+              {/* Warning */}
+              <Alert className="border-red-200 bg-red-50 dark:bg-red-950/50 dark:border-red-800/50">
+                <AlertCircle className="w-4 h-4 text-red-600 dark:text-red-400" />
+                <AlertDescription className="text-red-800 dark:text-red-200">
+                  <p className="font-medium">Perhatian!</p>
+                  <p className="text-sm mt-1">
+                    Adjustment ini akan mengubah net weight dan gross weight
+                    untuk semua ritase dalam {selectedFleetIds.length} fleet
+                    yang dipilih. Proses ini tidak dapat dibatalkan.
+                  </p>
+                </AlertDescription>
+              </Alert>
 
               {/* Actions */}
-              <div className="flex items-center justify-end gap-2 pt-4 border-t">
+              <div className="flex items-center justify-end gap-2 pt-4 border-t border-gray-200 dark:border-gray-700">
                 <Button
                   variant="outline"
                   onClick={() => setShowAdjustModal(false)}
-                  className="cursor-pointer"
+                  disabled={isSubmittingAdjustment}
+                  className="cursor-pointer border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-gray-300 transition-colors"
                 >
                   Batal
                 </Button>
                 <Button
-                  onClick={handleSaveAdjustment}
+                  onClick={handleSubmitAdjustment}
                   disabled={
                     !beltscaleWeight ||
                     parseFloat(beltscaleWeight) <= 0 ||
-                    !adjustmentPreview
+                    isSubmittingAdjustment
                   }
-                  className="cursor-pointer bg-blue-600 hover:bg-blue-700"
+                  className="cursor-pointer bg-green-600 hover:bg-green-700"
                 >
-                  <Save className="w-4 h-4 mr-2" />
-                  Lanjut ke Konfirmasi
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
-
-      {/* Modal: Confirmation */}
-      {showConfirmModal && finalAdjustmentData && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-          <Card className="max-w-2xl w-full">
-            <CardHeader className="border-b bg-yellow-50">
-              <CardTitle className="flex items-center gap-2 text-yellow-800">
-                <AlertCircle className="w-5 h-5" />
-                Konfirmasi Adjustment
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4 pt-4">
-              <Alert className="border-yellow-200 bg-yellow-50">
-                <AlertDescription>
-                  <p className="font-medium text-yellow-900 mb-2">
-                    Pastikan data berikut sudah benar:
-                  </p>
-                </AlertDescription>
-              </Alert>
-
-              {/* Summary Info */}
-              <div className="space-y-3 text-sm border rounded p-4">
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="flex justify-between">
-                    <span className="font-medium">Tanggal:</span>
-                    <span>
-                      {format(
-                        new Date(finalAdjustmentData.date),
-                        "dd MMMM yyyy",
-                        { locale: localeId }
-                      )}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="font-medium">Shift:</span>
-                    <Badge>{finalAdjustmentData.shift}</Badge>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="font-medium">Dumping Point:</span>
-                    <span>{finalAdjustmentData.dumping_point}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="font-medium">Excavator:</span>
-                    <Badge variant="outline">
-                      {finalAdjustmentData.fleet.excavator}
-                    </Badge>
-                  </div>
-                </div>
-
-                <div className="border-t pt-3 mt-3">
-                  <div className="grid grid-cols-3 gap-3">
-                    <div className="text-center">
-                      <div className="text-xs text-gray-600 mb-1">
-                        Jumlah Ritase
-                      </div>
-                      <div className="text-xl font-bold text-blue-600">
-                        {finalAdjustmentData.summary.count}
-                      </div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-xs text-gray-600 mb-1">
-                        Total Original
-                      </div>
-                      <div className="text-lg font-bold text-gray-700">
-                        {formatWeight(finalAdjustmentData.summary.total_original)}{" "}
-                        ton
-                      </div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-xs text-gray-600 mb-1">
-                        Net Weight BeltScale
-                      </div>
-                      <div className="text-lg font-bold text-green-600">
-                        {formatWeight(finalAdjustmentData.net_weight_bypass)} ton
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="border-t pt-3 mt-3">
-                  <div className="flex justify-between items-center">
-                    <span className="font-medium">Adjustment Factor:</span>
-                    <Badge variant="outline" className="text-base font-mono">
-                      {finalAdjustmentData.summary.adjustment_factor}x
-                    </Badge>
-                  </div>
-                  <div className="flex justify-between items-center mt-2">
-                    <span className="font-medium">Difference:</span>
-                    <span
-                      className={`text-lg font-bold ${
-                        finalAdjustmentData.summary.difference >= 0
-                          ? "text-green-600"
-                          : "text-red-600"
-                      }`}
-                    >
-                      {finalAdjustmentData.summary.difference >= 0 ? "+" : ""}
-                      {formatWeight(finalAdjustmentData.summary.difference)} ton
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              <Alert className="border-red-200 bg-red-50">
-                <AlertCircle className="w-4 h-4 text-red-600" />
-                <AlertDescription className="text-red-800">
-                  <p className="font-medium">
-                    Adjustment ini akan mengubah net weight dan gross weight untuk{" "}
-                    {finalAdjustmentData.summary.count} ritase. Proses ini tidak
-                    dapat dibatalkan.
-                  </p>
-                </AlertDescription>
-              </Alert>
-
-              {/* Actions */}
-              <div className="flex items-center justify-end gap-2 pt-4">
-                <Button
-                  variant="outline"
-                  onClick={() => setShowConfirmModal(false)}
-                  className="cursor-pointer"
-                >
-                  Batal
-                </Button>
-                <Button
-                  onClick={handleFinalSubmit}
-                  disabled={isSubmitting}
-                  className="cursor-pointer bg-red-600 hover:bg-red-700"
-                >
-                  {isSubmitting ? (
+                  {isSubmittingAdjustment ? (
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                   ) : (
                     <CheckCircle2 className="w-4 h-4 mr-2" />
                   )}
-                  Ya, Submit Adjustment
+                  Submit Adjustment
                 </Button>
               </div>
             </CardContent>
@@ -811,4 +706,4 @@ const BypassAdjustmentForm = ({ onSubmit, isSubmitting = false }) => {
   );
 };
 
-export default BypassAdjustmentForm;
+export default BeltScaleAdjustmentForm;

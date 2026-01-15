@@ -18,9 +18,8 @@ import {
   BarChart3,
   ClipboardList,
   Cog,
-  Layers,
   Construction,
-  MapPinCheckInside,
+  MapPinCheck,
   Anvil,
   Bus,
   EggFried,
@@ -40,7 +39,6 @@ import LoginPage from "@/pages/LoginPage";
 import { OfflineProvider } from "@/shared/components/OfflineProvider";
 import { OfflineSyncStatus } from "@/shared/components/OfflineSyncStatus";
 import { queryClient } from "@/shared/config/queryClient";
-import TimbanganBypassManagement from "@/modules/timbangan/timbangan/TimbanganBypassManagement";
 
 const TimbanganInternalPage = () => {
   const { isAuthenticated } = useAuth();
@@ -113,18 +111,18 @@ const TimbanganInternalPage = () => {
           {
             name: "Bypass",
             icon: Flame,
-            roles: ["pic", "evaluator", "admin", "super_admin"],
+            roles: ["pic", "evaluator", "admin", "super_admin", "ccr"],
             children: [
               {
                 name: "Setting Fleet Bypass",
                 icon: Settings,
-                roles: ["pic", "evaluator", "admin", "super_admin"],
+                roles: ["pic", "evaluator", "admin", "super_admin", "ccr"],
                 locationId: "fleet-bypass-setting",
               },
               {
                 name: "Riwayat Fleet Bypass",
                 icon: History,
-                roles: ["pic", "evaluator", "admin", "super_admin"],
+                roles: ["pic", "evaluator", "admin", "super_admin", "ccr"],
                 locationId: "fleet-bypass-history",
               },
             ],
@@ -132,18 +130,18 @@ const TimbanganInternalPage = () => {
           {
             name: "Belt Scale",
             icon: EggFried,
-            roles: ["pic", "evaluator", "admin", "super_admin"],
+            roles: ["pic", "evaluator", "admin", "super_admin", "ccr"],
             children: [
               {
                 name: "Setting Fleet Belt Scale",
                 icon: Settings,
-                roles: ["pic", "evaluator", "admin", "super_admin"],
+                roles: ["pic", "evaluator", "admin", "super_admin", "ccr"],
                 locationId: "fleet-beltscale-setting",
               },
               {
                 name: "Riwayat Fleet Belt Scale",
                 icon: History,
-                roles: ["pic", "evaluator", "admin", "super_admin"],
+                roles: ["pic", "evaluator", "admin", "super_admin", "ccr"],
                 locationId: "fleet-beltscale-history",
               },
             ],
@@ -151,18 +149,18 @@ const TimbanganInternalPage = () => {
           {
             name: "FOB",
             icon: Bus,
-            roles: ["pic", "evaluator", "admin", "super_admin"],
+            roles: [ "super_admin"],
             children: [
               {
                 name: "Setting Fleet FOB",
                 icon: Settings,
-                roles: ["pic", "evaluator", "admin", "super_admin"],
+                roles: [ "super_admin"],
                 locationId: "fleet-fob-setting",
               },
               {
                 name: "Riwayat Fleet FOB",
                 icon: History,
-                roles: ["pic", "evaluator", "admin", "super_admin"],
+                roles: [ "super_admin"],
                 locationId: "fleet-fob-history",
               },
             ],
@@ -245,15 +243,9 @@ const TimbanganInternalPage = () => {
             locationId: "timbangan-internal",
           },
           {
-            name: "Timbangan Bypass",
-            icon: Flame,
-            roles: ["pic", "evaluator", "admin", "super_admin"],
-            locationId: "timbangan-bypass",
-          },
-          {
             name: "Timbangan Belt Scale",
             icon: EggFried,
-            roles: ["pic", "evaluator", "admin", "super_admin"],
+            roles: ["pic", "evaluator", "admin", "super_admin", "ccr"],
             locationId: "timbangan-beltscale",
           },
           {
@@ -264,12 +256,12 @@ const TimbanganInternalPage = () => {
           },
         ],
       },
-      {
-        name: "Check Point",
-        icon: MapPinCheckInside,
-        roles: ["admin", "pic", "evaluator", "super_admin", "operator_jt"],
-        locationId: "check-point",
-      },
+      // {
+      //   name: "Check Point",
+      //   icon: MapPinCheck,
+      //   roles: ["admin", "pic", "evaluator", "super_admin", "operator_jt"],
+      //   locationId: "check-point",
+      // },
       {
         name: "Overview",
         icon: BarChart3,
@@ -285,7 +277,7 @@ const TimbanganInternalPage = () => {
       {
         name: "Master Data",
         icon: Database,
-        roles: ["super_admin", "operator_jt"],
+        roles: ["super_admin", "operator_jt", "ccr"],
         locationId: "master-data",
       },
     ],
@@ -416,71 +408,43 @@ const TimbanganInternalPage = () => {
               )}
             >
               {/* ===== ROUTING SECTION ===== */}
-              
+
               {/* Fleet FOB */}
               {activeMenu === "Setting Fleet FOB" ? (
                 <FleetManagement Type="FOB" />
               ) : activeMenu === "Riwayat Fleet FOB" ? (
                 <FleetHistory Type="FOB" />
-              ) 
-              
-              : activeMenu === "Setting Fleet Timbangan" ? (
+              ) : activeMenu === "Setting Fleet Timbangan" ? (
                 <FleetManagement Type="Timbangan" />
               ) : activeMenu === "Riwayat Fleet Timbangan" ? (
                 <FleetHistory Type="Timbangan" />
-              ) 
-              
-              : activeMenu === "Setting Fleet Bypass" ? (
+              ) : activeMenu === "Setting Fleet Bypass" ? (
                 <FleetManagement Type="Bypass" />
               ) : activeMenu === "Riwayat Fleet Bypass" ? (
                 <FleetHistory Type="Bypass" />
-              ) 
-              
-              : activeMenu === "Setting Fleet Belt Scale" ? (
+              ) : activeMenu === "Setting Fleet Belt Scale" ? (
                 <FleetManagement Type="BeltScale" />
               ) : activeMenu === "Riwayat Fleet Belt Scale" ? (
                 <FleetHistory Type="BeltScale" />
-              ) 
-              
-              : activeMenu === "Setting Dump Truck" ? (
+              ) : activeMenu === "Setting Dump Truck" ? (
                 <DumptruckManagement />
               ) : activeMenu === "Riwayat Dump Truck" ? (
                 <DumpTruckHistory />
-              ) 
-              
-              : activeMenu === "Timbangan Internal" ? (
+              ) : activeMenu === "Timbangan Internal" ? (
                 <TimbanganManagement Type="Internal" />
-              ) 
-              
-              : activeMenu === "Timbangan Bypass" ? (
-                <TimbanganBypassManagement />
-              ) 
-              
-              : activeMenu === "Timbangan Belt Scale" ? (
+              ) : activeMenu === "Timbangan Belt Scale" ? (
                 <TimbanganBeltScaleManagement />
-              ) 
-              
-              : activeMenu === "Timbangan FOB" ? (
+              ) : activeMenu === "Timbangan FOB" ? (
                 <TimbanganManagement Type="FOB" />
-              ) 
-              
-              : activeMenu === "Check Point" ? (
+              ) : activeMenu === "Check Point" ? (
                 <CheckPointManagement />
-              ) 
-              
-              : activeMenu === "Overview" ? (
+              ) : activeMenu === "Overview" ? (
                 <OverviewPage />
-              ) 
-              
-              : activeMenu === "Master Data" ? (
+              ) : activeMenu === "Master Data" ? (
                 <MasterDataManagement />
-              ) 
-              
-              : activeMenu === "Laporan" ? (
+              ) : activeMenu === "Laporan" ? (
                 <LaporanManagement />
-              ) 
-              
-              : (
+              ) : (
                 <div className="flex flex-col items-center justify-center h-full py-16">
                   <div
                     className={cn(

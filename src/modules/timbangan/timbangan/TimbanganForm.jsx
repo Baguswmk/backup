@@ -2,14 +2,19 @@ import React, { useMemo, useState, useEffect, useRef } from "react";
 import { useTimbanganForm } from "@/modules/timbangan/timbangan/hooks/useTimbanganForm";
 import { useTimbanganStore } from "@/modules/timbangan/timbangan/store/timbanganStore";
 import { useWebSerialScale } from "@/shared/hooks/useWebSerialScale";
-import { Card, CardContent, CardHeader, CardTitle } from "@/shared/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/shared/components/ui/card";
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
 import { Label } from "@/shared/components/ui/label";
 import { Alert, AlertDescription } from "@/shared/components/ui/alert";
 import {
   Popover,
-  PopoverContent, 
+  PopoverContent,
   PopoverTrigger,
 } from "@/shared/components/ui/popover";
 import { Badge } from "@/shared/components/ui/badge";
@@ -97,7 +102,7 @@ const TimbanganForm = ({
   const staleCheckIntervalRef = useRef(null);
   const prevWeightRef = useRef(null);
   const updateFieldRef = useRef(updateField);
-  // eslint-disable-next-line react-hooks/purity
+
   const sessionIdRef = useRef(Date.now());
   const connectionTimeoutRef = useRef(null);
   const stableWeightTimerRef = useRef(null);
@@ -250,7 +255,7 @@ const TimbanganForm = ({
     };
   }, [wsConnected, isEditMode, isWeightStale]);
 
-    const handleAutoInsert = (weight) => {
+  const handleAutoInsert = (weight) => {
     const formattedWeight = weight.toFixed(2);
     const now = new Date();
     setInsertedWeight(weight);
@@ -348,8 +353,6 @@ const TimbanganForm = ({
     stableWeightCount,
     waitingForFirstData,
   ]);
-
-
 
   const loadingLocationOptions = useMemo(() => {
     return (masters.loadingLocations || []).map((loc) => ({
@@ -873,46 +876,52 @@ const TimbanganForm = ({
       </Card>
     );
   };
-if (isDeleteMode) {
-  return (
-    <ConfirmDialog
-      isOpen={true}
-      onClose={() => onSubmit?.({ cancelled: true })}
-      onConfirm={handleFormSubmit}
-      title="Konfirmasi Hapus"
-      confirmLabel="Hapus Data"
-      cancelLabel="Batal"
-      variant="destructive"
-      isProcessing={isSubmitting}
-      icon={AlertCircle}
-    >
-      {editingItem && (
-        <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg space-y-2">
-          <div className="flex justify-between text-sm">
-            <span className="text-gray-600 dark:text-gray-400">Waktu:</span>
-            <span className="font-medium dark:text-gray-200">
-              {format(
-                new Date(editingItem.createdAt),
-                "dd MMM yyyy HH:mm:ss",
-                { locale: localeId }
-              )}
-            </span>
+  if (isDeleteMode) {
+    return (
+      <ConfirmDialog
+        isOpen={true}
+        onClose={() => onSubmit?.({ cancelled: true })}
+        onConfirm={handleFormSubmit}
+        title="Konfirmasi Hapus"
+        confirmLabel="Hapus Data"
+        cancelLabel="Batal"
+        variant="destructive"
+        isProcessing={isSubmitting}
+        icon={AlertCircle}
+      >
+        {editingItem && (
+          <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg space-y-2">
+            <div className="flex justify-between text-sm">
+              <span className="text-gray-600 dark:text-gray-400">Waktu:</span>
+              <span className="font-medium dark:text-gray-200">
+                {format(
+                  new Date(editingItem.createdAt),
+                  "dd MMM yyyy HH:mm:ss",
+                  { locale: localeId }
+                )}
+              </span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-gray-600 dark:text-gray-400">
+                No Lambung:
+              </span>
+              <span className="font-medium dark:text-gray-200">
+                {editingItem.hull_no}
+              </span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-gray-600 dark:text-gray-400">
+                Net Weight:
+              </span>
+              <span className="font-medium dark:text-gray-200">
+                {editingItem.gross_weight || "-"} ton
+              </span>
+            </div>
           </div>
-          <div className="flex justify-between text-sm">
-            <span className="text-gray-600 dark:text-gray-400">No Lambung:</span>
-            <span className="font-medium dark:text-gray-200">{editingItem.hull_no}</span>
-          </div>
-          <div className="flex justify-between text-sm">
-            <span className="text-gray-600 dark:text-gray-400">Net Weight:</span>
-            <span className="font-medium dark:text-gray-200">
-              {editingItem.gross_weight || "-"} ton
-            </span>
-          </div>
-        </div>
-      )}
-    </ConfirmDialog>
-  );
-}
+        )}
+      </ConfirmDialog>
+    );
+  }
 
   const canEditWeight = manualEditMode || isEditMode || insertedWeight !== null;
 

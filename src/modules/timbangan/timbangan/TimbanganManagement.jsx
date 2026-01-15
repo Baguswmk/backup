@@ -10,7 +10,6 @@ import { Button } from "@/shared/components/ui/button";
 import { Card, CardContent } from "@/shared/components/ui/card";
 import { X } from "lucide-react";
 
-// Components
 import TimbanganHeader from "@/modules/timbangan/timbangan/components/TimbanganHeader";
 import FleetStatusCard from "@/modules/timbangan/timbangan/components/FleetStatusCard";
 import TimbanganModals from "@/modules/timbangan/timbangan/components/TimbanganModals";
@@ -18,13 +17,11 @@ import { TimbanganTable } from "@/modules/timbangan/timbangan/components/Timbang
 import LoadingOverlay from "@/shared/components/LoadingOverlay";
 import PrintTicketButton from "@/modules/timbangan/timbangan/components/PrintTicketButton";
 
-// Store & Services
 import { useTimbanganStore } from "@/modules/timbangan/timbangan/store/timbanganStore";
 import { timbanganServices } from "@/modules/timbangan/timbangan/services/timbanganServices";
 import { showToast } from "@/shared/utils/toast";
 import useAuthStore from "@/modules/auth/store/authStore";
 
-// Constants
 import {
   getInitialDateRange,
   DEBOUNCE_TIME,
@@ -41,9 +38,6 @@ import {
 } from "@/modules/timbangan/timbangan/constant/timbanganConstants";
 
 const TimbanganManagement = ({ Type }) => {
-  // ============================================
-  // ZUSTAND STORE
-  // ============================================
   const selectedItems = useTimbanganStore((state) => state.selectedItems);
   const error = useTimbanganStore((state) => state.error);
   const timbanganData = useTimbanganStore((state) => state.timbanganData);
@@ -79,15 +73,9 @@ const TimbanganManagement = ({ Type }) => {
   const hideDumptruck = useTimbanganStore((state) => state.hideDumptruck);
   const unhideDumptruck = useTimbanganStore((state) => state.unhideDumptruck);
 
-  // ============================================
-  // AUTH & USER
-  // ============================================
   const { user } = useAuthStore();
   const userRole = user?.role;
 
-  // ============================================
-  // STATE MANAGEMENT
-  // ============================================
   const [isInitialLoading, setIsInitialLoading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isActionLoading, setIsActionLoading] = useState(false);
@@ -95,13 +83,11 @@ const TimbanganManagement = ({ Type }) => {
   const [isRefreshingFleet, setIsRefreshingFleet] = useState(false);
   const [isCheckingConnection, setIsCheckingConnection] = useState(false);
 
-  // Form & Modal States
   const [showInputForm, setShowInputForm] = useState(false);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [showFleetDialog, setShowFleetDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
-  // Data States
   const [editingItem, setEditingItem] = useState(null);
   const [formMode, setFormMode] = useState(FORM_MODES.CREATE);
   const [itemToDelete, setItemToDelete] = useState(null);
@@ -109,33 +95,29 @@ const TimbanganManagement = ({ Type }) => {
   const [autoPrintData, setAutoPrintData] = useState(null);
   const [dateRange, setDateRange] = useState(getInitialDateRange);
 
-  // UI States
   const [lastClickTime, setLastClickTime] = useState(0);
   const [isFleetInitialized, setIsFleetInitialized] = useState(false);
 
-  // ============================================
-  // REFS
-  // ============================================
   const autoOpenTriggeredRef = useRef(false);
   const autoPrintButtonRef = useRef(null);
   const initialLoadDone = useRef(false);
   const firstDateRangeSet = useRef(false);
 
-  // ============================================
-  // COMPUTED VALUES
-  // ============================================
-  // ✅ SIMPLIFIED: No more digifleet separation
   const allSelectedFleets = useMemo(() => {
     if (fleetConfigs.length === 0) return [];
     return fleetConfigs.filter((f) => selectedFleetIds.includes(f.id));
   }, [fleetConfigs, selectedFleetIds]);
 
-  // ✅ SIMPLIFIED: Only total count
+  const dataFleet = allSelectedFleets.filter((f) => {
+    const measurementType = f.measurementType || f.measurement_type;
+    return measurementType === "Timbangan";
+  });
+
   const fleetCounts = useMemo(() => {
     return {
-      total: allSelectedFleets.length,
+      total: dataFleet.length,
     };
-  }, [allSelectedFleets]);
+  }, [dataFleet]);
 
   const filteredTimbanganData = useMemo(() => {
     let filtered = timbanganData;
@@ -169,9 +151,6 @@ const TimbanganManagement = ({ Type }) => {
     );
   }, [filteredTimbanganData.length, selectedItems.length]);
 
-  // ============================================
-  // HANDLERS
-  // ============================================
   const handleOpenInputForm = useCallback(async () => {
     const now = Date.now();
     if (now - lastClickTime < DEBOUNCE_TIME) return;
@@ -218,12 +197,12 @@ const TimbanganManagement = ({ Type }) => {
 
   const handleDateRangeChange = useCallback((range) => {
     const normalized = {
-      from: range.from || range.startDate
-        ? new Date(range.from || range.startDate)
-        : null,
-      to: range.to || range.endDate
-        ? new Date(range.to || range.endDate)
-        : null,
+      from:
+        range.from || range.startDate
+          ? new Date(range.from || range.startDate)
+          : null,
+      to:
+        range.to || range.endDate ? new Date(range.to || range.endDate) : null,
       shift: range.shift || "All",
     };
 
@@ -237,8 +216,19 @@ const TimbanganManagement = ({ Type }) => {
     setIsRefreshing(true);
     try {
       await Promise.all([
-        loadTimbanganDataFromAPI({ from: dateRange.from, to: dateRange.to }, true),
-        loadFleetConfigsFromAPI(true, { from: dateRange.from, to: dateRange.to }),
+        loadTimbanganDataFromAPI(
+          { from: dateRange.from, to: dateRange.to },
+          true,
+          "Timbangan"
+        ),
+        loadFleetConfigsFromAPI(
+          true,
+          {
+            from: dateRange.from,
+            to: dateRange.to,
+          },
+          "Timbangan"
+        ),
       ]);
       showToast.success(TOAST_MESSAGES.SUCCESS.REFRESH);
     } catch (error) {
@@ -283,7 +273,11 @@ const TimbanganManagement = ({ Type }) => {
 
           try {
             await loadTimbanganDataFromAPI(
-              { from: dateRange.from, to: dateRange.to },
+              {
+                from: dateRange.from,
+                to: dateRange.to,
+                user,
+              },
               true
             );
           } catch (error) {
@@ -351,7 +345,11 @@ const TimbanganManagement = ({ Type }) => {
 
           try {
             await loadTimbanganDataFromAPI(
-              { from: dateRange.from, to: dateRange.to },
+              {
+                from: dateRange.from,
+                to: dateRange.to,
+                user,
+              },
               true
             );
           } catch (error) {
@@ -367,7 +365,13 @@ const TimbanganManagement = ({ Type }) => {
         setIsActionLoading(false);
       }
     },
-    [editingItem, updateTimbanganEntry, handleCloseForm, dateRange, loadTimbanganDataFromAPI]
+    [
+      editingItem,
+      updateTimbanganEntry,
+      handleCloseForm,
+      dateRange,
+      loadTimbanganDataFromAPI,
+    ]
   );
 
   const handleDeleteItem = useCallback((item) => {
@@ -388,7 +392,11 @@ const TimbanganManagement = ({ Type }) => {
 
         try {
           await loadTimbanganDataFromAPI(
-            { from: dateRange.from, to: dateRange.to },
+            {
+              from: dateRange.from,
+              to: dateRange.to,
+              user,
+            },
             true
           );
         } catch (error) {
@@ -398,20 +406,28 @@ const TimbanganManagement = ({ Type }) => {
         return;
       }
 
-      const result = await timbanganServices.deleteTimbanganEntry(itemToDelete.id);
+      const result = await timbanganServices.deleteTimbanganEntry(
+        itemToDelete.id
+      );
 
       if (result.success) {
         if (itemToDelete.hull_no) {
           unhideDumptruck(itemToDelete.hull_no);
         }
 
-        showToast.success(result.message || TOAST_MESSAGES.SUCCESS.DELETE_SINGLE);
+        showToast.success(
+          result.message || TOAST_MESSAGES.SUCCESS.DELETE_SINGLE
+        );
         setShowDeleteDialog(false);
         setItemToDelete(null);
 
         try {
           await loadTimbanganDataFromAPI(
-            { from: dateRange.from, to: dateRange.to },
+            {
+              from: dateRange.from,
+              to: dateRange.to,
+              user,
+            },
             true
           );
         } catch (error) {
@@ -440,7 +456,6 @@ const TimbanganManagement = ({ Type }) => {
     setItemToDelete(null);
   }, []);
 
-  // ✅ SIMPLIFIED: No more digifleet separation
   const handleSaveFleetSelection = useCallback(
     (allIds) => {
       setSelectedFleets(allIds);
@@ -449,11 +464,6 @@ const TimbanganManagement = ({ Type }) => {
     [setSelectedFleets]
   );
 
-  // ============================================
-  // EFFECTS
-  // ============================================
-
-  // Initial data load
   useEffect(() => {
     if (initialLoadDone.current) return;
     initialLoadDone.current = true;
@@ -469,18 +479,27 @@ const TimbanganManagement = ({ Type }) => {
           const today = new Date();
           const todayStr = today.toISOString().split("T")[0];
 
-          await loadFleetConfigsFromAPI(false, {
-            from: todayStr,
-            to: todayStr,
-          });
+          await loadFleetConfigsFromAPI(
+            false,
+            {
+              from: todayStr,
+              to: todayStr,
+            },
+            "Timbangan"
+          );
 
-          await new Promise((resolve) => setTimeout(resolve, FLEET_REFRESH_DELAY));
+          await new Promise((resolve) =>
+            setTimeout(resolve, FLEET_REFRESH_DELAY)
+          );
         }
 
-        await autoFetchTimbanganData({
-          from: dateRange.from,
-          to: dateRange.to,
-        });
+        await autoFetchTimbanganData(
+          {
+            from: dateRange.from,
+            to: dateRange.to,
+          },
+          "Timbangan"
+        );
 
         firstDateRangeSet.current = true;
         setIsFleetInitialized(true);
@@ -495,9 +514,12 @@ const TimbanganManagement = ({ Type }) => {
     initializeData();
   }, []);
 
-  // Date range change effect
   useEffect(() => {
-    if (!isInitialLoading && initialLoadDone.current && firstDateRangeSet.current) {
+    if (
+      !isInitialLoading &&
+      initialLoadDone.current &&
+      firstDateRangeSet.current
+    ) {
       const timeoutId = setTimeout(() => {
         loadTimbanganDataFromAPI(
           { from: dateRange.from, to: dateRange.to },
@@ -509,7 +531,6 @@ const TimbanganManagement = ({ Type }) => {
     }
   }, [dateRange.from, dateRange.to, dateRange.shift]);
 
-  // Auto-open form for operator_jt
   useEffect(() => {
     if (
       autoOpenTriggeredRef.current ||
@@ -528,7 +549,6 @@ const TimbanganManagement = ({ Type }) => {
     return () => clearTimeout(timer);
   }, [userRole, isInitialLoading, fleetCounts.total, handleOpenInputForm]);
 
-  // Prevent body scroll when modals open
   useEffect(() => {
     if (showInputForm || isFormOpen || showFleetDialog) {
       document.body.style.overflow = "hidden";
@@ -541,7 +561,6 @@ const TimbanganManagement = ({ Type }) => {
     };
   }, [showInputForm, isFormOpen, showFleetDialog]);
 
-  // Keyboard shortcuts
   useEffect(() => {
     const handleShortcut = (e) => {
       const { key, altKey } = KEYBOARD_SHORTCUTS.INPUT_FORM;
@@ -557,9 +576,6 @@ const TimbanganManagement = ({ Type }) => {
     return () => window.removeEventListener("keydown", handleShortcut);
   }, [showInputForm, isFormOpen, isCheckingConnection, handleOpenInputForm]);
 
-  // ============================================
-  // RENDER
-  // ============================================
   return (
     <>
       <div className="space-y-6 min-h-screen">
@@ -576,7 +592,7 @@ const TimbanganManagement = ({ Type }) => {
         <FleetStatusCard
           isInitialLoading={isInitialLoading}
           fleetCounts={fleetCounts}
-          allSelectedFleets={allSelectedFleets}
+          allSelectedFleets={dataFleet}
           onOpenFleetDialog={() => setShowFleetDialog(true)}
           onRefreshFleet={handleRefreshFleet}
           isRefreshingFleet={isRefreshingFleet}
@@ -658,7 +674,6 @@ const TimbanganManagement = ({ Type }) => {
 
       {/* All Modals */}
       <TimbanganModals
-        // Input Form
         showInputForm={showInputForm}
         onCloseInputForm={() => {
           setShowInputForm(false);
@@ -668,22 +683,20 @@ const TimbanganManagement = ({ Type }) => {
         isActionLoading={isActionLoading}
         shouldAutoConnect={shouldAutoConnect}
         onAutoConnectComplete={() => setShouldAutoConnect(false)}
-        // Edit Form
         isFormOpen={isFormOpen}
         onCloseEditForm={handleCloseForm}
         onSubmitEditForm={handleEditSubmit}
         editingItem={editingItem}
         formMode={formMode}
-        // Delete
         showDeleteDialog={showDeleteDialog}
         onCloseDeleteDialog={handleCancelDelete}
         onConfirmDelete={handleConfirmDelete}
         itemToDelete={itemToDelete}
         isDeleting={isDeleting}
-        // Fleet
         showFleetDialog={showFleetDialog}
         onCloseFleetDialog={() => setShowFleetDialog(false)}
         onSaveFleetSelection={handleSaveFleetSelection}
+        measurementType="Timbangan"
       />
 
       {/* Loading Overlay */}

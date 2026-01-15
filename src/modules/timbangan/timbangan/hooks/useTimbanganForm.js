@@ -8,7 +8,7 @@ import useAuthStore from "@/modules/auth/store/authStore";
 
 const DEFAULT_FORM_VALUES = {
   hull_no: "",
-  grosss_weight: "",
+  gross_weight: "",
   dumptruck: "",
   operator: "",
   setting_fleet_id: "",
@@ -24,7 +24,7 @@ const CREATE_VALIDATION_RULES = {
     message: "Nomor lambung wajib diisi",
     errorMessage: "Masukkan nomor lambung yang valid",
   },
-  grosss_weight: {
+  gross_weight: {
     required: true,
     message: "Gross weight wajib diisi",
     validate: (value) => {
@@ -41,7 +41,7 @@ const CREATE_VALIDATION_RULES = {
 };
 
 const EDIT_VALIDATION_RULES = {
-  grosss_weight: {
+  gross_weight: {
     required: true,
     message: "Net weight wajib diisi",
     validate: (value) => {
@@ -109,7 +109,6 @@ const findLabelInMasterData = (
   if (!storedValue || !masterArray || masterArray.length === 0)
     return storedValue || "";
 
-  // Try direct field hit first
   for (const field of possibleFields) {
     const found = masterArray.find((item) => item[field] === storedValue);
     if (found) {
@@ -117,14 +116,12 @@ const findLabelInMasterData = (
     }
   }
 
-  // Try numeric ID hit
   const numericId = parseInt(storedValue);
   if (!isNaN(numericId)) {
     const foundById = masterArray.find(
       (item) => item.id === numericId.toString()
     );
     if (foundById) {
-      // ✅ Use getFirstTruthyValue utility
       return getFirstTruthyValue(foundById, ...possibleFields);
     }
   }
@@ -139,15 +136,25 @@ const createInitialFormData = (editingItem, mode, masters = null) => {
   if (editingItem && mode === "edit" && masters) {
     return {
       ...DEFAULT_FORM_VALUES,
-      grosss_weight: editingItem.grosss_weight || "",
+      gross_weight: editingItem.gross_weight || "",
 
       unit_dump_truck: findLabelInMasterData(
-        getFirstTruthyValue(editingItem, "unit_dump_truck", "dumptruck", "hull_no"),
+        getFirstTruthyValue(
+          editingItem,
+          "unit_dump_truck",
+          "dumptruck",
+          "hull_no"
+        ),
         masters.dumpTruck,
         ["hull_no", "hullNo", "name"]
       ),
       unit_exca: findLabelInMasterData(
-        getFirstTruthyValue(editingItem, "unit_exca", "excavator", "fleet_excavator"),
+        getFirstTruthyValue(
+          editingItem,
+          "unit_exca",
+          "excavator",
+          "fleet_excavator"
+        ),
         masters.excavators,
         ["hull_no", "name"]
       ),
@@ -162,7 +169,12 @@ const createInitialFormData = (editingItem, mode, masters = null) => {
         ["name"]
       ),
       pic_work_unit: findLabelInMasterData(
-        getFirstTruthyValue(editingItem, "pic_work_unit", "work_unit", "fleet_work_unit"),
+        getFirstTruthyValue(
+          editingItem,
+          "pic_work_unit",
+          "work_unit",
+          "fleet_work_unit"
+        ),
         masters.workUnits,
         ["subsatker", "satker", "name"]
       ),
@@ -179,11 +191,9 @@ const createInitialFormData = (editingItem, mode, masters = null) => {
       operator: getFirstTruthyValue(editingItem, "operator", "operatorName"),
       date: getFirstTruthyValue(editingItem, "date", "fleet_date"),
       distance: editingItem.distance?.toString() || "0",
-      createdAt: getFirstTruthyValue(
-        editingItem, 
-        "createdAt", 
-        "clientCreatedAt"
-      ) || new Date().toISOString(),
+      createdAt:
+        getFirstTruthyValue(editingItem, "createdAt", "clientCreatedAt") ||
+        new Date().toISOString(),
     };
   }
 
@@ -203,7 +213,6 @@ export const useTimbanganForm = (
   const isMountedRef = useRef(true);
   const abortControllerRef = useRef(null);
 
-  
   const findByHullNo = useTimbanganStore((s) => s.findByHullNo);
   const findByRFID = useTimbanganStore((s) => s.findByRFID);
   const dtIndex = useTimbanganStore((s) => s.dtIndex);
@@ -299,16 +308,13 @@ export const useTimbanganForm = (
           setting_dump_truck_id: hit.setting_dump_truck_id,
         });
       }
-
     }
   }, [editingItem, mode, masters, findByHullNo]);
 
-  
   useEffect(() => {
     if (mode !== "create") return;
     if (!formData.hull_no) return;
 
-    
     if (!currentFleet || !formData.setting_fleet_id) {
       const hullKey = normalizeHull(formData.hull_no);
       const hit = findByHullNo(hullKey, false);
@@ -350,7 +356,7 @@ export const useTimbanganForm = (
         showToast.success(`✅ Fleet data loaded: ${hit.fleet_name}`);
       }
     }
-  }, [dtIndex, mode]); 
+  }, [dtIndex, mode]);
 
   const validateField = useCallback(
     (fieldName, value) => {
@@ -374,26 +380,25 @@ export const useTimbanganForm = (
     const newErrors = {};
     let isValid = true;
 
-    // Validate based on mode
     if (mode === "create") {
       if (!formData.hull_no?.trim()) {
         newErrors.hull_no = "Nomor lambung wajib diisi";
         isValid = false;
       }
-      
-      if (!formData.grosss_weight) {
-        newErrors.grosss_weight = "Net weight wajib diisi";
+
+      if (!formData.gross_weight) {
+        newErrors.gross_weight = "Net weight wajib diisi";
         isValid = false;
       }
 
       if (formData.hull_no && !formData.setting_fleet_id) {
-        newErrors.hull_no = "Nomor lambung tidak ditemukan di fleet yang dipilih";
+        newErrors.hull_no =
+          "Nomor lambung tidak ditemukan di fleet yang dipilih";
         isValid = false;
       }
     } else if (mode === "edit") {
-      // Edit mode validations
-      if (!formData.grosss_weight) {
-        newErrors.grosss_weight = "Net weight wajib diisi";
+      if (!formData.gross_weight) {
+        newErrors.gross_weight = "Net weight wajib diisi";
         isValid = false;
       }
     }
@@ -536,7 +541,6 @@ export const useTimbanganForm = (
 
     setIsSubmitting(true);
 
-    // Validate first
     const { isValid, errors: validationErrors } = validateAllFields();
     if (!isValid) {
       setErrors(validationErrors);
@@ -551,12 +555,11 @@ export const useTimbanganForm = (
     abortControllerRef.current = new AbortController();
     const signal = abortControllerRef.current.signal;
 
-    // ✅ Use withErrorHandling for all submission modes
     if (mode === "edit" && editingItem) {
       return await withErrorHandling(
         async () => {
           const submissionData = {
-            grosss_weight: parseFloat(formData.grosss_weight),
+            gross_weight: parseFloat(formData.gross_weight),
             unit_dump_truck: formData.unit_dump_truck,
             unit_exca: formData.unit_exca,
             loading_location: formData.loading_location,
@@ -583,8 +586,8 @@ export const useTimbanganForm = (
             throw new Error("Component unmounted during request");
           }
 
-          // Update store
-          const updateTimbanganEntry = useTimbanganStore.getState().updateTimbanganEntry;
+          const updateTimbanganEntry =
+            useTimbanganStore.getState().updateTimbanganEntry;
           updateTimbanganEntry(editingItem.id, result.data);
 
           return { success: true, data: result.data };
@@ -593,7 +596,7 @@ export const useTimbanganForm = (
           operation: "update timbangan",
           showSuccessToast: true,
           successMessage: "Data berhasil diperbarui",
-          onError: (err) => setErrors({ submit: err.message })
+          onError: (err) => setErrors({ submit: err.message }),
         }
       ).finally(() => {
         if (isMountedRef.current) {
@@ -603,15 +606,18 @@ export const useTimbanganForm = (
     } else if (mode === "delete" && editingItem) {
       return await withErrorHandling(
         async () => {
-          await timbanganServices.deleteTimbanganEntry(editingItem.id, { signal });
+          await timbanganServices.deleteTimbanganEntry(editingItem.id, {
+            signal,
+          });
 
           if (!isMountedRef.current) {
             throw new Error("Component unmounted during request");
           }
 
-          const { deleteTimbanganEntry, unhideDumptruck } = useTimbanganStore.getState();
+          const { deleteTimbanganEntry, unhideDumptruck } =
+            useTimbanganStore.getState();
           deleteTimbanganEntry(editingItem.id);
-          
+
           if (editingItem.hull_no) {
             unhideDumptruck(editingItem.hull_no);
           }
@@ -629,7 +635,6 @@ export const useTimbanganForm = (
         }
       });
     } else {
-      // Create mode
       if (!currentFleet) {
         showToast.error("Data fleet tidak lengkap");
         setIsSubmitting(false);
@@ -642,18 +647,22 @@ export const useTimbanganForm = (
             setting_fleet: parseInt(formData.setting_fleet_id),
             unit_dump_truck: parseInt(formData.dumptruck),
             operator: formData.operator ? parseInt(formData.operator) : null,
-            grosss_weight: parseFloat(formData.grosss_weight),
+            gross_weight: parseFloat(formData.gross_weight),
             clientCreatedAt: formData.createdAt || new Date().toISOString(),
             created_by_user: user?.id || null,
           };
 
-          const result = await timbanganServices.submitTimbanganForm(submissionData, { signal });
+          const result = await timbanganServices.submitTimbanganForm(
+            submissionData,
+            { signal }
+          );
 
           if (!isMountedRef.current) {
             throw new Error("Component unmounted during request");
           }
 
-          const { addTimbanganEntry, hideDumptruck } = useTimbanganStore.getState();
+          const { addTimbanganEntry, hideDumptruck } =
+            useTimbanganStore.getState();
           addTimbanganEntry(result.data);
           hideDumptruck(editingItem?.hull_no || formData.hull_no);
 
@@ -710,7 +719,8 @@ export const useTimbanganForm = (
       if (!original) return false;
 
       const hasChanges =
-        parseFloat(formData.grosss_weight) !== parseFloat(original.grosss_weight) ||
+        parseFloat(formData.gross_weight) !==
+          parseFloat(original.gross_weight) ||
         formData.unit_dump_truck !== original.unit_dump_truck ||
         formData.unit_exca !== original.unit_exca ||
         formData.loading_location !== original.loading_location ||
@@ -732,14 +742,18 @@ export const useTimbanganForm = (
   const formSummary = useMemo(() => {
     if (mode === "edit") {
       return {
-        grosss_weight: formData.grosss_weight ? `${formData.grosss_weight} ton` : "-",
+        gross_weight: formData.gross_weight
+          ? `${formData.gross_weight} ton`
+          : "-",
         isEditMode: true,
       };
     }
 
     return {
       hull_no: formData.hull_no || "-",
-      grosss_weight: formData.grosss_weight ? `${formData.grosss_weight} ton` : "-",
+      gross_weight: formData.gross_weight
+        ? `${formData.gross_weight} ton`
+        : "-",
       isAutoFilled: !!formData.setting_fleet_id && !!currentFleet,
       fleetInfo: currentFleet,
     };

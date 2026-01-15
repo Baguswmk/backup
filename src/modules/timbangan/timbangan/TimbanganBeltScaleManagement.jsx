@@ -2,27 +2,19 @@ import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { Card, CardContent } from "@/shared/components/ui/card";
 import { Button } from "@/shared/components/ui/button";
 import { Alert, AlertDescription } from "@/shared/components/ui/alert";
-import { X, Plus, History, TrendingUp } from "lucide-react";
+import { X, Plus, TrendingUp, AlertCircle } from "lucide-react";
 
-// Components
-import BypassAdjustmentForm from "@/modules/timbangan/timbangan/components/BeltScaleAdjustmentForm";
+import BeltScaleAdjustmentForm from "@/modules/timbangan/timbangan/components/BeltScaleAdjustmentForm";
 import { TimbanganTable } from "@/modules/timbangan/timbangan/components/TimbanganTable";
-import BypassHistoryModal from "@/modules/timbangan/timbangan/components/BeltScaleHistoryModal";
 import LoadingOverlay from "@/shared/components/LoadingOverlay";
 
-// Store & Services
 import { useTimbanganStore } from "@/modules/timbangan/timbangan/store/timbanganStore";
-import { beltScaleServices } from "@/modules/timbangan/timbangan/services/beltscaleServices";
 import { showToast } from "@/shared/utils/toast";
 import useAuthStore from "@/modules/auth/store/authStore";
 
-// Constants
 import { getInitialDateRange } from "@/modules/timbangan/timbangan/constant/timbanganConstants";
 
 const TimbanganBeltScaleManagement = () => {
-  // ============================================
-  // STORE & AUTH
-  // ============================================
   const { user } = useAuthStore();
   const timbanganData = useTimbanganStore((state) => state.timbanganData);
   const loadTimbanganDataFromAPI = useTimbanganStore(
@@ -31,27 +23,21 @@ const TimbanganBeltScaleManagement = () => {
   const error = useTimbanganStore((state) => state.error);
   const clearError = useTimbanganStore((state) => state.clearError);
 
-  // ============================================
-  // STATE
-  // ============================================
   const [showForm, setShowForm] = useState(false);
-  const [showHistory, setShowHistory] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [dateRange, setDateRange] = useState(getInitialDateRange);
-  const [adjustedRitases, setAdjustedRitases] = useState([]);
+  const [adjustmentSummary, setAdjustmentSummary] = useState(null);
 
-  // ============================================
-  // COMPUTED
-  // ============================================
   const filteredTimbanganData = useMemo(() => {
     let filtered = timbanganData;
 
-    // Filter by date range
+    filtered = filtered.filter((item) => item.measurement_type === "BeltScale");
+
     if (dateRange.from || dateRange.to) {
       filtered = filtered.filter((item) => {
         const itemDate = new Date(
-          item.tanggal || item.createdAt || item.timestamp
+          item.tanggal || item.date || item.createdAt || item.timestamp
         );
         if (isNaN(itemDate.getTime())) return false;
         if (dateRange.from && itemDate < dateRange.from) return false;
@@ -60,7 +46,6 @@ const TimbanganBeltScaleManagement = () => {
       });
     }
 
-    // Filter by shift
     if (dateRange.shift && dateRange.shift !== "All") {
       filtered = filtered.filter((item) => {
         const itemShift = item.shift || item.fleet_shift || "";
@@ -71,36 +56,14 @@ const TimbanganBeltScaleManagement = () => {
     return filtered;
   }, [timbanganData, dateRange]);
 
-  // Merge with adjusted data
-  const displayData = useMemo(() => {
-    if (adjustedRitases.length === 0) return filteredTimbanganData;
-
-    return filteredTimbanganData.map((ritase) => {
-      const adjusted = adjustedRitases.find((adj) => adj.id === ritase.id);
-      if (adjusted) {
-        return {
-          ...ritase,
-          net_weight: adjusted.net_weight_adjusted,
-          gross_weight: adjusted.gross_weight_adjusted,
-          isAdjusted: true,
-          original_net_weight: ritase.net_weight,
-        };
-      }
-      return ritase;
-    });
-  }, [filteredTimbanganData, adjustedRitases]);
-
-  // ============================================
-  // HANDLERS
-  // ============================================
   const handleDateRangeChange = useCallback((range) => {
     const normalized = {
-      from: range.from || range.startDate
-        ? new Date(range.from || range.startDate)
-        : null,
-      to: range.to || range.endDate
-        ? new Date(range.to || range.endDate)
-        : null,
+      from:
+        range.from || range.startDate
+          ? new Date(range.from || range.startDate)
+          : null,
+      to:
+        range.to || range.endDate ? new Date(range.to || range.endDate) : null,
       shift: range.shift || "All",
     };
 
@@ -115,7 +78,8 @@ const TimbanganBeltScaleManagement = () => {
     try {
       await loadTimbanganDataFromAPI(
         { from: dateRange.from, to: dateRange.to },
-        true
+        true,
+        "BeltScale"
       );
       showToast.success("Data berhasil di-refresh");
     } catch (error) {
@@ -130,13 +94,19 @@ const TimbanganBeltScaleManagement = () => {
       if (result.success) {
         setShowForm(false);
 
-        // Refresh data
+        if (result.data && result.data.summary) {
+          setAdjustmentSummary(result.data.summary);
+        }
+
         await loadTimbanganDataFromAPI(
           { from: dateRange.from, to: dateRange.to },
-          true
+          true,
+          "BeltScale"
         );
 
-        showToast.success("Adjustment berhasil disimpan");
+        showToast.success(
+          result.message || "BeltScale adjustment berhasil disimpan"
+        );
       }
     },
     [dateRange, loadTimbanganDataFromAPI]
@@ -150,16 +120,18 @@ const TimbanganBeltScaleManagement = () => {
     setShowForm(false);
   }, []);
 
-  // ============================================
-  // EFFECTS
-  // ============================================
+  const handleClearSummary = useCallback(() => {
+    setAdjustmentSummary(null);
+  }, []);
+
   useEffect(() => {
     const loadInitialData = async () => {
       setIsInitialLoading(true);
       try {
         await loadTimbanganDataFromAPI(
           { from: dateRange.from, to: dateRange.to },
-          false
+          false,
+          "BeltScale"
         );
       } catch (error) {
         console.error("Failed to load initial data:", error);
@@ -171,7 +143,6 @@ const TimbanganBeltScaleManagement = () => {
     loadInitialData();
   }, []);
 
-  // Prevent body scroll when form is open
   useEffect(() => {
     if (showForm) {
       document.body.style.overflow = "hidden";
@@ -184,67 +155,133 @@ const TimbanganBeltScaleManagement = () => {
     };
   }, [showForm]);
 
-  // ============================================
-  // RENDER
-  // ============================================
   return (
     <>
-      <div className="space-y-6 min-h-screen">
+      <div className="space-y-6 min-h-screen bg-gray-50 dark:bg-gray-900 p-4 md:p-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
             <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
               Timbangan BeltScale - Adjustment
             </h1>
-            <p className="text-sm md:text-base text-gray-600">
-              Welcome back, {user?.username}
+            <p className="text-sm md:text-base text-gray-600 dark:text-gray-400 mt-1">
+              Welcome back,{" "}
+              <span className="font-medium dark:text-gray-300">
+                {user?.username}
+              </span>
             </p>
           </div>
 
           <div className="flex items-center gap-2">
             <Button
               onClick={handleOpenForm}
-              className="flex items-center gap-2 cursor-pointer"
+              className="flex items-center gap-2 cursor-pointer bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-700 text-white shadow-sm dark:shadow-blue-900/50 transition-all duration-200"
             >
               <Plus className="w-4 h-4" />
-              Buat Adjustment
+              Hitung BeltScale
             </Button>
           </div>
         </div>
 
         {/* Info Card */}
-        <Card className="border-blue-200 bg-blue-50">
+        <Card className="border-blue-200 bg-blue-50 dark:bg-blue-950/50 dark:border-blue-800/50 shadow-sm dark:shadow-lg dark:shadow-blue-900/20 transition-all duration-200">
           <CardContent className="py-4">
             <div className="flex items-start gap-3">
-              <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center shrink-0">
-                <TrendingUp className="w-5 h-5 text-blue-600" />
+              <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/50 flex items-center justify-center shrink-0 shadow-sm dark:shadow-blue-800/50">
+                <TrendingUp className="w-5 h-5 text-blue-600 dark:text-blue-400" />
               </div>
               <div className="flex-1">
-                <h3 className="text-sm font-semibold text-blue-900 mb-1">
+                <h3 className="text-sm font-semibold text-blue-900 dark:text-blue-100 mb-1">
                   Tentang BeltScale Adjustment
                 </h3>
-                <p className="text-xs text-blue-700">
-                  Fitur ini digunakan untuk menyesuaikan tonnage ritase
+                <p className="text-xs text-blue-700 dark:text-blue-300 leading-relaxed">
+                  Fitur ini digunakan untuk menghitung ulang tonnage ritase
                   berdasarkan data aktual dari timbangan BeltScale. Pilih
-                  tanggal, shift, dan dumping point, lalu masukkan total net
-                  weight BeltScale untuk mendistribusikan secara proporsional ke
-                  semua ritase dalam shift tersebut.
+                  setting fleet, lalu masukkan total berat BeltScale untuk
+                  mendistribusikan secara proporsional ke semua ritase dalam
+                  fleet tersebut. Sistem akan menghitung rasio berdasarkan
+                  net_weight original setiap ritase.
                 </p>
               </div>
             </div>
           </CardContent>
         </Card>
 
+        {/* Summary Card - After Adjustment */}
+        {adjustmentSummary && (
+          <Card className="border-green-200 bg-green-50 dark:bg-green-950/50 dark:border-green-800/50 shadow-sm dark:shadow-lg dark:shadow-green-900/20 transition-all duration-200">
+            <CardContent className="py-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-start gap-3 flex-1">
+                  <div className="w-10 h-10 rounded-full bg-green-100 dark:bg-green-900/50 flex items-center justify-center shrink-0 shadow-sm dark:shadow-green-800/50">
+                    <AlertCircle className="w-5 h-5 text-green-600 dark:text-green-400" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-sm font-semibold text-green-900 dark:text-green-100 mb-2">
+                      BeltScale Adjustment Summary
+                    </h3>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+                      <div className="bg-white dark:bg-green-900/20 p-2 rounded border border-green-100 dark:border-green-800/30">
+                        <p className="text-green-700 dark:text-green-400 mb-1">
+                          Total Sebelum:
+                        </p>
+                        <p className="font-semibold text-green-900 dark:text-green-100 text-sm">
+                          {adjustmentSummary.total_before?.toFixed(2)} Ton
+                        </p>
+                      </div>
+                      <div className="bg-white dark:bg-green-900/20 p-2 rounded border border-green-100 dark:border-green-800/30">
+                        <p className="text-green-700 dark:text-green-400 mb-1">
+                          Total Setelah:
+                        </p>
+                        <p className="font-semibold text-green-900 dark:text-green-100 text-sm">
+                          {adjustmentSummary.total_after?.toFixed(2)} Ton
+                        </p>
+                      </div>
+                      <div className="bg-white dark:bg-green-900/20 p-2 rounded border border-green-100 dark:border-green-800/30">
+                        <p className="text-green-700 dark:text-green-400 mb-1">
+                          Target BeltScale:
+                        </p>
+                        <p className="font-semibold text-green-900 dark:text-green-100 text-sm">
+                          {adjustmentSummary.beltscale?.toFixed(2)} Ton
+                        </p>
+                      </div>
+                      <div className="bg-white dark:bg-green-900/20 p-2 rounded border border-green-100 dark:border-green-800/30">
+                        <p className="text-green-700 dark:text-green-400 mb-1">
+                          Ritase Updated:
+                        </p>
+                        <p className="font-semibold text-green-900 dark:text-green-100 text-sm">
+                          {adjustmentSummary.updated_count} ritase
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleClearSummary}
+                  className="h-8 w-8 p-0 text-green-600 hover:text-green-700 hover:bg-green-100 dark:text-green-400 dark:hover:text-green-300 dark:hover:bg-green-900/30 cursor-pointer transition-colors"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Error Alert */}
         {error && (
-          <Alert variant="destructive">
-            <AlertDescription className="flex items-center justify-between">
+          <Alert
+            variant="destructive"
+            className="bg-red-50 dark:bg-red-950/50 border-red-200 dark:border-red-800/50 shadow-sm dark:shadow-red-900/20"
+          >
+            <AlertDescription className="flex items-center justify-between text-red-800 dark:text-red-200">
               <span>{error.message || error}</span>
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={clearError}
-                className="cursor-pointer"
+                className="cursor-pointer text-red-600 hover:text-red-700 hover:bg-red-100 dark:text-red-400 dark:hover:text-red-300 dark:hover:bg-red-900/30 transition-colors"
               >
                 <X className="h-4 w-4" />
               </Button>
@@ -254,12 +291,12 @@ const TimbanganBeltScaleManagement = () => {
 
         {/* Data Table */}
         {isInitialLoading ? (
-          <Card className="border-none">
+          <Card className="border-none shadow-sm dark:shadow-lg dark:shadow-gray-900/50 bg-white dark:bg-gray-800">
             <CardContent className="p-6">
               <div className="space-y-4">
                 <div className="flex items-center justify-between mb-4">
-                  <div className="h-6 bg-gray-200 rounded w-1/4 animate-pulse"></div>
-                  <div className="h-8 bg-gray-200 rounded w-24 animate-pulse"></div>
+                  <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded w-1/4 animate-pulse"></div>
+                  <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded w-24 animate-pulse"></div>
                 </div>
                 <div className="space-y-3">
                   {[1, 2, 3, 4, 5].map((row) => (
@@ -267,7 +304,7 @@ const TimbanganBeltScaleManagement = () => {
                       {[1, 2, 3, 4, 5, 6, 7].map((col) => (
                         <div
                           key={col}
-                          className="h-4 bg-gray-200 rounded animate-pulse"
+                          className="h-4 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"
                         ></div>
                       ))}
                     </div>
@@ -278,13 +315,8 @@ const TimbanganBeltScaleManagement = () => {
           </Card>
         ) : (
           <TimbanganTable
-            title="Data Ritase (BeltScale Adjusted)"
-            shipments={displayData}
-            onEdit={() => {}} // Read-only for BeltScale
-            onDelete={() => {}} // Read-only for BeltScale
-            onToggleSelect={() => {}}
-            onToggleSelectAll={() => {}}
-            selectedItems={[]}
+            title="Data Ritase BeltScale"
+            shipments={filteredTimbanganData}
             allSelected={false}
             isLoading={isLoading}
             isDeleting={false}
@@ -294,9 +326,6 @@ const TimbanganBeltScaleManagement = () => {
             onDateRangeChange={handleDateRangeChange}
             onRefresh={handleRefresh}
             allTimbanganData={timbanganData}
-            allSelectedFleets={[]}
-            onOpenInputForm={() => {}}
-            onOpenFleetDialog={() => {}}
             onResetDateFilter={() => {
               const today = new Date();
               today.setHours(23, 59, 59, 999);
@@ -308,44 +337,37 @@ const TimbanganBeltScaleManagement = () => {
 
       {/* Form Modal */}
       {showForm && (
-        <div className="detail-modal fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-gray-900 rounded-lg max-w-6xl w-full max-h-[90vh] overflow-auto">
-            <div className="sticky top-0 bg-white dark:bg-gray-900 px-6 py-4 flex items-center justify-between z-10 shadow-sm ">
+        <div className="detail-modal fixed inset-0 bg-black/50 dark:bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 transition-all duration-200">
+          <div className="bg-white dark:bg-gray-800 rounded-lg max-w-4xl w-full max-h-[90vh] overflow-auto shadow-2xl dark:shadow-gray-900/50 border border-gray-200 dark:border-gray-700">
+            <div className="sticky top-0 bg-white dark:bg-gray-800 px-6 py-4 flex items-center justify-between z-10 shadow-sm border-b border-gray-200 dark:border-gray-700">
               <div>
-                <h2 className="text-xl font-bold flex items-center gap-2 dark:text-white">
-                  <TrendingUp className="w-5 h-5" />
-                  Buat BeltScale Adjustment
+                <h2 className="text-xl font-bold flex items-center gap-2 text-gray-900 dark:text-white">
+                  <TrendingUp className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                  Hitung BeltScale Adjustment
                 </h2>
                 <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                  Sesuaikan tonnage ritase berdasarkan data BeltScale
+                  Sesuaikan tonnage ritase berdasarkan data BeltScale aktual
                 </p>
               </div>
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={handleCloseForm}
-                className="h-8 w-8 p-0 dark:text-gray-400 cursor-pointer"
+                className="h-8 w-8 p-0 text-gray-500 hover:text-gray-700 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-gray-200 dark:hover:bg-gray-700 cursor-pointer transition-colors"
               >
                 <X className="h-4 w-4" />
               </Button>
             </div>
 
-            <div className="p-6">
-              <BypassAdjustmentForm
+            <div className="p-6 bg-gray-50 dark:bg-gray-900">
+              <BeltScaleAdjustmentForm
                 onSubmit={handleFormSubmit}
                 isSubmitting={false}
+                user={user}
               />
             </div>
           </div>
         </div>
-      )}
-
-      {/* History Modal */}
-      {showHistory && (
-        <BypassHistoryModal
-          isOpen={showHistory}
-          onClose={() => setShowHistory(false)}
-        />
       )}
 
       {/* Loading Overlay */}

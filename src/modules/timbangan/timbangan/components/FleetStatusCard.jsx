@@ -16,7 +16,6 @@ import {
   RefreshCw,
   ChevronRight,
 } from "lucide-react";
-
 const FleetStatusCard = ({
   isInitialLoading,
   fleetCounts,
@@ -27,7 +26,6 @@ const FleetStatusCard = ({
 }) => {
   const [showAllFleets, setShowAllFleets] = useState(false);
 
-  // No fleet selected - show alert
   if (!isInitialLoading && fleetCounts.total === 0) {
     return (
       <Alert
@@ -53,14 +51,13 @@ const FleetStatusCard = ({
     );
   }
 
-  // Fleet selected - show status card
   if (fleetCounts.total > 0) {
     return (
       <Card className="border-blue-200 bg-blue-50 dark:bg-slate-800 dark:border-none dark:text-blue-200">
         <CardContent className="py-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 text-blue-600 dark:text-blue-300" />
+              <CheckCircle2 className="w-4 h-4 text-blue-6P00 dark:text-blue-300" />
               <span className="text-sm font-semibold text-blue-900 dark:text-blue-300">
                 {fleetCounts.total} Fleet Aktif
               </span>
@@ -117,10 +114,7 @@ const FleetStatusCard = ({
                 ))}
 
                 {allSelectedFleets.length > 3 && (
-                  <Popover
-                    open={showAllFleets}
-                    onOpenChange={setShowAllFleets}
-                  >
+                  <Popover open={showAllFleets} onOpenChange={setShowAllFleets}>
                     <PopoverTrigger asChild>
                       <Button
                         variant="ghost"

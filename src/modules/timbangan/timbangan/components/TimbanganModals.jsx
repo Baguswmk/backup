@@ -1,11 +1,10 @@
 import React from "react";
 import { Plus, Edit } from "lucide-react";
-import TimbanganForm from "@/modules/timbangan/timbangan/TimbanganFormBaru";
+import TimbanganForm from "@/modules/timbangan/timbangan/TimbanganForm";
 import DeleteConfirmDialog from "@/shared/components/DeleteConfirmDialog";
 import FleetSelectionDialog from "@/shared/components/FleetSelectionDialog";
 import ModalHeader from "@/shared/components/ModalHeader";
 
-// Input Form Modal
 export const InputFormModal = ({
   isOpen,
   onClose,
@@ -38,7 +37,6 @@ export const InputFormModal = ({
   );
 };
 
-// Edit Form Modal
 export const EditFormModal = ({
   isOpen,
   onClose,
@@ -71,7 +69,6 @@ export const EditFormModal = ({
   );
 };
 
-// Delete Confirmation Modal
 export const DeleteModal = ({
   isOpen,
   onClose,
@@ -100,42 +97,41 @@ export const DeleteModal = ({
   );
 };
 
-// Fleet Selection Modal
-export const FleetModal = ({ isOpen, onClose, onSave }) => {
+export const FleetModal = ({ isOpen, onClose, onSave, measurementType }) => {
   return (
     <FleetSelectionDialog
       isOpen={isOpen}
       onClose={onClose}
       onSave={onSave}
+      measurementType={measurementType}
     />
   );
 };
 
-// All Modals Container
 const TimbanganModals = ({
-  // Input Form
   showInputForm,
   onCloseInputForm,
   onSubmitInputForm,
   isActionLoading,
   shouldAutoConnect,
   onAutoConnectComplete,
-  // Edit Form
+
   isFormOpen,
   onCloseEditForm,
   onSubmitEditForm,
   editingItem,
   formMode,
-  // Delete
+
   showDeleteDialog,
   onCloseDeleteDialog,
   onConfirmDelete,
   itemToDelete,
   isDeleting,
-  // Fleet
+
   showFleetDialog,
   onCloseFleetDialog,
   onSaveFleetSelection,
+  measurementType,
 }) => {
   return (
     <>
@@ -169,6 +165,7 @@ const TimbanganModals = ({
         isOpen={showFleetDialog}
         onClose={onCloseFleetDialog}
         onSave={onSaveFleetSelection}
+        measurementType={measurementType}
       />
     </>
   );

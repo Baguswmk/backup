@@ -17,7 +17,6 @@ const HullNoInput = ({
   onChange,
 }) => {
   const selectedDT = value && dtIndex[value.replace(/\s+/g, "").toUpperCase()];
-  console.log("HullNoInput Rendered with selectedDT:", value);
   return (
     <Card className="shadow-none border-none dark:bg-gray-800 dark:text-gray-200">
       <CardHeader>
