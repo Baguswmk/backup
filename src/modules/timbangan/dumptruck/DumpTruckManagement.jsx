@@ -1,5 +1,4 @@
-/* eslint-disable no-unused-vars */
-import React, { useState, useMemo, useCallback } from "react";
+import React, { useState, useMemo, useCallback, useEffect } from "react";
 import { useDumptruck } from "@/modules/timbangan/dumptruck/hooks/useDumptruck";
 import { useFleet } from "@/modules/timbangan/fleet/hooks/useFleet";
 import { useDumptruckPermissions } from "@/shared/permissions/usePermissions";
@@ -23,14 +22,14 @@ import {
   TOAST_MESSAGES,
   VALIDATION_MESSAGES,
 } from "@/modules/timbangan/dumptruck/constant/dumptruckConstants";
-import { withErrorHandling, validateResponse } from "@/shared/utils/errorHandler";
+import {
+  withErrorHandling,
+  validateResponse,
+} from "@/shared/utils/errorHandler";
 
 const DumpTruckManagement = () => {
   const { user } = useAuthStore();
 
-  // ========================================
-  // PERMISSIONS
-  // ========================================
   const {
     canCreate,
     canRead,
@@ -44,11 +43,38 @@ const DumpTruckManagement = () => {
     shouldShowButton,
     userRole,
     userSatker,
+
+    allowedFleetTypes,
   } = useDumptruckPermissions();
 
-  // ========================================
-  // FLEET HOOK
-  // ========================================
+  const measurementTypeFilter = useMemo(() => {
+    if (!allowedFleetTypes || allowedFleetTypes.length === 0) {
+      return null;
+    }
+
+    const measurementTypeMap = {
+      Jembatan: "Timbangan",
+      Timbangan: "Timbangan",
+      FOB: "FOB",
+      Bypass: "Bypass",
+      BeltScale: "BeltScale",
+    };
+
+    const allowedMeasurementTypes = [
+      ...new Set(
+        allowedFleetTypes.map((type) => measurementTypeMap[type] || type)
+      ),
+    ];
+
+    if (allowedMeasurementTypes.length >= 4) {
+      return null;
+    }
+
+    return allowedMeasurementTypes.length === 1
+      ? allowedMeasurementTypes[0]
+      : allowedMeasurementTypes;
+  }, [allowedFleetTypes]);
+
   const fleetConfig = useMemo(() => (user ? { user } : null), [user]);
   const fleetHook = useFleet(fleetConfig);
   const {
@@ -60,11 +86,16 @@ const DumpTruckManagement = () => {
     userRoleInfo,
     filteredFleetConfigs: allFilteredFleetConfigs,
     dateRange: fleetDateRange,
+    viewingDateRange,
+    setViewingDateRange,
+    currentShift,
+    viewingShift,
+    setViewingShift,
   } = fleetHook;
 
-  // Filter fleet configs by status and satker
   const filteredFleetConfigs = useMemo(() => {
     if (!Array.isArray(allFilteredFleetConfigs)) return [];
+
     let filtered = allFilteredFleetConfigs.filter(
       (fleet) => fleet.status === FLEET_STATUS.ACTIVE
     );
@@ -73,13 +104,28 @@ const DumpTruckManagement = () => {
       filtered = filterDataBySatker(filtered);
     }
 
-    return filtered;
-  }, [allFilteredFleetConfigs, isSatkerRestricted, canViewAllSatker, filterDataBySatker]);
+    if (measurementTypeFilter) {
+      if (Array.isArray(measurementTypeFilter)) {
+        filtered = filtered.filter((fleet) =>
+          measurementTypeFilter.includes(fleet.measurementType)
+        );
+      } else {
+        filtered = filtered.filter(
+          (fleet) => fleet.measurementType === measurementTypeFilter
+        );
+      }
+    }
 
-  // ========================================
-  // DUMPTRUCK HOOK
-  // ========================================
-  const dumptruckHook = useDumptruck(fleetHook);
+    return filtered;
+  }, [
+    allFilteredFleetConfigs,
+    isSatkerRestricted,
+    canViewAllSatker,
+    filterDataBySatker,
+    measurementTypeFilter,
+  ]);
+
+  const dumptruckHook = useDumptruck(fleetHook, measurementTypeFilter);
   const {
     dumptruckSettings,
     isLoading: dumptruckLoading,
@@ -90,9 +136,6 @@ const DumpTruckManagement = () => {
     refresh: refreshDumptruck,
   } = dumptruckHook;
 
-  // ========================================
-  // FILTERING & PAGINATION (Using Custom Hook)
-  // ========================================
   const {
     filteredData: filteredFleets,
     paginatedData: paginatedFleets,
@@ -120,27 +163,18 @@ const DumpTruckManagement = () => {
     },
   });
 
-  // ========================================
-  // MODAL MANAGEMENT (Using Custom Hook)
-  // ========================================
   const { openModal, closeModal, getModalState } = useModalState({
     config: null,
     detail: null,
     delete: null,
   });
 
-  // ========================================
-  // UI STATES
-  // ========================================
   const [isSaving, setIsSaving] = useState(false);
   const [filterExpanded, setFilterExpanded] = useState(false);
 
   const isLoading = dumptruckLoading || fleetLoading;
   const isRefreshing = dumptruckRefreshing || fleetRefreshing;
 
-  // ========================================
-  // FILTER OPTIONS
-  // ========================================
   const shiftOptions = useMemo(() => {
     if (!masters?.shifts) return [];
     return masters.shifts.map((shift) => ({
@@ -254,9 +288,6 @@ const DumpTruckManagement = () => {
     ]
   );
 
-  // ========================================
-  // HANDLERS - MODAL ACTIONS
-  // ========================================
   const handleAddNewSetting = useCallback(() => {
     if (!canCreate) {
       showToast.error(getDisabledMessage("create"));
@@ -281,15 +312,21 @@ const DumpTruckManagement = () => {
         (s) => String(s.fleet?.id) === String(fleet.id)
       );
 
-      const settingData = existingSetting || { 
-        fleet, 
-        units: [], 
-        id: undefined 
+      const settingData = existingSetting || {
+        fleet,
+        units: [],
+        id: undefined,
       };
-      
+
       openModal("config", settingData);
     },
-    [dumptruckSettings, canUpdate, checkDataAccess, getDisabledMessage, openModal]
+    [
+      dumptruckSettings,
+      canUpdate,
+      checkDataAccess,
+      getDisabledMessage,
+      openModal,
+    ]
   );
 
   const handleViewUnits = useCallback(
@@ -302,7 +339,7 @@ const DumpTruckManagement = () => {
       const existingSetting = dumptruckSettings.find(
         (s) => String(s.fleet?.id) === String(fleet.id)
       );
-      
+
       if (existingSetting) {
         openModal("detail", existingSetting);
       }
@@ -325,17 +362,56 @@ const DumpTruckManagement = () => {
       const existingSetting = dumptruckSettings.find(
         (s) => String(s.fleet?.id) === String(fleet.id)
       );
-      
+
       if (existingSetting) {
         openModal("delete", existingSetting);
       }
     },
-    [dumptruckSettings, canDeletePerm, checkDataAccess, getDisabledMessage, openModal]
+    [
+      dumptruckSettings,
+      canDeletePerm,
+      checkDataAccess,
+      getDisabledMessage,
+      openModal,
+    ]
   );
 
-  // ========================================
-  // HANDLERS - DATA OPERATIONS
-  // ========================================
+  const handleDateRangeChange = useCallback(
+    (newDateRange) => {
+      if (newDateRange.shift) {
+        setViewingShift(newDateRange.shift);
+      }
+
+      const newRange = {
+        from: newDateRange.from || newDateRange.startDate,
+        to: newDateRange.to || newDateRange.endDate,
+      };
+      setViewingDateRange(newRange);
+
+      setCurrentPage(1);
+    },
+    [setViewingDateRange, setViewingShift, setCurrentPage]
+  );
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (viewingDateRange.from || viewingDateRange.to) {
+        Promise.all([
+          refreshFleet({
+            dateRange: viewingDateRange,
+            shift: viewingShift,
+            skipAutoActivate: true,
+          }),
+          refreshDumptruck({
+            dateRange: viewingDateRange,
+          }),
+        ]);
+      }
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [viewingDateRange, viewingShift, refreshFleet, refreshDumptruck]);
+
   const fetchLatestSettingData = useCallback(
     async (settingId) => {
       try {
@@ -345,6 +421,7 @@ const DumpTruckManagement = () => {
           filters: {
             id: { $eq: parseInt(settingId) },
           },
+          measurementType: measurementTypeFilter,
         });
 
         if (result.success && result.data.length > 0) {
@@ -356,7 +433,7 @@ const DumpTruckManagement = () => {
         return null;
       }
     },
-    [user]
+    [user, measurementTypeFilter]
   );
 
   const handleMoveUnit = useCallback(
@@ -474,7 +551,7 @@ const DumpTruckManagement = () => {
   const handleSave = useCallback(
     async (data) => {
       const editingSetting = getModalState("config").data;
-      
+
       if (!canCreate && !canUpdate) {
         showToast.error(
           getDisabledMessage(editingSetting?.id ? "update" : "create")
@@ -499,7 +576,9 @@ const DumpTruckManagement = () => {
         );
 
         if (invalidPairs.length > 0) {
-          throw new Error(TOAST_MESSAGES.ERROR.INVALID_PAIRS(invalidPairs.length));
+          throw new Error(
+            TOAST_MESSAGES.ERROR.INVALID_PAIRS(invalidPairs.length)
+          );
         }
 
         let result;
@@ -551,9 +630,9 @@ const DumpTruckManagement = () => {
 
   const handleConfirmDelete = useCallback(async () => {
     const deleteTarget = getModalState("delete").data;
-    
+
     if (!deleteTarget?.id) return;
-    
+
     setIsSaving(true);
     try {
       await deleteSetting(deleteTarget.id);
@@ -587,11 +666,14 @@ const DumpTruckManagement = () => {
       refreshDumptruck({ dateRange: fleetDateRange }),
     ]);
     showToast.success(TOAST_MESSAGES.SUCCESS.REFRESH);
-  }, [refreshFleet, refreshDumptruck, canRead, getDisabledMessage, fleetDateRange]);
+  }, [
+    refreshFleet,
+    refreshDumptruck,
+    canRead,
+    getDisabledMessage,
+    fleetDateRange,
+  ]);
 
-  // ========================================
-  // RENDER - EARLY RETURN FOR NO PERMISSION
-  // ========================================
   if (!canRead) {
     return (
       <div className="space-y-6">
@@ -618,9 +700,6 @@ const DumpTruckManagement = () => {
     );
   }
 
-  // ========================================
-  // RENDER - MAIN CONTENT
-  // ========================================
   return (
     <div className="space-y-6 min-h-screen">
       <DumpTruckHeader
@@ -651,7 +730,7 @@ const DumpTruckManagement = () => {
               searchQuery={searchQuery}
               onSearchChange={updateSearch}
               dateRange={dateRange}
-              onDateRangeChange={updateDateRange}
+              onDateRangeChange={handleDateRangeChange}
               onRefresh={handleRefresh}
               isRefreshing={isRefreshing}
               filterExpanded={filterExpanded}
@@ -679,7 +758,11 @@ const DumpTruckManagement = () => {
               }
               onDeleteSetting={canDeletePerm ? handleDeleteSetting : undefined}
               currentPage={currentPage}
-              pageSize={totalPages > 0 ? Math.ceil(filteredFleets.length / totalPages) : 10}
+              pageSize={
+                totalPages > 0
+                  ? Math.ceil(filteredFleets.length / totalPages)
+                  : 10
+              }
               totalPages={totalPages}
               onPageChange={setCurrentPage}
               isHistoryMode={false}

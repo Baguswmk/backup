@@ -807,14 +807,6 @@ export const useFleet = (userAuth = null, measurementType = null) => {
           ? options.shift
           : viewingShift || currentShift;
 
-      console.log("🔄 Refresh called with:", {
-        targetDateRange,
-        targetShift,
-        optionsShift: options.shift,
-        viewingShift,
-        currentShift,
-      });
-
       if (isDateRangeToday(targetDateRange)) {
         await offlineService.clearCache("fleets_");
         await offlineService.clearCache("ritases_");

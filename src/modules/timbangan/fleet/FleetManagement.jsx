@@ -409,46 +409,16 @@ const FleetManagement = ({ Type }) => {
 
   const handleDateRangeChange = useCallback(
     (newDateRange) => {
-      console.log("");
-      console.log("================================================");
-      console.log("📅 [FleetManagement] handleDateRangeChange START");
-      console.log("================================================");
-      console.log(
-        "📦 Received newDateRange:",
-        JSON.stringify(newDateRange, null, 2)
-      );
-      console.log("🔍 newDateRange.shift value:", newDateRange.shift);
-      console.log("🔍 Type:", typeof newDateRange.shift);
-      console.log("📊 Current state BEFORE update:");
-      console.log("   - viewingShift:", viewingShift);
-      console.log("   - currentShift:", currentShift);
-      console.log("   - viewingDateRange:", viewingDateRange);
-
       if (newDateRange.shift) {
-        console.log("✅ Condition met: newDateRange.shift exists");
-        console.log("   Calling setViewingShift with:", newDateRange.shift);
         setViewingShift(newDateRange.shift);
-        console.log(
-          "   setViewingShift called (state will update on next render)"
-        );
-      } else {
-        console.warn("⚠️ NO SHIFT in newDateRange!");
-        console.warn("   Keys in newDateRange:", Object.keys(newDateRange));
-      }
-
+      } 
       const newRange = {
         from: newDateRange.from || newDateRange.startDate,
         to: newDateRange.to || newDateRange.endDate,
       };
-      console.log("📅 Calling setViewingDateRange with:", newRange);
       setViewingDateRange(newRange);
 
       setConfigPage(1);
-
-      console.log("================================================");
-      console.log("📅 [FleetManagement] handleDateRangeChange END");
-      console.log("================================================");
-      console.log("");
     },
     [
       viewingShift,
@@ -461,27 +431,8 @@ const FleetManagement = ({ Type }) => {
   );
 
   useEffect(() => {
-    console.log(
-      "🔄 [FleetManagement] viewingShift STATE UPDATED to:",
-      viewingShift
-    );
-  }, [viewingShift]);
-
-  useEffect(() => {
-    console.log(
-      "⏰ [FleetManagement] currentShift STATE UPDATED to:",
-      currentShift
-    );
-  }, [currentShift]);
-
-  useEffect(() => {
     const timer = setTimeout(() => {
       if (viewingDateRange.from || viewingDateRange.to) {
-        console.log("⏰ Auto-refresh triggered with:", {
-          dateRange: viewingDateRange,
-          shift: viewingShift,
-        });
-
         refreshFleet({
           dateRange: viewingDateRange,
           skipAutoActivate: true,

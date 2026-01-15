@@ -5,7 +5,7 @@ import { showToast } from "@/shared/utils/toast";
 import { withErrorHandling } from "@/shared/utils/errorHandler";
 import { offlineService } from "@/shared/services/offlineService";
 
-export const useDumptruck = (fleetHook) => {
+export const useDumptruck = (fleetHook, measurementType = null) => {
   const {
     user,
     filteredFleetConfigs = [],
@@ -13,6 +13,7 @@ export const useDumptruck = (fleetHook) => {
     timbanganFleetConfigs = [],
     userRoleInfo,
     viewingDateRange = null,
+    viewingShift = null,
   } = fleetHook || {};
 
   const [dumptruckSettings, setDumptruckSettings] = useState([]);
@@ -37,13 +38,14 @@ export const useDumptruck = (fleetHook) => {
   const loadAvailableUnits = useCallback(async () => {
     return await withErrorHandling(
       async () => {
-        const result = await masterDataService.fetchUnits({ type: "DUMP_TRUCK" });
+        const result = await masterDataService.fetchUnits({
+          type: "DUMP_TRUCK",
+        });
         setAvailableUnits(result);
         return { success: true, data: result };
       },
       {
         operation: "load available units",
-        showSuccessToast: false,
         onError: (err) => console.error("❌ Failed to load units:", err),
       }
     );
@@ -68,10 +70,13 @@ export const useDumptruck = (fleetHook) => {
 
       return await withErrorHandling(
         async () => {
+          const effectiveShift = options.shift || viewingShift;
           const result = await dumptruckService.fetchDumptruckSettings({
             user,
             forceRefresh: options.forceRefresh || false,
             dateRange: options.dateRange || viewingDateRange,
+            shift: effectiveShift,
+            measurementType: measurementType || options.measurementType || null,
             ...options,
           });
 
@@ -80,20 +85,19 @@ export const useDumptruck = (fleetHook) => {
         },
         {
           operation: "load dumptruck settings",
-          showSuccessToast: false,
           onError: (err) => {
             console.error("❌ Load dumptruck settings error:", err);
             setError(err.message);
-          }
+          },
         }
       ).finally(() => {
         loadingState(false);
       });
     },
-    [user, viewingDateRange]
+    [user, viewingDateRange, measurementType, viewingShift]
   );
 
-      const refresh = useCallback(async () => {
+  const refresh = useCallback(async () => {
     if (!user) {
       console.warn("⚠️ Cannot refresh: User not available");
       return {
@@ -105,12 +109,23 @@ export const useDumptruck = (fleetHook) => {
     offlineService.clearCache();
 
     return await Promise.all([
-      loadDumptruckSettings({ forceRefresh: true, isRefresh: true, dateRange: viewingDateRange }),
+      loadDumptruckSettings({
+        forceRefresh: true,
+        isRefresh: true,
+        dateRange: viewingDateRange,
+        shift: viewingShift,
+        measurementType,
+      }),
       loadAvailableUnits(),
     ]);
-  }, [loadDumptruckSettings, loadAvailableUnits, user, viewingDateRange]);
-
-
+  }, [
+    loadDumptruckSettings,
+    loadAvailableUnits,
+    user,
+    viewingDateRange,
+    measurementType,
+    viewingShift,
+  ]);
 
   const reactivateDumptruckSetting = useCallback(
     async (settingId) => {
@@ -127,7 +142,9 @@ export const useDumptruck = (fleetHook) => {
         }
 
         if (setting.fleet?.status !== "CLOSED") {
-          throw new Error("Hanya bisa reaktivasi setting dari fleet CLOSED");
+          throw new Error(
+            `Fleet dengan status ${setting.fleet?.status} tidak bisa direaktivasi`
+          );
         }
 
         const result = await dumptruckService.reactivateDumptruckSetting(
@@ -145,9 +162,11 @@ export const useDumptruck = (fleetHook) => {
         throw new Error(result.error || "Failed to reactivate setting");
       } catch (error) {
         console.error("❌ Reactivate error:", error);
-        setError(error.message);
-        showToast.error(error.message || "Gagal mereaktivasi fleet");
-        return { success: false, error: error.message };
+        setError(error.response.data.message);
+        showToast.error(
+          error.response.data.message || "Gagal mereaktivasi fleet"
+        );
+        return { success: false, error: error.response.data.message };
       } finally {
         setIsLoading(false);
       }
@@ -185,7 +204,6 @@ export const useDumptruck = (fleetHook) => {
         async () => {
           const { fleetId, pairDtOp } = data || {};
 
-          // Validation
           if (!fleetId) throw new Error("Fleet belum dipilih");
           if (!pairDtOp || pairDtOp.length === 0)
             throw new Error("Pilih minimal 1 dump truck dan operator");
@@ -210,9 +228,7 @@ export const useDumptruck = (fleetHook) => {
         },
         {
           operation: "create dumptruck setting",
-          showSuccessToast: true,
-          successMessage: "Setting dump truck berhasil dibuat",
-          onError: (err) => setError(err.message)
+          onError: (err) => setError(err.message),
         }
       ).finally(() => {
         setIsLoading(false);
@@ -259,9 +275,7 @@ export const useDumptruck = (fleetHook) => {
         },
         {
           operation: "update dumptruck setting",
-          showSuccessToast: true,
-          successMessage: "Setting berhasil diperbarui",
-          onError: (err) => setError(err.message)
+          onError: (err) => setError(err.message),
         }
       ).finally(() => {
         setIsLoading(false);
@@ -269,7 +283,6 @@ export const useDumptruck = (fleetHook) => {
     },
     [refresh]
   );
-
 
   const deleteSetting = useCallback(
     async (settingId) => {
@@ -284,9 +297,7 @@ export const useDumptruck = (fleetHook) => {
         },
         {
           operation: "delete dumptruck setting",
-          showSuccessToast: true,
-          successMessage: "Setting berhasil dihapus",
-          onError: (err) => setError(err.message)
+          onError: (err) => setError(err.message),
         }
       ).finally(() => {
         setIsLoading(false);
@@ -294,8 +305,6 @@ export const useDumptruck = (fleetHook) => {
     },
     [refresh]
   );
-
-
 
   const getUnitsForFleet = useCallback(
     async (fleetId) => {
@@ -331,11 +340,24 @@ export const useDumptruck = (fleetHook) => {
         return;
       }
 
-      await Promise.all([loadDumptruckSettings({ dateRange: viewingDateRange }), loadAvailableUnits()]);
+      await Promise.all([
+        loadDumptruckSettings({
+          dateRange: viewingDateRange,
+          measurementType,
+        }),
+        loadAvailableUnits(),
+      ]);
     };
 
     initializeData();
-  }, [user, filteredFleetConfigs.length, timbanganFleetConfigs.length, viewingDateRange, loadDumptruckSettings]);
+  }, [
+    user,
+    filteredFleetConfigs.length,
+    timbanganFleetConfigs.length,
+    viewingDateRange,
+    measurementType,
+    loadDumptruckSettings,
+  ]);
 
   return {
     dumptruckSettings,

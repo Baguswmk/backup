@@ -1,136 +1,118 @@
 import { offlineService } from "@/shared/services/offlineService";
 import { logger } from "@/shared/services/log";
 import { masterDataService } from "@/modules/timbangan/masterData/services/masterDataService";
-import { validateDateRange } from "@/shared/utils/date"; 
 
 /**
- *   BUILD FILTERS - Support Role-Based Access
+ * BUILD FILTERS - Support Role-Based Access + Measurement Type
  */
 const buildFilters = (options = {}) => {
-  const { user, dateRange } = options; 
+  const { user, dateRange, measurementType, shift } = options;
   const filters = {};
+  const role = user?.role?.toLowerCase();
 
-  if (!user) {
-    logger.warn("⚠️ No user provided for filter");
-    return filters;
+  if (dateRange?.from && dateRange?.to) {
+    filters.setting_fleet = {
+      date: {
+        $gte: dateRange.from,
+        $lte: dateRange.to,
+      },
+    };
   }
 
-  const role = user.role?.toLowerCase();
+  if (shift && shift !== "All" && shift !== "all") {
+    if (!filters.setting_fleet) {
+      filters.setting_fleet = {};
+    }
+    filters.setting_fleet.shift = { $eq: shift };
+    logger.info("🔄 Shift filter applied", { shift });
+  }
 
-  logger.info("🔒 Building dumptruck filters", {
-    role,
-    userId: user.id,
-    weighBridgeId: user.weigh_bridge?.id,
-  });
+  if (measurementType) {
+    if (!filters.setting_fleet) {
+      filters.setting_fleet = {};
+    }
+    filters.setting_fleet.measurement_type = { $eq: measurementType };
+    logger.info("📊 Measurement type filter applied", { measurementType });
+  }
 
-  // Role-based filters
   switch (role) {
-    case "mitra":
-    case "pengawas":
-    case "checker":
-      if (user.company?.id) {
-        filters.setting_fleet = {
-          unit_exca: {
-            company: {
-              id: { $eq: parseInt(user.company.id) },
-            },
-          },
+    case "operator_jt":
+      if (user?.weigh_bridge?.id) {
+        if (!filters.setting_fleet) {
+          filters.setting_fleet = {};
+        }
+        filters.setting_fleet.weigh_bridge = {
+          id: { $eq: parseInt(user.weigh_bridge.id) },
         };
-        logger.info("🏢 Filtering by company (from excavator)", {
-          companyId: user.company.id,
-        });
+      }
+
+      if (!measurementType) {
+        if (!filters.setting_fleet) {
+          filters.setting_fleet = {};
+        }
+        filters.setting_fleet.measurement_type = { $eq: "Timbangan" };
       }
       break;
+
+    case "ccr": {
+      const subsatker = user?.work_unit?.subsatker;
+      if (!subsatker) {
+        return {
+          needsFeedback: true,
+          message:
+            "Data tidak dapat difilter karena subsatker tidak ditemukan.",
+        };
+      }
+      if (!filters.setting_fleet) {
+        filters.setting_fleet = {};
+      }
+      filters.setting_fleet.pic_work_unit = {
+        subsatker: { $eq: subsatker },
+      };
+      break;
+    }
+
+    case "pengawas":
+    case "evaluator":
+    case "pic": {
+      const subsatker = user?.work_unit?.subsatker;
+      if (subsatker) {
+        if (!filters.setting_fleet) {
+          filters.setting_fleet = {};
+        }
+        filters.setting_fleet.pic_work_unit = {
+          subsatker: { $eq: subsatker },
+        };
+      }
+      break;
+    }
 
     case "admin":
-    case "pic":
-    case "evaluator":
-      if (user.work_unit?.id) {
-        filters.setting_fleet = {
-          pic_work_unit: {
-            id: { $eq: parseInt(user.work_unit.id) },
+    case "mitra":
+    case "checker":
+      if (user?.company?.id) {
+        if (!filters.setting_fleet) {
+          filters.setting_fleet = {};
+        }
+        filters.setting_fleet.unit_exca = {
+          company: {
+            id: { $eq: parseInt(user.company.id) },
           },
         };
-        logger.info("🗃️ Filtering by work unit", {
-          workUnitId: user.work_unit.id,
-        });
       }
-      break;
-
-    case "operator_jt":
-      logger.info("⚖️ Operator JT - will filter by weigh_bridge only");
       break;
 
     case "super_admin":
-      logger.info("👑 Super Admin - no role-specific filters");
-      break;
-
-    default:
-      logger.warn("⚠️ Unknown role, returning empty filters", { role });
       break;
   }
 
-  // Weigh bridge filter
-  if (role !== "super_admin" && user.weigh_bridge?.id) {
-    if (filters.setting_fleet) {
-      filters.setting_fleet = {
-        $and: [
-          filters.setting_fleet,
-          {
-            weigh_bridge: {
-              id: { $eq: parseInt(user.weigh_bridge.id) },
-            },
-          },
-        ],
-      };
-    } else {
-      filters.setting_fleet = {
-        weigh_bridge: {
-          id: { $eq: parseInt(user.weigh_bridge.id) },
-        },
-      };
-    }
-
-    logger.info("⚖️ Weigh_bridge filter applied", {
-      weighBridgeId: user.weigh_bridge.id,
-    });
-  }
-
-  // ✅ IMPROVED - Use validateDateRange utility
-  if (dateRange?.from && dateRange?.to) {
-    const validation = validateDateRange(dateRange);
-    
-    if (!validation.valid) {
-      logger.warn("⚠️ Invalid date range", { error: validation.error });
-      return filters; // Return without date filter if invalid
-    }
-
-    if (filters.setting_fleet) {
-      filters.setting_fleet = {
-        $and: [
-          filters.setting_fleet,
-          {
-            date: {
-              $gte: dateRange.from,
-              $lte: dateRange.to
-            }
-          }
-        ]
-      };
-    } else {
-      filters.setting_fleet = {
-        date: {
-          $gte: dateRange.from,
-          $lte: dateRange.to
-        }
-      };
-    }
-    
-    logger.info("📅 Date range filter applied to dumptruck", { 
-      from: dateRange.from, 
-      to: dateRange.to 
-    });
-  }
+  logger.info("🔍 Dumptruck filters built", {
+    role,
+    shift,
+    measurementType,
+    hasDateRange: !!dateRange,
+    filters: JSON.stringify(filters),
+  });
 
   return filters;
 };
@@ -138,14 +120,46 @@ const buildFilters = (options = {}) => {
 export const dumptruckService = {
   async fetchDumptruckSettings(options = {}) {
     try {
-      const { user, forceRefresh = false, dateRange } = options;
+      const {
+        user,
+        forceRefresh = false,
+        dateRange,
+        shift,
+        measurementType,
+      } = options;
 
-      const roleFilters = buildFilters({ user, dateRange });
+      const roleFilters = buildFilters({
+        user,
+        dateRange,
+        shift,
+        measurementType,
+      });
 
-      // ✅ Build cache key that includes dateRange
-      const cacheKey = dateRange?.from && dateRange?.to
-        ? `dumptruck_settings_${dateRange.from}_${dateRange.to}`
-        : "dumptruck_settings_all";
+      if (roleFilters.needsFeedback) {
+        logger.warn("⚠️ CCR subsatker validation failed", {
+          message: roleFilters.message,
+        });
+        return {
+          success: false,
+          data: [],
+          needsFeedback: true,
+          message: roleFilters.message,
+        };
+      }
+
+      let cacheKey = "dumptruck_settings";
+      if (dateRange?.from && dateRange?.to) {
+        cacheKey += `_${dateRange.from}_${dateRange.to}`;
+      }
+      if (shift && shift !== "All") {
+        cacheKey += `_${shift}`;
+      }
+      if (measurementType) {
+        cacheKey += `_${measurementType}`;
+      }
+      if (user?.id) {
+        cacheKey += `_user${user.id}`;
+      }
 
       const params = {
         populate: [
@@ -181,15 +195,17 @@ export const dumptruckService = {
         };
       }
 
-      logger.info("📡 Fetching dumptruck settings with FULL populate", {
-        filters: params.filters,
+      logger.info("📡 Fetching dumptruck settings", {
         role: user?.role,
-        populateCount: params.populate.length,
+        shift,
+        measurementType,
+        cacheKey,
+        forceRefresh,
       });
 
       const response = await offlineService.get("/setting-dump-trucks", {
         params,
-        cacheKey,  // ✅ Use dateRange-specific cache key
+        cacheKey,
         ttl: 5 * 60 * 1000,
         forceRefresh,
       });
@@ -210,18 +226,19 @@ export const dumptruckService = {
         this._transformDumptruckSetting(item, operatorsMap)
       );
 
-      logger.info("✅ Dumptruck settings fetched with full data", {
+      logger.info("✅ Dumptruck settings fetched", {
         count: settings.length,
         role: user?.role,
-        sampleUnits: settings[0]?.units?.length || 0,
+        shift,
+        measurementType,
       });
 
       return { success: true, data: settings };
     } catch (error) {
       logger.error("❌ Failed to fetch dumptruck settings", {
-        error: error.message,
+        error: error.response.data.message,
       });
-      return { success: false, data: [], error: error.message };
+      return { success: false, data: [], error: error.response.data.message };
     }
   },
 
@@ -284,9 +301,9 @@ export const dumptruckService = {
       return { success: true, data: units };
     } catch (error) {
       logger.error("Failed to get filtered units by fleet", {
-        error: error.message,
+        error: error.response.data.message,
       });
-      return { success: false, data: [], error: error.message };
+      return { success: false, data: [], error: error.response.data.message };
     }
   },
 
@@ -296,27 +313,18 @@ export const dumptruckService = {
         throw new Error("setting_fleet_id is required");
       }
 
-      const now = new Date().toISOString();
-      let payload;
+      const payload = {
+        setting_fleet: parseInt(data.setting_fleet_id),
+        pair_dt_op: data.pair_dt_op.map((pair) => ({
+          truckId: parseInt(pair.truckId),
+          operatorId: parseInt(pair.operatorId),
+        })),
+      };
 
-      if (data.pair_dt_op && Array.isArray(data.pair_dt_op)) {
-        payload = {
-          setting_fleet: parseInt(data.setting_fleet_id),
-          pair_dt_op: data.pair_dt_op.map((pair) => ({
-            truckId: parseInt(pair.truckId),
-            operatorId: parseInt(pair.operatorId),
-          })),
-        };
-      } else if (data.unit_ids && Array.isArray(data.unit_ids)) {
-        payload = {
-          unit_dump_trucks: data.unit_ids.map((id) => parseInt(id)),
-          setting_fleet: parseInt(data.setting_fleet_id),
-        };
-      } else {
-        throw new Error("Either pair_dt_op or unit_ids must be provided");
-      }
-
-      logger.info("Creating dumptruck setting with payload:", payload);
+      logger.info("📤 Creating dumptruck setting", {
+        fleetId: payload.setting_fleet,
+        pairsCount: payload.pair_dt_op.length,
+      });
 
       const response = await offlineService.post(
         "/v1/custom/setting-dump-truck",
@@ -330,7 +338,7 @@ export const dumptruckService = {
         throw new Error("Setting ID not found in response");
       }
 
-      logger.info("🔄 Fetching created setting with full populate...", {
+      logger.info("📄 Fetching created setting with full populate", {
         settingId,
       });
 
@@ -364,25 +372,25 @@ export const dumptruckService = {
         fullResponse.data
       );
 
-      logger.info("✅ Dumptruck setting created with clientCreatedAt", {
+      await offlineService.clearCache("dumptruck_settings");
+      await offlineService.clearCache("fleets_");
+
+      logger.info("✅ Dumptruck setting created", {
         id: transformedData.id,
         unitsCount: transformedData.units?.length || 0,
-        clientCreatedAt: now,
       });
 
       return {
         success: true,
         data: transformedData,
-        message: "Setting dump truck berhasil dibuat",
       };
     } catch (error) {
-      console.error("❌ Create dumptruck setting error:", error);
-      logger.error("Failed to create dumptruck setting", {
-        error: error.message,
+      logger.error("❌ Failed to create dumptruck setting", {
+        error: error.response.data.message,
       });
       return {
         success: false,
-        error: error.message,
+        error: error.response.data.message,
         message: "Gagal membuat setting dump truck",
       };
     }
@@ -390,32 +398,26 @@ export const dumptruckService = {
 
   async updateDumptruckSetting(settingId, updates) {
     try {
-      const payload = {
-        data: {}
-      };
+      const payload = {};
 
-      if (
-        updates.pair_dt_op !== undefined &&
-        Array.isArray(updates.pair_dt_op)
-      ) {
-        payload.data.pair_dt_op = updates.pair_dt_op.map((pair) => ({
-          dts: parseInt(pair.truckId),
-          ops: parseInt(pair.operatorId),
+      if (updates.pair_dt_op && Array.isArray(updates.pair_dt_op)) {
+        payload.pair_dt_op = updates.pair_dt_op.map((pair) => ({
+          truckId: parseInt(pair.truckId),
+          operatorId: parseInt(pair.operatorId),
         }));
-      } else if (
-        updates.unit_ids !== undefined &&
-        Array.isArray(updates.unit_ids)
-      ) {
-        payload.data.unit_dump_trucks = updates.unit_ids.map((id) =>
-          parseInt(id)
-        );
       }
 
-      logger.info("Updating dumptruck setting:", payload);
+      logger.info("📤 Updating dumptruck setting", {
+        settingId,
+        pairsCount: payload.pair_dt_op?.length,
+      });
 
-      await offlineService.put(`/setting-dump-trucks/${settingId}`, payload);
+      await offlineService.patch(
+        `/v1/custom/setting-dump-truck/${settingId}`,
+        payload
+      );
 
-      logger.info("🔄 Fetching updated setting with full populate...", {
+      logger.info("📄 Fetching updated setting with full populate", {
         settingId,
       });
 
@@ -449,7 +451,10 @@ export const dumptruckService = {
         fullResponse.data
       );
 
-      logger.info("✅ Dumptruck setting updated with full data", {
+      await offlineService.clearCache("dumptruck_settings");
+      await offlineService.clearCache("fleets_");
+
+      logger.info("✅ Dumptruck setting updated", {
         id: settingId,
         unitsCount: transformedData.units?.length || 0,
       });
@@ -457,15 +462,14 @@ export const dumptruckService = {
       return {
         success: true,
         data: transformedData,
-        message: "Setting dump truck berhasil diupdate",
       };
     } catch (error) {
-      logger.error("Failed to update dumptruck setting", {
-        error: error.message,
+      logger.error("❌ Failed to update dumptruck setting", {
+        error: error.response.data.message,
       });
       return {
         success: false,
-        error: error.message,
+        error: error.response.data.message,
         message: "Gagal mengupdate setting dump truck",
       };
     }
@@ -473,17 +477,22 @@ export const dumptruckService = {
 
   async deleteDumptruckSetting(settingId) {
     try {
-      await offlineService.delete(`/setting-dump-trucks/${settingId}`);
+      logger.info("🗑️ Deleting dumptruck setting", { settingId });
 
-      logger.info("Dumptruck setting deleted", { id: settingId });
+      await offlineService.delete(`/v1/custom/setting-dump-truck/${settingId}`);
+
+      await offlineService.clearCache("dumptruck_settings");
+      await offlineService.clearCache("fleets_");
+
+      logger.info("✅ Dumptruck setting deleted", { id: settingId });
       return { success: true, message: "Setting berhasil dihapus" };
     } catch (error) {
-      logger.error("Failed to delete dumptruck setting", {
-        error: error.message,
+      logger.error("❌ Failed to delete dumptruck setting", {
+        error: error.response.data.message,
       });
       return {
         success: false,
-        error: error.message,
+        error: error.response.data.message,
         message: "Gagal menghapus setting dump truck",
       };
     }
@@ -491,35 +500,18 @@ export const dumptruckService = {
 
   async reactivateDumptruckSetting(settingId) {
     try {
-      const settingResponse = await offlineService.get(
-        `/setting-dump-trucks/${settingId}`,
-        {
-          params: {
-            populate: ["setting_fleet"],
-          },
-        }
-      );
-
-      const fleetId = settingResponse.data?.attributes?.setting_fleet?.data?.id;
-
-      if (!fleetId) {
-        throw new Error("Fleet ID tidak ditemukan di setting");
-      }
-
-      logger.info("🔄 Reactivating fleet by updating status", {
+      logger.info("🔄 Reactivating dumptruck setting (via backend)", {
         settingId,
-        fleetId,
       });
 
-      const updatePayload = {
-        data: {
-          status: "ACTIVE",
-        },
-      };
+      const response = await offlineService.put(
+        `/v1/custom/setting-dump-truck/${settingId}/reactivate`,
+        {}
+      );
 
-      await offlineService.put(`/setting-fleets/${fleetId}`, updatePayload);
-
-      logger.info("✅ Fleet status changed to ACTIVE", { fleetId });
+      logger.info("📄 Fetching reactivated setting with full populate", {
+        settingId,
+      });
 
       const fullResponse = await offlineService.get(
         `/setting-dump-trucks/${settingId}`,
@@ -551,19 +543,26 @@ export const dumptruckService = {
         fullResponse.data
       );
 
+      await offlineService.clearCache("dumptruck_settings");
+      await offlineService.clearCache("fleets_");
+
+      logger.info("✅ Dumptruck setting reactivated", {
+        id: settingId,
+        fleetStatus: transformedData.fleet?.status,
+      });
+
       return {
         success: true,
         data: transformedData,
-        message: "Fleet berhasil direaktivasi",
       };
     } catch (error) {
       logger.error("❌ Failed to reactivate dumptruck setting", {
-        error: error.message,
+        error: error.response.data.message,
       });
       return {
         success: false,
-        error: error.message,
-        message: "Gagal mereaktivasi fleet",
+        error: error.response.data.message,
+        message: error.response.data.message || "Gagal mereaktivasi fleet",
       };
     }
   },
@@ -635,6 +634,7 @@ export const dumptruckService = {
                 fleetAttr?.weigh_bridge?.data?.id?.toString() || "",
               weighBridge:
                 fleetAttr?.weigh_bridge?.data?.attributes?.name || "",
+              measurementType: fleetAttr?.measurement_type,
             }
           : null,
 
@@ -642,18 +642,23 @@ export const dumptruckService = {
         updatedAt: attr.updatedAt,
       };
     } catch (error) {
-      console.error("❌ Transform error:", error, "Response:", apiResponse);
+      logger.error("❌ Transform error", {
+        error: error.response.data.message,
+        response: apiResponse,
+      });
       throw error;
     }
   },
 
-  // ✅ NEW: Clear transaction data cache (NOT masters)
   clearCache() {
     try {
-      offlineService.clearCache();
+      offlineService.clearCache("dumptruck_settings");
+      offlineService.clearCache("fleets_");
       logger.info("✅ Dumptruck cache cleared");
     } catch (error) {
-      logger.error("Failed to clear dumptruck cache", { error: error.message });
+      logger.error("Failed to clear dumptruck cache", {
+        error: error.response.data.message,
+      });
     }
   },
 };

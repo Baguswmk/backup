@@ -116,17 +116,18 @@ const DumpTruckDetailModal = ({
             />
           ) : (
             <div className="rounded-md overflow-hidden">
-              {/* ✅ FIXED: Added dark mode classes */}
-              <div className={cn(
-                "grid grid-cols-5 gap-2 px-3 py-2 text-xs font-medium",
-                "bg-gray-50 dark:bg-gray-900",
-                "text-gray-600 dark:text-gray-400"
-              )}>
+              <div
+                className={cn(
+                  "grid grid-cols-5 gap-2 px-3 py-2 text-xs font-medium",
+                  "bg-gray-50 dark:bg-gray-900",
+                  "text-gray-600 dark:text-gray-400"
+                )}
+              >
                 <div>Hull No</div>
                 <div>Company</div>
                 <div>Status</div>
                 <div>Operator</div>
-                <div className="text-right">Aksi</div>
+                {/* <div className="text-right">Aksi</div> */}
               </div>
 
               <div className="max-h-72 overflow-auto">
@@ -171,8 +172,8 @@ const DumpTruckDetailModal = ({
                               <ChevronDown className="w-4 h-4" />
                             </Button>
                           </DropdownMenuTrigger>
-                          <DropdownMenuContent 
-                            align="end" 
+                          <DropdownMenuContent
+                            align="end"
                             className={cn(
                               "w-80 bg-white border-none",
                               "dark:bg-gray-800 dark:border-gray-700"

@@ -1,12 +1,13 @@
 import React from "react";
-import { Button } from "@/shared/components/ui/button";
-import { Plus } from "lucide-react";
 import TableToolbar from "@/shared/components/TableToolbar";
 import AdvancedFilter from "@/shared/components/AdvancedFilter";
 
 const DumpTruckFilters = ({
   searchQuery,
   onSearchChange,
+  dateRange,
+  currentShift,
+  viewingShift,
   onDateRangeChange,
   onRefresh,
   isRefreshing,
@@ -28,6 +29,9 @@ const DumpTruckFilters = ({
         onSearchChange={onSearchChange}
         searchPlaceholder="Cari nama fleet, excavator, shift, work unit..."
         canSearch={canRead}
+        dateRange={dateRange}
+        currentShift={currentShift}
+        viewingShift={viewingShift}
         onDateRangeChange={onDateRangeChange}
         onRefresh={onRefresh}
         isRefreshing={isRefreshing}
@@ -35,20 +39,6 @@ const DumpTruckFilters = ({
         filterExpanded={filterExpanded}
         onToggleFilter={onToggleFilter}
         showDateRange={false}
-        extraActions={
-          <>
-            {shouldShowButton("create") && (
-              <Button
-                onClick={onAddNew}
-                disabled={!canCreate}
-                className="gap-2 cursor-pointer disabled:cursor-not-allowed whitespace-nowrap dark:text-gray-200 dark:hover:bg-gray-700"
-              >
-                <Plus className="w-4 h-4" />
-                Tambah DT
-              </Button>
-            )}
-          </>
-        }
       />
 
       {filterExpanded && (
