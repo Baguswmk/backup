@@ -13,9 +13,7 @@ import LoadingOverlay from "@/shared/components/LoadingOverlay";
 import ConfirmDialog from "@/shared/components/ConfirmDialog";
 import TableToolbar from "@/shared/components/TableToolbar";
 
-import { 
-  getTodayDateRange, 
-} from "@/shared/utils/date";
+import { getTodayDateRange } from "@/shared/utils/date";
 import { handleError } from "@/shared/utils/errorHandler";
 import { showToast } from "@/shared/utils/toast";
 import {
@@ -29,13 +27,13 @@ const FleetHistory = ({ Type }) => {
   const { user } = useAuthStore();
   const permissions = useFleetPermissions();
   const measurementTypeMap = {
-    'Timbangan': 'Timbangan',
-    'FOB': 'FOB',
-    'Bypass': 'Bypass',
-    'BeltScale': 'BeltScale',
+    Timbangan: "Timbangan",
+    FOB: "FOB",
+    Bypass: "Bypass",
+    BeltScale: "BeltScale",
   };
 
-  const measurementType = measurementTypeMap[Type] || 'Timbangan';
+  const measurementType = measurementTypeMap[Type] || "Timbangan";
   const {
     fleetConfigs,
     masters,
@@ -46,7 +44,6 @@ const FleetHistory = ({ Type }) => {
     refresh: refreshFleet,
   } = useFleet(user ? { user, viewMode: "history" } : null, measurementType);
 
-  // States
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [selectedConfig, setSelectedConfig] = useState(null);
   const [configPage, setConfigPage] = useState(1);
@@ -62,7 +59,6 @@ const FleetHistory = ({ Type }) => {
 
   const [dateRange, setDateRange] = useState(getTodayDateRange());
 
-  // Filter States
   const [shifts, setShifts] = useState([]);
   const [excavators, setExcavators] = useState([]);
   const [workUnits, setWorkUnits] = useState([]);
@@ -75,7 +71,6 @@ const FleetHistory = ({ Type }) => {
   const isConfigsLoading = fleetLoading && !fleetRefreshing;
   const isRefreshing = fleetRefreshing;
 
-  // Filter by Role - Only CLOSED status timbangan fleets
   const filteredByRole = useMemo(() => {
     let filtered = (fleetConfigs || []).filter((c) => c.status === "CLOSED");
 
@@ -120,7 +115,6 @@ const FleetHistory = ({ Type }) => {
     return filtered;
   }, [fleetConfigs, user]);
 
-  // Filter Options
   const shiftOptions = useMemo(
     () =>
       (masters?.shifts || []).map((shift) => ({
@@ -262,7 +256,6 @@ const FleetHistory = ({ Type }) => {
     ]
   );
 
-  // Filtered Configs
   const filteredConfigs = useMemo(() => {
     let filtered = filteredByRole;
 
@@ -462,7 +455,10 @@ const FleetHistory = ({ Type }) => {
             Menampilkan fleet dengan status CLOSED
           </p>
           <div className="flex items-center gap-2 mt-2">
-            <Badge variant="outline" className="text-xs dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600">
+            <Badge
+              variant="outline"
+              className="text-xs dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600"
+            >
               <Lock className="w-3 h-3 mr-1" />
               {permissions.userRole}
             </Badge>
@@ -474,7 +470,7 @@ const FleetHistory = ({ Type }) => {
       </div>
 
       {/* Read Only Alert */}
-      {!permissions.canUpdate && (
+      {/* {!permissions.canUpdate && (
         <Alert className="border-orange-200 dark:border-orange-800 bg-orange-50 dark:bg-orange-900/20">
           <Lock className="w-4 h-4 text-orange-600 dark:text-orange-400" />
           <AlertDescription>
@@ -485,7 +481,7 @@ const FleetHistory = ({ Type }) => {
             </p>
           </AlertDescription>
         </Alert>
-      )}
+      )} */}
 
       {/* Main Content */}
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm dark:border-gray-700">
@@ -571,17 +567,25 @@ const FleetHistory = ({ Type }) => {
             <div className="rounded-md border p-3 text-sm space-y-1 dark:border-gray-700">
               <div className="flex justify-between">
                 <span className="text-gray-600 dark:text-gray-400">Fleet:</span>
-                <span className="font-medium dark:text-gray-200">{reactivateTarget.name}</span>
+                <span className="font-medium dark:text-gray-200">
+                  {reactivateTarget.name}
+                </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-600 dark:text-gray-400">Excavator:</span>
+                <span className="text-gray-600 dark:text-gray-400">
+                  Excavator:
+                </span>
                 <span className="font-medium dark:text-gray-200">
                   {reactivateTarget.excavator}
                 </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-600 dark:text-gray-400">Status:</span>
-                <span className="font-medium dark:text-gray-200">CLOSED → ACTIVE</span>
+                <span className="text-gray-600 dark:text-gray-400">
+                  Status:
+                </span>
+                <span className="font-medium dark:text-gray-200">
+                  CLOSED → ACTIVE
+                </span>
               </div>
             </div>
           )}

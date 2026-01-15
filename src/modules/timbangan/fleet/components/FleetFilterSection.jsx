@@ -6,6 +6,8 @@ import { SEARCH_PLACEHOLDERS } from "@/modules/timbangan/fleet/constant/fleetCon
 const FleetFilterSection = ({
   activeTab,
   dateRange,
+  currentShift,
+  viewingShift,
   onDateRangeChange,
   searchQuery,
   onSearchChange,
@@ -21,13 +23,14 @@ const FleetFilterSection = ({
 }) => {
   const showDateRange = activeTab === "timbangan";
   const showFilter = activeTab === "timbangan";
-
   return (
     <div className="space-y-4">
       {/* Toolbar */}
       <TableToolbar
-        dateRange={showDateRange ? dateRange : undefined}
-        onDateRangeChange={showDateRange ? onDateRangeChange : undefined}
+        dateRange={dateRange}
+        currentShift={currentShift}
+        viewingShift={viewingShift}
+        onDateRangeChange={onDateRangeChange}
         showDateRange={showDateRange}
         searchQuery={searchQuery}
         onSearchChange={onSearchChange}

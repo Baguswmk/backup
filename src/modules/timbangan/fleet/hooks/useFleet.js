@@ -4,11 +4,8 @@ import { masterDataService } from "@/modules/timbangan/masterData/services/maste
 import { useTimbanganStore } from "@/modules/timbangan/timbangan/store/timbanganStore";
 import { offlineService } from "@/shared/services/offlineService";
 import { format } from "date-fns";
-
-import { 
-  getTodayDateRange, 
-  isDateRangeToday,
-} from "@/shared/utils/date";
+import { getCurrentShift } from "@/shared/utils/shift";
+import { getTodayDateRange, isDateRangeToday } from "@/shared/utils/date";
 import { withErrorHandling } from "@/shared/utils/errorHandler";
 
 const CACHE_CONFIG = {
@@ -56,7 +53,9 @@ const getUserRoleInfo = (user) => {
 export const useFleet = (userAuth = null, measurementType = null) => {
   const fleetConfigs = useTimbanganStore((state) => state.fleetConfigs);
   const selectedFleetIds = useTimbanganStore((state) => state.selectedFleetIds);
-  const setSelectedFleets = useTimbanganStore((state) => state.setSelectedFleets);
+  const setSelectedFleets = useTimbanganStore(
+    (state) => state.setSelectedFleets
+  );
   const setDumptruckIndexFromConfigs = useTimbanganStore(
     (state) => state.setDumptruckIndexFromConfigs
   );
@@ -79,10 +78,10 @@ export const useFleet = (userAuth = null, measurementType = null) => {
   const [mastersLoading, setMastersLoading] = useState(false);
 
   const [viewMode, setViewMode] = useState("normal");
-
+  const [currentShift, setCurrentShift] = useState(() => getCurrentShift());
+  const [viewingShift, setViewingShift] = useState(() => getCurrentShift());
   const [viewingDateRange, setViewingDateRange] = useState(getTodayDateRange());
   const previousViewingDateRangeRef = useRef(viewingDateRange);
-
   const isInitializedRef = useRef(false);
   const abortControllerRef = useRef(null);
   const pendingFleetRequestRef = useRef(null);
@@ -96,108 +95,110 @@ export const useFleet = (userAuth = null, measurementType = null) => {
     return filteredFleetConfigs.filter((f) => f.status === "ACTIVE");
   }, [filteredFleetConfigs]);
 
-  // Load Masters
-  const loadMasters = useCallback(async (options = {}) => {
-    const { forceRefresh = false } = options;
+  const loadMasters = useCallback(
+    async (options = {}) => {
+      const { forceRefresh = false } = options;
 
-    const now = Date.now();
-    const cacheAge = mastersCache.timestamp
-      ? now - mastersCache.timestamp
-      : Infinity;
-    const isCacheValid = cacheAge < CACHE_CONFIG.MASTERS_CACHE_DURATION;
+      const now = Date.now();
+      const cacheAge = mastersCache.timestamp
+        ? now - mastersCache.timestamp
+        : Infinity;
+      const isCacheValid = cacheAge < CACHE_CONFIG.MASTERS_CACHE_DURATION;
 
-    if (!forceRefresh && mastersCache.data && isCacheValid) {
-      setMasters(mastersCache.data);
-      return { success: true, fromCache: true };
-    }
-
-    if (mastersCache.loading) {
-      return new Promise((resolve) => {
-        const checkInterval = setInterval(() => {
-          if (!mastersCache.loading) {
-            clearInterval(checkInterval);
-            setMasters(mastersCache.data || masters);
-            resolve({ success: true, fromCache: true });
-          }
-        }, 100);
-      });
-    }
-
-    mastersCache.loading = true;
-    setMastersLoading(true);
-
-    return await withErrorHandling(
-      async () => {
-        const [
-          excavators,
-          loadingLocs,
-          dumpingLocs,
-          workUnits,
-          companies,
-          coalTypes,
-          users,
-          dumpTruck,
-          weighBridges
-        ] = await Promise.all([
-          masterDataService.fetchUnits({ type: "EXCAVATOR" }),
-          masterDataService.fetchLocations({ type: "LOADING" }),
-          masterDataService.fetchLocations({ type: "DUMPING" }),
-          masterDataService.fetchWorkUnits(),
-          masterDataService.fetchCompanies(),
-          masterDataService.fetchCoalTypes(),
-          masterDataService.fetchUsers(),
-          masterDataService.fetchUnits({ type: "DUMP_TRUCK" }),
-          masterDataService.fetchWeightBridges(),
-        ]);
-
-        const shifts = [
-          { id: "shift-1", name: "Shift 1" },
-          { id: "shift-2", name: "Shift 2" },
-        ];
-
-        const status = [
-          { id: "ACTIVE", name: "Active" },
-          { id: "INACTIVE", name: "Inactive" },
-          { id: "CLOSED", name: "Closed" },
-        ];
-
-        const mastersData = {
-          excavators,
-          loadingLocations: loadingLocs,
-          dumpingLocations: dumpingLocs,
-          shifts,
-          status,
-          workUnits,
-          companies,
-          coalTypes,
-          users,
-          dumpTruck,
-          weighBridges,
-        };
-
-        mastersCache.data = mastersData;
-        mastersCache.timestamp = Date.now();
-        mastersCache.loading = false;
-
-        setMasters(mastersData);
-
-        return { success: true, fromCache: false };
-      },
-      {
-        operation: "load masters",
-        showSuccessToast: false,
-        onError: () => {
-          mastersCache.loading = false;
-          setMastersLoading(false);
-        }
+      if (!forceRefresh && mastersCache.data && isCacheValid) {
+        setMasters(mastersCache.data);
+        return { success: true, fromCache: true };
       }
-    ).finally(() => {
-      setMastersLoading(false);
-    });
-  }, [masters]);
 
-  // Preload All Fleets
-const preloadAllFleets = useCallback(
+      if (mastersCache.loading) {
+        return new Promise((resolve) => {
+          const checkInterval = setInterval(() => {
+            if (!mastersCache.loading) {
+              clearInterval(checkInterval);
+              setMasters(mastersCache.data || masters);
+              resolve({ success: true, fromCache: true });
+            }
+          }, 100);
+        });
+      }
+
+      mastersCache.loading = true;
+      setMastersLoading(true);
+
+      return await withErrorHandling(
+        async () => {
+          const [
+            excavators,
+            loadingLocs,
+            dumpingLocs,
+            workUnits,
+            companies,
+            coalTypes,
+            users,
+            dumpTruck,
+            weighBridges,
+          ] = await Promise.all([
+            masterDataService.fetchUnits({ type: "EXCAVATOR" }),
+            masterDataService.fetchLocations({ type: "LOADING" }),
+            masterDataService.fetchLocations({ type: "DUMPING" }),
+            masterDataService.fetchWorkUnits(),
+            masterDataService.fetchCompanies(),
+            masterDataService.fetchCoalTypes(),
+            masterDataService.fetchUsers(),
+            masterDataService.fetchUnits({ type: "DUMP_TRUCK" }),
+            masterDataService.fetchWeightBridges(),
+          ]);
+
+          const shifts = [
+            { id: "shift-1", name: "Shift 1" },
+            { id: "shift-2", name: "Shift 2" },
+            { id: "shift-3", name: "Shift 3" },
+          ];
+
+          const status = [
+            { id: "ACTIVE", name: "Active" },
+            { id: "INACTIVE", name: "Inactive" },
+            { id: "CLOSED", name: "Closed" },
+          ];
+
+          const mastersData = {
+            excavators,
+            loadingLocations: loadingLocs,
+            dumpingLocations: dumpingLocs,
+            shifts,
+            status,
+            workUnits,
+            companies,
+            coalTypes,
+            users,
+            dumpTruck,
+            weighBridges,
+          };
+
+          mastersCache.data = mastersData;
+          mastersCache.timestamp = Date.now();
+          mastersCache.loading = false;
+
+          setMasters(mastersData);
+
+          return { success: true, fromCache: false };
+        },
+        {
+          operation: "load masters",
+          showSuccessToast: false,
+          onError: () => {
+            mastersCache.loading = false;
+            setMastersLoading(false);
+          },
+        }
+      ).finally(() => {
+        setMastersLoading(false);
+      });
+    },
+    [masters]
+  );
+
+  const preloadAllFleets = useCallback(
     async (options = {}) => {
       if (pendingFleetRequestRef.current && !options.forceRefresh) {
         return pendingFleetRequestRef.current;
@@ -215,8 +216,11 @@ const preloadAllFleets = useCallback(
 
       const requestPromise = withErrorHandling(
         async () => {
-          const includeClosedStatus = viewMode === "history";
           const effectiveDateRange = options.dateRange || viewingDateRange;
+          const effectiveShift =
+            options.shift || viewingShift || getCurrentShift();
+          const effectiveMeasurementType =
+            measurementType || options.measurementType || "Timbangan";
 
           if (options.forceRefresh) {
             if (isDateRangeToday(effectiveDateRange)) {
@@ -230,11 +234,10 @@ const preloadAllFleets = useCallback(
 
           const result = await fleetService.fetchFleetConfigs({
             user,
-            includeClosedStatus,
             forceRefresh: options.forceRefresh || false,
             dateRange: effectiveDateRange,
-            shift: options.shift || null,
-            measurementType: measurementType || options.measurementType || null, // ✅ Pass measurement type
+            shift: effectiveShift,
+            measurementType: effectiveMeasurementType,
             signal,
           });
 
@@ -257,34 +260,34 @@ const preloadAllFleets = useCallback(
           );
 
           const store = useTimbanganStore.getState();
-store.setDumptruckIndexFromConfigs(uniqueConfigs, measurementType);
+          store.setDumptruckIndexFromConfigs(uniqueConfigs, measurementType);
 
-// ✅ Automatically separate by measurement type
-const byType = {
-  'Timbangan': [],
-  'FOB': [],
-  'Bypass': [],
-  'BeltScale': [],
-};
+          const byType = {
+            Timbangan: [],
+            FOB: [],
+            Bypass: [],
+            BeltScale: [],
+          };
 
-uniqueConfigs.forEach(config => {
-  const type = config.measurementType;
-  
-  if (type === 'Timbangan') {
-    byType['Timbangan'].push(config);
-  } else if (type === 'FOB') {
-    byType['FOB'].push(config);
-  } else if (type === 'Bypass') {
-    byType['Bypass'].push(config);
-  } else if (type === 'BeltScale') {
-    byType['BeltScale'].push(config);
-  }
-});
+          uniqueConfigs.forEach((config) => {
+            const type = config.measurementType;
 
-useTimbanganStore.setState({ 
-  fleetConfigs: uniqueConfigs,
-  fleetConfigsByType: byType 
-});
+            if (type === "Timbangan") {
+              byType["Timbangan"].push(config);
+            } else if (type === "FOB") {
+              byType["FOB"].push(config);
+            } else if (type === "Bypass") {
+              byType["Bypass"].push(config);
+            } else if (type === "BeltScale") {
+              byType["BeltScale"].push(config);
+            }
+          });
+
+          useTimbanganStore.setState({
+            fleetConfigs: uniqueConfigs,
+            fleetConfigsByType: byType,
+          });
+
           const isViewingToday = isDateRangeToday(effectiveDateRange);
 
           if (
@@ -318,7 +321,7 @@ useTimbanganStore.setState({
             if (err.name !== "AbortError") {
               setError(err.message);
             }
-          }
+          },
         }
       ).finally(() => {
         setIsLoading(false);
@@ -335,11 +338,12 @@ useTimbanganStore.setState({
       setSelectedFleets,
       setDumptruckIndexFromConfigs,
       viewingDateRange,
-      measurementType, 
+      viewingShift,
+      measurementType,
     ]
   );
 
- const loadFleetConfigs = useCallback(
+  const loadFleetConfigs = useCallback(
     async (options = {}) => {
       const loadingState = options.isRefresh ? setIsRefreshing : setIsLoading;
       loadingState(true);
@@ -347,10 +351,12 @@ useTimbanganStore.setState({
 
       return await withErrorHandling(
         async () => {
-          const currentViewMode = options.viewMode || viewMode;
-          const includeClosedStatus = currentViewMode === "history";
           const effectiveDateRange = options.dateRange || viewingDateRange;
-          
+          const effectiveShift =
+            options.shift || viewingShift || getCurrentShift();
+          const effectiveMeasurementType =
+            measurementType || options.measurementType || "Timbangan";
+
           const isViewingToday = isDateRangeToday(effectiveDateRange);
 
           if (options.forceRefresh) {
@@ -365,50 +371,48 @@ useTimbanganStore.setState({
 
           const result = await fleetService.fetchFleetConfigs({
             user,
-            includeClosedStatus,
             forceRefresh: true,
             dateRange: effectiveDateRange,
-            shift: options.shift || null,
-            measurementType: measurementType || options.measurementType || null, // ✅ Pass measurement type
+            shift: effectiveShift,
+            measurementType: effectiveMeasurementType,
           });
 
           if (result.success) {
             const currentConfigs = useTimbanganStore.getState().fleetConfigs;
             const uniqueConfigs = Array.from(
-              new Map([...currentConfigs, ...result.data].map((c) => [c.id, c])).values()
+              new Map(
+                [...currentConfigs, ...result.data].map((c) => [c.id, c])
+              ).values()
             );
 
-            useTimbanganStore.setState({ fleetConfigs: uniqueConfigs });
+            const byType = {
+              Timbangan: [],
+              FOB: [],
+              Bypass: [],
+              BeltScale: [],
+            };
 
-// ✅ Automatically separate by measurement type
-const byType = {
-  'Timbangan': [],
-  'FOB': [],
-  'Bypass': [],
-  'BeltScale': [],
-};
+            uniqueConfigs.forEach((config) => {
+              const type = config.measurementType;
 
-uniqueConfigs.forEach(config => {
-  const type = config.measurementType;
-  
-  if (type === 'Timbangan') {
-    byType['Timbangan'].push(config);
-  } else if (type === 'FOB') {
-    byType['FOB'].push(config);
-  } else if (type === 'Bypass') {
-    byType['Bypass'].push(config);
-  } else if (type === 'BeltScale') {
-    byType['BeltScale'].push(config);
-  }
-});
+              if (type === "Timbangan") {
+                byType["Timbangan"].push(config);
+              } else if (type === "FOB") {
+                byType["FOB"].push(config);
+              } else if (type === "Bypass") {
+                byType["Bypass"].push(config);
+              } else if (type === "BeltScale") {
+                byType["BeltScale"].push(config);
+              }
+            });
 
-useTimbanganStore.setState({ 
-  fleetConfigs: uniqueConfigs,
-  fleetConfigsByType: byType 
-});
+            useTimbanganStore.setState({
+              fleetConfigs: uniqueConfigs,
+              fleetConfigsByType: byType,
+            });
 
             if (
-              currentViewMode === "normal" &&
+              viewMode === "normal" &&
               isViewingToday &&
               !options.skipAutoActivate &&
               result.data.length > 0
@@ -430,9 +434,7 @@ useTimbanganStore.setState({
                 const finalSelection = updatedSelection.filter((id) => {
                   const fleet = uniqueConfigs.find((c) => c.id === id);
                   return (
-                    fleet &&
-                    fleet.status === "ACTIVE" &&
-                    fleet.date === today
+                    fleet && fleet.status === "ACTIVE" && fleet.date === today
                   );
                 });
 
@@ -453,7 +455,7 @@ useTimbanganStore.setState({
         {
           operation: "load fleet configs",
           showSuccessToast: false,
-          onError: (err) => setError(err.message)
+          onError: (err) => setError(err.message),
         }
       ).finally(() => {
         loadingState(false);
@@ -464,105 +466,76 @@ useTimbanganStore.setState({
       viewMode,
       viewingDateRange,
       setSelectedFleets,
+      viewingShift,
       setDumptruckIndexFromConfigs,
-      measurementType, 
+      measurementType,
     ]
   );
 
-const createFleetConfig = useCallback(
-  async (configData) => {
-    setIsLoading(true);
-    setError(null);
-
-    return await withErrorHandling(
-      async () => {
-        if (!configData.inspectorId) throw new Error("Inspector wajib dipilih");
-        if (!configData.checkerId) throw new Error("Checker wajib dipilih");
-
-        const enrichedData = {
-          ...configData,
-          createdByUserId: user?.id || null,
-        };
-
-        if (userRoleInfo.role === "Operator JT" || user?.role === "operator_jt") {
-          enrichedData.weightBridgeId = user?.weigh_bridge?.id || user?.weightBridge?.id || null;
-          
-          if (!enrichedData.weightBridgeId) {
-            throw new Error("Weigh bridge tidak ditemukan untuk operator JT");
-          }
-          
-          enrichedData.measurement_type = 'Timbangan';
-        }
-
-        if ((user?.role === "ccr" || user?.role === "super_admin") && !enrichedData.weightBridgeId) {
-          if (configData.weightBridgeId) {
-            enrichedData.weightBridgeId = configData.weightBridgeId;
-          } else {
-            throw new Error("Jembatan timbang wajib dipilih");
-          }
-        }
-
-        if (!enrichedData.measurement_type) {
-          const fleetTypeMap = {
-            'Jembatan': 'Timbangan',
-            'FOB': 'FOB',
-            'Bypass': 'Bypass',
-            'BeltScale': 'BeltScale'
-          };
-          
-          // Get from configData or derive from context
-          const fleetType = configData.fleetType || 'Jembatan'; 
-          enrichedData.measurement_type = fleetTypeMap[fleetType] || 'Timbangan';
-        }
-
-        // Work unit assignment untuk admin
-        const satkerId = user?.work_unit?.id || user?.workUnit?.id;
-        if ((userRoleInfo.role === "Admin" || user?.role === "admin") && satkerId) {
-          enrichedData.workUnitId = satkerId;
-        }
-
-        const result = await fleetService.createFleetConfig(enrichedData);
-
-        if (result.success) {
-          await new Promise((resolve) => setTimeout(resolve, 500));
-
-          await loadFleetConfigs({
-            forceRefresh: true,
-            skipAutoActivate: false,
-          });
-
-          return { success: true, data: result.data };
-        }
-
-        throw new Error(
-          result.error || result.message || "Failed to create config"
-        );
-      },
-      {
-        operation: "create fleet config",
-        showSuccessToast: true,
-        successMessage: "Konfigurasi fleet berhasil dibuat",
-        onError: (err) => setError(err.message)
-      }
-    ).finally(() => {
-      setIsLoading(false);
-    });
-  },
-  [loadFleetConfigs, user, userRoleInfo]
-);
-
-  // Update Config
-  const updateConfig = useCallback(
-    async (configId, updates) => {
+  const createFleetConfig = useCallback(
+    async (configData) => {
       setIsLoading(true);
       setError(null);
-      
+
       return await withErrorHandling(
         async () => {
-          const result = await fleetService.updateFleetConfig(configId, updates);
+          if (!configData.inspectorId)
+            throw new Error("Inspector wajib dipilih");
+          if (!configData.checkerId) throw new Error("Checker wajib dipilih");
+
+          const enrichedData = {
+            ...configData,
+            createdByUserId: user?.id || null,
+          };
+
+          if (!enrichedData.measurement_type) {
+            const fleetTypeMap = {
+              Jembatan: "Timbangan",
+              Timbangan: "Timbangan",
+              FOB: "FOB",
+              Bypass: "Bypass",
+              BeltScale: "BeltScale",
+            };
+
+            const fleetType =
+              configData.fleetType || measurementType || "Timbangan";
+            enrichedData.measurement_type =
+              fleetTypeMap[fleetType] || measurementType || "Timbangan";
+          }
+
+          const isTimbangan = enrichedData.measurement_type === "Timbangan";
+
+          if (isTimbangan) {
+            if (
+              (userRoleInfo.role === "Operator JT" ||
+                user?.role === "operator_jt") &&
+              !enrichedData.weightBridgeId
+            ) {
+              throw new Error("Weigh bridge tidak ditemukan untuk operator JT");
+            }
+
+            if (
+              (user?.role === "ccr" || user?.role === "super_admin") &&
+              !enrichedData.weightBridgeId
+            ) {
+              throw new Error(
+                "Jembatan timbang wajib dipilih untuk fleet Timbangan"
+              );
+            }
+          }
+
+          const satkerId = user?.work_unit?.id || user?.workUnit?.id;
+          if (
+            (userRoleInfo.role === "Admin" || user?.role === "admin") &&
+            satkerId
+          ) {
+            enrichedData.workUnitId = satkerId;
+          }
+
+          const result = await fleetService.createFleetConfig(enrichedData);
 
           if (result.success) {
-            await new Promise((resolve) => setTimeout(resolve, 100));
+            await new Promise((resolve) => setTimeout(resolve, 500));
 
             await loadFleetConfigs({
               forceRefresh: true,
@@ -572,62 +545,165 @@ const createFleetConfig = useCallback(
             return { success: true, data: result.data };
           }
 
+          throw new Error(
+            result.error || result.message || "Failed to create config"
+          );
+        },
+        {
+          operation: "create fleet config",
+          showSuccessToast: true,
+          onError: (err) => setError(err.message),
+        }
+      ).finally(() => {
+        setIsLoading(false);
+      });
+    },
+    [loadFleetConfigs, user, userRoleInfo, measurementType]
+  );
+
+  const updateConfig = useCallback(
+    async (configId, updates) => {
+      setIsLoading(true);
+      setError(null);
+
+      const currentConfigs = useTimbanganStore.getState().fleetConfigs;
+      const optimisticConfigs = currentConfigs.map((c) =>
+        c.id === configId ? { ...c, ...updates } : c
+      );
+
+      useTimbanganStore.setState({ fleetConfigs: optimisticConfigs });
+
+      return await withErrorHandling(
+        async () => {
+          const result = await fleetService.updateFleetConfig(
+            configId,
+            updates
+          );
+
+          if (result.success) {
+            setTimeout(() => {
+              loadFleetConfigs({
+                forceRefresh: true,
+                skipAutoActivate: false,
+              });
+            }, 300);
+
+            return { success: true, data: result.data };
+          }
+
+          useTimbanganStore.setState({ fleetConfigs: currentConfigs });
           throw new Error(result.error || "Failed to update config");
         },
         {
           operation: "update fleet config",
           showSuccessToast: true,
           successMessage: "Konfigurasi fleet berhasil diperbarui",
-          onError: (err) => setError(err.message)
+          onError: (err) => {
+            useTimbanganStore.setState({ fleetConfigs: currentConfigs });
+            setError(err.message);
+          },
         }
       ).finally(() => {
         setIsLoading(false);
       });
     },
-    [loadFleetConfigs, fleetConfigs]
+    [loadFleetConfigs]
   );
 
-  // Delete Config
   const deleteConfig = useCallback(
     async (configId) => {
       setIsLoading(true);
       setError(null);
-      
+
+      const currentState = useTimbanganStore.getState();
+      const currentConfigs = currentState.fleetConfigs;
+
+      const backup = {
+        fleetConfigs: [...currentConfigs],
+        fleetConfigsByType: { ...currentState.fleetConfigsByType },
+        selectedFleetIds: [...currentState.selectedFleetIds],
+        selectedFleetIdsByType: { ...currentState.selectedFleetIdsByType },
+      };
+
+      const optimisticConfigs = currentConfigs.filter((c) => c.id !== configId);
+
+      let foundType = null;
+      for (const [type, configs] of Object.entries(
+        currentState.fleetConfigsByType
+      )) {
+        if (configs.some((c) => c.id === configId)) {
+          foundType = type;
+          break;
+        }
+      }
+
+      if (foundType) {
+        const optimisticByType = {
+          ...currentState.fleetConfigsByType,
+          [foundType]: currentState.fleetConfigsByType[foundType].filter(
+            (c) => c.id !== configId
+          ),
+        };
+
+        const optimisticSelectedByType = {
+          ...currentState.selectedFleetIdsByType,
+          [foundType]: currentState.selectedFleetIdsByType[foundType].filter(
+            (id) => id !== configId
+          ),
+        };
+
+        useTimbanganStore.setState({
+          fleetConfigs: optimisticConfigs,
+          fleetConfigsByType: optimisticByType,
+          selectedFleetIdsByType: optimisticSelectedByType,
+          selectedFleetIds: currentState.selectedFleetIds.filter(
+            (id) => id !== configId
+          ),
+        });
+      }
+
       return await withErrorHandling(
         async () => {
           const result = await fleetService.deleteFleetConfig(configId);
 
           if (result.success) {
-            const currentSelectedIds =
-              useTimbanganStore.getState().selectedFleetIds;
-            const updatedSelection = currentSelectedIds.filter(
-              (id) => id !== configId
-            );
-            setSelectedFleets(updatedSelection);
+            await Promise.all([
+              offlineService.clearCache("fleets_"),
+              offlineService.clearCache("ritases_"),
+              foundType
+                ? offlineService.clearCache(`fleets_${foundType}`)
+                : Promise.resolve(),
+            ]);
 
-            await loadFleetConfigs({
-              forceRefresh: true,
-            });
+            setTimeout(() => {
+              loadFleetConfigs({
+                forceRefresh: true,
+                skipAutoActivate: true,
+              });
+            }, 500);
 
             return { success: true };
           }
 
+          useTimbanganStore.setState(backup);
           throw new Error(result.error || "Failed to delete config");
         },
         {
           operation: "delete fleet config",
           showSuccessToast: true,
           successMessage: "Konfigurasi fleet berhasil dihapus",
-          onError: (err) => setError(err.message)
+          onError: (err) => {
+            useTimbanganStore.setState(backup);
+            setError(err.message);
+          },
         }
       ).finally(() => {
         setIsLoading(false);
       });
     },
-    [fleetConfigs, loadFleetConfigs, setSelectedFleets]
+    [loadFleetConfigs]
   );
 
-  // Reactivate Fleet
   const reactivateFleet = useCallback(
     async (configId, newStatus = "ACTIVE") => {
       setIsLoading(true);
@@ -639,7 +715,10 @@ const createFleetConfig = useCallback(
             throw new Error("Config ID tidak valid");
           }
 
-          const result = await fleetService.reactivateFleet(configId, newStatus);
+          const result = await fleetService.reactivateFleet(
+            configId,
+            newStatus
+          );
 
           if (result.success) {
             fleetService.clearCache();
@@ -650,7 +729,11 @@ const createFleetConfig = useCallback(
               viewMode: "normal",
             });
 
-            return { success: true, data: result.data, message: result.message };
+            return {
+              success: true,
+              data: result.data,
+              message: result.message,
+            };
           }
 
           throw new Error(result.error || "Failed to reactivate fleet");
@@ -659,7 +742,7 @@ const createFleetConfig = useCallback(
           operation: "reactivate fleet",
           showSuccessToast: true,
           successMessage: "Fleet berhasil direaktivasi",
-          onError: (err) => setError(err.message)
+          onError: (err) => setError(err.message),
         }
       ).finally(() => {
         setIsLoading(false);
@@ -668,12 +751,11 @@ const createFleetConfig = useCallback(
     [loadFleetConfigs]
   );
 
-  // Activate Config
   const activateConfig = useCallback(
     async (configId) => {
       setIsLoading(true);
       setError(null);
-      
+
       return await withErrorHandling(
         async () => {
           const result = await fleetService.setActiveFleetConfig(configId);
@@ -689,7 +771,7 @@ const createFleetConfig = useCallback(
           operation: "activate config",
           showSuccessToast: true,
           successMessage: "Konfigurasi berhasil diaktifkan",
-          onError: (err) => setError(err.message)
+          onError: (err) => setError(err.message),
         }
       ).finally(() => {
         setIsLoading(false);
@@ -698,13 +780,11 @@ const createFleetConfig = useCallback(
     [loadFleetConfigs]
   );
 
-  // Get Fleet By ID
   const getFleetById = useCallback(
     (id) => fleetConfigs.find((c) => c.id === id),
     [fleetConfigs]
   );
 
-  // Switch View Mode
   const switchViewMode = useCallback(
     (mode) => {
       if (!["normal", "history"].includes(mode)) {
@@ -718,11 +798,22 @@ const createFleetConfig = useCallback(
     [preloadAllFleets]
   );
 
-  // Refresh
   const refresh = useCallback(
     async (options = {}) => {
       const targetDateRange =
         options.dateRange !== undefined ? options.dateRange : viewingDateRange;
+      const targetShift =
+        options.shift !== undefined
+          ? options.shift
+          : viewingShift || currentShift;
+
+      console.log("🔄 Refresh called with:", {
+        targetDateRange,
+        targetShift,
+        optionsShift: options.shift,
+        viewingShift,
+        currentShift,
+      });
 
       if (isDateRangeToday(targetDateRange)) {
         await offlineService.clearCache("fleets_");
@@ -739,28 +830,25 @@ const createFleetConfig = useCallback(
       const result = await preloadAllFleets({
         forceRefresh: true,
         dateRange: targetDateRange,
-        shift: options.shift || null,
+        shift: targetShift,
         skipAutoActivate: !isDateRangeToday(targetDateRange),
       });
 
       return result;
     },
-    [preloadAllFleets, viewingDateRange]
+    [preloadAllFleets, viewingDateRange, viewingShift, currentShift]
   );
 
-  // Refresh Masters
   const refreshMasters = useCallback(
     async () => loadMasters({ forceRefresh: true }),
     [loadMasters]
   );
 
-  // Clear Masters Cache
   const clearMastersCache = useCallback(() => {
     mastersCache.data = null;
     mastersCache.timestamp = null;
   }, []);
 
-  // Initialize
   useEffect(() => {
     if (isInitializedRef.current) {
       return;
@@ -778,7 +866,6 @@ const createFleetConfig = useCallback(
     initializeData();
   }, [loadMasters, preloadAllFleets]);
 
-  // Watch Date Range Changes
   useEffect(() => {
     const prev = previousViewingDateRangeRef.current;
     const curr = viewingDateRange;
@@ -804,7 +891,6 @@ const createFleetConfig = useCallback(
     }
   }, [viewingDateRange, loadFleetConfigs]);
 
-  // Cleanup
   useEffect(() => {
     return () => {
       if (abortControllerRef.current) {
@@ -813,6 +899,17 @@ const createFleetConfig = useCallback(
       pendingFleetRequestRef.current = null;
     };
   }, []);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const newShift = getCurrentShift();
+      if (newShift !== currentShift) {
+        setCurrentShift(newShift);
+      }
+    }, 60000);
+
+    return () => clearInterval(interval);
+  }, [currentShift]);
 
   return {
     fleetConfigs,
@@ -841,6 +938,10 @@ const createFleetConfig = useCallback(
     reactivateFleet,
     activateConfig,
     getFleetById,
+
+    currentShift,
+    viewingShift,
+    setViewingShift,
 
     refresh,
     refreshMasters,

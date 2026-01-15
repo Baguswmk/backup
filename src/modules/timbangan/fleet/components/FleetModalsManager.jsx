@@ -7,7 +7,6 @@ import LoadingOverlay from "@/shared/components/LoadingOverlay";
 import { LOADING_MESSAGES } from "@/modules/timbangan/fleet/constant/fleetConstants";
 
 const FleetModalsManager = ({
-  // Fleet Modal
   showConfigModal,
   onCloseConfigModal,
   selectedConfig,
@@ -15,26 +14,23 @@ const FleetModalsManager = ({
   masters,
   canUpdate,
   fleetType,
-  
-  // Detail Modal
+
   showDetailModal,
   onCloseDetailModal,
-  selectedDetailConfig, // ✅ Separate prop for detail
+  selectedDetailConfig,
   onEditConfig,
-  
-  // Fleet Selection Dialog
+
   showFleetSelectionDialog,
   onCloseFleetSelectionDialog,
   onSaveFleetSelection,
-  
-  // Delete Dialog
+
   showDeleteDialog,
   onCloseDeleteDialog,
   onConfirmDelete,
   deleteTarget,
   getDumptruckCount,
-  
-  // Loading Overlay
+  getDumptruckList,
+
   isSaving,
 }) => {
   return (
@@ -56,10 +52,13 @@ const FleetModalsManager = ({
       {showDetailModal && (
         <FleetDetailModal
           isOpen={showDetailModal}
-          config={selectedDetailConfig} // ✅ Use separate config
+          config={selectedDetailConfig}
           onClose={onCloseDetailModal}
           onEdit={canUpdate ? onEditConfig : null}
           readOnly={!canUpdate}
+          dumptruck={
+            selectedDetailConfig ? getDumptruckList(selectedDetailConfig) : []
+          }
         />
       )}
 
@@ -85,7 +84,10 @@ const FleetModalsManager = ({
       )}
 
       {/* Loading Overlay */}
-      <LoadingOverlay isVisible={isSaving} message={LOADING_MESSAGES.PROCESSING} />
+      <LoadingOverlay
+        isVisible={isSaving}
+        message={LOADING_MESSAGES.PROCESSING}
+      />
     </>
   );
 };

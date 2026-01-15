@@ -21,35 +21,25 @@ import {
 import { format } from "date-fns";
 import { id } from "date-fns/locale";
 
-// ✅ Move mapping outside component to prevent re-creation
-const MEASUREMENT_TYPE_MAP = {
-  'Timbangan': 'Timbangan',
-  'FOB': 'FOB',
-  'Bypass': 'Bypass',
-  'BeltScale': 'BeltScale',
-};
+const MEASUREMENT_TYPE_OPTIONS = [
+  { value: "Timbangan", label: "Timbangan" },
 
-const FleetModal = ({ 
-  isOpen, 
-  onClose, 
-  editingConfig = null, 
+  { value: "Bypass", label: "Bypass" },
+  { value: "BeltScale", label: "BeltScale" },
+];
+
+const FleetModal = ({
+  isOpen,
+  onClose,
+  editingConfig = null,
   onSave,
-  fleetType = "Timbangan"
+  fleetType = "Timbangan",
 }) => {
   const { user } = useAuthStore();
   const isEdit = !!editingConfig;
 
-  // ✅ Get measurement type from mapping
-  const measurementType = useMemo(() => 
-    MEASUREMENT_TYPE_MAP[fleetType] || 'Timbangan'
-  , [fleetType]);
-
-  const { masters, mastersLoading } = useFleet(user ? { user } : null, measurementType);
+  const { masters, mastersLoading } = useFleet(user ? { user } : null, null);
   const permissions = useFleetPermissions();
-
-  const formConfig = useMemo(() => {
-    return permissions.getFleetFormConfig(fleetType);
-  }, [permissions, fleetType]);
 
   const [fleetData, setFleetData] = useState({
     excavator: "",
@@ -58,18 +48,32 @@ const FleetModal = ({
     coalType: "",
     distance: 0,
     workUnit: "",
-    shift: "",
     status: "INACTIVE",
-    date: "",
     measurementType: "",
     weightBridgeId: "",
   });
-  
+
   const [errors, setErrors] = useState({});
   const [isSaving, setIsSaving] = useState(false);
   const [distanceText, setDistanceText] = useState("");
   const [inspectorId, setInspectorId] = useState("");
   const [checkerId, setCheckerId] = useState("");
+
+  const formConfig = useMemo(() => {
+    const currentMeasurementType = fleetData.measurementType || fleetType;
+    const baseConfig = permissions.getFleetFormConfig(currentMeasurementType);
+
+    if (isEdit) {
+      return {
+        ...baseConfig,
+        showWeighBridgeSelect: currentMeasurementType === "Timbangan",
+        showMeasurementTypeSelect: true,
+        measurementTypeDisabled: false,
+      };
+    }
+
+    return baseConfig;
+  }, [permissions, fleetType, fleetData.measurementType, isEdit]);
 
   useEffect(() => {
     if (isOpen) {
@@ -83,7 +87,6 @@ const FleetModal = ({
     };
   }, [isOpen]);
 
-  // ✅ Initialize form data
   useEffect(() => {
     if (!isOpen) return;
 
@@ -95,13 +98,11 @@ const FleetModal = ({
         coalType: editingConfig.coalTypeId || "",
         distance: editingConfig.distance ?? 0,
         workUnit: editingConfig.workUnitId || "",
-        shift: editingConfig.shift || "",
         status: editingConfig.status || "INACTIVE",
-        date: editingConfig.date || new Date().toISOString().slice(0, 10),
-        measurementType: editingConfig.measurementType || measurementType,
-        weightBridgeId: editingConfig.weightBridgeId || formConfig.weighBridgeValue || "",
+        measurementType: editingConfig.measurementType || fleetType,
+        weightBridgeId: editingConfig.weightBridgeId || "",
       };
-      
+
       setFleetData(initialData);
       setDistanceText(
         editingConfig.distance != null && editingConfig.distance !== ""
@@ -111,7 +112,17 @@ const FleetModal = ({
       setInspectorId(editingConfig.inspectorId || "");
       setCheckerId(editingConfig.checkerId || "");
     } else {
-      // New config
+      const measurementTypeMap = {
+        Jembatan: "Timbangan",
+        Timbangan: "Timbangan",
+        FOB: "FOB",
+        Bypass: "Bypass",
+        BeltScale: "BeltScale",
+      };
+
+      const defaultMeasurementType =
+        measurementTypeMap[fleetType] || "Timbangan";
+
       const newData = {
         excavator: "",
         loadingLocation: "",
@@ -119,20 +130,18 @@ const FleetModal = ({
         coalType: "",
         distance: 0,
         workUnit: "",
-        shift: "",
         status: "INACTIVE",
-        date: "",
-        measurementType: measurementType, // ✅ Use derived measurement type
+        measurementType: defaultMeasurementType,
         weightBridgeId: formConfig.weighBridgeValue || "",
       };
-      
+
       setFleetData(newData);
       setDistanceText("");
       setInspectorId("");
       setCheckerId("");
     }
     setErrors({});
-  }, [isOpen, editingConfig, measurementType, formConfig.weighBridgeValue]);
+  }, [isOpen, editingConfig, fleetType, formConfig.weighBridgeValue]);
 
   const validate = useCallback(() => {
     const e = {};
@@ -142,10 +151,16 @@ const FleetModal = ({
     if (!fleetData.dumpingLocation) e.dumpingLocation = "Pilih lokasi dumping";
     if (!fleetData.coalType) e.coalType = "Pilih coal type";
     if (!fleetData.workUnit) e.workUnit = "Pilih work unit";
+    if (!fleetData.measurementType)
+      e.measurementType = "Pilih measurement type";
 
-    // Validate weigh bridge for roles that need it
-    if (formConfig.showWeighBridgeSelect && !fleetData.weightBridgeId) {
-      e.weightBridgeId = "Pilih jembatan timbang";
+    if (fleetData.measurementType === "Timbangan") {
+      if (formConfig.showWeighBridgeSelect && !fleetData.weightBridgeId) {
+        e.weightBridgeId = "Pilih jembatan timbang";
+      }
+      if (formConfig.autoWeighBridge && !formConfig.weighBridgeValue) {
+        e.weightBridgeId = "Jembatan timbang tidak ditemukan untuk user Anda";
+      }
     }
 
     const cleaned = (distanceText || "").trim().replace(",", ".");
@@ -168,13 +183,20 @@ const FleetModal = ({
 
     if (isEdit) {
       if (!fleetData.status) e.status = "Pilih status";
-      if (!fleetData.shift) e.shift = "Pilih shift";
-      if (!fleetData.date) e.date = "Pilih tanggal";
     }
 
     setErrors(e);
     return Object.keys(e).length === 0;
-  }, [isEdit, fleetData, distanceText, inspectorId, checkerId, formConfig.showWeighBridgeSelect]);
+  }, [
+    isEdit,
+    fleetData,
+    distanceText,
+    inspectorId,
+    checkerId,
+    formConfig.showWeighBridgeSelect,
+    formConfig.autoWeighBridge,
+    formConfig.weighBridgeValue,
+  ]);
 
   const handleSave = useCallback(async () => {
     if (!validate()) {
@@ -197,9 +219,16 @@ const FleetModal = ({
         workUnitId: fleetData.workUnit,
         inspectorId,
         checkerId,
-        measurement_type: measurementType, // ✅ Use derived measurement type
-        weightBridgeId: fleetData.weightBridgeId || formConfig.weighBridgeValue || null,
+        measurement_type: fleetData.measurementType,
       };
+
+      if (fleetData.measurementType === "Timbangan") {
+        if (formConfig.autoWeighBridge) {
+          basePayload.weightBridgeId = formConfig.weighBridgeValue;
+        } else if (formConfig.showWeighBridgeSelect || isEdit) {
+          basePayload.weightBridgeId = fleetData.weightBridgeId || null;
+        }
+      }
 
       if (!inspectorId || inspectorId === "") {
         showToast.error("Inspector wajib dipilih");
@@ -225,12 +254,10 @@ const FleetModal = ({
           }
         : basePayload;
 
-      console.log('🚀 Saving fleet with payload:', payload);
-
       await onSave(payload);
       setFleetData((p) => ({ ...p, distance: dist }));
     } catch (error) {
-      console.error('❌ Fleet save error:', error);
+      console.error("❌ Fleet save error:", error);
       showToast.error(error.message || "Gagal menyimpan data");
     } finally {
       setIsSaving(false);
@@ -243,11 +270,11 @@ const FleetModal = ({
     inspectorId,
     checkerId,
     onSave,
-    measurementType,
+    formConfig.autoWeighBridge,
+    formConfig.showWeighBridgeSelect,
     formConfig.weighBridgeValue,
   ]);
 
-  // Master data items
   const excaItems = useMemo(
     () =>
       (masters?.excavators || []).map((e) => ({
@@ -348,11 +375,15 @@ const FleetModal = ({
       <div className="bg-white dark:bg-gray-800 rounded-lg max-w-4xl w-full max-h-[90vh] overflow-auto">
         <ModalHeader
           title={
-            isEdit ? `Edit Fleet ${fleetType}` : `Buat Fleet ${fleetType} Baru`
+            isEdit
+              ? `Edit Fleet ${fleetData.measurementType || fleetType}`
+              : `Buat Fleet ${fleetType} Baru`
           }
           subtitle={
             isEdit
-              ? `Update konfigurasi fleet ${fleetType}`
+              ? `Update konfigurasi fleet ${
+                  fleetData.measurementType || fleetType
+                }`
               : `Isi data untuk membuat fleet ${fleetType}`
           }
           icon={Settings}
@@ -392,41 +423,72 @@ const FleetModal = ({
 
               <div className="md:col-span-1 space-y-2">
                 <Label className="dark:text-gray-300">Measurement Type *</Label>
-                <Input
-                  value={measurementType}
-                  disabled={true}
-                  className="bg-gray-100 dark:bg-gray-700 dark:text-white cursor-not-allowed"
-                />
-                
+                {formConfig.showMeasurementTypeSelect ? (
+                  <>
+                    <SearchableSelect
+                      items={MEASUREMENT_TYPE_OPTIONS}
+                      value={fleetData.measurementType}
+                      onChange={(val) =>
+                        setFleetData((p) => ({
+                          ...p,
+                          measurementType: val || "",
+                        }))
+                      }
+                      placeholder="Pilih measurement type"
+                      emptyText="Measurement type tidak ditemukan"
+                      error={!!errors.measurementType}
+                      disabled={isSaving || formConfig.measurementTypeDisabled}
+                    />
+                    {errors.measurementType && (
+                      <p className="text-sm text-red-500">
+                        {errors.measurementType}
+                      </p>
+                    )}
+                  </>
+                ) : (
+                  <Input
+                    value={fleetData.measurementType}
+                    disabled={true}
+                    className="bg-gray-100 dark:bg-gray-700 dark:text-white cursor-not-allowed"
+                  />
+                )}
               </div>
             </InfoCard>
 
-            {/* Weigh Bridge Selection */}
-            {formConfig.showWeighBridgeSelect && (
-              <InfoCard
-                title="Jembatan Timbang"
-                variant="default"
-                className="border-none"
-              >
-                <div className="md:col-span-2 space-y-2">
-                  <Label className="dark:text-gray-300">Jembatan Timbang *</Label>
-                  <SearchableSelect
-                    items={weighBridgeItems}
-                    value={fleetData.weightBridgeId}
-                    onChange={(val) =>
-                      setFleetData((p) => ({ ...p, weightBridgeId: val || "" }))
-                    }
-                    placeholder="Pilih jembatan timbang"
-                    emptyText="Jembatan timbang tidak ditemukan"
-                    error={!!errors.weightBridgeId}
-                    disabled={isSaving}
-                  />
-                  {errors.weightBridgeId && (
-                    <p className="text-sm text-red-500">{errors.weightBridgeId}</p>
-                  )}
-                </div>
-              </InfoCard>
-            )}
+            {/* Weigh Bridge Selection - Only show for Timbangan */}
+            {fleetData.measurementType === "Timbangan" &&
+              formConfig.showWeighBridgeSelect && (
+                <InfoCard
+                  title="Jembatan Timbang"
+                  variant="default"
+                  className="border-none"
+                >
+                  <div className="md:col-span-2 space-y-2">
+                    <Label className="dark:text-gray-300">
+                      Jembatan Timbang *
+                    </Label>
+                    <SearchableSelect
+                      items={weighBridgeItems}
+                      value={fleetData.weightBridgeId}
+                      onChange={(val) =>
+                        setFleetData((p) => ({
+                          ...p,
+                          weightBridgeId: val || "",
+                        }))
+                      }
+                      placeholder="Pilih jembatan timbang"
+                      emptyText="Jembatan timbang tidak ditemukan"
+                      error={!!errors.weightBridgeId}
+                      disabled={isSaving}
+                    />
+                    {errors.weightBridgeId && (
+                      <p className="text-sm text-red-500">
+                        {errors.weightBridgeId}
+                      </p>
+                    )}
+                  </div>
+                </InfoCard>
+              )}
 
             {/* Excavator & Location */}
             <InfoCard
@@ -607,10 +669,10 @@ const FleetModal = ({
                     className="flex flex-col space-y-2"
                   >
                     <div className="flex items-center space-x-2 dark:text-gray-200">
-                      <RadioGroupItem 
-                        value="ACTIVE" 
+                      <RadioGroupItem
+                        value="ACTIVE"
                         id="status-active"
-                        className="dark:border-gray-600" 
+                        className="dark:border-gray-600"
                       />
                       <Label
                         htmlFor="status-active"
@@ -620,8 +682,8 @@ const FleetModal = ({
                       </Label>
                     </div>
                     <div className="flex items-center space-x-2 dark:text-gray-200">
-                      <RadioGroupItem 
-                        value="INACTIVE" 
+                      <RadioGroupItem
+                        value="INACTIVE"
                         id="status-inactive"
                         className="dark:border-gray-600"
                       />

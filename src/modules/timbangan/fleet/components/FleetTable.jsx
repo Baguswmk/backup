@@ -52,7 +52,6 @@ const FleetTable = ({
     return <LoadingContent />;
   }
 
-  console.log(configs)
   if (configs.length === 0) {
     return (
       <EmptyState
@@ -84,7 +83,7 @@ const FleetTable = ({
           </span>
         </div>
       )}
-      
+
       {isSaving && (
         <div className="mb-4 bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800 rounded-lg p-3 flex items-center gap-3">
           <Loader2 className="w-4 h-4 animate-spin text-green-600" />
@@ -147,15 +146,23 @@ const FleetTable = ({
             {paginatedConfigs.map((config, index) => {
               const isUpdatingStatus = updatingStatusId === config.id;
               const isSelected = selectedIds.includes(config.id);
-              const dtCount = getDumptruckCount ? getDumptruckCount(config.id) : 0;
+              const dtCount = getDumptruckCount
+                ? getDumptruckCount(config.id)
+                : 0;
               const dtList = getDumptruckList ? getDumptruckList(config) : [];
-              
+
               return (
                 <tr
                   key={config.id}
                   className={`shadow-sm dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 ${
-                    isSelected && !isPickingMode ? "bg-green-50 dark:bg-green-900/20" : ""
-                  } ${isSelected && isPickingMode ? "bg-blue-50 dark:bg-blue-900/20" : ""}`}
+                    isSelected && !isPickingMode
+                      ? "bg-green-50 dark:bg-green-900/20"
+                      : ""
+                  } ${
+                    isSelected && isPickingMode
+                      ? "bg-blue-50 dark:bg-blue-900/20"
+                      : ""
+                  }`}
                 >
                   {isPickingMode && (
                     <td className="px-4 py-3">
@@ -176,12 +183,18 @@ const FleetTable = ({
                       )}
                     </div>
                   </td>
-                  <td className="px-4 py-3 text-sm dark:text-gray-300">{config.name}</td>
+                  <td className="px-4 py-3 text-sm dark:text-gray-300">
+                    {config.name}
+                  </td>
                   <td className="px-4 py-3 text-sm font-medium dark:text-gray-200">
                     {config.excavator}
                   </td>
-                  <td className="px-4 py-3 text-sm dark:text-gray-300">{config.shift}</td>
-                  <td className="px-4 py-3 text-sm dark:text-gray-300">{config.workUnit}</td>
+                  <td className="px-4 py-3 text-sm dark:text-gray-300">
+                    {config.shift}
+                  </td>
+                  <td className="px-4 py-3 text-sm dark:text-gray-300">
+                    {config.workUnit}
+                  </td>
                   <td className="px-4 py-3 text-sm dark:text-gray-300">
                     {config.loadingLocation}
                   </td>
@@ -189,9 +202,7 @@ const FleetTable = ({
                     {config.dumpingLocation}
                   </td>
                   <td className="px-4 py-3 text-sm">
-                    {!isPickingMode &&
-                    onStatusChange &&
-                    !isHistoryMode ? (
+                    {!isPickingMode && onStatusChange && !isHistoryMode ? (
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button
@@ -207,13 +218,15 @@ const FleetTable = ({
                             )}
                           </Button>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent align="start" className="bg-white border-none dark:text-gray-200 dark:bg-gray-800">
+                        <DropdownMenuContent
+                          align="start"
+                          className="bg-white border-none dark:text-gray-200 dark:bg-gray-900 min-w-8"
+                        >
                           <DropdownMenuItem
-                            className="cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-700"
+                            className="cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-700 "
                             onClick={() => onStatusChange(config.id, "ACTIVE")}
                           >
-                            <StatusBadge status="ACTIVE" className="mr-2" />
-                            Active
+                            <StatusBadge status="ACTIVE" />
                           </DropdownMenuItem>
                           <DropdownMenuItem
                             className="cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-700"
@@ -221,15 +234,13 @@ const FleetTable = ({
                               onStatusChange(config.id, "INACTIVE")
                             }
                           >
-                            <StatusBadge status="INACTIVE" className="mr-2" />
-                            Inactive
+                            <StatusBadge status="INACTIVE" />
                           </DropdownMenuItem>
                           <DropdownMenuItem
                             className="cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-700"
                             onClick={() => onStatusChange(config.id, "CLOSED")}
                           >
-                            <StatusBadge status="CLOSED" className="mr-2" />
-                            Closed
+                            <StatusBadge status="CLOSED" />
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
@@ -261,7 +272,10 @@ const FleetTable = ({
                             </span>
                           </Button>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent align="start" className="w-72 border-none bg-white dark:bg-gray-800 dark:text-gray-200">
+                        <DropdownMenuContent
+                          align="start"
+                          className="w-72 border-none bg-white dark:bg-gray-800 dark:text-gray-200"
+                        >
                           {dtList.length > 0 ? (
                             <>
                               <div className="px-4 py-2">

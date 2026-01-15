@@ -10,7 +10,6 @@ const CACHE_TTL = {
 
 const isToday = (dateRange) => {
   if (!dateRange?.from || !dateRange?.to) return false;
-
   const today = new Date().toISOString().split("T")[0];
   return dateRange.from === today && dateRange.to === today;
 };
@@ -22,6 +21,7 @@ const getTTL = (dateRange) => {
 const buildFilters = (options = {}) => {
   const { user, dateRange, shift, measurementType } = options;
   const filters = {};
+  const role = user?.role?.toLowerCase();
 
   if (dateRange !== null && dateRange !== undefined) {
     if (dateRange?.from && dateRange?.to) {
@@ -35,13 +35,9 @@ const buildFilters = (options = {}) => {
       });
     } else if (dateRange?.from) {
       filters.date = { $gte: dateRange.from };
-      logger.info("📅 Date from filter applied", { from: dateRange.from });
     } else if (dateRange?.to) {
       filters.date = { $lte: dateRange.to };
-      logger.info("📅 Date to filter applied", { to: dateRange.to });
     }
-  } else {
-    logger.info("📅 No date filter - showing ALL ACTIVE fleet");
   }
 
   if (shift && shift !== "all") {
@@ -49,27 +45,111 @@ const buildFilters = (options = {}) => {
     logger.info("🔄 Shift filter applied", { shift });
   }
 
-  if (user?.weigh_bridge?.id) {
-    filters.weigh_bridge = {
-      id: { $eq: parseInt(user.weigh_bridge.id) },
-    };
-    logger.info("Filter weigh_bridge applied", {
-      weighBridgeId: user.weigh_bridge.id,
+  if (role === "super_admin") {
+    logger.info("⏭️ Skipping measurement_type filter", {
+      role,
+      reason: "super_admin/admin can see all types",
+    });
+  } else if (measurementType) {
+    filters.measurement_type = { $eq: measurementType };
+    logger.info("📊 Measurement type filter applied", {
+      measurementType,
+      role,
     });
   }
 
-  // ✅ NEW: Measurement Type Filter
-  if (measurementType) {
-    filters.measurement_type = { $eq: measurementType };
-    logger.info("📏 Measurement type filter applied", { measurementType });
+  switch (role) {
+    case "operator_jt":
+      if (user?.weigh_bridge?.id) {
+        filters.weigh_bridge = {
+          id: { $eq: parseInt(user.weigh_bridge.id) },
+        };
+        logger.info("⚖️ Weigh_bridge filter applied (operator_jt)", {
+          weighBridgeId: user.weigh_bridge.id,
+        });
+      }
+
+      if (!filters.measurement_type) {
+        filters.measurement_type = { $eq: "Timbangan" };
+        logger.info("📊 Auto measurement_type: Timbangan (operator_jt)");
+      }
+      break;
+
+    case "ccr": {
+      const subsatker = user?.work_unit?.subsatker;
+      if (!subsatker) {
+        logger.warn("⚠️ CCR: subsatker tidak ditemukan", { userId: user.id });
+        return {
+          needsFeedback: true,
+          message:
+            "Data tidak dapat difilter karena subsatker tidak ditemukan. Silakan hubungi admin.",
+        };
+      }
+      filters.pic_work_unit = {
+        subsatker: { $eq: subsatker },
+      };
+      logger.info("🏢 Subsatker filter applied (CCR)", { subsatker });
+      break;
+    }
+
+    case "pengawas":
+    case "evaluator":
+    case "pic": {
+      const userSubsatker = user?.work_unit?.subsatker;
+      if (userSubsatker) {
+        filters.pic_work_unit = {
+          subsatker: { $eq: userSubsatker },
+        };
+        logger.info("🏢 Subsatker filter applied", {
+          role,
+          subsatker: userSubsatker,
+        });
+      }
+      break;
+    }
+
+    case "admin":
+      if (user?.company?.id) {
+        filters.unit_exca = {
+          company: {
+            id: { $eq: parseInt(user.company.id) },
+          },
+        };
+        logger.info("🏢 Company filter applied (admin)", {
+          companyId: user.company.id,
+        });
+      }
+      break;
+
+    case "mitra":
+    case "checker":
+      if (user?.company?.id) {
+        filters.unit_exca = {
+          company: {
+            id: { $eq: parseInt(user.company.id) },
+          },
+        };
+        logger.info("🏢 Company filter applied", {
+          role,
+          companyId: user.company.id,
+        });
+      }
+      break;
+
+    case "super_admin":
+      logger.info("👑 Super Admin - no role filter");
+      break;
+
+    default:
+      logger.warn("⚠️ Unknown role, no role-specific filter", { role });
+      break;
   }
 
-  logger.info("📋 buildFilters result", filters);
+  logger.info("📋 Final buildFilters result", filters);
   return filters;
 };
-
 export const fleetService = {
- async fetchFleetConfigs(options = {}) {
+  async fetchFleetConfigs(options = {}) {
     try {
       const {
         user,
@@ -77,30 +157,40 @@ export const fleetService = {
         forceRefresh = false,
         dateRange = null,
         shift = null,
-        measurementType = null, // ✅ NEW parameter
+        measurementType = null,
       } = options;
 
-      const filters = buildFilters({
+      const filterResult = buildFilters({
         user,
         viewMode,
         dateRange,
         shift,
-        measurementType, // ✅ Pass to buildFilters
+        measurementType,
       });
-      
+
+      if (filterResult.needsFeedback) {
+        return {
+          success: false,
+          data: [],
+          feedback: filterResult.message,
+        };
+      }
+
+      const filters = filterResult;
+
       const cacheKey = buildDateRangeCacheKey("fleets", dateRange, {
         userId: user?.id || "nouser",
         mode: viewMode,
         shift: shift && shift !== "all" ? shift : undefined,
-        measurementType: measurementType || undefined, // ✅ Include in cache key
+        measurementType: measurementType || undefined,
       });
-      
+
       const ttl = getTTL(dateRange);
 
       logger.info("🔍 Fetching fleet configs", {
         viewMode,
         dateRange,
-        measurementType, // ✅ Log measurement type
+        measurementType,
         filters: JSON.stringify(filters),
         cacheKey,
         ttl: `${ttl / 1000}s`,
@@ -150,7 +240,7 @@ export const fleetService = {
       logger.info(`✅ Fleet configs fetched: ${configs.length}`, {
         viewMode,
         dateRange,
-        measurementType, // ✅ Log measurement type
+        measurementType,
         cached: !forceRefresh,
       });
 
@@ -160,6 +250,82 @@ export const fleetService = {
         error: error.message,
       });
       return { success: false, data: [], error: error.message };
+    }
+  },
+
+  async createFleetConfig(configData) {
+    try {
+      const now = new Date().toISOString();
+      const payload = {
+        unit_exca: configData.excavatorId
+          ? parseInt(configData.excavatorId)
+          : null,
+        loading_location: configData.loadingLocationId
+          ? parseInt(configData.loadingLocationId)
+          : null,
+        dumping_location: configData.dumpingLocationId
+          ? parseInt(configData.dumpingLocationId)
+          : null,
+        coal_type: configData.coalTypeId
+          ? parseInt(configData.coalTypeId)
+          : null,
+        distance: configData.distance || 0,
+        pic_work_unit: configData.workUnitId
+          ? parseInt(configData.workUnitId)
+          : null,
+        created_at: now,
+        measurement_type: configData.measurement_type,
+      };
+
+      if (configData.inspectorId) {
+        payload.inspector = parseInt(configData.inspectorId);
+      } else {
+        throw new Error("Inspector is required");
+      }
+
+      if (configData.checkerId) {
+        payload.checker = parseInt(configData.checkerId);
+      } else {
+        throw new Error("Checker is required");
+      }
+
+      if (configData.createdByUserId) {
+        payload.created_by_user = parseInt(configData.createdByUserId);
+      }
+
+      if (
+        configData.measurement_type === "Timbangan" &&
+        configData.weightBridgeId
+      ) {
+        payload.weigh_bridge = parseInt(configData.weightBridgeId);
+      }
+
+      const response = await offlineService.post(
+        "/v1/custom/setting-fleet",
+        payload
+      );
+
+      await offlineService.clearCache("fleets_");
+
+      logger.info("✅ Fleet config created", {
+        id: response.data?.data?.id || response.data?.id,
+        measurement_type: configData.measurement_type,
+        has_weigh_bridge: !!payload.weigh_bridge,
+      });
+
+      return {
+        success: true,
+        data: this._transformFleetConfig(response.data),
+        setting_fleet_id: response.data?.data?.id || response.data?.id,
+      };
+    } catch (error) {
+      logger.error("❌ Failed to create fleet config", {
+        error: error.message,
+      });
+      return {
+        success: false,
+        error: error.message,
+      };
     }
   },
 
@@ -207,78 +373,6 @@ export const fleetService = {
         success: false,
         error: error.message,
         message: error.message || "Gagal mereaktivasi fleet",
-      };
-    }
-  },
-
-  async createFleetConfig(configData) {
-    try {
-      const now = new Date().toISOString();
-      const payload = {
-        unit_exca: configData.excavatorId
-          ? parseInt(configData.excavatorId)
-          : null,
-        loading_location: configData.loadingLocationId
-          ? parseInt(configData.loadingLocationId)
-          : null,
-        dumping_location: configData.dumpingLocationId
-          ? parseInt(configData.dumpingLocationId)
-          : null,
-        coal_type: configData.coalTypeId
-          ? parseInt(configData.coalTypeId)
-          : null,
-        distance: configData.distance || 0,
-        pic_work_unit: configData.workUnitId
-          ? parseInt(configData.workUnitId)
-          : null,
-        created_at: now,
-        measurement_type: configData.measurement_type,
-      };
-
-      if (configData.inspectorId) {
-        payload.inspector = parseInt(configData.inspectorId);
-      } else {
-        throw new Error("Inspector is required");
-      }
-
-      if (configData.checkerId) {
-        payload.checker = parseInt(configData.checkerId);
-      } else {
-        throw new Error("Checker is required");
-      }
-
-      if (configData.createdByUserId) {
-        payload.created_by_user = parseInt(configData.createdByUserId);
-      }
-
-      if (configData.weightBridgeId) {
-        payload.weigh_bridge = parseInt(configData.weightBridgeId);
-      }
-
-      const response = await offlineService.post(
-        "/v1/custom/setting-fleet",
-        payload
-      );
-
-      await offlineService.clearCache("fleets_");
-
-      logger.info("✅ Fleet config created with clientCreatedAt", {
-        id: response.data?.data?.id || response.data?.id,
-        clientCreatedAt: now,
-      });
-
-      return {
-        success: true,
-        data: this._transformFleetConfig(response.data),
-        setting_fleet_id: response.data?.data?.id || response.data?.id,
-      };
-    } catch (error) {
-      logger.error("❌ Failed to create fleet config", {
-        error: error.message,
-      });
-      return {
-        success: false,
-        error: error.message,
       };
     }
   },
@@ -339,7 +433,8 @@ export const fleetService = {
 
       const response = await offlineService.put(endpoint, payload);
 
-      await offlineService.clearCache("fleets_");
+      await offlineService.clearCacheByPrefix("fleets");
+      await offlineService.clearCacheByPrefix("ritases");
 
       logger.info("✅ Fleet config updated", {
         id: configId,
@@ -365,10 +460,22 @@ export const fleetService = {
     try {
       await offlineService.delete(`/setting-fleets/${configId}`);
 
-      await offlineService.clearCache("fleets_");
+      await Promise.all([
+        offlineService.clearCache("fleets_"),
+        offlineService.clearCache(`fleets_${configId}`),
+        offlineService.clearCache("ritases_"),
+        offlineService.clearCacheByPrefix?.("fleets"),
+      ]);
 
-      logger.info("🗑️ Fleet config deleted", { id: configId });
-      return { success: true, message: "Konfigurasi berhasil dihapus" };
+      await new Promise((resolve) => setTimeout(resolve, 200));
+
+      logger.info("🗑️ Fleet config deleted + cache cleared", { id: configId });
+
+      return {
+        success: true,
+        message: "Konfigurasi berhasil dihapus",
+        deletedId: configId,
+      };
     } catch (error) {
       logger.error("❌ Failed to delete fleet config", {
         error: error.message,
@@ -522,7 +629,7 @@ export const fleetService = {
       throw error;
     }
   },
-  
+
   clearCache(pattern = null) {
     logger.info("🗑️ Fleet service cache cleared", {
       pattern: pattern || "all",

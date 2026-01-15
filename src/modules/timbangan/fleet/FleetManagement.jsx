@@ -28,18 +28,15 @@ import {
 const FleetManagement = ({ Type }) => {
   const { user } = useAuthStore();
 
-    const measurementTypeMap = {
-    'Timbangan': 'Timbangan',
-    'FOB': 'FOB', 
-    'Bypass': 'Bypass',
-    'BeltScale': 'BeltScale'
+  const measurementTypeMap = {
+    Timbangan: "Timbangan",
+    FOB: "FOB",
+    Bypass: "Bypass",
+    BeltScale: "BeltScale",
   };
 
   const measurementType = measurementTypeMap[Type] || null;
 
-  // ========================================
-  // PERMISSIONS with Fleet Type Access
-  // ========================================
   const {
     canCreate,
     canRead,
@@ -60,19 +57,14 @@ const FleetManagement = ({ Type }) => {
     getFleetFormConfig,
   } = useFleetPermissions();
 
-  // Check if user can access this fleet type
   const canAccessType = useMemo(() => {
     return canAccessFleetType(Type);
   }, [canAccessFleetType, Type]);
 
-  // Get form config for this fleet type
   const fleetFormConfig = useMemo(() => {
     return getFleetFormConfig(Type);
   }, [getFleetFormConfig, Type]);
 
-  // ========================================
-  // STORE DATA
-  // ========================================
   const selectedFleetIds = useTimbanganStore(
     (state) => state.selectedFleetIds || []
   );
@@ -80,9 +72,6 @@ const FleetManagement = ({ Type }) => {
     (state) => state.setSelectedFleets
   );
 
-  // ========================================
-  // HOOKS
-  // ========================================
   const fleetHook = useFleet(user ? { user } : null, measurementType);
   const {
     isLoading: fleetLoading,
@@ -94,7 +83,9 @@ const FleetManagement = ({ Type }) => {
     refresh: refreshFleet,
     viewingDateRange,
     setViewingDateRange,
-    filteredFleetConfigs: allFilteredFleetConfigs,
+    currentShift,
+    viewingShift,
+    setViewingShift,
   } = fleetHook;
 
   const dumptruckHook = useDumptruck(fleetHook);
@@ -104,9 +95,6 @@ const FleetManagement = ({ Type }) => {
     isRefreshing: dumptruckRefreshing,
   } = dumptruckHook;
 
-  // ========================================
-  // STATE MANAGEMENT
-  // ========================================
   const [configSearchInput, setConfigSearchInput] = useState("");
   const configSearch = useDebouncedValue(configSearchInput, DEBOUNCE_TIME);
   const [isSaving, setIsSaving] = useState(false);
@@ -114,28 +102,21 @@ const FleetManagement = ({ Type }) => {
   const [updatingStatusId, setUpdatingStatusId] = useState(null);
 
   const fleetConfigsByType = useTimbanganStore(
-  (state) => state.fleetConfigsByType[Type] || []
-);
-
-  // ========================================
-  // FILTERED FLEET CONFIGS - Role-based Filtering
-  // ========================================
-const filteredFleetConfigs = useMemo(() => {
-  if (!Array.isArray(fleetConfigsByType)) return [];
-
-  // Filter by status (exclude CLOSED)
-  let filtered = fleetConfigsByType.filter(
-    (fleet) => fleet.status !== "CLOSED"
+    (state) => state.fleetConfigsByType[Type] || []
   );
 
-  // Apply role-based filtering
-  filtered = filterDataBySatker(filtered);
+  const filteredFleetConfigs = useMemo(() => {
+    if (!Array.isArray(fleetConfigsByType)) return [];
 
-  return filtered;
-}, [fleetConfigsByType, filterDataBySatker]);
-  // ========================================
-  // FILTERING & PAGINATION
-  // ========================================
+    let filtered = fleetConfigsByType.filter(
+      (fleet) => fleet.status !== "CLOSED"
+    );
+
+    filtered = filterDataBySatker(filtered);
+
+    return filtered;
+  }, [fleetConfigsByType, filterDataBySatker]);
+
   const {
     currentPage: configPage,
     setCurrentPage: setConfigPage,
@@ -155,7 +136,6 @@ const filteredFleetConfigs = useMemo(() => {
     },
   });
 
-  // Apply search filter
   const searchFilteredConfigs = useMemo(() => {
     if (!configSearch) return filteredFleetConfigs;
 
@@ -169,7 +149,6 @@ const filteredFleetConfigs = useMemo(() => {
     );
   }, [filteredFleetConfigs, configSearch]);
 
-  // Combine all filters
   const finalFilteredConfigs = useMemo(() => {
     let filtered = searchFilteredConfigs;
 
@@ -205,7 +184,6 @@ const filteredFleetConfigs = useMemo(() => {
     return filtered;
   }, [searchFilteredConfigs, activeFilters]);
 
-  console.log(finalFilteredConfigs)
   const finalPaginatedConfigs = useMemo(() => {
     const pageSize = 10;
     const start = (configPage - 1) * pageSize;
@@ -226,26 +204,17 @@ const filteredFleetConfigs = useMemo(() => {
     [configSearch, activeFilters]
   );
 
-  // ========================================
-  // MODAL MANAGEMENT
-  // ========================================
   const { openModal, closeModal, getModalState } = useModalState({
-    config: null, // For create/edit
-    detail: null, // ✅ SEPARATE state for detail
+    config: null,
+    detail: null,
     fleetSelection: null,
     delete: null,
   });
 
-  // ========================================
-  // COMPUTED VALUES
-  // ========================================
   const isConfigsLoading = fleetLoading && !fleetRefreshing;
   const isRefreshing = fleetRefreshing || dumptruckRefreshing;
   const mastersLoading = false;
 
-  // ========================================
-  // DUMPTRUCK HELPERS
-  // ========================================
   const getFleetDumptruckCount = useCallback(
     (fleetId) => {
       const setting = dumptruckSettings.find((s) => s.fleet?.id === fleetId);
@@ -334,9 +303,6 @@ const filteredFleetConfigs = useMemo(() => {
     [dumptruckSettings]
   );
 
-  // ========================================
-  // FILTER OPTIONS
-  // ========================================
   const filterOptions = useMemo(
     () => ({
       shifts: (masters?.shifts || []).map((shift) => ({
@@ -423,9 +389,6 @@ const filteredFleetConfigs = useMemo(() => {
     [filterOptions, activeFilters, updateFilter]
   );
 
-  // ========================================
-  // FLEET COUNTS
-  // ========================================
   const allSelectedFleets = useMemo(() => {
     return filteredFleetConfigs.filter((f) => selectedFleetIds.includes(f.id));
   }, [filteredFleetConfigs, selectedFleetIds]);
@@ -438,9 +401,6 @@ const filteredFleetConfigs = useMemo(() => {
     [allSelectedFleets]
   );
 
-  // ========================================
-  // HANDLERS - FILTERS
-  // ========================================
   const handleResetFilters = useCallback(() => {
     setConfigSearchInput("");
     resetFilters();
@@ -449,27 +409,90 @@ const filteredFleetConfigs = useMemo(() => {
 
   const handleDateRangeChange = useCallback(
     (newDateRange) => {
-      setViewingDateRange(newDateRange);
+      console.log("");
+      console.log("================================================");
+      console.log("📅 [FleetManagement] handleDateRangeChange START");
+      console.log("================================================");
+      console.log(
+        "📦 Received newDateRange:",
+        JSON.stringify(newDateRange, null, 2)
+      );
+      console.log("🔍 newDateRange.shift value:", newDateRange.shift);
+      console.log("🔍 Type:", typeof newDateRange.shift);
+      console.log("📊 Current state BEFORE update:");
+      console.log("   - viewingShift:", viewingShift);
+      console.log("   - currentShift:", currentShift);
+      console.log("   - viewingDateRange:", viewingDateRange);
+
+      if (newDateRange.shift) {
+        console.log("✅ Condition met: newDateRange.shift exists");
+        console.log("   Calling setViewingShift with:", newDateRange.shift);
+        setViewingShift(newDateRange.shift);
+        console.log(
+          "   setViewingShift called (state will update on next render)"
+        );
+      } else {
+        console.warn("⚠️ NO SHIFT in newDateRange!");
+        console.warn("   Keys in newDateRange:", Object.keys(newDateRange));
+      }
+
+      const newRange = {
+        from: newDateRange.from || newDateRange.startDate,
+        to: newDateRange.to || newDateRange.endDate,
+      };
+      console.log("📅 Calling setViewingDateRange with:", newRange);
+      setViewingDateRange(newRange);
+
       setConfigPage(1);
+
+      console.log("================================================");
+      console.log("📅 [FleetManagement] handleDateRangeChange END");
+      console.log("================================================");
+      console.log("");
     },
-    [setViewingDateRange, setConfigPage]
+    [
+      viewingShift,
+      currentShift,
+      viewingDateRange,
+      setViewingDateRange,
+      setViewingShift,
+      setConfigPage,
+    ]
   );
 
-  // ========================================
-  // EFFECTS
-  // ========================================
+  useEffect(() => {
+    console.log(
+      "🔄 [FleetManagement] viewingShift STATE UPDATED to:",
+      viewingShift
+    );
+  }, [viewingShift]);
+
+  useEffect(() => {
+    console.log(
+      "⏰ [FleetManagement] currentShift STATE UPDATED to:",
+      currentShift
+    );
+  }, [currentShift]);
+
   useEffect(() => {
     const timer = setTimeout(() => {
       if (viewingDateRange.from || viewingDateRange.to) {
-        refreshFleet({ dateRange: viewingDateRange, skipAutoActivate: true });
+        console.log("⏰ Auto-refresh triggered with:", {
+          dateRange: viewingDateRange,
+          shift: viewingShift,
+        });
+
+        refreshFleet({
+          dateRange: viewingDateRange,
+          skipAutoActivate: true,
+          shift: viewingShift,
+        });
       }
     }, 500);
-    return () => clearTimeout(timer);
-  }, [viewingDateRange, refreshFleet]);
 
-  // ========================================
-  // HANDLERS - MODAL ACTIONS
-  // ========================================
+    return () => clearTimeout(timer);
+  }, [viewingDateRange, viewingShift, refreshFleet]);
+
   const handleCreateConfig = useCallback(() => {
     if (isReadOnly) {
       showToast.error("Anda tidak memiliki akses untuk membuat fleet");
@@ -479,7 +502,7 @@ const filteredFleetConfigs = useMemo(() => {
       showToast.error(getDisabledMessage("create"));
       return;
     }
-    openModal("config", null); // ✅ Only open config modal
+    openModal("config", null);
   }, [isReadOnly, canCreate, getDisabledMessage, openModal]);
 
   const handleEditConfig = useCallback(
@@ -497,15 +520,13 @@ const filteredFleetConfigs = useMemo(() => {
         return;
       }
 
-      // ✅ Close detail modal first if open
       if (getModalState("detail").isOpen) {
         closeModal("detail");
       }
 
-      // ✅ Then open config modal
       setTimeout(() => {
         openModal("config", config);
-      }, 100); // Small delay to ensure detail modal is closed
+      }, 100);
     },
     [
       isReadOnly,
@@ -525,15 +546,13 @@ const filteredFleetConfigs = useMemo(() => {
         return;
       }
 
-      // ✅ Close config modal first if open
       if (getModalState("config").isOpen) {
         closeModal("config");
       }
 
-      // ✅ Then open detail modal
       setTimeout(() => {
         openModal("detail", config);
-      }, 100); // Small delay to ensure config modal is closed
+      }, 100);
     },
     [canRead, getDisabledMessage, openModal, closeModal, getModalState]
   );
@@ -559,9 +578,6 @@ const filteredFleetConfigs = useMemo(() => {
     [isReadOnly, canDeletePerm, checkDataAccess, getDisabledMessage, openModal]
   );
 
-  // ========================================
-  // HANDLERS - DATA OPERATIONS
-  // ========================================
   const handleSaveConfig = async (configData) => {
     const selectedConfig = getModalState("config").data;
 
@@ -676,6 +692,7 @@ const filteredFleetConfigs = useMemo(() => {
       await refreshFleet({
         dateRange: viewingDateRange,
         skipAutoActivate: true,
+        shift: viewingShift,
       });
       if (refreshDumptruck) await refreshDumptruck();
       showToast.success(TOAST_MESSAGES.SUCCESS.REFRESH);
@@ -686,6 +703,7 @@ const filteredFleetConfigs = useMemo(() => {
     refreshFleet,
     refreshDumptruck,
     viewingDateRange,
+    viewingShift,
     canRead,
     getDisabledMessage,
   ]);
@@ -700,9 +718,6 @@ const filteredFleetConfigs = useMemo(() => {
     [setSelectedFleets]
   );
 
-  // ========================================
-  // RENDER - ACCESS DENIED
-  // ========================================
   if (!canAccessType) {
     return (
       <div className="space-y-6">
@@ -750,9 +765,6 @@ const filteredFleetConfigs = useMemo(() => {
     );
   }
 
-  // ========================================
-  // RENDER - MAIN CONTENT
-  // ========================================
   return (
     <div className="space-y-6 min-h-screen">
       {/* Header */}
@@ -778,28 +790,45 @@ const filteredFleetConfigs = useMemo(() => {
         fleetCounts={fleetCounts}
       />
 
-      {/* Read-Only Alert */}
-      {isReadOnly && (
-        <Alert className="border-orange-200 dark:border-orange-800 bg-orange-50 dark:bg-orange-900/20">
-          <Info className="w-4 h-4 text-orange-600 dark:text-orange-400" />
+      {/* CCR Subsatker Validation Alert */}
+      {userRole?.toLowerCase() === "ccr" && !userSatker && (
+        <Alert
+          variant="destructive"
+          className="border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20"
+        >
+          <Info className="w-4 h-4 text-red-600 dark:text-red-400" />
           <AlertDescription>
-            <p className="text-sm text-orange-900 dark:text-orange-300">
-              <strong>Mode Read-Only:</strong> Anda hanya dapat melihat fleet{" "}
-              {Type}.
-              {filterType === "company" &&
-                ` Data difilter berdasarkan company: ${
-                  userCompany?.name || "N/A"
-                }`}
-              {filterType === "subsatker" &&
-                ` Data difilter berdasarkan work unit: ${userSatker || "N/A"}`}
-              {filterType === "weigh_bridge" &&
-                ` Data difilter berdasarkan jembatan: ${
-                  userWeighBridge?.name || "N/A"
-                }`}
+            <p className="text-sm text-red-900 dark:text-red-300">
+              <strong>Perhatian:</strong> Data tidak dapat difilter karena
+              subsatker tidak ditemukan pada akun Anda. Silakan hubungi admin
+              untuk mengatur work unit Anda.
             </p>
           </AlertDescription>
         </Alert>
       )}
+
+      {/* Read-Only Alert */}
+      {/* {isReadOnly && (
+          <Alert className="border-orange-200 dark:border-orange-800 bg-orange-50 dark:bg-orange-900/20">
+            <Info className="w-4 h-4 text-orange-600 dark:text-orange-400" />
+            <AlertDescription>
+              <p className="text-sm text-orange-900 dark:text-orange-300">
+                <strong>Mode Read-Only:</strong> Anda hanya dapat melihat fleet{" "}
+                {Type}.
+                {filterType === "company" &&
+                  ` Data difilter berdasarkan company: ${
+                    userCompany?.name || "N/A"
+                  }`}
+                {filterType === "subsatker" &&
+                  ` Data difilter berdasarkan work unit: ${userSatker || "N/A"}`}
+                {filterType === "weigh_bridge" &&
+                  ` Data difilter berdasarkan jembatan: ${
+                    userWeighBridge?.name || "N/A"
+                  }`}
+              </p>
+            </AlertDescription>
+          </Alert>
+        )} */}
 
       {/* Fleet Selection Alert */}
       {!isReadOnly && (
@@ -816,6 +845,8 @@ const filteredFleetConfigs = useMemo(() => {
             {/* Filter Section */}
             <FleetFilterSection
               dateRange={viewingDateRange}
+              currentShift={currentShift}
+              viewingShift={viewingShift}
               onDateRangeChange={handleDateRangeChange}
               searchQuery={configSearchInput}
               onSearchChange={(value) => {
@@ -861,7 +892,6 @@ const filteredFleetConfigs = useMemo(() => {
 
       {/* Modals - Show detail modal even in read-only mode */}
       <FleetModalsManager
-        // Config Modal
         showConfigModal={!isReadOnly && getModalState("config").isOpen}
         onCloseConfigModal={() => closeModal("config")}
         selectedConfig={getModalState("config").data}
@@ -869,18 +899,16 @@ const filteredFleetConfigs = useMemo(() => {
         masters={masters}
         canUpdate={canUpdate && !isReadOnly}
         fleetType={Type}
-        // Detail Modal - ✅ Separate state
         showDetailModal={getModalState("detail").isOpen}
         onCloseDetailModal={() => closeModal("detail")}
-        selectedDetailConfig={getModalState("detail").data} // ✅ Separate data
+        selectedDetailConfig={getModalState("detail").data}
         onEditConfig={!isReadOnly ? handleEditConfig : undefined}
-        // Fleet Selection
         showFleetSelectionDialog={
           !isReadOnly && getModalState("fleetSelection").isOpen
         }
+        getDumptruckList={getFleetDumptruckList}
         onCloseFleetSelectionDialog={() => closeModal("fleetSelection")}
         onSaveFleetSelection={handleSaveFleetSelection}
-        // Delete
         showDeleteDialog={!isReadOnly && getModalState("delete").isOpen}
         onCloseDeleteDialog={() => {
           if (!isSaving) closeModal("delete");
