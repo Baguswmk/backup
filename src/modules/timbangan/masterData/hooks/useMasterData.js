@@ -1,4 +1,3 @@
-// useMasterData.js - FIXED VERSION
 import { useState, useCallback, useRef, useEffect } from "react";
 import { masterDataService } from "@/modules/timbangan/masterData/services/masterDataService";
 import { showToast } from "@/shared/utils/toast";
@@ -10,17 +9,77 @@ export const useMasterData = (category) => {
   const [error, setError] = useState(null);
   const [isDataLoaded, setIsDataLoaded] = useState(false);
 
+  const [companies, setCompanies] = useState([]);
+  const [workUnits, setWorkUnits] = useState([]);
+  const [locations, setLocations] = useState([]);
+  const [users, setUsers] = useState([]);
+
   const { user } = useAuthStore();
   const userRole = user?.role;
 
-  // Track if we've attempted initial load (per component instance)
   const initialLoadAttemptedRef = useRef(false);
-  
-  // Track pending requests to avoid duplicates
   const pendingRequestRef = useRef(null);
-  
-  // Track if component is mounted
   const isMountedRef = useRef(true);
+
+  const masterDataLoadedRef = useRef({
+    companies: false,
+    workUnits: false,
+    locations: false,
+    users: false,
+  });
+
+  /**
+   * ✅ NEW: Load all master data needed for forms
+   */
+  const loadAllMasterData = useCallback(async () => {
+    if (!isMountedRef.current) return;
+
+    try {
+      if (!masterDataLoadedRef.current.companies) {
+        const companiesData = await masterDataService.fetchCompanies({
+          forceRefresh: false,
+        });
+        if (isMountedRef.current) {
+          setCompanies(companiesData);
+          masterDataLoadedRef.current.companies = true;
+        }
+      }
+
+      if (!masterDataLoadedRef.current.workUnits) {
+        const workUnitsData = await masterDataService.fetchWorkUnits({
+          forceRefresh: false,
+          userRole,
+        });
+        if (isMountedRef.current) {
+          setWorkUnits(workUnitsData);
+          masterDataLoadedRef.current.workUnits = true;
+        }
+      }
+
+      if (!masterDataLoadedRef.current.locations) {
+        const locationsData = await masterDataService.fetchLocations({
+          forceRefresh: false,
+          userRole,
+        });
+        if (isMountedRef.current) {
+          setLocations(locationsData);
+          masterDataLoadedRef.current.locations = true;
+        }
+      }
+
+      if (!masterDataLoadedRef.current.users) {
+        const usersData = await masterDataService.fetchUsers({
+          forceRefresh: false,
+        });
+        if (isMountedRef.current) {
+          setUsers(usersData);
+          masterDataLoadedRef.current.users = true;
+        }
+      }
+    } catch (err) {
+      console.error("❌ Failed to load master data:", err);
+    }
+  }, [userRole]);
 
   /**
    * Load data with cache-first strategy
@@ -28,11 +87,10 @@ export const useMasterData = (category) => {
   const loadData = useCallback(
     async (forceRefresh = false) => {
       if (!category) {
-        console.warn('⚠️ loadData called without category');
+        console.warn("⚠️ loadData called without category");
         return;
       }
 
-      // ✅ If already loading same request, return existing promise
       if (pendingRequestRef.current && !forceRefresh) {
         return pendingRequestRef.current;
       }
@@ -56,25 +114,37 @@ export const useMasterData = (category) => {
             fetchOptions
           );
 
-          // ✅ Only update state if component is still mounted
           if (isMountedRef.current) {
             setData(result);
             setIsDataLoaded(true);
+
+            if (category === "companies") {
+              setCompanies(result);
+              masterDataLoadedRef.current.companies = true;
+            } else if (category === "work-units") {
+              setWorkUnits(result);
+              masterDataLoadedRef.current.workUnits = true;
+            } else if (category === "locations") {
+              setLocations(result);
+              masterDataLoadedRef.current.locations = true;
+            } else if (category === "operators") {
+              setUsers(result);
+              masterDataLoadedRef.current.users = true;
+            }
           }
 
           return result;
         } catch (err) {
           console.error(`❌ Failed to load ${category}:`, err);
-          
+
           if (isMountedRef.current) {
             setError(err.message);
-            
+
             if (forceRefresh) {
-              // Only show toast on manual refresh failures
               showToast.error(`Failed to load ${category} data`);
             }
           }
-          
+
           throw err;
         } finally {
           if (isMountedRef.current) {
@@ -98,6 +168,37 @@ export const useMasterData = (category) => {
   }, [loadData]);
 
   /**
+   * ✅ NEW: Refresh all master data
+   */
+  const refreshAllMasterData = useCallback(async () => {
+    try {
+      const [companiesData, workUnitsData, locationsData, usersData] =
+        await Promise.all([
+          masterDataService.fetchCompanies({ forceRefresh: true }),
+          masterDataService.fetchWorkUnits({ forceRefresh: true, userRole }),
+          masterDataService.fetchLocations({ forceRefresh: true, userRole }),
+          masterDataService.fetchUsers({ forceRefresh: true }),
+        ]);
+
+      if (isMountedRef.current) {
+        setCompanies(companiesData);
+        setWorkUnits(workUnitsData);
+        setLocations(locationsData);
+        setUsers(usersData);
+
+        masterDataLoadedRef.current = {
+          companies: true,
+          workUnits: true,
+          locations: true,
+          users: true,
+        };
+      }
+    } catch (err) {
+      console.error("❌ Failed to refresh master data:", err);
+    }
+  }, [userRole]);
+
+  /**
    * Create item
    */
   const createItem = useCallback(
@@ -106,8 +207,9 @@ export const useMasterData = (category) => {
         setIsLoading(true);
         const result = await masterDataService.createData(category, formData);
 
-        // ✅ Reload data after create (will use fresh data from API)
         await loadData(true);
+
+        await refreshAllMasterData();
 
         showToast.success("Data created successfully");
         return { success: true, data: result };
@@ -118,7 +220,7 @@ export const useMasterData = (category) => {
         setIsLoading(false);
       }
     },
-    [category, loadData]
+    [category, loadData, refreshAllMasterData]
   );
 
   /**
@@ -134,8 +236,9 @@ export const useMasterData = (category) => {
           formData
         );
 
-        // ✅ Reload data after update
         await loadData(true);
+
+        await refreshAllMasterData();
 
         showToast.success("Data updated successfully");
         return { success: true, data: result };
@@ -146,7 +249,7 @@ export const useMasterData = (category) => {
         setIsLoading(false);
       }
     },
-    [category, loadData]
+    [category, loadData, refreshAllMasterData]
   );
 
   /**
@@ -158,22 +261,22 @@ export const useMasterData = (category) => {
         setIsLoading(true);
         await masterDataService.deleteData(category, id);
 
-        // ✅ Update local state immediately for better UX
         setData((prev) => prev.filter((item) => item.id !== id));
+
+        await refreshAllMasterData();
 
         showToast.success("Data deleted successfully");
         return { success: true };
       } catch (err) {
-        // ✅ Reload on error to ensure consistency
         await loadData(true);
-        
+
         showToast.error("Failed to delete data");
         return { success: false, error: err.message };
       } finally {
         setIsLoading(false);
       }
     },
-    [category, loadData]
+    [category, loadData, refreshAllMasterData]
   );
 
   /**
@@ -184,35 +287,34 @@ export const useMasterData = (category) => {
     return loadData(true);
   }, [category, loadData]);
 
-  // ✅ INITIAL LOAD - Simplified with proper dependency
   useEffect(() => {
     if (!category) {
-      console.warn('⚠️ No category provided to useMasterData');
+      console.warn("⚠️ No category provided to useMasterData");
       return;
     }
 
-    // Only load once per category change
     if (initialLoadAttemptedRef.current) {
       return;
     }
 
     initialLoadAttemptedRef.current = true;
 
-    // Load without forcing refresh - will use cache if available
-    loadData(false).catch(err => {
+    loadData(false).catch((err) => {
       console.error(`❌ Initial load failed for ${category}:`, err);
     });
 
-    // Reset flag when category changes
     return () => {
       initialLoadAttemptedRef.current = false;
     };
-  }, [category]); // ✅ Only depend on category, not loadData
+  }, [category, loadData]);
 
-  // ✅ Cleanup on unmount
+  useEffect(() => {
+    loadAllMasterData();
+  }, [loadAllMasterData]);
+
   useEffect(() => {
     isMountedRef.current = true;
-    
+
     return () => {
       isMountedRef.current = false;
       pendingRequestRef.current = null;
@@ -224,21 +326,19 @@ export const useMasterData = (category) => {
     isLoading,
     error,
     isDataLoaded,
-    
-    // CRUD operations
+
     createItem,
     updateItem,
     deleteItem,
-    
-    // Utility functions
+
     refresh,
     loadData,
     clearCache,
-    
-    // Legacy support (if needed elsewhere)
-    companies: category === 'companies' ? data : [],
-    workUnits: category === 'work-units' ? data : [],
-    locations: category === 'locations' ? data : [],
-    users: category === 'operators' ? data : [],
+    refreshAllMasterData,
+
+    companies,
+    workUnits,
+    locations,
+    users,
   };
 };

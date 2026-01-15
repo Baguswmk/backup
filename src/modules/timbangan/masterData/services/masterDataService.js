@@ -64,7 +64,7 @@ const sortAlphabetically = (data, key = "name") => {
 const getPopulateFields = (category, userRole) => {
   if (userRole === "operator_jt") {
     if (category === "units") {
-      return ["company"];
+      return ["company", "work_unit"];
     }
   }
 
