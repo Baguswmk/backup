@@ -9,7 +9,7 @@ const DEFAULT_MEASUREMENT_TYPES = [
   { value: "FOB", label: "FOB" },
   { value: "Timbangan", label: "Timbangan" },
   { value: "Bypass", label: "Bypass" },
-  { value: "BeltScale", label: "BeltScale" },
+  { value: "Beltscale", label: "Beltscale" },
 ];
 
 const AdvancedFilter = ({

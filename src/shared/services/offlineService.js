@@ -407,6 +407,8 @@ function generateCacheKey(url, config = {}) {
   return parts.join("|");
 }
 
+// Perbaikan di fungsi apiCall, sekitar baris 440-470
+
 async function apiCall(url, method = "GET", data = null, options = {}) {
   const {
     cacheKey = null,
@@ -420,7 +422,7 @@ async function apiCall(url, method = "GET", data = null, options = {}) {
   const effectiveCacheKey =
     cacheKey || (method === "GET" ? generateCacheKey(url, { params }) : null);
 
-  // ✅ FIX: Clear cache FIRST jika forceRefresh sebelum check cache
+  // Clear cache jika forceRefresh
   if (forceRefresh && method === "GET" && effectiveCacheKey) {
     const db = await getDB();
     await db.delete(STORES.CACHE, effectiveCacheKey);
@@ -447,21 +449,70 @@ async function apiCall(url, method = "GET", data = null, options = {}) {
 
       return response.data;
     } catch (error) {
-      console.error(`❌ API call failed: ${method} ${url}`, {
-        error: error.message,
-        status: error.response?.status,
-      });
-
-      if (!bypassQueue && ["POST", "PUT", "PATCH"].includes(method)) {
-        await addToQueue({ url, method, data, options });
-        emitCoalescedEvent("queue:updated");
-        throw new Error("Request queued for offline sync");
+      // ✅ PERBAIKAN: Extract error message dengan benar
+      let errorMessage = "Request failed";
+      let errorDetails = {};
+      
+      if (error.response) {
+        // Error dari server dengan response
+        const responseData = error.response.data;
+        
+        // Support berbagai struktur error response
+        errorMessage = 
+          responseData?.message ||           // {message: "..."}
+          responseData?.error?.message ||    // {error: {message: "..."}}
+          responseData?.error ||             // {error: "..."}
+          error.message ||
+          "Request failed";
+        
+        errorDetails = {
+          status: error.response.status,
+          data: responseData,
+        };
+        
+        console.error(`❌ API call failed: ${method} ${url}`, {
+          message: errorMessage,
+          status: error.response.status,
+          data: responseData,
+        });
+      } else if (error.request) {
+        // Request dibuat tapi tidak ada response
+        errorMessage = "No response from server";
+        console.error(`❌ No response: ${method} ${url}`, error.request);
+      } else {
+        // Error lainnya
+        errorMessage = error.message;
+        console.error(`❌ Request error: ${method} ${url}`, error.message);
       }
 
-      throw error;
+      // ✅ PERBAIKAN: Jangan queue jika ini validation error (4xx)
+      const isValidationError = error.response?.status >= 400 && error.response?.status < 500;
+      
+      if (!bypassQueue && ["POST", "PUT", "PATCH"].includes(method)) {
+        if (isValidationError) {
+          // Jangan queue validation error, langsung throw dengan message yang jelas
+          const enhancedError = new Error(errorMessage);
+          enhancedError.response = error.response;
+          enhancedError.validationError = true;
+          enhancedError.details = errorDetails;
+          throw enhancedError;
+        } else {
+          // Queue hanya untuk network error atau server error (5xx)
+          await addToQueue({ url, method, data, options });
+          emitCoalescedEvent("queue:updated");
+          throw new Error("Request queued for offline sync");
+        }
+      }
+
+      // Throw error dengan informasi lengkap
+      const enhancedError = new Error(errorMessage);
+      enhancedError.response = error.response;
+      enhancedError.details = errorDetails;
+      throw enhancedError;
     }
   }
 
+  // Offline handling
   if (bypassQueue) {
     throw new Error("Network unavailable and bypass queue enabled");
   }

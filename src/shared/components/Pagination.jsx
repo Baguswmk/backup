@@ -39,7 +39,7 @@ const Pagination = ({ currentPage, totalPages, onPageChange, isLoading }) => {
           size="sm"
           onClick={() => onPageChange(currentPage - 1)}
           disabled={currentPage === 1 || isLoading}
-          className="cursor-pointer disabled:cursor-not-allowed shrink-0 h-8 px-2 dark:border-gray-700 dark:hover:bg-gray-700"
+          className="cursor-pointer disabled:cursor-not-allowed shrink-0 h-8 px-2 dark:border-gray-700 dark:hover:bg-gray-700 dark:text-gray-200"
           aria-label="Previous page"
         >
           <ChevronLeft className="w-4 h-4" />
@@ -53,7 +53,7 @@ const Pagination = ({ currentPage, totalPages, onPageChange, isLoading }) => {
               size="sm"
               onClick={() => typeof page === "number" && onPageChange(page)}
               disabled={typeof page !== "number" || isLoading}
-              className="cursor-pointer disabled:cursor-not-allowed min-w-8 h-8 px-2 text-xs shrink-0 dark:border-gray-700 dark:hover:bg-gray-700"
+              className="cursor-pointer disabled:cursor-not-allowed min-w-8 h-8 px-2 text-xs shrink-0 dark:border-gray-700 dark:hover:bg-gray-700 dark:text-gray-200"
               aria-label={typeof page === "number" ? `Page ${page}` : "More pages"}
               aria-current={page === currentPage ? "page" : undefined}
             >
@@ -67,7 +67,7 @@ const Pagination = ({ currentPage, totalPages, onPageChange, isLoading }) => {
           size="sm"
           onClick={() => onPageChange(currentPage + 1)}
           disabled={currentPage === totalPages || isLoading}
-          className="cursor-pointer disabled:cursor-not-allowed shrink-0 h-8 px-2 dark:border-gray-700 dark:hover:bg-gray-700"
+          className="cursor-pointer disabled:cursor-not-allowed shrink-0 h-8 px-2 dark:border-gray-700 dark:hover:bg-gray-700 dark:text-gray-200"
           aria-label="Next page"
         >
           <ChevronRight className="w-4 h-4" />
@@ -81,7 +81,7 @@ const Pagination = ({ currentPage, totalPages, onPageChange, isLoading }) => {
           size="sm"
           onClick={() => onPageChange(currentPage - 1)}
           disabled={currentPage === 1 || isLoading}
-          className="cursor-pointer disabled:cursor-not-allowed dark:border-gray-700 dark:hover:bg-gray-700"
+          className="cursor-pointer disabled:cursor-not-allowed dark:border-gray-700 dark:hover:bg-gray-700 dark:text-gray-200"
           aria-label="Previous page"
         >
           <ChevronLeft className="w-4 h-4" />
@@ -95,7 +95,7 @@ const Pagination = ({ currentPage, totalPages, onPageChange, isLoading }) => {
             size="sm"
             onClick={() => typeof page === "number" && onPageChange(page)}
             disabled={typeof page !== "number" || isLoading}
-            className="cursor-pointer disabled:cursor-not-allowed min-w-9 dark:border-gray-700 dark:hover:bg-gray-700"
+            className="cursor-pointer disabled:cursor-not-allowed min-w-9 dark:border-gray-700 dark:hover:bg-gray-700 dark:text-gray-200"
             aria-label={typeof page === "number" ? `Page ${page}` : "More pages"}
             aria-current={page === currentPage ? "page" : undefined}
           >
@@ -108,7 +108,7 @@ const Pagination = ({ currentPage, totalPages, onPageChange, isLoading }) => {
           size="sm"
           onClick={() => onPageChange(currentPage + 1)}
           disabled={currentPage === totalPages || isLoading}
-          className="cursor-pointer disabled:cursor-not-allowed dark:border-gray-700 dark:hover:bg-gray-700"
+          className="cursor-pointer disabled:cursor-not-allowed dark:border-gray-700 dark:hover:bg-gray-700 dark:text-gray-200"
           aria-label="Next page"
         >
           <span className="mr-1 hidden md:inline">Next</span>

@@ -40,6 +40,52 @@ const ERROR_MESSAGES = {
 };
 
 /**
+ * ✅ PERBAIKAN: Extract error message dari berbagai struktur response
+ */
+const extractErrorMessage = (error) => {
+  // Jika error adalah string
+  if (typeof error === 'string') {
+    return error;
+  }
+
+  // Jika error adalah AppError
+  if (error instanceof AppError) {
+    return error.message;
+  }
+
+  // Jika error punya response.data (axios error)
+  if (error.response?.data) {
+    const data = error.response.data;
+    
+    // Support berbagai struktur response
+    return (
+      data.message ||           // {message: "..."}
+      data.error?.message ||    // {error: {message: "..."}}
+      data.error ||             // {error: "..."}
+      error.message ||
+      ERROR_MESSAGES[ERROR_CODES.UNKNOWN_ERROR]
+    );
+  }
+
+  // Jika error adalah Error object biasa
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  // Jika error adalah object dengan property message
+  if (error && typeof error === 'object') {
+    return (
+      error.message ||
+      error.error?.message ||
+      error.error ||
+      ERROR_MESSAGES[ERROR_CODES.UNKNOWN_ERROR]
+    );
+  }
+
+  return ERROR_MESSAGES[ERROR_CODES.UNKNOWN_ERROR];
+};
+
+/**
  * Handle API response standardization
  * @param {Object} result - API response
  * @returns {{success: boolean, data?: any, error?: string}}
@@ -91,7 +137,7 @@ export const validateResponse = (response, operation = 'operation') => {
 };
 
 /**
- * Handle errors with logging and toast notification
+ * ✅ PERBAIKAN: Handle errors with better message extraction
  * @param {Error|string} error - Error object or message
  * @param {Object} options - Configuration options
  * @returns {{success: false, error: string}}
@@ -104,16 +150,8 @@ export const handleError = (error, options = {}) => {
     operation = 'unknown operation',
   } = options;
 
-  // Extract error message
-  let errorMessage = defaultMessage;
-  
-  if (error instanceof AppError) {
-    errorMessage = error.message;
-  } else if (error instanceof Error) {
-    errorMessage = error.message || defaultMessage;
-  } else if (typeof error === 'string') {
-    errorMessage = error;
-  }
+  // ✅ Extract error message menggunakan helper function
+  const errorMessage = extractErrorMessage(error) || defaultMessage;
 
   // Log to console
   if (logToConsole) {
@@ -136,7 +174,7 @@ export const handleError = (error, options = {}) => {
 };
 
 /**
- * Async operation wrapper with standardized error handling
+ * ✅ PERBAIKAN: Async operation wrapper dengan error extraction yang lebih baik
  * @param {Function} asyncFn - Async function to execute
  * @param {Object} options - Configuration options
  * @returns {Promise<{success: boolean, data?: any, error?: string}>}
@@ -180,8 +218,11 @@ export const withErrorHandling = async (asyncFn, options = {}) => {
     });
     
   } catch (error) {
+    // ✅ PERBAIKAN: Extract error message dengan benar
+    const errorMessage = extractErrorMessage(error);
+    
     if (onError) {
-      onError(error);
+      onError(errorMessage);
     }
     
     return handleError(error, { 
@@ -227,8 +268,9 @@ export const useErrorHandler = () => {
       const result = await withErrorHandling(asyncFn, {
         ...options,
         onError: (err) => {
-          setError(err);
-          options.onError?.(err);
+          const errorMessage = extractErrorMessage(err);
+          setError(errorMessage);
+          options.onError?.(errorMessage);
         },
       });
       
@@ -260,4 +302,5 @@ export default {
   createValidationError,
   createNetworkError,
   useErrorHandler,
+  extractErrorMessage, // ✅ Export helper function
 };

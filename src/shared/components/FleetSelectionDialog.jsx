@@ -7,11 +7,9 @@ import { RefreshCw, Settings, CheckCircle2, Search, Loader2, Calendar, Truck, Ma
 import EmptyState from "@/shared/components/EmptyState";
 import ModalHeader from "@/shared/components/ModalHeader";
 import { Card, CardContent } from "@/shared/components/ui/card";
-import { DateRangePicker } from "@/shared/components/DateRangePicker";
 import { useTimbanganStore } from "@/modules/timbangan/timbangan/store/timbanganStore";
 import { showToast } from "@/shared/utils/toast";
 import { useFleetPermissions } from "@/shared/permissions/usePermissions";
-import { getTodayDateRange } from "@/shared/utils/date";
 import { useDebouncedValue } from "@/shared/hooks/useDebouncedValue";
 
 const FleetSelectionDialog = ({ 
@@ -23,18 +21,10 @@ const FleetSelectionDialog = ({
   const fleetConfigs = useTimbanganStore((state) => state.fleetConfigs);
   const selectedFleetIds = useTimbanganStore((state) => state.selectedFleetIds);
   const loadFleetConfigsFromAPI = useTimbanganStore((state) => state.loadFleetConfigsFromAPI);
-  const persistedDateRange = useTimbanganStore((state) => state.fleetSelectionDateRange);
-  const setFleetSelectionDateRange = useTimbanganStore((state) => state.setFleetSelectionDateRange);
-
   const [tempSelectedIds, setTempSelectedIds] = useState([...selectedFleetIds]);
   const [searchQuery, setSearchQuery] = useState("");
   const [isRefreshingFleet, setIsRefreshingFleet] = useState(false);
   const [isLoadingInitial, setIsLoadingInitial] = useState(false);
-
-  const [dateRange, setDateRange] = useState(() => {
-    if (persistedDateRange) return persistedDateRange;
-    return getTodayDateRange();
-  });
 
   const debouncedSearch = useDebouncedValue(searchQuery, 300);
 
@@ -60,7 +50,7 @@ const FleetSelectionDialog = ({
     if (!isOpen) return;
 
     setIsLoadingInitial(true);
-    loadFleetConfigsFromAPI(true, dateRange, measurementType) // ✅ Pass measurementType
+    loadFleetConfigsFromAPI(true, measurementType) 
       .catch((error) => {
         console.error("❌ Failed to load fleet data:", error);
         showToast.error("Gagal memuat data fleet");
@@ -68,31 +58,28 @@ const FleetSelectionDialog = ({
       .finally(() => {
         setIsLoadingInitial(false);
       });
-  }, [isOpen, dateRange.from, dateRange.to, dateRange.shift, measurementType, loadFleetConfigsFromAPI]);
+  }, [isOpen, measurementType, loadFleetConfigsFromAPI]);
 
   const { filterDataBySatker } = useFleetPermissions();
 
-  // ✅ Filter by measurementType FIRST, then apply other filters
   const { filteredFleets, counts } = useMemo(() => {
+    // Filter by satker permission
     const accessibleFleets = filterDataBySatker(fleetConfigs);
-    
-    // ✅ Filter by measurementType
+
+    // Filter by measurement type only
     const measurementFilteredFleets = accessibleFleets.filter((fleet) => {
       const fleetMeasurementType = fleet.measurementType || fleet.measurement_type;
       return fleetMeasurementType === measurementType;
     });
     
-    // Then filter by status
-    const activeFleets = measurementFilteredFleets.filter((fleet) => fleet.status === "ACTIVE");
-    
     const countsData = {
-      all: activeFleets.length,
+      all: measurementFilteredFleets.length,
       selected: tempSelectedIds.filter((id) =>
-        activeFleets.some((f) => f.id === id)
+        measurementFilteredFleets.some((f) => f.id === id)
       ).length,
     };
 
-    return { filteredFleets: activeFleets, counts: countsData };
+    return { filteredFleets: measurementFilteredFleets, counts: countsData };
   }, [fleetConfigs, tempSelectedIds, filterDataBySatker, measurementType]);
 
   const searchedFleets = useMemo(() => {
@@ -101,7 +88,6 @@ const FleetSelectionDialog = ({
     const query = debouncedSearch.toLowerCase();
     return filteredFleets.filter(
       (fleet) =>
-        fleet.name?.toLowerCase().includes(query) ||
         fleet.excavator?.toLowerCase().includes(query) ||
         fleet.shift?.toLowerCase().includes(query) ||
         fleet.workUnit?.toLowerCase().includes(query)
@@ -125,16 +111,21 @@ const FleetSelectionDialog = ({
     }
   }, [tempSelectedIds.length, searchedFleets]);
 
-  const handleSave = useCallback(() => {
-    setFleetSelectionDateRange(dateRange);
-    onSave(tempSelectedIds);
+// Di FleetSelectionDialog.jsx - UPDATE handleSave
+
+const handleSave = useCallback(() => {
+    const selectedConfigs = searchedFleets.filter(f => 
+      tempSelectedIds.includes(f.id)
+    );
+    
+    onSave(selectedConfigs);
     onClose();
-  }, [dateRange, tempSelectedIds, setFleetSelectionDateRange, onSave, onClose]);
+}, [tempSelectedIds, searchedFleets, onSave, onClose]);
 
   const handleRefreshFleet = useCallback(async () => {
     setIsRefreshingFleet(true);
     try {
-      await loadFleetConfigsFromAPI(true, dateRange, measurementType); 
+      await loadFleetConfigsFromAPI(true, measurementType); 
       showToast.success("Data fleet berhasil diperbarui");
     } catch (error) {
       showToast.error("Gagal memperbarui data fleet");
@@ -142,17 +133,16 @@ const FleetSelectionDialog = ({
     } finally {
       setIsRefreshingFleet(false);
     }
-  }, [loadFleetConfigsFromAPI, dateRange, measurementType]);
+  }, [loadFleetConfigsFromAPI, measurementType]);
 
   if (!isOpen) return null;
 
-  // ✅ Dynamic title based on measurementType
   const getTitle = () => {
     switch(measurementType) {
       case "Bypass":
         return "Pilih Fleet Bypass";
-      case "BeltScale":
-        return "Pilih Fleet BeltScale";
+      case "Beltscale":
+        return "Pilih Fleet Beltscale";
       default:
         return "Pilih Fleet Timbangan";
     }
@@ -163,52 +153,23 @@ const FleetSelectionDialog = ({
       <div className="bg-white dark:bg-gray-900 rounded-lg max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col dark:border dark:border-gray-700">
         <ModalHeader
           title={getTitle()}
-          subtitle={`Pilih fleet yang ingin ditampilkan - ${measurementType} status ACTIVE only`}
+          subtitle={`Pilih fleet yang ingin ditampilkan (Filter: Satker & ${measurementType})`}
           icon={Settings}
           onClose={onClose}
         />
 
         <div className="px-6 py-4 shadow-sm space-y-3">
-          <div className="space-y-3">
-            <div>
-              <label className="text-sm font-medium mb-2 block dark:text-gray-200">
-                Filter Tanggal & Shift
-              </label>
-              <DateRangePicker
-                dateRange={dateRange}
-                isLoading={isLoadingInitial || isRefreshingFleet}
-                onDateRangeChange={(newRange) => {
-                  const updatedRange = {
-                    from: newRange.from,
-                    to: newRange.to,
-                    shift: newRange.shift,
-                  };
-                  setDateRange(updatedRange);
-
-                  setIsRefreshingFleet(true);
-                  loadFleetConfigsFromAPI(true, updatedRange, measurementType).finally(() =>
-                    setIsRefreshingFleet(false)
-                  );
-                }}
-                shiftOptions={[
-                  { value: "all", label: "Semua Shift" },
-                  { value: "Shift 1", label: "Shift 1" },
-                  { value: "Shift 2", label: "Shift 2" },
-                  { value: "Shift 3", label: "Shift 3" },
-                ]}
+          <div className="flex gap-2">
+            <div className="relative w-full">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500 dark:text-gray-400" />
+              <Input
+                placeholder="Cari fleet (nama, excavator, shift, work unit)..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10 border-none hover:bg-gray-200 cursor-pointer focus:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 dark:border-gray-700 dark:text-gray-200 dark:focus:bg-slate-700"
+                disabled={isLoadingInitial}
               />
             </div>
-          </div>
-
-          <div className="flex gap-2">
-            <Button
-              variant="default"
-              size="sm"
-              className="flex-1 cursor-pointer dark:bg-blue-600 dark:hover:bg-blue-700 dark:text-gray-200"
-              disabled={isLoadingInitial}
-            >
-              Fleet {measurementType} ({counts.all})
-            </Button>
             
             <Button
               variant="ghost"
@@ -222,17 +183,6 @@ const FleetSelectionDialog = ({
                 className={`w-4 h-4 ${isRefreshingFleet ? "animate-spin" : ""}`}
               />
             </Button>
-          </div>
-
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500 dark:text-gray-400" />
-            <Input
-              placeholder="Cari fleet (nama, excavator, shift, work unit)..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 border-none hover:bg-gray-200 cursor-pointer focus:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 dark:border-gray-700 dark:text-gray-200"
-              disabled={isLoadingInitial}
-            />
           </div>
 
           <div className="flex items-center justify-between">
@@ -273,12 +223,12 @@ const FleetSelectionDialog = ({
               icon={Settings}
               title={
                 filteredFleets.length === 0
-                  ? `Tidak ada fleet ${measurementType} ACTIVE`
+                  ? `Tidak ada fleet ${measurementType}`
                   : "Tidak ditemukan fleet yang sesuai pencarian"
               }
               description={
                 filteredFleets.length === 0
-                  ? `Semua fleet ${measurementType} sedang INACTIVE atau CLOSED. Aktifkan fleet terlebih dahulu di Fleet Management.`
+                  ? `Tidak ada fleet dengan tipe ${measurementType} atau Anda tidak memiliki akses.`
                   : "Coba ubah kata kunci pencarian"
               }
             />
@@ -287,7 +237,6 @@ const FleetSelectionDialog = ({
               {searchedFleets.map((fleet) => {
                 const isSelected = tempSelectedIds.includes(fleet.id);
                 const dtCount = fleet.dumptruckCount || fleet.dumptruck?.length || 0;
-
                 return (
                   <Card
                     key={fleet.id}
@@ -311,38 +260,15 @@ const FleetSelectionDialog = ({
                           <div className="flex items-start justify-between mb-2">
                             <div>
                               <h3 className="font-semibold text-base dark:text-gray-200">
-                                {fleet.name}
-                              </h3>
-                              <div className="flex items-center gap-2 mt-1 flex-wrap">
-                                <Badge
-                                  variant="ghost"
-                                  className="text-xs dark:border-gray-600 dark:text-gray-300"
-                                >
-                                  {fleet.shift}
-                                </Badge>
-                                <Badge
-                                  variant="secondary"
-                                  className="text-xs dark:bg-gray-700 dark:text-gray-300"
-                                >
-                                  <Calendar className="w-3 h-3 mr-1" />
-                                  {new Date(fleet.date).toLocaleDateString(
-                                    "id-ID"
-                                  )}
-                                </Badge>
-                                <Badge
-                                  variant="success"
-                                  className="text-xs bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300"
-                                >
-                                  <CheckCircle2 className="w-3 h-3 mr-1" />
-                                  {fleet.status}
-                                </Badge>
-                                {/* ✅ Show measurement type badge */}
-                                <Badge
+                                 <Badge
                                   variant="outline"
                                   className="text-xs border-purple-300 text-purple-700 dark:border-purple-600 dark:text-purple-300"
                                 >
                                   {measurementType}
                                 </Badge>
+                              </h3>
+                              <div className="flex items-center gap-2 mt-1 flex-wrap">
+                               
                               </div>
                             </div>
 

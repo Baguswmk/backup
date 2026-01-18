@@ -3,9 +3,9 @@ import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
 import { Search, X, RefreshCw, Trash2, Filter } from "lucide-react";
 import { DateRangePicker } from "@/shared/components/DateRangePicker";
-import { useDebouncedValue } from "@/shared/hooks/useDebouncedValue"; // ✅ OPTIONAL
 
 const TableToolbar = ({
+  activeDateRange = true,
   dateRange,
   currentShift,
   viewingShift,
@@ -40,6 +40,7 @@ const TableToolbar = ({
   return (
     <div className="space-y-3">
       <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
+        {activeDateRange && (
         <DateRangePicker
           dateRange={dateRange}
            currentShift={currentShift}
@@ -48,6 +49,7 @@ const TableToolbar = ({
           isLoading={isRefreshing}
           shiftOptions={shiftOptions}
         />
+        )}
         
         {onSearchChange && (
           <div className="relative w-full sm:flex-1 hover:bg-gray-200 cursor-pointer">
