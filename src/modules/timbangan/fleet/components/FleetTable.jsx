@@ -98,7 +98,7 @@ const FleetTable = ({
           <thead className="bg-gray-50 dark:bg-gray-900 dark:border-gray-700">
             <tr>
               {isPickingMode && (
-                <th className="px-4 py-3 text-left">
+                <th className="px-4 py-3 text-left dark:text-gray-200">
                   <Checkbox
                     checked={allPageSelected}
                     onCheckedChange={onSelectAllPage}
@@ -109,14 +109,9 @@ const FleetTable = ({
                 No
               </th>
               <th className="px-4 py-3 text-left text-xs font-medium text-black dark:text-gray-200">
-                Nama Config
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-black dark:text-gray-200">
                 Excavator
               </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-black dark:text-gray-200">
-                Shift
-              </th>
+            
               <th className="px-4 py-3 text-left text-xs font-medium text-black dark:text-gray-200">
                 Work Unit
               </th>
@@ -126,9 +121,9 @@ const FleetTable = ({
               <th className="px-4 py-3 text-left text-xs font-medium text-black dark:text-gray-200">
                 Dumping
               </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-black dark:text-gray-200">
+              {/* <th className="px-4 py-3 text-left text-xs font-medium text-black dark:text-gray-200">
                 Status
-              </th>
+              </th> */}
               {!isHistoryMode && getDumptruckCount && (
                 <th className="px-4 py-3 text-left text-xs font-medium text-black dark:text-gray-200">
                   Dump Truck
@@ -144,7 +139,6 @@ const FleetTable = ({
           </thead>
           <tbody>
             {paginatedConfigs.map((config, index) => {
-              const isUpdatingStatus = updatingStatusId === config.id;
               const isSelected = selectedIds.includes(config.id);
               const dtCount = getDumptruckCount
                 ? getDumptruckCount(config.id)
@@ -165,7 +159,7 @@ const FleetTable = ({
                   }`}
                 >
                   {isPickingMode && (
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-3 dark:text-gray-200">
                       <Checkbox
                         checked={isSelected}
                         onCheckedChange={() => onToggleSelect?.(config.id)}
@@ -183,14 +177,8 @@ const FleetTable = ({
                       )}
                     </div>
                   </td>
-                  <td className="px-4 py-3 text-sm dark:text-gray-300">
-                    {config.name}
-                  </td>
                   <td className="px-4 py-3 text-sm font-medium dark:text-gray-200">
                     {config.excavator}
-                  </td>
-                  <td className="px-4 py-3 text-sm dark:text-gray-300">
-                    {config.shift}
                   </td>
                   <td className="px-4 py-3 text-sm dark:text-gray-300">
                     {config.workUnit}
@@ -201,7 +189,7 @@ const FleetTable = ({
                   <td className="px-4 py-3 text-sm dark:text-gray-300">
                     {config.dumpingLocation}
                   </td>
-                  <td className="px-4 py-3 text-sm">
+                  {/* <td className="px-4 py-3 text-sm">
                     {!isPickingMode && onStatusChange && !isHistoryMode ? (
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -247,7 +235,7 @@ const FleetTable = ({
                     ) : (
                       <StatusBadge status={config.status} />
                     )}
-                  </td>
+                  </td> */}
 
                   {/* Dump Truck Column */}
                   {!isHistoryMode && getDumptruckCount && (
@@ -258,7 +246,6 @@ const FleetTable = ({
                             variant="ghost"
                             size="sm"
                             className="h-8 text-left justify-start w-full cursor-pointer disabled:cursor-not-allowed"
-                            disabled={isPickingMode}
                           >
                             <span className="truncate">
                               {dtCount > 0 ? (
@@ -318,38 +305,37 @@ const FleetTable = ({
                   <td className="px-4 py-3 text-center dark:text-gray-100">
                     {isHistoryMode ? (
                       <div className="flex items-center justify-center gap-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => onViewConfig(config)}
-                          className="cursor-pointer"
-                        >
-                          <Eye className="w-4 h-4 mr-1" />
-                          Lihat
-                        </Button>
-                        {onReactivate && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => onReactivate(config)}
-                            className="cursor-pointer gap-1"
-                          >
-                            <RotateCcw className="w-4 h-4" />
-                            Reaktivasi
-                          </Button>
-                        )}
+                         <TableActions
+                        actions={[
+                          {
+                            label: "Lihat",
+                            icon: Eye,
+                            onClick: () => onViewConfig(config),
+                          },
+                          ...(onReactivate
+                            ? [
+                                {
+                                  label: "Reaktivasi",
+                                  icon: RotateCcw,
+                                  onClick: () => onReactivate(config),
+                                },
+                              ]
+                            : []),
+                          ...(onDeleteConfig
+                            ? [
+                                {
+                                  label: "Delete",
+                                  icon: Trash2,
+                                  onClick: () => onDeleteConfig(config),
+                                  disabled: config.isActive,
+                                  variant: "destructive",
+                                },
+                              ]
+                            : []),
+                        ]}
+                      />
                       </div>
-                    ) : isPickingMode ? (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => onViewConfig(config)}
-                        className="cursor-pointer"
-                      >
-                        <Eye className="w-4 h-4 mr-2" />
-                        Lihat
-                      </Button>
-                    ) : (
+                    ) :  (
                       <TableActions
                         actions={[
                           {

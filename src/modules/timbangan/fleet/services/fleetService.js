@@ -1,54 +1,32 @@
 import { offlineService } from "@/shared/services/offlineService";
 import { logger } from "@/shared/services/log";
-import { buildDateRangeCacheKey } from "@/shared/utils/cache";
 
 const CACHE_TTL = {
-  FLEET_TODAY: 5 * 60 * 1000,
-  FLEET_HISTORY: 30 * 60 * 1000,
+  FLEET_DATA: 5 * 60 * 1000, // 5 menit
   MASTERS: 30 * 60 * 1000,
 };
 
-const isToday = (dateRange) => {
-  if (!dateRange?.from || !dateRange?.to) return false;
-  const today = new Date().toISOString().split("T")[0];
-  return dateRange.from === today && dateRange.to === today;
-};
-
-const getTTL = (dateRange) => {
-  return isToday(dateRange) ? CACHE_TTL.FLEET_TODAY : CACHE_TTL.FLEET_HISTORY;
+// ✅ Helper function untuk extract error message
+const extractErrorMessage = (error) => {
+  return (
+    error?.response?.data?.message ||
+    error?.response?.data?.error?.message ||
+    error?.response?.data?.error ||
+    error?.message ||
+    "Terjadi kesalahan"
+  );
 };
 
 const buildFilters = (options = {}) => {
-  const { user, dateRange, shift, measurementType } = options;
+  const { user, measurementType } = options;
   const filters = {};
   const role = user?.role?.toLowerCase();
 
-  if (dateRange !== null && dateRange !== undefined) {
-    if (dateRange?.from && dateRange?.to) {
-      filters.date = {
-        $gte: dateRange.from,
-        $lte: dateRange.to,
-      };
-      logger.info("📅 Date range filter applied", {
-        from: dateRange.from,
-        to: dateRange.to,
-      });
-    } else if (dateRange?.from) {
-      filters.date = { $gte: dateRange.from };
-    } else if (dateRange?.to) {
-      filters.date = { $lte: dateRange.to };
-    }
-  }
-
-  if (shift && shift !== "all") {
-    filters.shift = { $eq: shift };
-    logger.info("🔄 Shift filter applied", { shift });
-  }
-
+  // Hanya filter measurement_type jika bukan super_admin
   if (role === "super_admin") {
-    logger.info("⏭️ Skipping measurement_type filter", {
+    logger.info("⭐️ Skipping measurement_type filter", {
       role,
-      reason: "super_admin/admin can see all types",
+      reason: "super_admin can see all types",
     });
   } else if (measurementType) {
     filters.measurement_type = { $eq: measurementType };
@@ -58,6 +36,7 @@ const buildFilters = (options = {}) => {
     });
   }
 
+  // Filter berdasarkan role
   switch (role) {
     case "operator_jt":
       if (user?.weigh_bridge?.id) {
@@ -148,6 +127,7 @@ const buildFilters = (options = {}) => {
   logger.info("📋 Final buildFilters result", filters);
   return filters;
 };
+
 export const fleetService = {
   async fetchFleetConfigs(options = {}) {
     try {
@@ -155,16 +135,12 @@ export const fleetService = {
         user,
         viewMode = "normal",
         forceRefresh = false,
-        dateRange = null,
-        shift = null,
         measurementType = null,
       } = options;
 
       const filterResult = buildFilters({
         user,
         viewMode,
-        dateRange,
-        shift,
         measurementType,
       });
 
@@ -178,18 +154,14 @@ export const fleetService = {
 
       const filters = filterResult;
 
-      const cacheKey = buildDateRangeCacheKey("fleets", dateRange, {
-        userId: user?.id || "nouser",
-        mode: viewMode,
-        shift: shift && shift !== "all" ? shift : undefined,
-        measurementType: measurementType || undefined,
-      });
+      const cacheKey = `fleets_${user?.id || "nouser"}_${
+        measurementType || "all"
+      }`;
 
-      const ttl = getTTL(dateRange);
+      const ttl = CACHE_TTL.FLEET_DATA;
 
       logger.info("🔍 Fetching fleet configs", {
         viewMode,
-        dateRange,
         measurementType,
         filters: JSON.stringify(filters),
         cacheKey,
@@ -197,7 +169,7 @@ export const fleetService = {
         forceRefresh,
       });
 
-      if (forceRefresh && dateRange) {
+      if (forceRefresh) {
         await offlineService.clearCache(cacheKey);
       }
 
@@ -226,7 +198,7 @@ export const fleetService = {
           ],
           sort: ["id:desc"],
           filters,
-          pagination: { pageSize: 100 },
+          pagination: { pageSize: 500 },
         },
         cacheKey,
         ttl,
@@ -239,17 +211,25 @@ export const fleetService = {
 
       logger.info(`✅ Fleet configs fetched: ${configs.length}`, {
         viewMode,
-        dateRange,
         measurementType,
         cached: !forceRefresh,
       });
 
       return { success: true, data: configs };
     } catch (error) {
+      // ✅ Extract error message
+      const errorMessage = extractErrorMessage(error);
+      
       logger.error("❌ Failed to fetch fleet configs", {
-        error: error.message,
+        error: errorMessage,
+        details: error.response?.data,
       });
-      return { success: false, data: [], error: error.message };
+      
+      return { 
+        success: false, 
+        data: [], 
+        error: errorMessage 
+      };
     }
   },
 
@@ -319,12 +299,17 @@ export const fleetService = {
         setting_fleet_id: response.data?.data?.id || response.data?.id,
       };
     } catch (error) {
+      // ✅ Extract error message
+      const errorMessage = extractErrorMessage(error);
+      
       logger.error("❌ Failed to create fleet config", {
-        error: error.message,
+        error: errorMessage,
+        details: error.response?.data,
       });
+      
       return {
         success: false,
-        error: error.message,
+        error: errorMessage,
       };
     }
   },
@@ -368,11 +353,18 @@ export const fleetService = {
 
       throw new Error(result.error || "Gagal mereaktivasi fleet");
     } catch (error) {
-      logger.error("❌ Failed to reactivate fleet", { error: error.message });
+      // ✅ Extract error message
+      const errorMessage = extractErrorMessage(error);
+      
+      logger.error("❌ Failed to reactivate fleet", { 
+        error: errorMessage,
+        details: error.response?.data,
+      });
+      
       return {
         success: false,
-        error: error.message,
-        message: error.message || "Gagal mereaktivasi fleet",
+        error: errorMessage,
+        message: errorMessage,
       };
     }
   },
@@ -404,15 +396,10 @@ export const fleetService = {
       if (updates.distance !== undefined) {
         payload.data.distance = updates.distance;
       }
-      if (updates.shift !== undefined) {
-        payload.data.shift = updates.shift;
-      }
       if (updates.date !== undefined) {
         payload.data.date = updates.date;
       }
-      if (updates.status !== undefined) {
-        payload.data.status = updates.status;
-      }
+
       if (updates.workUnitId !== undefined) {
         payload.data.pic_work_unit = updates.workUnitId
           ? parseInt(updates.workUnitId)
@@ -446,12 +433,17 @@ export const fleetService = {
         data: this._transformFleetConfig(response.data),
       };
     } catch (error) {
+      // ✅ Extract error message
+      const errorMessage = extractErrorMessage(error);
+      
       logger.error("❌ Failed to update fleet config", {
-        error: error.message,
+        error: errorMessage,
+        details: error.response?.data,
       });
+      
       return {
         success: false,
-        error: error.message,
+        error: errorMessage,
       };
     }
   },
@@ -477,12 +469,288 @@ export const fleetService = {
         deletedId: configId,
       };
     } catch (error) {
+      // ✅ Extract error message
+      const errorMessage = extractErrorMessage(error);
+      
       logger.error("❌ Failed to delete fleet config", {
-        error: error.message,
+        error: errorMessage,
+        details: error.response?.data,
       });
+      
       return {
         success: false,
-        error: error.message,
+        error: errorMessage,
+      };
+    }
+  },
+
+  async bulkUpdateStatus(fleetIds, newStatus) {
+    try {
+      if (!Array.isArray(fleetIds) || fleetIds.length === 0) {
+        throw new Error("Fleet IDs harus berupa array dan tidak boleh kosong");
+      }
+
+      if (!["ACTIVE", "INACTIVE", "CLOSED"].includes(newStatus)) {
+        throw new Error("Status tidak valid");
+      }
+
+      logger.info("🔄 Bulk updating fleet status", {
+        count: fleetIds.length,
+        newStatus,
+      });
+
+      const results = {
+        success: [],
+        failed: [],
+        total: fleetIds.length,
+      };
+
+      // Update setiap fleet
+      for (const fleetId of fleetIds) {
+        try {
+          const response = await offlineService.put(
+            `/setting-fleets/${fleetId}`,
+            {
+              data: { status: newStatus },
+            }
+          );
+
+          results.success.push({
+            id: fleetId,
+            data: this._transformFleetConfig(response.data),
+          });
+
+          logger.info(`✅ Fleet ${fleetId} status updated to ${newStatus}`);
+        } catch (error) {
+          // ✅ Extract error message per item
+          const errorMessage = extractErrorMessage(error);
+          
+          results.failed.push({
+            id: fleetId,
+            error: errorMessage,
+          });
+
+          logger.error(`❌ Failed to update fleet ${fleetId}`, {
+            error: errorMessage,
+          });
+        }
+      }
+
+      // Clear cache after bulk update
+      await Promise.all([
+        offlineService.clearCacheByPrefix("fleets"),
+        offlineService.clearCacheByPrefix("ritases"),
+      ]);
+
+      const allSuccess = results.failed.length === 0;
+
+      logger.info("📊 Bulk status update summary", {
+        total: results.total,
+        success: results.success.length,
+        failed: results.failed.length,
+        newStatus,
+      });
+
+      return {
+        success: allSuccess,
+        partialSuccess: results.success.length > 0 && results.failed.length > 0,
+        results,
+        message: allSuccess
+          ? `Berhasil mengubah status ${results.success.length} fleet`
+          : `${results.success.length} berhasil, ${results.failed.length} gagal`,
+      };
+    } catch (error) {
+      // ✅ Extract error message
+      const errorMessage = extractErrorMessage(error);
+      
+      logger.error("❌ Bulk status update failed", {
+        error: errorMessage,
+        details: error.response?.data,
+      });
+      
+      return {
+        success: false,
+        error: errorMessage,
+        results: { success: [], failed: [], total: 0 },
+      };
+    }
+  },
+
+  async bulkDeleteFleets(fleetIds) {
+    try {
+      if (!Array.isArray(fleetIds) || fleetIds.length === 0) {
+        throw new Error("Fleet IDs harus berupa array dan tidak boleh kosong");
+      }
+
+      logger.info("🗑️ Bulk deleting fleets", {
+        count: fleetIds.length,
+      });
+
+      const results = {
+        success: [],
+        failed: [],
+        total: fleetIds.length,
+      };
+
+      // Validate: Check if any fleet is ACTIVE
+      const validationErrors = [];
+      for (const fleetId of fleetIds) {
+        try {
+          const response = await offlineService.get(`/setting-fleets/${fleetId}`);
+          const fleet = response.data;
+          const status = fleet?.attributes?.status;
+
+          if (status === "ACTIVE") {
+            validationErrors.push({
+              id: fleetId,
+              error: "Tidak dapat menghapus fleet dengan status ACTIVE",
+            });
+          }
+        } catch (error) {
+          logger.warn(`⚠️ Could not validate fleet ${fleetId}`, {
+            error: error.message,
+          });
+        }
+      }
+
+      // If there are validation errors, return early
+      if (validationErrors.length > 0) {
+        logger.warn("⚠️ Bulk delete validation failed", {
+          errors: validationErrors.length,
+        });
+
+        return {
+          success: false,
+          error: `${validationErrors.length} fleet masih berstatus ACTIVE`,
+          results: {
+            success: [],
+            failed: validationErrors,
+            total: fleetIds.length,
+          },
+        };
+      }
+
+      // Delete setiap fleet
+      for (const fleetId of fleetIds) {
+        try {
+          await offlineService.delete(`/setting-fleets/${fleetId}`);
+
+          results.success.push({ id: fleetId });
+
+          logger.info(`✅ Fleet ${fleetId} deleted`);
+        } catch (error) {
+          // ✅ Extract error message per item
+          const errorMessage = extractErrorMessage(error);
+          
+          results.failed.push({
+            id: fleetId,
+            error: errorMessage,
+          });
+
+          logger.error(`❌ Failed to delete fleet ${fleetId}`, {
+            error: errorMessage,
+          });
+        }
+      }
+
+      // Clear cache after bulk delete
+      await Promise.all([
+        offlineService.clearCache("fleets_"),
+        offlineService.clearCacheByPrefix("fleets"),
+        offlineService.clearCacheByPrefix("ritases"),
+      ]);
+
+      const allSuccess = results.failed.length === 0;
+
+      logger.info("📊 Bulk delete summary", {
+        total: results.total,
+        success: results.success.length,
+        failed: results.failed.length,
+      });
+
+      return {
+        success: allSuccess,
+        partialSuccess: results.success.length > 0 && results.failed.length > 0,
+        results,
+        message: allSuccess
+          ? `Berhasil menghapus ${results.success.length} fleet`
+          : `${results.success.length} berhasil, ${results.failed.length} gagal`,
+      };
+    } catch (error) {
+      // ✅ Extract error message
+      const errorMessage = extractErrorMessage(error);
+      
+      logger.error("❌ Bulk delete failed", {
+        error: errorMessage,
+        details: error.response?.data,
+      });
+      
+      return {
+        success: false,
+        error: errorMessage,
+        results: { success: [], failed: [], total: 0 },
+      };
+    }
+  },
+
+  async validateBulkOperation(fleetIds, operation = "delete") {
+    try {
+      const validations = {
+        valid: [],
+        invalid: [],
+        total: fleetIds.length,
+      };
+
+      for (const fleetId of fleetIds) {
+        try {
+          const response = await offlineService.get(`/setting-fleets/${fleetId}`);
+          const fleet = response.data;
+          const status = fleet?.attributes?.status;
+
+          const validation = {
+            id: fleetId,
+            status,
+            canDelete: status !== "ACTIVE",
+            canUpdate: true,
+          };
+
+          if (operation === "delete" && status === "ACTIVE") {
+            validations.invalid.push({
+              ...validation,
+              reason: "Fleet dengan status ACTIVE tidak dapat dihapus",
+            });
+          } else {
+            validations.valid.push(validation);
+          }
+        } catch (error) {
+          // ✅ Extract error message per item
+          const errorMessage = extractErrorMessage(error);
+          
+          validations.invalid.push({
+            id: fleetId,
+            error: errorMessage,
+            reason: "Fleet tidak ditemukan atau error",
+          });
+        }
+      }
+
+      return {
+        success: true,
+        validations,
+        allValid: validations.invalid.length === 0,
+      };
+    } catch (error) {
+      // ✅ Extract error message
+      const errorMessage = extractErrorMessage(error);
+      
+      logger.error("❌ Validation failed", { 
+        error: errorMessage,
+        details: error.response?.data,
+      });
+      
+      return {
+        success: false,
+        error: errorMessage,
       };
     }
   },
@@ -516,12 +784,17 @@ export const fleetService = {
       logger.info("✅ Active fleet config changed", { id: configId });
       return { success: true, message: "Konfigurasi berhasil diaktifkan" };
     } catch (error) {
+      // ✅ Extract error message
+      const errorMessage = extractErrorMessage(error);
+      
       logger.error("❌ Failed to set active fleet config", {
-        error: error.message,
+        error: errorMessage,
+        details: error.response?.data,
       });
+      
       return {
         success: false,
-        error: error.message,
+        error: errorMessage,
       };
     }
   },
@@ -553,11 +826,6 @@ export const fleetService = {
       const inspector = normalizeUser(attr.inspector);
       const checker = normalizeUser(attr.checker);
 
-      /**
-       * ================================
-       * DUMP TRUCK & OPERATOR (PAIR)
-       * ================================
-       */
       const pairs = attr.setting_dump_truck?.data?.attributes?.pair_dt_op || [];
 
       const dumptrucks = pairs.flatMap((pair) => {
@@ -583,10 +851,6 @@ export const fleetService = {
       return {
         id: item.id.toString(),
 
-        name: `Fleet ${attr.shift || "-"} - ${attr.date || "-"} - ${
-          attr.unit_exca?.data?.attributes?.hull_no || "N/A"
-        }`,
-
         excavator: attr.unit_exca?.data?.attributes?.hull_no || "",
         excavatorId: attr.unit_exca?.data?.id?.toString() || "",
 
@@ -596,7 +860,6 @@ export const fleetService = {
         dumpingLocation: attr.dumping_location?.data?.attributes?.name || "",
         dumpingLocationId: attr.dumping_location?.data?.id?.toString() || "",
 
-        shift: attr.shift || "",
         date: attr.date || "",
         status: attr.status || "INACTIVE",
 

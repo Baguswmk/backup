@@ -73,14 +73,15 @@ const FleetModalsManager = ({
 
       {/* Delete Confirmation Dialog */}
       {showDeleteDialog && (
-        <DeleteConfirmDialog
-          isOpen={showDeleteDialog}
-          onClose={onCloseDeleteDialog}
-          onConfirm={onConfirmDelete}
-          target={deleteTarget}
-          assignedCount={deleteTarget ? getDumptruckCount(deleteTarget.id) : 0}
-          isProcessing={isSaving}
-        />
+<DeleteConfirmDialog
+  isOpen={showDeleteDialog}
+  onClose={onCloseDeleteDialog}
+  onConfirm={onConfirmDelete}
+  target={deleteTarget}
+  assignedCount={deleteTarget ? getDumptruckCount(deleteTarget.id) : 0}
+  isProcessing={isSaving}
+  requireConfirmation={true} 
+/>
       )}
 
       {/* Loading Overlay */}

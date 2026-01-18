@@ -32,7 +32,7 @@ const FleetManagement = ({ Type }) => {
     Timbangan: "Timbangan",
     FOB: "FOB",
     Bypass: "Bypass",
-    BeltScale: "BeltScale",
+    Beltscale: "Beltscale",
   };
 
   const measurementType = measurementTypeMap[Type] || null;
@@ -44,7 +44,6 @@ const FleetManagement = ({ Type }) => {
     canDelete: canDeletePerm,
     isReadOnly,
     filterType,
-    filterValue,
     checkDataAccess,
     filterDataBySatker,
     getDisabledMessage,
@@ -54,16 +53,11 @@ const FleetManagement = ({ Type }) => {
     userCompany,
     userWeighBridge,
     canAccessFleetType,
-    getFleetFormConfig,
   } = useFleetPermissions();
 
   const canAccessType = useMemo(() => {
     return canAccessFleetType(Type);
   }, [canAccessFleetType, Type]);
-
-  const fleetFormConfig = useMemo(() => {
-    return getFleetFormConfig(Type);
-  }, [getFleetFormConfig, Type]);
 
   const selectedFleetIds = useTimbanganStore(
     (state) => state.selectedFleetIds || []
@@ -82,10 +76,8 @@ const FleetManagement = ({ Type }) => {
     deleteConfig,
     refresh: refreshFleet,
     viewingDateRange,
-    setViewingDateRange,
     currentShift,
     viewingShift,
-    setViewingShift,
   } = fleetHook;
 
   const dumptruckHook = useDumptruck(fleetHook);
@@ -124,10 +116,9 @@ const FleetManagement = ({ Type }) => {
     updateFilter,
     resetFilters,
   } = useFilteredData(filteredFleetConfigs, {
-    searchFields: ["name", "excavator", "shift", "workUnit"],
+    searchFields: ["name", "excavator",  "workUnit"],
     dateField: null,
     customFilters: {
-      shifts: "shift",
       excavators: "excavatorId",
       workUnits: "workUnitId",
       loadingLocations: "loadingLocationId",
@@ -142,9 +133,7 @@ const FleetManagement = ({ Type }) => {
     const search = configSearch.toLowerCase();
     return filteredFleetConfigs.filter(
       (config) =>
-        config.name?.toLowerCase().includes(search) ||
         config.excavator?.toLowerCase().includes(search) ||
-        config.shift?.toLowerCase().includes(search) ||
         config.workUnit?.toLowerCase().includes(search)
     );
   }, [filteredFleetConfigs, configSearch]);
@@ -152,9 +141,6 @@ const FleetManagement = ({ Type }) => {
   const finalFilteredConfigs = useMemo(() => {
     let filtered = searchFilteredConfigs;
 
-    if (activeFilters.shifts?.length > 0) {
-      filtered = filtered.filter((c) => activeFilters.shifts.includes(c.shift));
-    }
     if (activeFilters.excavators?.length > 0) {
       filtered = filtered.filter((c) =>
         activeFilters.excavators.includes(String(c.excavatorId))
@@ -305,10 +291,6 @@ const FleetManagement = ({ Type }) => {
 
   const filterOptions = useMemo(
     () => ({
-      shifts: (masters?.shifts || []).map((shift) => ({
-        value: shift.name,
-        label: shift.name,
-      })),
       excavators: (masters?.excavators || []).map((exc) => ({
         value: String(exc.id),
         label: exc.hull_no,
@@ -337,14 +319,7 @@ const FleetManagement = ({ Type }) => {
 
   const filterGroups = useMemo(
     () => [
-      {
-        id: FILTER_FIELDS.SHIFT,
-        label: "Shift",
-        options: filterOptions.shifts,
-        value: activeFilters.shifts || [],
-        onChange: (v) => updateFilter("shifts", v),
-        placeholder: "Pilih Shift",
-      },
+   
       {
         id: FILTER_FIELDS.EXCAVATOR,
         label: "Excavator",
@@ -407,42 +382,6 @@ const FleetManagement = ({ Type }) => {
     refreshFleet({ dateRange: null });
   }, [resetFilters, refreshFleet]);
 
-  const handleDateRangeChange = useCallback(
-    (newDateRange) => {
-      if (newDateRange.shift) {
-        setViewingShift(newDateRange.shift);
-      } 
-      const newRange = {
-        from: newDateRange.from || newDateRange.startDate,
-        to: newDateRange.to || newDateRange.endDate,
-      };
-      setViewingDateRange(newRange);
-
-      setConfigPage(1);
-    },
-    [
-      viewingShift,
-      currentShift,
-      viewingDateRange,
-      setViewingDateRange,
-      setViewingShift,
-      setConfigPage,
-    ]
-  );
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      if (viewingDateRange.from || viewingDateRange.to) {
-        refreshFleet({
-          dateRange: viewingDateRange,
-          skipAutoActivate: true,
-          shift: viewingShift,
-        });
-      }
-    }, 500);
-
-    return () => clearTimeout(timer);
-  }, [viewingDateRange, viewingShift, refreshFleet]);
 
   const handleCreateConfig = useCallback(() => {
     if (isReadOnly) {
@@ -641,9 +580,7 @@ const FleetManagement = ({ Type }) => {
 
     try {
       await refreshFleet({
-        dateRange: viewingDateRange,
         skipAutoActivate: true,
-        shift: viewingShift,
       });
       if (refreshDumptruck) await refreshDumptruck();
       showToast.success(TOAST_MESSAGES.SUCCESS.REFRESH);
@@ -653,8 +590,6 @@ const FleetManagement = ({ Type }) => {
   }, [
     refreshFleet,
     refreshDumptruck,
-    viewingDateRange,
-    viewingShift,
     canRead,
     getDisabledMessage,
   ]);
@@ -668,6 +603,168 @@ const FleetManagement = ({ Type }) => {
     },
     [setSelectedFleets]
   );
+
+  const handleBulkStatusChange = useCallback(
+  async (fleetIds, newStatus) => {
+    if (!canUpdate) {
+      showToast.error("Anda tidak memiliki akses untuk mengubah status fleet");
+      return;
+    }
+
+    if (!Array.isArray(fleetIds) || fleetIds.length === 0) {
+      showToast.error("Tidak ada fleet yang dipilih");
+      return;
+    }
+
+    if (!["ACTIVE", "INACTIVE", "CLOSED"].includes(newStatus)) {
+      showToast.error("Status tidak valid");
+      return;
+    }
+
+    setIsSaving(true);
+
+    return await withErrorHandling(
+      async () => {
+        const results = [];
+        const errors = [];
+
+        // Update status untuk setiap fleet
+        for (const fleetId of fleetIds) {
+          try {
+            const result = await updateConfig(fleetId, { status: newStatus });
+            
+            if (result?.success) {
+              results.push(fleetId);
+            } else {
+              errors.push({ fleetId, error: result?.error || "Unknown error" });
+            }
+          } catch (error) {
+            errors.push({ fleetId, error: error.message });
+          }
+        }
+
+        // Refresh data setelah update
+        await refreshFleet({
+          skipAutoActivate: true,
+        });
+
+        // Show result toast
+        if (errors.length === 0) {
+          showToast.success(
+            `Berhasil mengubah status ${results.length} fleet menjadi ${newStatus}`
+          );
+        } else if (results.length > 0) {
+          showToast.warning(
+            `${results.length} fleet berhasil diubah, ${errors.length} gagal`
+          );
+        } else {
+          showToast.error(`Gagal mengubah status semua fleet`);
+        }
+
+        return {
+          success: results.length > 0,
+          successCount: results.length,
+          errorCount: errors.length,
+          errors,
+        };
+      },
+      {
+        operation: "bulk status change",
+        defaultMessage: "Gagal mengubah status fleet",
+      }
+    ).finally(() => {
+      setIsSaving(false);
+    });
+  },
+  [canUpdate, updateConfig, refreshFleet, viewingDateRange, viewingShift]
+);
+
+const handleBulkDelete = useCallback(
+  async (fleetIds) => {
+    if (!canDeletePerm) {
+      showToast.error("Anda tidak memiliki akses untuk menghapus fleet");
+      return;
+    }
+
+    if (!Array.isArray(fleetIds) || fleetIds.length === 0) {
+      showToast.error("Tidak ada fleet yang dipilih");
+      return;
+    }
+
+    // Validate: tidak boleh menghapus fleet dengan status ACTIVE
+    const selectedFleets = filteredFleetConfigs.filter((f) =>
+      fleetIds.includes(f.id)
+    );
+
+    const activeFleets = selectedFleets.filter((f) => f.status === "ACTIVE");
+
+    if (activeFleets.length > 0) {
+      showToast.error(
+        `Tidak dapat menghapus ${activeFleets.length} fleet dengan status ACTIVE. Ubah status terlebih dahulu.`
+      );
+      return;
+    }
+
+    setIsSaving(true);
+
+    return await withErrorHandling(
+      async () => {
+        const results = [];
+        const errors = [];
+
+        // Delete setiap fleet
+        for (const fleetId of fleetIds) {
+          try {
+            const result = await deleteConfig(fleetId);
+
+            if (result?.success) {
+              results.push(fleetId);
+            } else {
+              errors.push({ fleetId, error: result?.error || "Unknown error" });
+            }
+          } catch (error) {
+            errors.push({ fleetId, error: error.message });
+          }
+        }
+
+        // Refresh data setelah delete
+        await refreshFleet({
+          skipAutoActivate: true,
+        });
+
+        // Show result toast
+        if (errors.length === 0) {
+          showToast.success(`Berhasil menghapus ${results.length} fleet`);
+        } else if (results.length > 0) {
+          showToast.warning(
+            `${results.length} fleet berhasil dihapus, ${errors.length} gagal`
+          );
+        } else {
+          showToast.error(`Gagal menghapus semua fleet`);
+        }
+
+        return {
+          success: results.length > 0,
+          successCount: results.length,
+          errorCount: errors.length,
+          errors,
+        };
+      },
+      {
+        operation: "bulk delete",
+        defaultMessage: "Gagal menghapus fleet",
+      }
+    ).finally(() => {
+      setIsSaving(false);
+    });
+  },
+  [
+    canDeletePerm,
+    deleteConfig,
+    refreshFleet,
+    filteredFleetConfigs,
+  ]
+);
 
   if (!canAccessType) {
     return (
@@ -795,10 +892,10 @@ const FleetManagement = ({ Type }) => {
           <div className="space-y-4">
             {/* Filter Section */}
             <FleetFilterSection
+            activeDateRange={false}
               dateRange={viewingDateRange}
               currentShift={currentShift}
               viewingShift={viewingShift}
-              onDateRangeChange={handleDateRangeChange}
               searchQuery={configSearchInput}
               onSearchChange={(value) => {
                 setConfigSearchInput(value);
@@ -836,6 +933,9 @@ const FleetManagement = ({ Type }) => {
               currentPage={configPage}
               onPageChange={setConfigPage}
               updatingStatusId={updatingStatusId}
+               enableBulkActions={true}
+     onBulkStatusChange={handleBulkStatusChange}
+     onBulkDelete={handleBulkDelete}
             />
           </div>
         </div>

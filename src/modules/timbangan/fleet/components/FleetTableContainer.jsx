@@ -2,7 +2,8 @@ import React, { useState, useMemo, useCallback } from "react";
 import { Button } from "@/shared/components/ui/button";
 import { Download, Upload, RefreshCw } from "lucide-react";
 import FleetTable from "@/modules/timbangan/fleet/components/FleetTable";
-import FleetBulkActions from "@/modules/timbangan/fleet/components/FleetBulkActions";
+// import FleetBulkActions from "@/modules/timbangan/fleet/components/FleetBulkActions";
+import FleetBulkOperations from "@/modules/timbangan/fleet/components/FleetBulkOperations";
 import { PAGE_SIZE, TOAST_MESSAGES } from "@/modules/timbangan/fleet/constant/fleetConstants";
 import { showToast } from "@/shared/utils/toast";
 import { handleError } from "@/shared/utils/errorHandler";
@@ -153,31 +154,6 @@ const FleetTableContainer = ({
       {hasData && (enableBulkActions || enableExport) && (
         <div className="flex items-center justify-between px-2">
           <div className="flex items-center gap-2">
-            {/* Page Info */}
-            <p className="text-sm text-gray-600 dark:text-gray-400">
-              Menampilkan{" "}
-              <span className="font-medium text-gray-900 dark:text-white">
-                {pageInfo.start}
-              </span>{" "}
-              -{" "}
-              <span className="font-medium text-gray-900 dark:text-white">
-                {pageInfo.end}
-              </span>{" "}
-              dari{" "}
-              <span className="font-medium text-gray-900 dark:text-white">
-                {pageInfo.total}
-              </span>{" "}
-              fleet
-            </p>
-            
-            {selectedIds.length > 0 && (
-              <span className="text-sm text-blue-600 dark:text-blue-400 font-medium">
-                ({selectedIds.length} dipilih)
-              </span>
-            )}
-          </div>
-
-          <div className="flex items-center gap-2">
             {/* Export Button */}
             {enableExport && onExport && (
               <Button
@@ -235,15 +211,15 @@ const FleetTableContainer = ({
 
       {/* Bulk Actions Component */}
       {enableBulkActions && hasData && (
-        <FleetBulkActions
-          fleets={paginatedConfigs}
-          selectedIds={selectedIds}
-          onSelectionChange={setSelectedIds}
-          onBulkStatusChange={handleBulkStatusChange}
-          onBulkDelete={handleBulkDelete}
-          canUpdate={canUpdate}
-          canDelete={canDelete}
-        />
+        <FleetBulkOperations
+  fleets={paginatedConfigs}
+  selectedIds={selectedIds}
+  onSelectionChange={setSelectedIds}
+  onBulkStatusChange={handleBulkStatusChange}
+  onBulkDelete={handleBulkDelete}
+  canUpdate={canUpdate}
+  canDelete={canDelete}
+/>
       )}
 
       {/* Fleet Table */}

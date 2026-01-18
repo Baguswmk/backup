@@ -1,7 +1,6 @@
 import React, { useState, useMemo, useCallback, useEffect } from "react";
 import { Badge } from "@/shared/components/ui/badge";
 import { History, RotateCcw, Lock } from "lucide-react";
-import { Alert, AlertDescription } from "@/shared/components/ui/alert";
 import { useFleet } from "@/modules/timbangan/fleet/hooks/useFleet";
 import { useDebouncedValue } from "@/shared/hooks/useDebouncedValue";
 import useAuthStore from "@/modules/auth/store/authStore";
@@ -12,8 +11,6 @@ import AdvancedFilter from "@/shared/components/AdvancedFilter";
 import LoadingOverlay from "@/shared/components/LoadingOverlay";
 import ConfirmDialog from "@/shared/components/ConfirmDialog";
 import TableToolbar from "@/shared/components/TableToolbar";
-
-import { getTodayDateRange } from "@/shared/utils/date";
 import { handleError } from "@/shared/utils/errorHandler";
 import { showToast } from "@/shared/utils/toast";
 import {
@@ -30,7 +27,7 @@ const FleetHistory = ({ Type }) => {
     Timbangan: "Timbangan",
     FOB: "FOB",
     Bypass: "Bypass",
-    BeltScale: "BeltScale",
+    Beltscale: "Beltscale",
   };
 
   const measurementType = measurementTypeMap[Type] || "Timbangan";
@@ -56,8 +53,6 @@ const FleetHistory = ({ Type }) => {
 
   const [showReactivateDialog, setShowReactivateDialog] = useState(false);
   const [reactivateTarget, setReactivateTarget] = useState(null);
-
-  const [dateRange, setDateRange] = useState(getTodayDateRange());
 
   const [shifts, setShifts] = useState([]);
   const [excavators, setExcavators] = useState([]);
@@ -115,14 +110,6 @@ const FleetHistory = ({ Type }) => {
     return filtered;
   }, [fleetConfigs, user]);
 
-  const shiftOptions = useMemo(
-    () =>
-      (masters?.shifts || []).map((shift) => ({
-        value: shift.name,
-        label: shift.name,
-      })),
-    [masters?.shifts]
-  );
 
   const excavatorOptions = useMemo(
     () =>
@@ -173,17 +160,7 @@ const FleetHistory = ({ Type }) => {
 
   const filterGroups = useMemo(
     () => [
-      {
-        id: FILTER_FIELDS.SHIFT,
-        label: "Shift",
-        options: shiftOptions,
-        value: shifts,
-        onChange: (newShifts) => {
-          setShifts(newShifts);
-          setConfigPage(1);
-        },
-        placeholder: "Pilih Shift",
-      },
+   
       {
         id: FILTER_FIELDS.EXCAVATOR,
         label: "Excavator",
@@ -240,20 +217,7 @@ const FleetHistory = ({ Type }) => {
         placeholder: "Pilih Company",
       },
     ],
-    [
-      shiftOptions,
-      excavatorOptions,
-      workUnitOptions,
-      loadingLocOptions,
-      dumpingLocOptions,
-      companyOptions,
-      shifts,
-      excavators,
-      workUnits,
-      loadingLocations,
-      dumpingLocations,
-      companies,
-    ]
+    [excavatorOptions, workUnitOptions, loadingLocOptions, dumpingLocOptions, companyOptions, excavators, workUnits, loadingLocations, dumpingLocations, companies]
   );
 
   const filteredConfigs = useMemo(() => {
@@ -263,29 +227,17 @@ const FleetHistory = ({ Type }) => {
       const search = configSearch.toLowerCase();
       filtered = filtered.filter(
         (config) =>
-          config.name?.toLowerCase().includes(search) ||
           config.excavator?.toLowerCase().includes(search) ||
-          config.shift?.toLowerCase().includes(search) ||
           config.workUnit?.toLowerCase().includes(search)
       );
     }
 
-    if (dateRange.from || dateRange.to) {
-      filtered = filtered.filter((config) => {
-        if (!config.date) return false;
-        const configDate = new Date(config.date);
-        const from = dateRange.from ? new Date(dateRange.from) : null;
-        const to = dateRange.to ? new Date(dateRange.to) : null;
-
-        if (from && configDate < from) return false;
-        if (to && configDate > to) return false;
-        return true;
-      });
-    }
-
-    if (shifts.length > 0) {
-      filtered = filtered.filter((c) => shifts.includes(c.shift));
-    }
+  // Filter measurement_type - GANTI INI
+  if (measurementType) {
+    filtered = filtered.filter(
+      (c) => c.measurementType === measurementType  // ✅ Pakai measurementType (camelCase)
+    );
+  }
 
     if (excavators.length > 0) {
       filtered = filtered.filter((c) =>
@@ -327,10 +279,9 @@ const FleetHistory = ({ Type }) => {
   }, [
     filteredByRole,
     configSearch,
-    dateRange,
-    shifts,
     excavators,
     workUnits,
+    measurementType,
     loadingLocations,
     dumpingLocations,
     companies,
@@ -344,9 +295,6 @@ const FleetHistory = ({ Type }) => {
 
   const hasActiveFilters =
     configSearch ||
-    dateRange.from ||
-    dateRange.to ||
-    shifts.length > 0 ||
     excavators.length > 0 ||
     workUnits.length > 0 ||
     loadingLocations.length > 0 ||
@@ -356,8 +304,6 @@ const FleetHistory = ({ Type }) => {
 
   const handleResetFilters = useCallback(() => {
     setConfigSearchInput("");
-    setDateRange({ from: "", to: "" });
-    setShifts([]);
     setExcavators([]);
     setWorkUnits([]);
     setLoadingLocations([]);
@@ -368,18 +314,6 @@ const FleetHistory = ({ Type }) => {
 
     refreshFleet({ dateRange: null });
   }, [refreshFleet]);
-
-  const handleDateRangeChange = useCallback(
-    (newDateRange) => {
-      setDateRange(newDateRange);
-      setConfigPage(1);
-
-      refreshFleet({ dateRange: newDateRange });
-
-      showToast.success("Memuat data history dengan filter tanggal baru...");
-    },
-    [refreshFleet]
-  );
 
   const handleViewConfig = useCallback((config) => {
     setSelectedConfig(config);
@@ -430,7 +364,7 @@ const FleetHistory = ({ Type }) => {
 
   const handleRefresh = useCallback(async () => {
     try {
-      await refreshFleet({ dateRange });
+      await refreshFleet();
       showToast.success(TOAST_MESSAGES.SUCCESS.REFRESH);
     } catch (e) {
       handleError(e, {
@@ -438,7 +372,7 @@ const FleetHistory = ({ Type }) => {
         defaultMessage: TOAST_MESSAGES.ERROR.REFRESH_FAILED,
       });
     }
-  }, [refreshFleet, dateRange]);
+  }, [refreshFleet]);
 
   const canShowReactivateButton = permissions.canUpdate;
 
@@ -489,8 +423,7 @@ const FleetHistory = ({ Type }) => {
         <div className="p-4 sm:p-6">
           <div className="space-y-4">
             <TableToolbar
-              dateRange={dateRange}
-              onDateRangeChange={handleDateRangeChange}
+            activeDateRange={false}
               searchQuery={configSearchInput}
               onSearchChange={(value) => {
                 setConfigSearchInput(value);

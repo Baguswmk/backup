@@ -36,7 +36,7 @@ export const TOAST_MESSAGES = {
 };
 
 export const SEARCH_PLACEHOLDERS = {
-  FLEET: "Cari nama fleet, excavator, shift, work unit...",
+  FLEET: "Cari nama fleet, excavator, work unit...",
 };
 
 export const LOADING_MESSAGES = {

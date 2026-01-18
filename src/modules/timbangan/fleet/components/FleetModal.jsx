@@ -25,7 +25,7 @@ const MEASUREMENT_TYPE_OPTIONS = [
   { value: "Timbangan", label: "Timbangan" },
 
   { value: "Bypass", label: "Bypass" },
-  { value: "BeltScale", label: "BeltScale" },
+  { value: "Beltscale", label: "Beltscale" },
 ];
 
 const FleetModal = ({
@@ -89,7 +89,6 @@ const FleetModal = ({
 
   useEffect(() => {
     if (!isOpen) return;
-
     if (editingConfig) {
       const initialData = {
         excavator: editingConfig.excavatorId || "",
@@ -117,7 +116,7 @@ const FleetModal = ({
         Timbangan: "Timbangan",
         FOB: "FOB",
         Bypass: "Bypass",
-        BeltScale: "BeltScale",
+        Beltscale: "Beltscale",
       };
 
       const defaultMeasurementType =
@@ -248,9 +247,6 @@ const FleetModal = ({
       const payload = isEdit
         ? {
             ...basePayload,
-            status: fleetData.status,
-            shift: fleetData.shift,
-            date: fleetData.date,
           }
         : basePayload;
 
@@ -651,121 +647,6 @@ const FleetModal = ({
               </div>
             </InfoCard>
 
-            {/* Status, Shift & Date (Edit Mode) */}
-            {isEdit && (
-              <InfoCard
-                title="Status, Shift & Tanggal"
-                icon={CalendarIcon}
-                variant="primary"
-              >
-                <div className="space-y-2">
-                  <Label className="dark:text-gray-300">Status *</Label>
-                  <RadioGroup
-                    value={fleetData.status}
-                    onValueChange={(val) => {
-                      setFleetData((p) => ({ ...p, status: val }));
-                    }}
-                    disabled={isSaving}
-                    className="flex flex-col space-y-2"
-                  >
-                    <div className="flex items-center space-x-2 dark:text-gray-200">
-                      <RadioGroupItem
-                        value="ACTIVE"
-                        id="status-active"
-                        className="dark:border-gray-600"
-                      />
-                      <Label
-                        htmlFor="status-active"
-                        className="cursor-pointer font-normal dark:text-gray-300"
-                      >
-                        Active
-                      </Label>
-                    </div>
-                    <div className="flex items-center space-x-2 dark:text-gray-200">
-                      <RadioGroupItem
-                        value="INACTIVE"
-                        id="status-inactive"
-                        className="dark:border-gray-600"
-                      />
-                      <Label
-                        htmlFor="status-inactive"
-                        className="cursor-pointer font-normal dark:text-gray-300"
-                      >
-                        Inactive
-                      </Label>
-                    </div>
-                  </RadioGroup>
-                  {errors.status && (
-                    <p className="text-sm text-red-500">{errors.status}</p>
-                  )}
-                </div>
-
-                <div className="space-y-2">
-                  <Label className="dark:text-gray-300">Shift *</Label>
-                  <SearchableSelect
-                    items={shiftItems}
-                    value={fleetData.shift}
-                    onChange={(val) =>
-                      setFleetData((p) => ({ ...p, shift: val || "" }))
-                    }
-                    placeholder="Pilih shift"
-                    emptyText="Shift tidak ditemukan"
-                    error={!!errors.shift}
-                    disabled={isSaving}
-                  />
-                  {errors.shift && (
-                    <p className="text-sm text-red-500">{errors.shift}</p>
-                  )}
-                </div>
-
-                <div className="md:col-span-2 space-y-2">
-                  <Label className="dark:text-gray-300">Date *</Label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        disabled={isSaving}
-                        className="w-full cursor-pointer hover:bg-gray-200 justify-start text-left font-normal dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700 dark:border-gray-700"
-                      >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {fleetData.date
-                          ? format(new Date(fleetData.date), "dd MMMM yyyy", {
-                              locale: id,
-                            })
-                          : "Pilih tanggal"}
-                      </Button>
-                    </PopoverTrigger>
-
-                    <PopoverContent
-                      className="w-auto p-0 bg-white border-none dark:bg-gray-800 dark:border-gray-700"
-                      align="start"
-                    >
-                      <Calendar
-                        mode="single"
-                        selected={
-                          fleetData.date ? new Date(fleetData.date) : undefined
-                        }
-                        onSelect={(date) => {
-                          if (!date) return;
-                          setFleetData((p) => ({
-                            ...p,
-                            date: format(date, "yyyy-MM-dd"),
-                          }));
-                        }}
-                        locale={id}
-                        disabled={isSaving}
-                        initialFocus
-                        className="dark:text-gray-200"
-                      />
-                    </PopoverContent>
-                  </Popover>
-
-                  {errors.date && (
-                    <p className="text-sm text-red-500">{errors.date}</p>
-                  )}
-                </div>
-              </InfoCard>
-            )}
 
             {/* Footer Actions */}
             <div className="flex justify-end gap-2 pt-4">

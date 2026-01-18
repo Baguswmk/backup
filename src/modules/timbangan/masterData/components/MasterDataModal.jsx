@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/shared/components/ui
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
 import { Label } from "@/shared/components/ui/label";
-import { X, Loader2, Save } from "lucide-react";
+import { X, Loader2, Save, Tag, Scale } from "lucide-react";
 import SearchableSelect from "@/shared/components/SearchableSelect";
 import MultiSearchableSelect from "@/shared/components/MultiSearchableSelect";
 
@@ -138,6 +138,12 @@ const MasterDataModal = ({
       case "alatLoader":
         if (!formData.hull_no?.trim()) newErrors.hull_no = "Required";
         if (!formData.type) newErrors.type = "Required";
+        if (formData.bypass_tonnage && isNaN(parseFloat(formData.bypass_tonnage))) {
+          newErrors.bypass_tonnage = "Harus berupa angka";
+        }
+        if (formData.bypass_tonnage && parseFloat(formData.bypass_tonnage) < 0) {
+          newErrors.bypass_tonnage = "Tidak boleh negatif";
+        }
         break;
       case "operators":
         if (!formData.name?.trim()) newErrors.name = "Required";
@@ -237,6 +243,61 @@ const MasterDataModal = ({
                 <p className="text-sm text-red-500">{errors.type}</p>
               )}
             </div>
+                <div className="space-y-2">
+              <Label htmlFor="spph" className="flex items-center gap-2">
+                SPPH
+              </Label>
+              <Input
+                id="spph"
+                value={formData.spph || ""}
+                onChange={(e) => updateField("spph", e.target.value)}
+                className="border-none bg-gray-200 dark:bg-gray-700"
+                placeholder="Enter SPPH "
+              />
+            </div>
+            
+            {/* RFID Field - Optional */}
+            <div className="space-y-2">
+              <Label htmlFor="rfid" className="flex items-center gap-2">
+                RFID (Opsional)
+              </Label>
+              <Input
+                id="rfid"
+                value={formData.rfid || ""}
+                onChange={(e) => updateField("rfid", e.target.value)}
+                className="border-none bg-gray-200 dark:bg-gray-700"
+                placeholder="Enter RFID code"
+              />
+              <p className="text-xs text-gray-500">
+                Kode RFID untuk identifikasi unit
+              </p>
+            </div>
+
+            {/* Bypass Tonnage Field - Optional, only for units (DUMP_TRUCK) */}
+            {category === "units" && (
+              <div className="space-y-2">
+                <Label htmlFor="bypass_tonnage" className="flex items-center gap-2">
+                  Bypass Tonnage (Opsional)
+                </Label>
+                <Input
+                  id="bypass_tonnage"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={formData.bypass_tonnage || ""}
+                  onChange={(e) => updateField("bypass_tonnage", e.target.value)}
+                  className={errors.bypass_tonnage ? "border-red-500" : "border-none bg-gray-200 dark:bg-gray-700"}
+                  placeholder="0.00"
+                />
+                {errors.bypass_tonnage && (
+                  <p className="text-sm text-red-500">{errors.bypass_tonnage}</p>
+                )}
+                <p className="text-xs text-gray-500">
+                  Tonase bypass untuk unit ini (dalam ton)
+                </p>
+              </div>
+            )}
+
             <div className="space-y-2">
               <Label htmlFor="company">Company</Label>
               <SearchableSelect

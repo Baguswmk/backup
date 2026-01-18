@@ -4,8 +4,6 @@ import { masterDataService } from "@/modules/timbangan/masterData/services/maste
 import { useTimbanganStore } from "@/modules/timbangan/timbangan/store/timbanganStore";
 import { offlineService } from "@/shared/services/offlineService";
 import { format } from "date-fns";
-import { getCurrentShift } from "@/shared/utils/shift";
-import { getTodayDateRange, isDateRangeToday } from "@/shared/utils/date";
 import { withErrorHandling } from "@/shared/utils/errorHandler";
 
 const CACHE_CONFIG = {
@@ -78,10 +76,6 @@ export const useFleet = (userAuth = null, measurementType = null) => {
   const [mastersLoading, setMastersLoading] = useState(false);
 
   const [viewMode, setViewMode] = useState("normal");
-  const [currentShift, setCurrentShift] = useState(() => getCurrentShift());
-  const [viewingShift, setViewingShift] = useState(() => getCurrentShift());
-  const [viewingDateRange, setViewingDateRange] = useState(getTodayDateRange());
-  const previousViewingDateRangeRef = useRef(viewingDateRange);
   const isInitializedRef = useRef(false);
   const abortControllerRef = useRef(null);
   const pendingFleetRequestRef = useRef(null);
@@ -149,24 +143,10 @@ export const useFleet = (userAuth = null, measurementType = null) => {
             masterDataService.fetchWeightBridges(),
           ]);
 
-          const shifts = [
-            { id: "shift-1", name: "Shift 1" },
-            { id: "shift-2", name: "Shift 2" },
-            { id: "shift-3", name: "Shift 3" },
-          ];
-
-          const status = [
-            { id: "ACTIVE", name: "Active" },
-            { id: "INACTIVE", name: "Inactive" },
-            { id: "CLOSED", name: "Closed" },
-          ];
-
           const mastersData = {
             excavators,
             loadingLocations: loadingLocs,
             dumpingLocations: dumpingLocs,
-            shifts,
-            status,
             workUnits,
             companies,
             coalTypes,
@@ -216,27 +196,16 @@ export const useFleet = (userAuth = null, measurementType = null) => {
 
       const requestPromise = withErrorHandling(
         async () => {
-          const effectiveDateRange = options.dateRange || viewingDateRange;
-          const effectiveShift =
-            options.shift || viewingShift || getCurrentShift();
           const effectiveMeasurementType =
             measurementType || options.measurementType || "Timbangan";
 
           if (options.forceRefresh) {
-            if (isDateRangeToday(effectiveDateRange)) {
-              await offlineService.clearCache("fleets_");
-            } else {
-              await offlineService.clearCache(
-                `fleets_${effectiveDateRange.from}_${effectiveDateRange.to}`
-              );
-            }
+            await offlineService.clearCache("fleets_");
           }
 
           const result = await fleetService.fetchFleetConfigs({
             user,
             forceRefresh: options.forceRefresh || false,
-            dateRange: effectiveDateRange,
-            shift: effectiveShift,
             measurementType: effectiveMeasurementType,
             signal,
           });
@@ -266,7 +235,7 @@ export const useFleet = (userAuth = null, measurementType = null) => {
             Timbangan: [],
             FOB: [],
             Bypass: [],
-            BeltScale: [],
+            Beltscale: [],
           };
 
           uniqueConfigs.forEach((config) => {
@@ -278,8 +247,8 @@ export const useFleet = (userAuth = null, measurementType = null) => {
               byType["FOB"].push(config);
             } else if (type === "Bypass") {
               byType["Bypass"].push(config);
-            } else if (type === "BeltScale") {
-              byType["BeltScale"].push(config);
+            } else if (type === "Beltscale") {
+              byType["Beltscale"].push(config);
             }
           });
 
@@ -288,13 +257,7 @@ export const useFleet = (userAuth = null, measurementType = null) => {
             fleetConfigsByType: byType,
           });
 
-          const isViewingToday = isDateRangeToday(effectiveDateRange);
-
-          if (
-            viewMode === "normal" &&
-            isViewingToday &&
-            !options.skipAutoActivate
-          ) {
+          if (viewMode === "normal" && !options.skipAutoActivate) {
             const today = format(new Date(), "yyyy-MM-dd");
             const activeToday = allConfigs.filter(
               (c) => c.status === "ACTIVE" && c.date === today
@@ -332,15 +295,7 @@ export const useFleet = (userAuth = null, measurementType = null) => {
       pendingFleetRequestRef.current = requestPromise;
       return requestPromise;
     },
-    [
-      user,
-      viewMode,
-      setSelectedFleets,
-      setDumptruckIndexFromConfigs,
-      viewingDateRange,
-      viewingShift,
-      measurementType,
-    ]
+    [user, viewMode, setSelectedFleets, setDumptruckIndexFromConfigs, measurementType]
   );
 
   const loadFleetConfigs = useCallback(
@@ -351,29 +306,16 @@ export const useFleet = (userAuth = null, measurementType = null) => {
 
       return await withErrorHandling(
         async () => {
-          const effectiveDateRange = options.dateRange || viewingDateRange;
-          const effectiveShift =
-            options.shift || viewingShift || getCurrentShift();
           const effectiveMeasurementType =
             measurementType || options.measurementType || "Timbangan";
 
-          const isViewingToday = isDateRangeToday(effectiveDateRange);
-
           if (options.forceRefresh) {
-            if (isViewingToday) {
-              fleetService.clearCache();
-            } else {
-              offlineService.clearCache(
-                `fleets_${effectiveDateRange.from}_${effectiveDateRange.to}`
-              );
-            }
+            fleetService.clearCache();
           }
 
           const result = await fleetService.fetchFleetConfigs({
             user,
             forceRefresh: true,
-            dateRange: effectiveDateRange,
-            shift: effectiveShift,
             measurementType: effectiveMeasurementType,
           });
 
@@ -389,7 +331,7 @@ export const useFleet = (userAuth = null, measurementType = null) => {
               Timbangan: [],
               FOB: [],
               Bypass: [],
-              BeltScale: [],
+              Beltscale: [],
             };
 
             uniqueConfigs.forEach((config) => {
@@ -401,8 +343,8 @@ export const useFleet = (userAuth = null, measurementType = null) => {
                 byType["FOB"].push(config);
               } else if (type === "Bypass") {
                 byType["Bypass"].push(config);
-              } else if (type === "BeltScale") {
-                byType["BeltScale"].push(config);
+              } else if (type === "Beltscale") {
+                byType["Beltscale"].push(config);
               }
             });
 
@@ -413,7 +355,6 @@ export const useFleet = (userAuth = null, measurementType = null) => {
 
             if (
               viewMode === "normal" &&
-              isViewingToday &&
               !options.skipAutoActivate &&
               result.data.length > 0
             ) {
@@ -461,15 +402,7 @@ export const useFleet = (userAuth = null, measurementType = null) => {
         loadingState(false);
       });
     },
-    [
-      user,
-      viewMode,
-      viewingDateRange,
-      setSelectedFleets,
-      viewingShift,
-      setDumptruckIndexFromConfigs,
-      measurementType,
-    ]
+    [user, viewMode, setSelectedFleets, setDumptruckIndexFromConfigs, measurementType]
   );
 
   const createFleetConfig = useCallback(
@@ -494,7 +427,7 @@ export const useFleet = (userAuth = null, measurementType = null) => {
               Timbangan: "Timbangan",
               FOB: "FOB",
               Bypass: "Bypass",
-              BeltScale: "BeltScale",
+              Beltscale: "Beltscale",
             };
 
             const fleetType =
@@ -704,6 +637,8 @@ export const useFleet = (userAuth = null, measurementType = null) => {
     [loadFleetConfigs]
   );
 
+
+
   const reactivateFleet = useCallback(
     async (configId, newStatus = "ACTIVE") => {
       setIsLoading(true);
@@ -800,35 +735,17 @@ export const useFleet = (userAuth = null, measurementType = null) => {
 
   const refresh = useCallback(
     async (options = {}) => {
-      const targetDateRange =
-        options.dateRange !== undefined ? options.dateRange : viewingDateRange;
-      const targetShift =
-        options.shift !== undefined
-          ? options.shift
-          : viewingShift || currentShift;
-
-      if (isDateRangeToday(targetDateRange)) {
-        await offlineService.clearCache("fleets_");
-        await offlineService.clearCache("ritases_");
-      } else {
-        await offlineService.clearCache(
-          `fleets_${targetDateRange.from}_${targetDateRange.to}`
-        );
-        await offlineService.clearCache(
-          `ritases_${targetDateRange.from}_${targetDateRange.to}`
-        );
-      }
+      await offlineService.clearCache("fleets_");
+      await offlineService.clearCache("ritases_");
 
       const result = await preloadAllFleets({
         forceRefresh: true,
-        dateRange: targetDateRange,
-        shift: targetShift,
-        skipAutoActivate: !isDateRangeToday(targetDateRange),
+        skipAutoActivate: false,
       });
 
       return result;
     },
-    [preloadAllFleets, viewingDateRange, viewingShift, currentShift]
+    [preloadAllFleets]
   );
 
   const refreshMasters = useCallback(
@@ -848,40 +765,12 @@ export const useFleet = (userAuth = null, measurementType = null) => {
 
     const initializeData = async () => {
       await loadMasters();
-
-      const todayRange = getTodayDateRange();
-      await preloadAllFleets({ dateRange: todayRange });
-
+      await preloadAllFleets();
       isInitializedRef.current = true;
     };
 
     initializeData();
   }, [loadMasters, preloadAllFleets]);
-
-  useEffect(() => {
-    const prev = previousViewingDateRangeRef.current;
-    const curr = viewingDateRange;
-
-    if (prev.from !== curr.from || prev.to !== curr.to) {
-      if (isDateRangeToday(prev)) {
-        offlineService.clearCache("fleets_");
-      } else {
-        offlineService.clearCache(`fleets_${prev.from}_${prev.to}`);
-      }
-
-      previousViewingDateRangeRef.current = curr;
-
-      if (isInitializedRef.current) {
-        queueMicrotask(() => {
-          loadFleetConfigs({
-            forceRefresh: true,
-            dateRange: curr,
-            skipAutoActivate: true,
-          });
-        });
-      }
-    }
-  }, [viewingDateRange, loadFleetConfigs]);
 
   useEffect(() => {
     return () => {
@@ -891,17 +780,6 @@ export const useFleet = (userAuth = null, measurementType = null) => {
       pendingFleetRequestRef.current = null;
     };
   }, []);
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      const newShift = getCurrentShift();
-      if (newShift !== currentShift) {
-        setCurrentShift(newShift);
-      }
-    }, 60000);
-
-    return () => clearInterval(interval);
-  }, [currentShift]);
 
   return {
     fleetConfigs,
@@ -919,8 +797,6 @@ export const useFleet = (userAuth = null, measurementType = null) => {
     error,
 
     viewMode,
-    viewingDateRange,
-    setViewingDateRange,
     switchViewMode,
 
     loadFleetConfigs,
@@ -930,10 +806,6 @@ export const useFleet = (userAuth = null, measurementType = null) => {
     reactivateFleet,
     activateConfig,
     getFleetById,
-
-    currentShift,
-    viewingShift,
-    setViewingShift,
 
     refresh,
     refreshMasters,

@@ -4,6 +4,7 @@ import AdvancedFilter from "@/shared/components/AdvancedFilter";
 import { SEARCH_PLACEHOLDERS } from "@/modules/timbangan/fleet/constant/fleetConstants";
 
 const FleetFilterSection = ({
+  activeDateRange,
   activeTab,
   dateRange,
   currentShift,
@@ -28,6 +29,7 @@ const FleetFilterSection = ({
       {/* Toolbar */}
       <TableToolbar
         dateRange={dateRange}
+        activeDateRange={activeDateRange}
         currentShift={currentShift}
         viewingShift={viewingShift}
         onDateRangeChange={onDateRangeChange}

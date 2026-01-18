@@ -42,21 +42,7 @@ const FleetDetailModal = ({ isOpen, config, onClose, onEdit, dumptruck }) => {
 
         <div className="p-6 space-y-6">
           {/* Basic Information */}
-          <InfoCard title="Informasi Konfigurasi" variant="default">
-            <InfoItem label="Nama Konfigurasi" value={config.name} />
-            <InfoItem label="Status" value={config.status || "N/A"} />
-            <InfoItem
-              label="Tanggal"
-              icon={null}
-              value={formatDate(config.date)}
-            />
-            <InfoItem
-              label="Terakhir Update"
-              icon={null}
-              value={formatDateTime(config.updatedAt)}
-            />
-          </InfoCard>
-
+       
           {/* Fleet Configuration */}
           <InfoCard title="Konfigurasi Fleet" icon={Settings} variant="default">
             <InfoItem
@@ -64,7 +50,6 @@ const FleetDetailModal = ({ isOpen, config, onClose, onEdit, dumptruck }) => {
               icon={Settings}
               value={config.excavator}
             />
-            <InfoItem label="Shift" icon={Clock} value={config.shift} />
             <InfoItem
               label="Loading Location"
               icon={MapPin}
