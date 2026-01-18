@@ -2,26 +2,24 @@ import { useState, useCallback } from 'react';
 import laporanService from '@/modules/timbangan/laporan/services/laporanService';
 import { showToast } from '@/shared/utils/toast';
 
-/**
- * Custom Hook untuk Laporan Management
- * Handle download laporan PDF atau Excel dengan dynamic type
- */
+
 export const useLaporan = () => {
   const [isDownloading, setIsDownloading] = useState(false);
-  const [downloadType, setDownloadType] = useState(null); // 'produksi' | 'qc' | 'penjualan' | etc
-  const [downloadFormat, setDownloadFormat] = useState(null); // 'pdf' | 'excel' | 'csv'
+  const [downloadType, setDownloadType] = useState(null);
+  const [downloadFormat, setDownloadFormat] = useState(null);
 
-  /**
-   * Generic Download Laporan
-   * @param {string} type - Tipe laporan (produksi, qc, penjualan, dll)
-   * @param {Object} params - { startDate, endDate, shift, format }
-   */
+
   const downloadLaporan = useCallback(async (type, params) => {
-    const { startDate, endDate, shift, format } = params;
+    const { date, shift, format } = params;
 
     // Validasi
-    if (!startDate || !endDate) {
+    if (!date) {
       showToast.error('Tanggal harus dipilih');
+      return;
+    }
+
+    if (!shift) {
+      showToast.error('Shift harus dipilih');
       return;
     }
 
@@ -50,37 +48,38 @@ export const useLaporan = () => {
       switch (type) {
         case 'spph':
           result = await laporanService.downloadLaporanSPPH({
-            startDate,
-            endDate,
-            shift: shift || 'All',
+            date,
+            shift,
             format,
           });
           break;
 
         case 'dump-truck':
           result = await laporanService.downloadLaporanDumpTruck({
-            startDate,
-            endDate,
-            shift: shift || 'All',
+            date,
+            shift,
             format,
           });
           break;
 
         // ==================== TEMPLATE UNTUK LAPORAN BARU ====================
-        // Tambahkan case baru disini
         /*
         case 'tipe-laporan-baru':
-          result = await laporanService.downloadLaporanNamaLaporan({
-            startDate,
-            endDate,
-            shift: shift || 'All',
+          result = await laporanService.downloadLaporanCustom({
+            date,
+            shift,
             format,
           });
           break;
         */
 
         default:
-          throw new Error(`Tipe laporan '${type}' tidak dikenali`);
+          // ✅ Fallback ke generic service
+          result = await laporanService.downloadLaporan({
+            date,
+            shift,
+            format,
+          });
       }
 
       showToast.safeDismiss(loadingToast);

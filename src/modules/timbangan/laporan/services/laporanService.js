@@ -1,21 +1,25 @@
 import { offlineService } from '@/shared/services/offlineService';
-import { logger } from '@/shared/services/log'; // ✅ ADDED
-import { createValidationError } from '@/shared/utils/errorHandler'; // ✅ ADDED
+import { logger } from '@/shared/services/log';
+import { createValidationError } from '@/shared/utils/errorHandler';
+import { generateFile } from '@/modules/timbangan/laporan/services/fileGeneratorService';
 
 /**
  * Laporan Service
- * Service untuk handle download laporan dalam bentuk PDF atau Excel
- * Reusable untuk berbagai jenis laporan
+ * ✅ UPDATED - Fetch data dari backend, generate file di frontend
  */
 
 /**
- * ✅ ADDED - Validate download parameters
+ * Validate download parameters
  */
 const validateDownloadParams = (params) => {
-  const { startDate, endDate, format } = params;
+  const { date, shift, format } = params;
   
-  if (!startDate || !endDate) {
+  if (!date) {
     throw createValidationError('Tanggal harus dipilih');
+  }
+  
+  if (!shift) {
+    throw createValidationError('Shift harus dipilih');
   }
   
   if (!format || !['pdf', 'excel', 'csv'].includes(format)) {
@@ -26,78 +30,52 @@ const validateDownloadParams = (params) => {
 };
 
 /**
- * Generic Download Handler
- * Reusable function untuk download file dari API
+ * ✅ NEW - Fetch data dan generate file di frontend
  */
-const downloadFileFromAPI = async (endpoint, params, defaultFilename) => {
+const fetchDataAndGenerateFile = async (endpoint, params) => {
   try {
-    // ✅ Validate params
     validateDownloadParams(params);
     
-    const { startDate, endDate, shift, format } = params;
+    const { date, shift, format } = params;
     
-    logger.info(`📥 Downloading laporan from ${endpoint}`, {
-      startDate,
-      endDate,
+    logger.info(`📥 Fetching report data from ${endpoint}`, {
+      date,
       shift,
       format
     });
     
+    // ✅ 1. Fetch data JSON dari backend
     const response = await offlineService.get(endpoint, {
       params: {
-        startDate,
-        endDate,
+        date,
         shift,
-        format,
       },
-      responseType: 'blob', // Important untuk file download
     });
 
-    // Extract filename dari response header
-    const contentDisposition = response.headers['content-disposition'];
-    let filename = defaultFilename;
-    
-    if (contentDisposition) {
-      const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
-      if (filenameMatch && filenameMatch[1]) {
-        filename = filenameMatch[1].replace(/['"]/g, '');
-      }
+    const data = response.data?.data || response.data;
+
+    if (!data || data.length === 0) {
+      throw new Error('Tidak ada data untuk periode yang dipilih');
     }
 
-    // ✅ IMPROVED - Better MIME type handling
-    const mimeTypes = {
-      pdf: 'application/pdf',
-      csv: 'text/csv',
-      excel: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-    };
-    
-    const mimeType = mimeTypes[format] || mimeTypes.excel;
-    
-    // Create blob dan trigger download
-    const blob = new Blob([response.data], { type: mimeType });
-    
-    const url = window.URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = filename;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    window.URL.revokeObjectURL(url);
+    logger.info(`✅ Data fetched: ${data.length} records`);
 
-    logger.info(`✅ Laporan downloaded successfully`, {
-      filename,
-      endpoint,
+    // ✅ 2. Generate file di frontend menggunakan fileGeneratorService
+    const result = generateFile(data, format, { date, shift });
+
+    logger.info(`✅ File generated successfully`, {
+      filename: result.filename,
       format
     });
 
     return {
       success: true,
-      filename,
-      message: 'Laporan berhasil diunduh'
+      filename: result.filename,
+      message: 'Laporan berhasil diunduh',
+      totalRecords: data.length,
     };
   } catch (error) {
-    logger.error(`❌ Error downloading from ${endpoint}`, {
+    logger.error(`❌ Error generating report from ${endpoint}`, {
       error: error.message,
       params
     });
@@ -111,58 +89,56 @@ const downloadFileFromAPI = async (endpoint, params, defaultFilename) => {
 
 const laporanService = {
   /**
-   * Download Laporan Tonase SPPH
+   * ✅ Download Laporan Generic
+   * Endpoint: /v1/custom/report
    */
-  downloadLaporanSPPH: async (params) => {
-    const { startDate, endDate, format } = params;
-    const filename = `laporan-tonase-spph-${startDate}-${endDate}.${format}`;
-    return downloadFileFromAPI('/laporan/tonase-spph', params, filename);
+  downloadLaporan: async (params) => {
+    return fetchDataAndGenerateFile('/v1/custom/report', params);
   },
 
   /**
-   * Download Laporan Tonase Dump Truck
+   * Download Laporan SPPH
+   */
+  downloadLaporanSPPH: async (params) => {
+    return fetchDataAndGenerateFile('/v1/custom/report', params);
+  },
+
+  /**
+   * Download Laporan Dump Truck
    */
   downloadLaporanDumpTruck: async (params) => {
-    const { startDate, endDate, format } = params;
-    const filename = `laporan-tonase-dump-truck-${startDate}-${endDate}.${format}`;
-    return downloadFileFromAPI('/laporan/tonase-dump-truck', params, filename);
+    return fetchDataAndGenerateFile('/v1/custom/report', params);
   },
 
   // ==================== TEMPLATE UNTUK LAPORAN BARU ====================
-  // Copy paste template ini dan sesuaikan
   /*
-  downloadLaporanNamaLaporan: async (params) => {
-    const { startDate, endDate, format } = params;
-    const filename = `laporan-nama-${startDate}-${endDate}.${format}`;
-    return downloadFileFromAPI('/laporan/endpoint-api', params, filename);
+  downloadLaporanCustom: async (params) => {
+    return fetchDataAndGenerateFile('/v1/custom/report', params);
   },
   */
 
   /**
-   * Preview Laporan (Optional - jika ada endpoint preview)
+   * Preview Laporan (Get data only, no file generation)
    */
-  previewLaporan: async (endpoint, params) => {
+  previewLaporan: async (params) => {
     try {
-      const { startDate, endDate, shift } = params;
+      const { date, shift } = params;
       
-      logger.info(`👁️ Previewing laporan from ${endpoint}`, {
-        startDate,
-        endDate,
-        shift
-      });
+      logger.info(`👁️ Previewing laporan`, { date, shift });
       
-      const response = await offlineService.get(endpoint, {
+      const response = await offlineService.get('/v1/custom/report', {
         params: {
-          startDate,
-          endDate,
+          date,
           shift,
         },
       });
 
-      logger.info(`✅ Laporan preview loaded`, { endpoint });
-      return response.data;
+      const data = response.data?.data || response.data;
+
+      logger.info(`✅ Laporan preview loaded: ${data?.length || 0} records`);
+      return data;
     } catch (error) {
-      logger.error(`❌ Error preview laporan from ${endpoint}`, {
+      logger.error(`❌ Error preview laporan`, {
         error: error.message
       });
       
