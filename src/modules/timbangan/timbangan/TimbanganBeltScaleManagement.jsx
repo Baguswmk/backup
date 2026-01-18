@@ -14,7 +14,7 @@ import useAuthStore from "@/modules/auth/store/authStore";
 
 import { getInitialDateRange } from "@/modules/timbangan/timbangan/constant/timbanganConstants";
 
-const TimbanganBeltScaleManagement = () => {
+const TimbanganBeltScaleManagement = ({Type}) => {
   const { user } = useAuthStore();
   const timbanganData = useTimbanganStore((state) => state.timbanganData);
   const loadTimbanganDataFromAPI = useTimbanganStore(
@@ -32,7 +32,7 @@ const TimbanganBeltScaleManagement = () => {
   const filteredTimbanganData = useMemo(() => {
     let filtered = timbanganData;
 
-    filtered = filtered.filter((item) => item.measurement_type === "BeltScale");
+    filtered = filtered.filter((item) => item.measurement_type === "Beltscale");
 
     if (dateRange.from || dateRange.to) {
       filtered = filtered.filter((item) => {
@@ -56,7 +56,7 @@ const TimbanganBeltScaleManagement = () => {
     return filtered;
   }, [timbanganData, dateRange]);
 
-  const handleDateRangeChange = useCallback((range) => {
+ const handleDateRangeChange = useCallback((range) => {
     const normalized = {
       from:
         range.from || range.startDate
@@ -70,7 +70,30 @@ const TimbanganBeltScaleManagement = () => {
     if (normalized.from) normalized.from.setHours(0, 0, 0, 0);
     if (normalized.to) normalized.to.setHours(23, 59, 59, 999);
 
+
+    // Update state
     setDateRange(normalized);
+
+    // ✅ Load data using getState() to avoid infinite loop
+    const { loadTimbanganDataFromAPI } = useTimbanganStore.getState();
+    
+    setIsLoading(true);
+    
+    loadTimbanganDataFromAPI(
+      { from: normalized.from, to: normalized.to },
+      true, 
+      "Beltscale"
+    )
+      .then(() => {
+        showToast.success('Data berhasil dimuat');
+      })
+      .catch((error) => {
+        console.error('❌ Failed to load Beltscale data:', error);
+        showToast.error("Gagal memuat data");
+      })
+      .finally(() => {
+        setIsLoading(false);
+      });
   }, []);
 
   const handleRefresh = useCallback(async () => {
@@ -79,7 +102,7 @@ const TimbanganBeltScaleManagement = () => {
       await loadTimbanganDataFromAPI(
         { from: dateRange.from, to: dateRange.to },
         true,
-        "BeltScale"
+        "Beltscale"
       );
       showToast.success("Data berhasil di-refresh");
     } catch (error) {
@@ -101,11 +124,11 @@ const TimbanganBeltScaleManagement = () => {
         await loadTimbanganDataFromAPI(
           { from: dateRange.from, to: dateRange.to },
           true,
-          "BeltScale"
+          "Beltscale"
         );
 
         showToast.success(
-          result.message || "BeltScale adjustment berhasil disimpan"
+          result.message || "Beltscale adjustment berhasil disimpan"
         );
       }
     },
@@ -124,24 +147,26 @@ const TimbanganBeltScaleManagement = () => {
     setAdjustmentSummary(null);
   }, []);
 
-  useEffect(() => {
-    const loadInitialData = async () => {
-      setIsInitialLoading(true);
-      try {
-        await loadTimbanganDataFromAPI(
-          { from: dateRange.from, to: dateRange.to },
-          false,
-          "BeltScale"
-        );
-      } catch (error) {
-        console.error("Failed to load initial data:", error);
-      } finally {
-        setIsInitialLoading(false);
-      }
-    };
+useEffect(() => {
+  const loadInitialData = async () => {
+    setIsInitialLoading(true);
+    try {
+      await loadTimbanganDataFromAPI(
+        { from: dateRange.from, to: dateRange.to },
+        false,
+        "Beltscale"
+      );
+    } catch (error) {
+      console.error("❌ Failed to load initial Beltscale data:", error);
+      showToast.error("Gagal memuat data awal");
+    } finally {
+      setIsInitialLoading(false);
+    }
+  };
 
-    loadInitialData();
-  }, []);
+  loadInitialData();
+}, []); 
+  
 
   useEffect(() => {
     if (showForm) {
@@ -157,12 +182,12 @@ const TimbanganBeltScaleManagement = () => {
 
   return (
     <>
-      <div className="space-y-6 min-h-screen bg-gray-50 dark:bg-gray-900 p-4 md:p-6">
+      <div className="space-y-6 min-h-screen p-4 md:p-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
             <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-              Timbangan BeltScale - Adjustment
+              Timbangan Beltscale - Adjustment
             </h1>
             <p className="text-sm md:text-base text-gray-600 dark:text-gray-400 mt-1">
               Welcome back,{" "}
@@ -178,7 +203,7 @@ const TimbanganBeltScaleManagement = () => {
               className="flex items-center gap-2 cursor-pointer bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-700 text-white shadow-sm dark:shadow-blue-900/50 transition-all duration-200"
             >
               <Plus className="w-4 h-4" />
-              Hitung BeltScale
+              Hitung Beltscale
             </Button>
           </div>
         </div>
@@ -192,12 +217,12 @@ const TimbanganBeltScaleManagement = () => {
               </div>
               <div className="flex-1">
                 <h3 className="text-sm font-semibold text-blue-900 dark:text-blue-100 mb-1">
-                  Tentang BeltScale Adjustment
+                  Tentang Beltscale Adjustment
                 </h3>
                 <p className="text-xs text-blue-700 dark:text-blue-300 leading-relaxed">
                   Fitur ini digunakan untuk menghitung ulang tonnage ritase
-                  berdasarkan data aktual dari timbangan BeltScale. Pilih
-                  setting fleet, lalu masukkan total berat BeltScale untuk
+                  berdasarkan data aktual dari timbangan Beltscale. Pilih
+                  setting fleet, lalu masukkan total berat Beltscale untuk
                   mendistribusikan secara proporsional ke semua ritase dalam
                   fleet tersebut. Sistem akan menghitung rasio berdasarkan
                   net_weight original setiap ritase.
@@ -218,7 +243,7 @@ const TimbanganBeltScaleManagement = () => {
                   </div>
                   <div className="flex-1">
                     <h3 className="text-sm font-semibold text-green-900 dark:text-green-100 mb-2">
-                      BeltScale Adjustment Summary
+                      Beltscale Adjustment Summary
                     </h3>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
                       <div className="bg-white dark:bg-green-900/20 p-2 rounded border border-green-100 dark:border-green-800/30">
@@ -239,7 +264,7 @@ const TimbanganBeltScaleManagement = () => {
                       </div>
                       <div className="bg-white dark:bg-green-900/20 p-2 rounded border border-green-100 dark:border-green-800/30">
                         <p className="text-green-700 dark:text-green-400 mb-1">
-                          Target BeltScale:
+                          Target Beltscale:
                         </p>
                         <p className="font-semibold text-green-900 dark:text-green-100 text-sm">
                           {adjustmentSummary.beltscale?.toFixed(2)} Ton
@@ -315,7 +340,7 @@ const TimbanganBeltScaleManagement = () => {
           </Card>
         ) : (
           <TimbanganTable
-            title="Data Ritase BeltScale"
+            title="Data Ritase Beltscale"
             shipments={filteredTimbanganData}
             allSelected={false}
             isLoading={isLoading}
@@ -343,10 +368,10 @@ const TimbanganBeltScaleManagement = () => {
               <div>
                 <h2 className="text-xl font-bold flex items-center gap-2 text-gray-900 dark:text-white">
                   <TrendingUp className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-                  Hitung BeltScale Adjustment
+                  Hitung Beltscale Adjustment
                 </h2>
                 <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                  Sesuaikan tonnage ritase berdasarkan data BeltScale aktual
+                  Sesuaikan tonnage ritase berdasarkan data Beltscale aktual
                 </p>
               </div>
               <Button

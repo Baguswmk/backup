@@ -728,44 +728,44 @@ export const timbanganServices = {
       return { success: true, data };
     } catch (error) {
       logger.error("❌ Failed to fetch timbangan data", {
-        error: error.response.data.message,
+        error: error,
       });
       return { success: false, data: [], error: error.response.data.message };
     }
   },
 
-  async submitTimbanganForm(formData) {
-    try {
-      const grossWeight = formatWeight(formData.gross_weight);
-      const now = new Date().toISOString();
+async submitTimbanganForm(formData, type) {
+  try {
+    const grossWeight = formatWeight(formData.gross_weight);
+    const now = new Date().toISOString();
 
-      const payload = {
-        setting_fleet: formData.setting_fleet
-          ? parseInt(formData.setting_fleet)
-          : null,
-        unit_dump_truck: formData.unit_dump_truck
-          ? parseInt(formData.unit_dump_truck)
-          : null,
-        operator: formData.operator ? parseInt(formData.operator) : null,
-        gross_weight: grossWeight,
-        created_at: formData.clientCreatedAt || now,
-      };
+    const payload = {
+      setting_fleet: formData.setting_fleet
+        ? parseInt(formData.setting_fleet)
+        : null,
+      unit_dump_truck: formData.unit_dump_truck
+        ? parseInt(formData.unit_dump_truck)
+        : null,
+      operator: formData.operator ? parseInt(formData.operator) : null,
+      gross_weight: parseFloat(grossWeight),
+      created_at: formData.clientCreatedAt || now,
+    };
 
-      if (formData.created_by_user) {
-        payload.created_by_user = parseInt(formData.created_by_user);
-      }
+    if (formData.created_by_user) {
+      payload.created_by_user = parseInt(formData.created_by_user);
+    }
 
-      if (!payload.setting_fleet)
-        throw new Error("Setting fleet wajib dipilih");
-      if (!payload.unit_dump_truck) throw new Error("Dump truck wajib dipilih");
-      if (payload.gross_weight <= 0)
-        throw new Error("Gross weight harus lebih dari 0");
+    if (!payload.setting_fleet)
+      throw new Error("Setting fleet wajib dipilih");
+    if (!payload.unit_dump_truck) throw new Error("Dump truck wajib dipilih");
+    if (payload.gross_weight <= 0)
+      throw new Error("Gross weight harus lebih dari 0");
 
-      logger.info("📤 CREATE Ritase Payload:", payload);
+    logger.info("📤 CREATE Ritase Payload:", payload);
 
-      const response = await offlineService.post("/v1/custom/ritase", payload);
+    const response = await offlineService.post("/v1/custom/ritase", payload);
 
-      const serverData = response.data || {};
+ const serverData = response.data || {};
 
       logger.info("✅ Server Response:", serverData);
 
@@ -862,13 +862,27 @@ export const timbanganServices = {
         data: result,
         message: "Data berhasil disimpan",
       };
-    } catch (error) {
-      logger.error("Failed to create ritase", {
-        error: error.response.data.message,
-      });
-      throw error;
-    }
-  },
+
+  } catch (error) {
+    const errorMessage = 
+      error.response?.data?.message ||
+      error.response?.data?.error?.message ||
+      error.response?.data?.error ||
+      error.message ||
+      "Gagal menyimpan data";
+
+    logger.error("Failed to create ritase", {
+      error: errorMessage,
+      details: error.response?.data,
+      status: error.response?.status,
+    });
+    
+    const enhancedError = new Error(errorMessage);
+    enhancedError.response = error.response;
+    enhancedError.originalError = error;
+    throw enhancedError;
+  }
+},
 
   async editTimbanganForm(formData, editId) {
     try {
@@ -957,18 +971,30 @@ export const timbanganServices = {
         net_weight: result.net_weight,
       });
 
-      return {
-        success: true,
-        data: result,
-        message: "Data berhasil diperbarui",
-      };
-    } catch (error) {
-      logger.error("Failed to update ritase", {
-        error: error.response.data.message,
-        editId,
-      });
-      throw error;
-    }
+  return {
+      success: true,
+      data: result,
+      message: "Data berhasil diperbarui",
+    };
+  } catch (error) {
+    const errorMessage = 
+      error.response?.data?.message ||
+      error.response?.data?.error?.message ||
+      error.response?.data?.error ||
+      error.message ||
+      "Gagal memperbarui data";
+
+    logger.error("Failed to update ritase", {
+      error: errorMessage,
+      details: error.response?.data,
+      editId,
+    });
+    
+    const enhancedError = new Error(errorMessage);
+    enhancedError.response = error.response;
+    enhancedError.originalError = error;
+    throw enhancedError;
+  }
   },
   async deleteTimbanganEntry(id) {
     try {

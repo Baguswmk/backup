@@ -41,12 +41,17 @@ import { showToast } from "@/shared/utils/toast";
 const BeltScaleAdjustmentForm = ({ onSubmit, isSubmitting = false }) => {
   const { user } = useAuthStore();
   const { masters } = useFleet(user ? { user } : null);
-
   const [formData, setFormData] = useState({
     date: format(new Date(), "yyyy-MM-dd"),
     shift: "",
     dumping_location: "",
   });
+
+  const SHIFT_OPTIONS = [
+  { value: "Shift 1", label: "Shift 1", hint: "22:00 - 06:00" },
+  { value: "Shift 2", label: "Shift 2", hint: "06:00 - 14:00" },
+  { value: "Shift 3", label: "Shift 3", hint: "14:00 - 22:00" },
+];
 
   const [isLoadingPreview, setIsLoadingPreview] = useState(false);
   const [fleetList, setFleetList] = useState([]);
@@ -69,7 +74,7 @@ const BeltScaleAdjustmentForm = ({ onSubmit, isSubmitting = false }) => {
 
   const dumpingLocationOptions = useMemo(() => {
     return (masters.dumpingLocations || []).map((loc) => ({
-      value: loc.id,
+      value: loc.name,
       label: loc.name,
       hint: loc.type,
     }));
@@ -178,44 +183,41 @@ const BeltScaleAdjustmentForm = ({ onSubmit, isSubmitting = false }) => {
     setBeltscaleWeight(value);
   };
 
-  const handleSubmitAdjustment = async () => {
-    if (!beltscaleWeight || parseFloat(beltscaleWeight) <= 0) {
-      showToast.error("Beltscale weight harus lebih dari 0");
-      return;
-    }
+const handleSubmitAdjustment = async () => {
+  if (!beltscaleWeight || parseFloat(beltscaleWeight) <= 0) {
+    showToast.error("Beltscale weight harus lebih dari 0");
+    return;
+  }
 
-    if (selectedFleetIds.length === 0) {
-      showToast.error("Pilih minimal 1 fleet");
-      return;
-    }
+  setIsSubmittingAdjustment(true);
 
-    setIsSubmittingAdjustment(true);
+  try {
+    const result = await beltScaleServices.submitBeltscaleAdjustment({
+      date: formData.date,
+      shift: formData.shift,
+      dumping_location: formData.dumping_location,
+      beltscale: parseFloat(beltscaleWeight),
+      created_by_user: user?.id || null,
+    });
 
-    try {
-      const result = await beltScaleServices.submitBeltscaleAdjustment({
-        setting_fleet: selectedFleetIds,
-        beltscale: parseFloat(beltscaleWeight),
-        created_by_user: user?.id || null,
-      });
+    if (result.success) {
+      showToast.success(
+        result.message || "Beltscale adjustment berhasil disimpan"
+      );
 
-      if (result.success) {
-        showToast.success(
-          result.message || "BeltScale adjustment berhasil disimpan"
-        );
+      handleReset();
+      setShowAdjustModal(false);
 
-        handleReset();
-        setShowAdjustModal(false);
-
-        if (onSubmit) {
-          onSubmit(result);
-        }
+      if (onSubmit) {
+        onSubmit(result);
       }
-    } catch (error) {
-      showToast.error(error.message || "Gagal menyimpan adjustment");
-    } finally {
-      setIsSubmittingAdjustment(false);
     }
-  };
+  } catch (error) {
+    showToast.error(error.message || "Gagal menyimpan adjustment");
+  } finally {
+    setIsSubmittingAdjustment(false);
+  }
+};
 
   const handleReset = () => {
     setFormData({
@@ -237,7 +239,7 @@ const BeltScaleAdjustmentForm = ({ onSubmit, isSubmitting = false }) => {
         <CardHeader className="border-b border-gray-200 dark:border-gray-700">
           <CardTitle className="flex items-center gap-2 text-gray-900 dark:text-white">
             <CalendarIcon className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-            Filter Data BeltScale
+            Filter Data Beltscale
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4 pt-6">
@@ -298,7 +300,7 @@ const BeltScaleAdjustmentForm = ({ onSubmit, isSubmitting = false }) => {
               </Label>
               <div className="bg-gray-100 dark:bg-gray-700 rounded border border-gray-300 dark:border-gray-600">
                 <SearchableSelect
-                  items={shiftOptions}
+                  items={SHIFT_OPTIONS}
                   value={formData.shift}
                   onChange={(value) => updateField("shift", value)}
                   placeholder="Pilih shift..."
@@ -518,14 +520,14 @@ const BeltScaleAdjustmentForm = ({ onSubmit, isSubmitting = false }) => {
                 Pilih fleet mana saja yang ingin di-adjust (default: semua fleet
                 dipilih)
               </li>
-              <li>Klik tombol "Adjustment" untuk input net weight BeltScale</li>
+              <li>Klik tombol "Adjustment" untuk input net weight Beltscale</li>
               <li>Konfirmasi dan submit adjustment</li>
             </ol>
           </AlertDescription>
         </Alert>
       )}
 
-      {/* Modal: Input Net Weight BeltScale */}
+      {/* Modal: Input Net Weight Beltscale */}
       {showAdjustModal && (
         <div className="fixed inset-0 bg-black/50 dark:bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 transition-all">
           <Card className="max-w-2xl w-full max-h-[90vh] overflow-auto shadow-2xl dark:shadow-gray-900/50 border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
@@ -533,7 +535,7 @@ const BeltScaleAdjustmentForm = ({ onSubmit, isSubmitting = false }) => {
               <div className="flex items-center justify-between">
                 <CardTitle className="flex items-center gap-2 text-gray-900 dark:text-white">
                   <TrendingUp className="w-5 h-5 text-green-600 dark:text-green-400" />
-                  Input Net Weight BeltScale
+                  Input Net Weight Beltscale
                 </CardTitle>
                 <Button
                   variant="ghost"
@@ -605,7 +607,7 @@ const BeltScaleAdjustmentForm = ({ onSubmit, isSubmitting = false }) => {
                   htmlFor="beltscale_weight"
                   className="mb-2 text-gray-700 dark:text-gray-300"
                 >
-                  Net Weight BeltScale (ton) *
+                  Net Weight Beltscale (ton) *
                 </Label>
                 <Input
                   id="beltscale_weight"
@@ -622,7 +624,7 @@ const BeltScaleAdjustmentForm = ({ onSubmit, isSubmitting = false }) => {
                   className="text-lg font-semibold bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100 focus:border-blue-500 dark:focus:border-blue-400"
                 />
                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                  Masukkan total berat aktual dari BeltScale
+                  Masukkan total berat aktual dari Beltscale
                 </p>
               </div>
 

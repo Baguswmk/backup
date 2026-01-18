@@ -54,7 +54,7 @@ export const getFormOptions = (masters, dtIndex) => {
     .map((data) => ({
       value: data.hull_no,
       label: data.hull_no,
-      hint: `${data.fleet_name} | ${data.operator_name || "No Operator"}`,
+          hint: `${data.excavator} | ${data.operator_name || "No Operator"}`,
       __data: data,
     }))
     .sort((a, b) => a.label.localeCompare(b.label));

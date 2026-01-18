@@ -520,7 +520,7 @@ const TareWeightModal = ({
                       : ""
                   } ${
                     manualMode
-                      ? "bg-yellow-50 border-yellow-400"
+                      ? "bg-yellow-50 border-yellow-400 text-black"
                       : insertedWeight !== null
                       ? "bg-green-50 border-green-400"
                       : isConnected

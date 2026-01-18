@@ -1,9 +1,11 @@
 import React from "react";
-import { Plus, Edit } from "lucide-react";
+import { Plus, Edit, Scale } from "lucide-react";
+import TimbanganManualForm from "@/modules/timbangan/timbangan/TimbanganManualForm";
 import TimbanganForm from "@/modules/timbangan/timbangan/TimbanganForm";
 import DeleteConfirmDialog from "@/shared/components/DeleteConfirmDialog";
 import FleetSelectionDialog from "@/shared/components/FleetSelectionDialog";
 import ModalHeader from "@/shared/components/ModalHeader";
+import { TIMBANGAN_TYPES } from "@/modules/timbangan/timbangan/constant/timbanganConstants";
 
 export const InputFormModal = ({
   isOpen,
@@ -12,25 +14,71 @@ export const InputFormModal = ({
   isActionLoading,
   shouldAutoConnect,
   onAutoConnectComplete,
+  timbanganType = TIMBANGAN_TYPES.INTERNAL,
 }) => {
   if (!isOpen) return null;
 
-  return (
-    <div className="detail-modal fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white dark:bg-gray-900 rounded-lg max-w-4xl w-full max-h-[90vh] overflow-auto">
-        <div className="px-6 py-2">
-          <ModalHeader
-            title="Input Data Timbangan"
-            icon={Plus}
-            onClose={onClose}
-            disabled={isActionLoading}
+  // Determine which form component to render based on timbangan type
+  const renderFormComponent = () => {
+    switch (timbanganType) {
+      case TIMBANGAN_TYPES.MANUAL:
+        return (
+          <TimbanganManualForm
+            onSubmit={onSubmit}
+            onCancel={onClose}
+            mode="create"
           />
+        );
+
+      case TIMBANGAN_TYPES.INTERNAL:
+        return (
           <TimbanganForm
             onSubmit={onSubmit}
             isSubmitting={isActionLoading}
             shouldAutoConnect={shouldAutoConnect}
             onAutoConnectComplete={onAutoConnectComplete}
           />
+        );
+
+
+      default:
+        return (
+          <TimbanganForm
+            onSubmit={onSubmit}
+            isSubmitting={isActionLoading}
+            shouldAutoConnect={shouldAutoConnect}
+            onAutoConnectComplete={onAutoConnectComplete}
+          />
+        );
+    }
+  };
+
+  // Determine modal title based on type
+  const getModalTitle = () => {
+    switch (timbanganType) {
+      case TIMBANGAN_TYPES.MANUAL:
+        return "Input Timbangan Manual";
+      case TIMBANGAN_TYPES.CHECKPOINT:
+        return "Input Timbangan Checkpoint";
+      case TIMBANGAN_TYPES.INTERNAL:
+      default:
+        return "Input Data Timbangan";
+    }
+  };
+
+  return (
+    <div className="detail-modal fixed inset-0 bg-black/50 dark:bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 transition-all">
+      <div className="bg-white dark:bg-gray-900 rounded-lg max-w-4xl w-full max-h-[90vh] overflow-auto shadow-2xl dark:shadow-gray-900/50 border border-gray-200 dark:border-gray-700">
+        <div className="sticky top-0 bg-white dark:bg-gray-900 px-6 py-4 z-10 border-b border-gray-200 dark:border-gray-700">
+          <ModalHeader
+            title={getModalTitle()}
+            icon={Scale}
+            onClose={onClose}
+            disabled={isActionLoading}
+          />
+        </div>
+        <div className="p-6">
+          {renderFormComponent()}
         </div>
       </div>
     </div>
@@ -44,25 +92,63 @@ export const EditFormModal = ({
   editingItem,
   isActionLoading,
   formMode,
+  timbanganType = TIMBANGAN_TYPES.INTERNAL,
 }) => {
   if (!isOpen || !editingItem) return null;
 
-  return (
-    <div className="detail-modal fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white dark:bg-gray-900 rounded-lg max-w-4xl w-full max-h-[90vh] overflow-auto">
-        <div className="p-6">
-          <ModalHeader
-            title="Edit Data Timbangan"
-            icon={Edit}
-            onClose={onClose}
-            disabled={isActionLoading}
+  // Determine which form component to render for editing
+  const renderEditFormComponent = () => {
+    switch (timbanganType) {
+      case TIMBANGAN_TYPES.MANUAL:
+        return (
+          <TimbanganManualForm
+            onSubmit={onSubmit}
+            onCancel={onClose}
+            editingItem={editingItem}
+            mode={formMode}
           />
+        );
+
+      case TIMBANGAN_TYPES.INTERNAL:
+      case TIMBANGAN_TYPES.CHECKPOINT:
+      default:
+        return (
           <TimbanganForm
             onSubmit={onSubmit}
             editingItem={editingItem}
             isSubmitting={isActionLoading}
             mode={formMode}
           />
+        );
+    }
+  };
+
+  // Determine modal title based on type
+  const getModalTitle = () => {
+    switch (timbanganType) {
+      case TIMBANGAN_TYPES.MANUAL:
+        return "Edit Timbangan Manual";
+      case TIMBANGAN_TYPES.CHECKPOINT:
+        return "Edit Timbangan Checkpoint";
+      case TIMBANGAN_TYPES.INTERNAL:
+      default:
+        return "Edit Data Timbangan";
+    }
+  };
+
+  return (
+    <div className="detail-modal fixed inset-0 bg-black/50 dark:bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 transition-all">
+      <div className="bg-white dark:bg-gray-900 rounded-lg max-w-4xl w-full max-h-[90vh] overflow-auto shadow-2xl dark:shadow-gray-900/50 border border-gray-200 dark:border-gray-700">
+        <div className="sticky top-0 bg-white dark:bg-gray-900 px-6 py-4 z-10 border-b border-gray-200 dark:border-gray-700">
+          <ModalHeader
+            title={getModalTitle()}
+            icon={Edit}
+            onClose={onClose}
+            disabled={isActionLoading}
+          />
+        </div>
+        <div className="p-6">
+          {renderEditFormComponent()}
         </div>
       </div>
     </div>
@@ -131,7 +217,8 @@ const TimbanganModals = ({
   showFleetDialog,
   onCloseFleetDialog,
   onSaveFleetSelection,
-  measurementType,
+  measurementType = "Timbangan",
+  timbanganType = TIMBANGAN_TYPES.INTERNAL,
 }) => {
   return (
     <>
@@ -142,6 +229,7 @@ const TimbanganModals = ({
         isActionLoading={isActionLoading}
         shouldAutoConnect={shouldAutoConnect}
         onAutoConnectComplete={onAutoConnectComplete}
+        timbanganType={timbanganType}
       />
 
       <EditFormModal
@@ -151,6 +239,7 @@ const TimbanganModals = ({
         editingItem={editingItem}
         isActionLoading={isActionLoading}
         formMode={formMode}
+        timbanganType={timbanganType}
       />
 
       <DeleteModal

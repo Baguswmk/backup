@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { useTimbanganStore } from "@/modules/timbangan/timbangan/store/timbanganStore";
-import { timbanganServices } from "@/modules/timbangan/timbangan/services/timbanganServices";
+import { timbanganManualService } from "@/modules/timbangan/timbangan/services/timbanganManualService";
 import { showToast } from "@/shared/utils/toast";
 import { withErrorHandling } from "@/shared/utils/errorHandler";
 import { getFirstTruthyValue } from "@/shared/utils/object";
@@ -8,7 +8,7 @@ import useAuthStore from "@/modules/auth/store/authStore";
 
 const DEFAULT_FORM_VALUES = {
   hull_no: "",
-  gross_weight: "",
+  net_weight: "", // PERBEDAAN UTAMA: input net_weight, bukan gross_weight
   dumptruck: "",
   operator: "",
   setting_fleet_id: "",
@@ -24,14 +24,14 @@ const CREATE_VALIDATION_RULES = {
     message: "Nomor lambung wajib diisi",
     errorMessage: "Masukkan nomor lambung yang valid",
   },
-  gross_weight: {
+  net_weight: { // PERBEDAAN: validasi net_weight
     required: true,
-    message: "Gross weight wajib diisi",
+    message: "Net weight wajib diisi",
     validate: (value) => {
       const num = parseFloat(value);
       return !isNaN(num) && num > 0 && num <= 9999.99;
     },
-    errorMessage: "Gross weight harus antara 0-9999.99 ton (max 4 digit)",
+    errorMessage: "Net weight harus antara 0-9999.99 ton (max 4 digit)",
   },
   setting_fleet_id: {
     required: true,
@@ -41,7 +41,7 @@ const CREATE_VALIDATION_RULES = {
 };
 
 const EDIT_VALIDATION_RULES = {
-  gross_weight: {
+  net_weight: { // PERBEDAAN: validasi net_weight
     required: true,
     message: "Net weight wajib diisi",
     validate: (value) => {
@@ -136,7 +136,7 @@ const createInitialFormData = (editingItem, mode, masters = null) => {
   if (editingItem && mode === "edit" && masters) {
     return {
       ...DEFAULT_FORM_VALUES,
-      gross_weight: editingItem.gross_weight || "",
+      net_weight: editingItem.net_weight || "", // PERBEDAAN: load net_weight
 
       unit_dump_truck: findLabelInMasterData(
         getFirstTruthyValue(
@@ -203,7 +203,7 @@ const createInitialFormData = (editingItem, mode, masters = null) => {
   };
 };
 
-export const useTimbanganForm = (
+export const useTimbanganManualForm = (
   editingItem = null,
   mode = "create",
   masters = null
@@ -214,13 +214,7 @@ export const useTimbanganForm = (
   const abortControllerRef = useRef(null);
 
   const findByHullNo = useTimbanganStore((s) => s.findByHullNo);
-  const findByRFID = useTimbanganStore((s) => s.findByRFID);
   const dtIndex = useTimbanganStore((s) => s.dtIndex);
-  const addTimbanganEntry = useTimbanganStore((s) => s.addTimbanganEntry);
-  const updateTimbanganEntry = useTimbanganStore((s) => s.updateTimbanganEntry);
-  const deleteTimbanganEntry = useTimbanganStore((s) => s.deleteTimbanganEntry);
-  const hideDumptruck = useTimbanganStore((s) => s.hideDumptruck);
-  const unhideDumptruck = useTimbanganStore((s) => s.unhideDumptruck);
 
   const [formData, setFormData] = useState(() =>
     createInitialFormData(editingItem, mode, masters)
@@ -386,8 +380,9 @@ export const useTimbanganForm = (
         isValid = false;
       }
 
-      if (!formData.gross_weight) {
-        newErrors.gross_weight = "Net weight wajib diisi";
+      // PERBEDAAN: validasi net_weight, bukan gross_weight
+      if (!formData.net_weight) {
+        newErrors.net_weight = "Net weight wajib diisi";
         isValid = false;
       }
 
@@ -397,8 +392,8 @@ export const useTimbanganForm = (
         isValid = false;
       }
     } else if (mode === "edit") {
-      if (!formData.gross_weight) {
-        newErrors.gross_weight = "Net weight wajib diisi";
+      if (!formData.net_weight) {
+        newErrors.net_weight = "Net weight wajib diisi";
         isValid = false;
       }
     }
@@ -559,7 +554,7 @@ export const useTimbanganForm = (
       return await withErrorHandling(
         async () => {
           const submissionData = {
-            gross_weight: parseFloat(formData.gross_weight),
+            net_weight: parseFloat(formData.net_weight), 
             unit_dump_truck: formData.unit_dump_truck,
             unit_exca: formData.unit_exca,
             loading_location: formData.loading_location,
@@ -576,7 +571,7 @@ export const useTimbanganForm = (
             submissionData.operator = formData.operator;
           }
 
-          const result = await timbanganServices.editTimbanganForm(
+          const result = await timbanganManualService.editForm(
             submissionData,
             editingItem.id,
             { signal }
@@ -586,14 +581,10 @@ export const useTimbanganForm = (
             throw new Error("Component unmounted during request");
           }
 
-          const updateTimbanganEntry =
-            useTimbanganStore.getState().updateTimbanganEntry;
-          updateTimbanganEntry(editingItem.id, result.data);
-
           return { success: true, data: result.data };
         },
         {
-          operation: "update timbangan",
+          operation: "update timbangan manual",
           showSuccessToast: true,
           successMessage: "Data berhasil diperbarui",
           onError: (err) => setErrors({ submit: "Data Gagal diperbarui" }),
@@ -606,7 +597,7 @@ export const useTimbanganForm = (
     } else if (mode === "delete" && editingItem) {
       return await withErrorHandling(
         async () => {
-          await timbanganServices.deleteTimbanganEntry(editingItem.id, {
+          await timbanganManualService.deleteEntry(editingItem.id, {
             signal,
           });
 
@@ -614,18 +605,10 @@ export const useTimbanganForm = (
             throw new Error("Component unmounted during request");
           }
 
-          const { deleteTimbanganEntry, unhideDumptruck } =
-            useTimbanganStore.getState();
-          deleteTimbanganEntry(editingItem.id);
-
-          if (editingItem.hull_no) {
-            unhideDumptruck(editingItem.hull_no);
-          }
-
           return { success: true };
         },
         {
-          operation: "delete timbangan",
+          operation: "delete timbangan manual",
           showSuccessToast: true,
           successMessage: "Data berhasil dihapus",
         }
@@ -647,12 +630,12 @@ export const useTimbanganForm = (
             setting_fleet: parseInt(formData.setting_fleet_id),
             unit_dump_truck: parseInt(formData.dumptruck),
             operator: formData.operator ? parseInt(formData.operator) : null,
-            gross_weight: parseFloat(formData.gross_weight),
+            net_weight: parseFloat(formData.net_weight),
             clientCreatedAt: formData.createdAt || new Date().toISOString(),
             created_by_user: user?.id || null,
           };
 
-          const result = await timbanganServices.submitTimbanganForm(
+          const result = await timbanganManualService.submitForm(
             submissionData,
             { signal }
           );
@@ -661,15 +644,10 @@ export const useTimbanganForm = (
             throw new Error("Component unmounted during request");
           }
 
-          const { addTimbanganEntry, hideDumptruck } =
-            useTimbanganStore.getState();
-          addTimbanganEntry(result.data);
-          hideDumptruck(editingItem?.hull_no || formData.hull_no);
-
           return { success: true, data: result.data };
         },
         {
-          operation: "create timbangan",
+          operation: "create timbangan manual",
           showSuccessToast: true,
           successMessage: "Data berhasil disimpan",
         }
@@ -709,8 +687,7 @@ export const useTimbanganForm = (
       if (!original) return false;
 
       const hasChanges =
-        parseFloat(formData.gross_weight) !==
-          parseFloat(original.gross_weight) ||
+        parseFloat(formData.net_weight) !== parseFloat(original.net_weight) || // PERBEDAAN
         formData.unit_dump_truck !== original.unit_dump_truck ||
         formData.unit_exca !== original.unit_exca ||
         formData.loading_location !== original.loading_location ||
@@ -732,18 +709,14 @@ export const useTimbanganForm = (
   const formSummary = useMemo(() => {
     if (mode === "edit") {
       return {
-        gross_weight: formData.gross_weight
-          ? `${formData.gross_weight} ton`
-          : "-",
+        net_weight: formData.net_weight ? `${formData.net_weight} ton` : "-", // PERBEDAAN
         isEditMode: true,
       };
     }
 
     return {
       hull_no: formData.hull_no || "-",
-      gross_weight: formData.gross_weight
-        ? `${formData.gross_weight} ton`
-        : "-",
+      net_weight: formData.net_weight ? `${formData.net_weight} ton` : "-", // PERBEDAAN
       isAutoFilled: !!formData.setting_fleet_id && !!currentFleet,
       fleetInfo: currentFleet,
     };

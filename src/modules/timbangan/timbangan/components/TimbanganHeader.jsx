@@ -15,7 +15,7 @@ const TimbanganHeader = ({
     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
       <div>
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-          Dashboard Timbangan - {type}
+          Dashboard {type}
         </h1>
         <p className="text-sm md:text-base text-gray-600">
           Welcome back, {username}
@@ -26,7 +26,7 @@ const TimbanganHeader = ({
         <Button
           onClick={onOpenInputForm}
           disabled={isInitialLoading || isCheckingConnection}
-          className="flex items-center gap-2 cursor-pointer disabled:cursor-not-allowed dark:text-gray-200"
+          className="flex items-center gap-2 cursor-pointer disabled:cursor-not-allowed dark:text-gray-200 dark:bg-slate-700"
         >
           {isCheckingConnection ? (
             <>

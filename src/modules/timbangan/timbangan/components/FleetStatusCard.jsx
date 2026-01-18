@@ -25,7 +25,6 @@ const FleetStatusCard = ({
   isRefreshingFleet = false,
 }) => {
   const [showAllFleets, setShowAllFleets] = useState(false);
-
   if (!isInitialLoading && fleetCounts.total === 0) {
     return (
       <Alert
@@ -100,16 +99,11 @@ const FleetStatusCard = ({
                     key={fleet.id}
                     className="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-md border bg-white text-gray-700 border-blue-200"
                   >
-                    <span className="font-medium">{fleet.shift}</span>
-                    <span className="text-gray-400">•</span>
                     <span>{fleet.excavator}</span>
                     <span className="text-gray-400">•</span>
-                    <span className="text-gray-500">
-                      {new Date(fleet.date).toLocaleDateString("id-ID", {
-                        day: "numeric",
-                        month: "short",
-                      })}
-                    </span>
+                    <span>{fleet.loadingLocation}</span>
+                    <span className="text-gray-400">•</span>
+                    <span>{fleet.dumpingLocation}</span>
                   </div>
                 ))}
 
@@ -150,12 +144,6 @@ const FleetStatusCard = ({
                               <div className="flex-1 min-w-0">
                                 <div className="font-medium truncate">
                                   {fleet.excavator}
-                                </div>
-                                <div className="text-gray-500 text-xs">
-                                  {fleet.shift} •{" "}
-                                  {new Date(fleet.date).toLocaleDateString(
-                                    "id-ID"
-                                  )}
                                 </div>
                               </div>
                               <Badge

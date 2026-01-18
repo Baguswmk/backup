@@ -634,7 +634,7 @@ export const TimbanganTable = ({
                 {/* Table */}
                 <div className="overflow-x-auto">
                   <table className="w-full table-auto">
-                    <thead className="bg-gray-50 dark:bg-gray-900 ">
+                    <thead className="bg-gray-50 dark:bg-gray-900  ">
                       <tr>
                         {showSelection && canUpdate && (
                           <th className="px-4 py-3 text-left">
@@ -739,7 +739,7 @@ export const TimbanganTable = ({
                           <tr
                             key={item.id}
                             className={` hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors ${
-                              isItemSelected(item.id) ? "bg-blue-50" : ""
+                              isItemSelected(item.id) ? "bg-blue-50 dark:bg-gray-800" : ""
                             } ${!hasAccess ? "opacity-50" : ""}`}
                           >
                             {showSelection && canUpdate && (

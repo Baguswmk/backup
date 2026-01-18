@@ -79,7 +79,6 @@ const createEmptyFleet = () => ({
   excavator: "",
   loadingLocation: "",
   dumpingLocation: "",
-  shift: "",
 });
 
 const createEmptyDumptruckSetup = () => ({
@@ -91,7 +90,6 @@ const createEmptyMasters = () => ({
   excavators: [],
   loadingLocations: [],
   dumpingLocations: [],
-  shifts: [],
   dumptrucks: [],
 });
 
@@ -116,22 +114,21 @@ const initialState = {
   fleetConfigsByType: {
     Timbangan: [],
     Bypass: [],
-    BeltScale: [],
+    Beltscale: [],
     FOB: [],
   },
   selectedFleetIdsByType: {
     Timbangan: [],
     Bypass: [],
-    BeltScale: [],
+    Beltscale: [],
     FOB: [],
   },
 
-  fleetSelectionDateRange: null,
   dtIndex: {},
   dtIndexByType: {
     Timbangan: {},
     Bypass: {},
-    BeltScale: {},
+    Beltscale: {},
     FOB: {},
   },
   hiddenDumptrucks: {},
@@ -285,166 +282,176 @@ export const useTimbanganStore = create(
         );
       },
 
-      _executeIndexRebuild: (configs, measurementType = null) => {
-        if (!Array.isArray(configs)) {
-          console.warn("⚠️ _executeIndexRebuild: configs must be array");
-          return;
-        }
 
-        const state = get();
-        const rebuildId = Date.now();
+_executeIndexRebuild: (configs, measurementType = null) => {
+  if (!Array.isArray(configs)) {
+    console.warn("⚠️ _executeIndexRebuild: configs must be array");
+    return;
+  }
 
-        const selectedIds = measurementType
-          ? state.selectedFleetIdsByType[measurementType] || []
-          : state.selectedFleetIds || [];
+  const state = get();
+  const rebuildId = Date.now();
+  
+  const idx = {};
+  let totalUnits = 0;
 
-        let filteredConfigs = configs.filter((cfg) => cfg.status === "ACTIVE");
+  configs.forEach((cfg) => {
+    const fleetId = String(cfg.id || "");
+    const units = Array.isArray(cfg.units) ? cfg.units : [];
 
-        if (selectedIds.length > 0) {
-          filteredConfigs = filteredConfigs.filter((cfg) =>
-            selectedIds.includes(cfg.id)
-          );
-        } else {
-          console.warn(
-            `⚠️ No selected fleets for ${
-              measurementType || "legacy"
-            }, fallback to ALL ACTIVE fleets`
-          );
-        }
+    units.forEach((unit) => {
+      const dumpTruckId = String(unit.dumpTruckId || "");
+      const hull_no = unit.hull_no || "";
 
-        const idx = {};
+      if (!dumpTruckId || !hull_no) {
+        console.warn(`⚠️ [${rebuildId}] Skip invalid unit`, unit);
+        return;
+      }
 
-        filteredConfigs.forEach((cfg) => {
-          const fleetId = String(cfg.id || "");
-          const units = Array.isArray(cfg.units) ? cfg.units : [];
+      const key = normalizeHull(hull_no);
+      if (!key) return;
 
-          units.forEach((unit) => {
-            const dumpTruckId = String(unit.dumpTruckId || "");
-            const hull_no = unit.hull_no || "";
+      idx[key] = {
+        dumptruckId: dumpTruckId,
+        hull_no,
+        operator_id: unit.operatorId || null,
+        operator_name: unit.operator || null,
+        setting_fleet_id: fleetId,
+        measurement_type: cfg.measurementType,
+        excavator: cfg.excavator,
+        excavatorId: cfg.excavatorId,
+        loading_location: cfg.loadingLocation,
+        loadingLocationId: cfg.loadingLocationId,
+        dumping_location: cfg.dumpingLocation,
+        dumpingLocationId: cfg.dumpingLocationId,
+        coal_type: cfg.coalType,
+        coalTypeId: cfg.coalTypeId,
+        distance: cfg.distance,
+        work_unit: cfg.workUnit,
+        workUnitId: cfg.workUnitId,
+        checker_name: cfg.checker,
+        checkerId: cfg.checkerId,
+        inspector_name: cfg.inspector,
+        inspectorId: cfg.inspectorId,
+        company: unit.company,
+        companyId: unit.companyId,
+        tareWeight: unit.tareWeight ?? null,
+        isHidden: !!state.hiddenDumptrucks[key],
+      };
+      
+      totalUnits++;
+    });
+  });
 
-            if (!dumpTruckId || !hull_no) {
-              console.warn(`⚠️ [${rebuildId}] Skip invalid unit`, unit);
-              return;
-            }
 
-            const key = normalizeHull(hull_no);
-            if (!key) return;
-
-            idx[key] = {
-              dumptruckId: dumpTruckId,
-              hull_no,
-              operator_id: unit.operatorId || null,
-              operator_name: unit.operator || null,
-              setting_fleet_id: fleetId,
-              fleet_name: cfg.name,
-              fleet_status: cfg.status,
-              measurement_type: cfg.measurementType,
-              excavator: cfg.excavator,
-              excavatorId: cfg.excavatorId,
-              shift: cfg.shift,
-              date: cfg.date,
-              loading_location: cfg.loadingLocation,
-              loadingLocationId: cfg.loadingLocationId,
-              dumping_location: cfg.dumpingLocation,
-              dumpingLocationId: cfg.dumpingLocationId,
-              coal_type: cfg.coalType,
-              coalTypeId: cfg.coalTypeId,
-              distance: cfg.distance,
-              work_unit: cfg.workUnit,
-              workUnitId: cfg.workUnitId,
-              checker_name: cfg.checker,
-              checkerId: cfg.checkerId,
-              inspector_name: cfg.inspector,
-              inspectorId: cfg.inspectorId,
-              company: unit.company,
-              companyId: unit.companyId,
-              tareWeight: unit.tareWeight ?? null,
-              isHidden: !!state.hiddenDumptrucks[key],
-            };
-          });
-        });
-
-        if (measurementType) {
-          set((state) => ({
-            dtIndexByType: {
-              ...state.dtIndexByType,
-              [measurementType]: idx,
-            },
-            indexRebuildTimestamp: new Date().toISOString(),
-            indexRebuildCount: state.indexRebuildCount + 1,
-          }));
-        } else {
-          set({
-            dtIndex: idx,
-            indexRebuildTimestamp: new Date().toISOString(),
-            indexRebuildCount: state.indexRebuildCount + 1,
-          });
-        }
+  if (measurementType) {
+    set((state) => ({
+      dtIndexByType: {
+        ...state.dtIndexByType,
+        [measurementType]: idx,
       },
+      indexRebuildTimestamp: new Date().toISOString(),
+      indexRebuildCount: state.indexRebuildCount + 1,
+    }));
+  } else {
+    set({
+      dtIndex: idx,
+      indexRebuildTimestamp: new Date().toISOString(),
+      indexRebuildCount: state.indexRebuildCount + 1,
+    });
+  }
+},
 
-      setDumptruckIndexFromConfigs: (configs, measurementType = null) => {
-        if (!Array.isArray(configs)) {
-          console.warn(
-            "⚠️ setDumptruckIndexFromConfigs: configs must be array"
-          );
-          return;
-        }
+setDumptruckIndexFromConfigs: (configs, measurementType = null) => {
+  if (!Array.isArray(configs)) {
+    console.warn(
+      "⚠️ setDumptruckIndexFromConfigs: configs must be array"
+    );
+    return;
+  }
 
-        const byType = {
-          Timbangan: [],
-          FOB: [],
-          Bypass: [],
-          BeltScale: [],
-        };
+  const byType = {
+    Timbangan: [],
+    FOB: [],
+    Bypass: [],
+    Beltscale: [],
+  };
 
-        configs.forEach((config) => {
-          const type = config.measurementType;
+  configs.forEach((config) => {
+    const type = config.measurementType;
 
-          if (type === "Timbangan") {
-            byType["Timbangan"].push(config);
-          } else if (type === "FOB") {
-            byType["FOB"].push(config);
-          } else if (type === "Bypass") {
-            byType["Bypass"].push(config);
-          } else if (type === "BeltScale") {
-            byType["BeltScale"].push(config);
-          }
-        });
+    if (type === "Timbangan") {
+      byType["Timbangan"].push(config);
+    } else if (type === "FOB") {
+      byType["FOB"].push(config);
+    } else if (type === "Bypass") {
+      byType["Bypass"].push(config);
+    } else if (type === "Beltscale") {
+      byType["Beltscale"].push(config);
+    }
+  });
 
-        set({
-          fleetConfigs: configs,
-          fleetConfigsByType: byType,
-        });
+  set({
+    fleetConfigs: configs,
+    fleetConfigsByType: byType,
+  });
 
-        const state = get();
-        const selectedIds = measurementType
-          ? state.selectedFleetIdsByType[measurementType] || []
-          : state.selectedFleetIds || [];
+  const state = get();
+  const selectedIds = measurementType
+    ? state.selectedFleetIdsByType[measurementType] || []
+    : state.selectedFleetIds || [];
 
-        if (selectedIds.length > 0) {
-          get()._executeIndexRebuild(configs, measurementType);
-        } else {
-          get()._scheduleIndexRebuild(measurementType);
-        }
+  // ✅ FIX: Filter configs berdasarkan selectedIds
+  if (selectedIds.length > 0) {
+    const selectedConfigs = configs.filter(c => selectedIds.includes(c.id));
+    get()._executeIndexRebuild(selectedConfigs, measurementType);
+  } else {
+    // Clear index jika tidak ada yang dipilih
+    if (measurementType) {
+      set((state) => ({
+        dtIndexByType: {
+          ...state.dtIndexByType,
+          [measurementType]: {},
+        },
+      }));
+    } else {
+      set({ dtIndex: {} });
+    }
+  }
+},
+
+setSelectedFleetsByType: (fleetConfigs, measurementType) => {
+  const configs = Array.isArray(fleetConfigs) ? fleetConfigs : [];
+  const ids = configs.map(c => c.id);
+  
+
+  set((state) => ({
+    selectedFleetIdsByType: {
+      ...state.selectedFleetIdsByType,
+      [measurementType]: ids,
+    },
+  }));
+
+  // ✅ FIX: Langsung gunakan configs yang diterima untuk rebuild
+  if (configs.length > 0) {
+    get()._executeIndexRebuild(configs, measurementType);
+    
+    // Verify hasil rebuild
+    setTimeout(() => {
+      const idx = get().dtIndexByType[measurementType] || {};
+
+    }, 100);
+  } else {
+    console.warn(`⚠️ No configs to rebuild index for ${measurementType}`);
+    // Clear index jika tidak ada yang dipilih
+    set((state) => ({
+      dtIndexByType: {
+        ...state.dtIndexByType,
+        [measurementType]: {},
       },
-
-      setSelectedFleetsByType: (fleetIds, measurementType) => {
-        const ids = Array.isArray(fleetIds) ? fleetIds : [];
-
-        set((state) => ({
-          selectedFleetIdsByType: {
-            ...state.selectedFleetIdsByType,
-            [measurementType]: ids,
-          },
-        }));
-
-        const configs = get().fleetConfigsByType[measurementType] || [];
-        if (ids.length > 0) {
-          get()._executeIndexRebuild(configs, measurementType);
-        } else {
-          get()._scheduleIndexRebuild(measurementType);
-        }
-      },
+    }));
+  }
+},
 
       getSelectedFleetsByType: (measurementType) => {
         return get().selectedFleetIdsByType[measurementType] || [];
@@ -544,17 +551,6 @@ export const useTimbanganStore = create(
               newConfig,
             ];
 
-            if (newConfig.status === "ACTIVE") {
-              const newSelectedIds = [
-                ...new Set([
-                  ...state.selectedFleetIdsByType[measurementType],
-                  newConfig.id,
-                ]),
-              ];
-
-              get().setSelectedFleetsByType(newSelectedIds, measurementType);
-            }
-
             get().setDumptruckIndexFromConfigs(updatedConfigs, measurementType);
 
             return {
@@ -566,18 +562,7 @@ export const useTimbanganStore = create(
           }
 
           const newConfigs = [...state.fleetConfigs, newConfig];
-          if (newConfig.status === "ACTIVE") {
-            const newSelectedIds = [
-              ...new Set([...state.selectedFleetIds, newConfig.id]),
-            ];
-            get().setSelectedFleets(newSelectedIds);
-            get().setDumptruckIndexFromConfigs(newConfigs);
-            return {
-              fleetConfigs: newConfigs,
-              selectedFleetIds: newSelectedIds,
-            };
-          }
-
+        
           get().setDumptruckIndexFromConfigs(newConfigs);
           return { fleetConfigs: newConfigs };
         }),
@@ -606,29 +591,8 @@ export const useTimbanganStore = create(
                   : config
             );
 
-            let newSelectedIds = [...state.selectedFleetIdsByType[foundType]];
-            const updatedConfig = updatedConfigs.find((c) => c.id === configId);
+            const newSelectedIds = [...state.selectedFleetIdsByType[foundType]];
 
-            if (
-              updatedConfig?.status === "ACTIVE" &&
-              !newSelectedIds.includes(configId)
-            ) {
-              newSelectedIds = [...new Set([...newSelectedIds, configId])];
-            }
-
-            if (
-              updatedConfig?.status !== "ACTIVE" &&
-              newSelectedIds.includes(configId)
-            ) {
-              newSelectedIds = newSelectedIds.filter((id) => id !== configId);
-            }
-
-            if (
-              newSelectedIds.length !==
-              state.selectedFleetIdsByType[foundType].length
-            ) {
-              get().setSelectedFleetsByType(newSelectedIds, foundType);
-            }
             get().setDumptruckIndexFromConfigs(updatedConfigs, foundType);
 
             return {
@@ -649,26 +613,8 @@ export const useTimbanganStore = create(
               : config
           );
 
-          let newSelectedIds = [...state.selectedFleetIds];
-          const updatedConfig = newConfigs.find((c) => c.id === configId);
+          const newSelectedIds = [...state.selectedFleetIds];
 
-          if (
-            updatedConfig?.status === "ACTIVE" &&
-            !newSelectedIds.includes(configId)
-          ) {
-            newSelectedIds = [...new Set([...newSelectedIds, configId])];
-          }
-
-          if (
-            updatedConfig?.status !== "ACTIVE" &&
-            newSelectedIds.includes(configId)
-          ) {
-            newSelectedIds = newSelectedIds.filter((id) => id !== configId);
-          }
-
-          if (newSelectedIds.length !== state.selectedFleetIds.length) {
-            get().setSelectedFleets(newSelectedIds);
-          }
           get().setDumptruckIndexFromConfigs(newConfigs);
 
           return {
@@ -798,7 +744,15 @@ export const useTimbanganStore = create(
                 lastFetchTimestamp: new Date().toISOString(),
               });
 
-              get().setDumptruckIndexFromConfigs(uniqueConfigs);
+              if (existingSelectedIds.length > 0) {
+    const selectedConfigs = uniqueConfigs.filter(c => 
+      existingSelectedIds.includes(c.id)
+    );
+    get()._executeIndexRebuild(selectedConfigs); // Gunakan selectedConfigs, bukan uniqueConfigs
+  } else {
+    // Clear index jika tidak ada yang dipilih
+    set({ dtIndex: {} });
+  }
             }
 
             get().cleanupOldHiddenDumptrucks();
@@ -832,39 +786,47 @@ export const useTimbanganStore = create(
         }
       },
 
-      loadTimbanganDataFromAPI: async (
-        dateRange = null,
-        forceRefresh = true
-      ) => {
-        set({ isLoading: true });
+loadTimbanganDataFromAPI: async (
+  dateRange = null,
+  forceRefresh = true,
+  measurementType = null  // ✅ Parameter ketiga
+) => {
+  set({ isLoading: true });
 
-        try {
-          const filters = { forceRefresh };
+  try {
+    const { user } = useAuthStore.getState();
+    
+    const filters = { 
+      forceRefresh,
+      user,  // ✅ PENTING: Include user untuk role-based filtering
+      measurementType  // ✅ Pass measurement_type filter
+    };
 
-          if (dateRange) {
-            filters.startDate =
-              dateRange.from?.toISOString?.() || dateRange.from;
-            filters.endDate = dateRange.to?.toISOString?.() || dateRange.to;
-          }
+    if (dateRange) {
+      filters.startDate = dateRange.from?.toISOString?.() || dateRange.from;
+      filters.endDate = dateRange.to?.toISOString?.() || dateRange.to;
+    }
 
-          const result = await timbanganServices.fetchTimbanganData(filters);
-          if (result.success) {
-            set({
-              timbanganData: result.data,
-              isLoading: false,
-              lastFetchTimestamp: new Date().toISOString(),
-            });
 
-            return { success: true };
-          }
+    const result = await timbanganServices.fetchTimbanganData(filters);
+    
+    if (result.success) {
+      set({
+        timbanganData: result.data,
+        isLoading: false,
+        lastFetchTimestamp: new Date().toISOString(),
+      });
 
-          throw new Error(result.error);
-        } catch (error) {
-          console.error("❌ loadTimbanganDataFromAPI error:", error);
-          set({ isLoading: false, error: error.message });
-          return { success: false, error: error.message };
-        }
-      },
+      return { success: true };
+    }
+
+    throw new Error(result.error);
+  } catch (error) {
+    console.error("❌ loadTimbanganDataFromAPI error:", error);
+    set({ isLoading: false, error: error.message });
+    return { success: false, error: error.message };
+  }
+},
 
       autoFetchTimbanganData: async (dateRange = null) => {
         const state = get();
@@ -895,7 +857,6 @@ export const useTimbanganStore = create(
                 excavator: config.excavator,
                 loadingLocation: config.loadingLocation,
                 dumpingLocation: config.dumpingLocation,
-                shift: config.shift,
               },
               dumptrucks: {
                 ...state.setupData.dumptrucks,
@@ -1014,10 +975,6 @@ export const useTimbanganStore = create(
         });
       },
 
-      setFleetSelectionDateRange: (dateRange) =>
-        set({ fleetSelectionDateRange: dateRange }),
-      getFleetSelectionDateRange: () => get().fleetSelectionDateRange,
-
       setMasters: (masters) => {
         if (!masters) return;
         set((state) => ({
@@ -1027,7 +984,6 @@ export const useTimbanganStore = create(
               masters.loadingLocations ?? state.masters.loadingLocations,
             dumpingLocations:
               masters.dumpingLocations ?? state.masters.dumpingLocations,
-            shifts: masters.shifts ?? state.masters.shifts,
             dumptrucks: masters.dumptrucks ?? state.masters.dumptrucks,
             companies: masters.companies ?? state.masters.companies,
             workUnits: masters.workUnits ?? state.masters.workUnits,
@@ -1202,8 +1158,8 @@ export const useTimbanganStore = create(
         setupComplete: state.setupComplete,
         setupData: state.setupData,
         lastFetchTimestamp: state.lastFetchTimestamp,
-        fleetSelectionDateRange: state.fleetSelectionDateRange,
         dtIndex: state.dtIndex,
+        dtIndexByType: state.dtIndexByType,
       }),
       onRehydrateStorage: () => (state) => {
         if (state && state.fleetConfigs && state.fleetConfigs.length > 0) {

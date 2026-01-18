@@ -18,73 +18,48 @@ import LoadingOverlay from "@/shared/components/LoadingOverlay";
 import PrintTicketButton from "@/modules/timbangan/timbangan/components/PrintTicketButton";
 
 import { useTimbanganStore } from "@/modules/timbangan/timbangan/store/timbanganStore";
-import { timbanganServices } from "@/modules/timbangan/timbangan/services/timbanganServices";
+import { timbanganManualService } from "@/modules/timbangan/timbangan/services/timbanganManualService";
 import { showToast } from "@/shared/utils/toast";
 import useAuthStore from "@/modules/auth/store/authStore";
 
 import {
   getInitialDateRange,
   DEBOUNCE_TIME,
-  AUTO_OPEN_DELAY,
   AUTO_PRINT_DELAY,
   REOPEN_FORM_DELAY,
   FLEET_REFRESH_DELAY,
   DATE_FILTER_DEBOUNCE,
-  CONNECTION_CHECK_TIMEOUT,
   TOAST_MESSAGES,
   FORM_MODES,
   USER_ROLES,
   KEYBOARD_SHORTCUTS,
-  TIMBANGAN_TYPES
+  TIMBANGAN_TYPES,
 } from "@/modules/timbangan/timbangan/constant/timbanganConstants";
 
-const TimbanganManagement = ({ Type }) => {
+const TimbanganManual = ({ Type }) => {
+  // Store state
   const selectedItems = useTimbanganStore((state) => state.selectedItems);
   const error = useTimbanganStore((state) => state.error);
-  const timbanganData = useTimbanganStore((state) => state.timbanganData);
   const selectedFleetIds = useTimbanganStore((state) => state.selectedFleetIds);
   const fleetConfigs = useTimbanganStore((state) => state.fleetConfigs);
   const clearError = useTimbanganStore((state) => state.clearError);
   const toggleSelectItem = useTimbanganStore((state) => state.toggleSelectItem);
   const toggleSelectAll = useTimbanganStore((state) => state.toggleSelectAll);
-  const addTimbanganEntry = useTimbanganStore(
-    (state) => state.addTimbanganEntry
-  );
-  const updateTimbanganEntry = useTimbanganStore(
-    (state) => state.updateTimbanganEntry
-  );
-  const deleteTimbanganEntry = useTimbanganStore(
-    (state) => state.deleteTimbanganEntry
-  );
-  const deleteMultipleTimbanganEntries = useTimbanganStore(
-    (state) => state.deleteMultipleTimbanganEntries
-  );
-  const loadTimbanganDataFromAPI = useTimbanganStore(
-    (state) => state.loadTimbanganDataFromAPI
-  );
-  const loadFleetConfigsFromAPI = useTimbanganStore(
-    (state) => state.loadFleetConfigsFromAPI
-  );
-  const autoFetchTimbanganData = useTimbanganStore(
-    (state) => state.autoFetchTimbanganData
-  );
-  const setSelectedFleets = useTimbanganStore(
-    (state) => state.setSelectedFleets
-  );
-  const setSelectedFleetsByType = useTimbanganStore((state) => state.setSelectedFleetsByType);
-  
+  const loadFleetConfigsFromAPI = useTimbanganStore((state) => state.loadFleetConfigsFromAPI);
+  const setSelectedFleets = useTimbanganStore((state) => state.setSelectedFleets);
   const hideDumptruck = useTimbanganStore((state) => state.hideDumptruck);
   const unhideDumptruck = useTimbanganStore((state) => state.unhideDumptruck);
 
   const { user } = useAuthStore();
   const userRole = user?.role;
-
+const setSelectedFleetsByType = useTimbanganStore((state) => state.setSelectedFleetsByType);
+  const getSelectedFleetsByType = useTimbanganStore((state) => state.getSelectedFleetsByType);
+  // Local state
   const [isInitialLoading, setIsInitialLoading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isActionLoading, setIsActionLoading] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isRefreshingFleet, setIsRefreshingFleet] = useState(false);
-  const [isCheckingConnection, setIsCheckingConnection] = useState(false);
 
   const [showInputForm, setShowInputForm] = useState(false);
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -94,14 +69,12 @@ const TimbanganManagement = ({ Type }) => {
   const [editingItem, setEditingItem] = useState(null);
   const [formMode, setFormMode] = useState(FORM_MODES.CREATE);
   const [itemToDelete, setItemToDelete] = useState(null);
-  const [shouldAutoConnect, setShouldAutoConnect] = useState(false);
   const [autoPrintData, setAutoPrintData] = useState(null);
   const [dateRange, setDateRange] = useState(getInitialDateRange);
 
   const [lastClickTime, setLastClickTime] = useState(0);
-  const [isFleetInitialized, setIsFleetInitialized] = useState(false);
+  const [localTimbanganData, setLocalTimbanganData] = useState([]);
 
-  const autoOpenTriggeredRef = useRef(false);
   const autoPrintButtonRef = useRef(null);
   const initialLoadDone = useRef(false);
   const firstDateRangeSet = useRef(false);
@@ -122,14 +95,31 @@ const TimbanganManagement = ({ Type }) => {
     };
   }, [dataFleet]);
 
+  useEffect(() => {
+    const state = useTimbanganStore.getState();
+    const timbanganConfigs = state.fleetConfigsByType?.Timbangan || [];
+    const selectedTimbangan = state.selectedFleetIdsByType?.Timbangan || [];
+
+    
+    // Jika ada configs tapi belum ada yang dipilih, auto-select semua
+    if (timbanganConfigs.length > 0 && selectedTimbangan.length === 0) {
+      setSelectedFleetsByType(timbanganConfigs, 'Timbangan');
+      
+      // Verify setelah auto-select
+      setTimeout(() => {
+        const newState = useTimbanganStore.getState();
+        const idx = newState.dtIndexByType.Timbangan || {};
+
+      }, 300);
+    }
+  }, [fleetConfigs, setSelectedFleetsByType]);
+
   const filteredTimbanganData = useMemo(() => {
-    let filtered = timbanganData;
+    let filtered = localTimbanganData;
 
     if (dateRange.from || dateRange.to) {
       filtered = filtered.filter((item) => {
-        const itemDate = new Date(
-          item.tanggal || item.createdAt || item.timestamp
-        );
+        const itemDate = new Date(item.tanggal || item.createdAt || item.timestamp);
         if (isNaN(itemDate.getTime())) return false;
         if (dateRange.from && itemDate < dateRange.from) return false;
         if (dateRange.to && itemDate > dateRange.to) return false;
@@ -145,7 +135,7 @@ const TimbanganManagement = ({ Type }) => {
     }
 
     return filtered;
-  }, [timbanganData, dateRange]);
+  }, [localTimbanganData, dateRange]);
 
   const allSelected = useMemo(() => {
     return (
@@ -158,32 +148,7 @@ const TimbanganManagement = ({ Type }) => {
     const now = Date.now();
     if (now - lastClickTime < DEBOUNCE_TIME) return;
     setLastClickTime(now);
-
-    if (!navigator.serial) {
-      showToast.warning(TOAST_MESSAGES.WARNING.NO_WEBSERIAL);
-      setShowInputForm(true);
-      setShouldAutoConnect(false);
-      return;
-    }
-
-    setIsCheckingConnection(true);
-
-    try {
-      const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error("Timeout")), CONNECTION_CHECK_TIMEOUT)
-      );
-      const portsPromise = navigator.serial.getPorts();
-      const ports = await Promise.race([portsPromise, timeoutPromise]);
-
-      setShouldAutoConnect(ports.length > 0);
-      setShowInputForm(true);
-    } catch (error) {
-      console.warn("⚠️ Failed to check ports:", error.message);
-      setShouldAutoConnect(false);
-      setShowInputForm(true);
-    } finally {
-      setIsCheckingConnection(false);
-    }
+    setShowInputForm(true);
   }, [lastClickTime]);
 
   const handleRefreshFleet = async () => {
@@ -208,23 +173,27 @@ const handleDateRangeChange = useCallback((range) => {
   if (normalized.from) normalized.from.setHours(0, 0, 0, 0);
   if (normalized.to) normalized.to.setHours(23, 59, 59, 999);
 
-
   setDateRange(normalized);
 
-  const { loadTimbanganDataFromAPI } = useTimbanganStore.getState();
+  const { loadFleetConfigsFromAPI } = useTimbanganStore.getState();
   
   setIsRefreshing(true);
   
-  loadTimbanganDataFromAPI(
-    { from: normalized.from, to: normalized.to },
-    true,
-    "Timbangan"  // ✅ TAMBAHKAN: Filter by measurement_type = "Timbangan"
-  )
+  Promise.all([
+    // ✅ PERBAIKAN: Gunakan loadTimbanganData dengan filter measurement_type
+    // Untuk Manual, kita tetap load data tapi service/backend akan filter by user role
+    loadTimbanganData({ from: normalized.from, to: normalized.to }, true),
+    loadFleetConfigsFromAPI(
+      true,
+      { from: normalized.from, to: normalized.to },
+      "Timbangan"  // ✅ Fleet configs untuk measurement_type = "Timbangan"
+    )
+  ])
     .then(() => {
       showToast.success('Data berhasil dimuat');
     })
     .catch((error) => {
-      console.error('❌ Failed to load Timbangan data:', error);
+      console.error('❌ Failed:', error);
       showToast.error("Gagal memuat data");
     })
     .finally(() => {
@@ -232,31 +201,36 @@ const handleDateRangeChange = useCallback((range) => {
     });
 }, []);
 
-  const handleRefresh = useCallback(async () => {
+  const loadTimbanganData = async (dateRange, forceRefresh = true) => {
     setIsRefreshing(true);
     try {
-      await Promise.all([
-        loadTimbanganDataFromAPI(
-          { from: dateRange.from, to: dateRange.to },
-          true,
-          "Timbangan"
-        ),
-        loadFleetConfigsFromAPI(
-          true,
-          {
-            from: dateRange.from,
-            to: dateRange.to,
-          },
-          "Timbangan"
-        ),
-      ]);
-      showToast.success(TOAST_MESSAGES.SUCCESS.REFRESH);
+      const result = await timbanganManualService.fetchData({
+        startDate: dateRange?.from,
+        endDate: dateRange?.to,
+        user,
+        forceRefresh,
+      });
+
+      if (result.success) {
+        setLocalTimbanganData(result.data);
+      } else {
+        throw new Error(result.error);
+      }
     } catch (error) {
-      showToast.error(TOAST_MESSAGES.ERROR.REFRESH_FAILED);
+      console.error("❌ loadTimbanganData error:", error);
+      showToast.error(TOAST_MESSAGES.ERROR.LOAD_FAILED);
     } finally {
       setIsRefreshing(false);
     }
-  }, [dateRange, loadTimbanganDataFromAPI, loadFleetConfigsFromAPI]);
+  };
+
+  const handleRefresh = useCallback(async () => {
+    await Promise.all([
+      loadTimbanganData({ from: dateRange.from, to: dateRange.to }, true),
+      loadFleetConfigsFromAPI(true, { from: dateRange.from, to: dateRange.to }, "Timbangan"),
+    ]);
+    showToast.success(TOAST_MESSAGES.SUCCESS.REFRESH);
+  }, [dateRange, loadFleetConfigsFromAPI]);
 
   const handleDeleteSelected = useCallback(async () => {
     if (selectedItems.length === 0) {
@@ -279,32 +253,21 @@ const handleDateRangeChange = useCallback((range) => {
 
         if (result.cancelled) {
           setShowInputForm(false);
-          setShouldAutoConnect(false);
           return;
         }
 
         if (result.success && result.data) {
           setShowInputForm(false);
-          setShouldAutoConnect(false);
 
+          // Hide dumptruck dari list
           if (result.data.hull_no) {
             hideDumptruck(result.data.hull_no, "submitted");
           }
 
-          try {
-            await loadTimbanganDataFromAPI(
-              {
-                from: dateRange.from,
-                to: dateRange.to,
-                user,
-              },
-              true
-            );
-          } catch (error) {
-            console.error("⚠️ Gagal reload data setelah submit:", error);
-            addTimbanganEntry(result.data);
-          }
+          // Reload data
+          await loadTimbanganData({ from: dateRange.from, to: dateRange.to }, true);
 
+          // Auto-print
           setAutoPrintData(result.data);
           setTimeout(() => {
             if (autoPrintButtonRef.current) {
@@ -312,6 +275,7 @@ const handleDateRangeChange = useCallback((range) => {
             }
           }, AUTO_PRINT_DELAY);
 
+          // Auto re-open form untuk operator
           if (userRole === USER_ROLES.OPERATOR_JT) {
             setTimeout(() => {
               handleOpenInputForm();
@@ -327,14 +291,7 @@ const handleDateRangeChange = useCallback((range) => {
         setIsActionLoading(false);
       }
     },
-    [
-      addTimbanganEntry,
-      dateRange,
-      loadTimbanganDataFromAPI,
-      hideDumptruck,
-      userRole,
-      handleOpenInputForm,
-    ]
+    [dateRange, userRole, handleOpenInputForm, hideDumptruck]
   );
 
   const handleEditItem = useCallback((item, mode = FORM_MODES.EDIT) => {
@@ -362,20 +319,7 @@ const handleDateRangeChange = useCallback((range) => {
         if (result.success) {
           showToast.success(result.message || TOAST_MESSAGES.SUCCESS.UPDATE);
           handleCloseForm();
-
-          try {
-            await loadTimbanganDataFromAPI(
-              {
-                from: dateRange.from,
-                to: dateRange.to,
-                user,
-              },
-              true
-            );
-          } catch (error) {
-            console.error("⚠️ Gagal reload data setelah edit:", error);
-            updateTimbanganEntry(editingItem.id, result.data);
-          }
+          await loadTimbanganData({ from: dateRange.from, to: dateRange.to }, true);
         } else {
           showToast.error(result.error || TOAST_MESSAGES.ERROR.UPDATE_FAILED);
         }
@@ -385,13 +329,7 @@ const handleDateRangeChange = useCallback((range) => {
         setIsActionLoading(false);
       }
     },
-    [
-      editingItem,
-      updateTimbanganEntry,
-      handleCloseForm,
-      dateRange,
-      loadTimbanganDataFromAPI,
-    ]
+    [handleCloseForm, dateRange]
   );
 
   const handleDeleteItem = useCallback((item) => {
@@ -409,51 +347,22 @@ const handleDateRangeChange = useCallback((range) => {
         showToast.success(`${itemToDelete.count} data berhasil dihapus`);
         setShowDeleteDialog(false);
         setItemToDelete(null);
-
-        try {
-          await loadTimbanganDataFromAPI(
-            {
-              from: dateRange.from,
-              to: dateRange.to,
-              user,
-            },
-            true
-          );
-        } catch (error) {
-          console.error("⚠️ Gagal reload data setelah delete:", error);
-          deleteMultipleTimbanganEntries(itemToDelete.ids);
-        }
+        await loadTimbanganData({ from: dateRange.from, to: dateRange.to }, true);
         return;
       }
 
-      const result = await timbanganServices.deleteTimbanganEntry(
-        itemToDelete.id
-      );
+      const result = await timbanganManualService.deleteEntry(itemToDelete.id);
 
       if (result.success) {
+        // Unhide dumptruck
         if (itemToDelete.hull_no) {
           unhideDumptruck(itemToDelete.hull_no);
         }
 
-        showToast.success(
-          result.message || TOAST_MESSAGES.SUCCESS.DELETE_SINGLE
-        );
+        showToast.success(result.message || TOAST_MESSAGES.SUCCESS.DELETE_SINGLE);
         setShowDeleteDialog(false);
         setItemToDelete(null);
-
-        try {
-          await loadTimbanganDataFromAPI(
-            {
-              from: dateRange.from,
-              to: dateRange.to,
-              user,
-            },
-            true
-          );
-        } catch (error) {
-          console.error("⚠️ Gagal reload data setelah delete:", error);
-          deleteTimbanganEntry(itemToDelete.id);
-        }
+        await loadTimbanganData({ from: dateRange.from, to: dateRange.to }, true);
       } else {
         throw new Error(result.error || TOAST_MESSAGES.ERROR.DELETE_FAILED);
       }
@@ -462,20 +371,12 @@ const handleDateRangeChange = useCallback((range) => {
     } finally {
       setIsDeleting(false);
     }
-  }, [
-    itemToDelete,
-    deleteTimbanganEntry,
-    deleteMultipleTimbanganEntries,
-    unhideDumptruck,
-    dateRange,
-    loadTimbanganDataFromAPI,
-  ]);
+  }, [itemToDelete, dateRange, unhideDumptruck]);
 
   const handleCancelDelete = useCallback(() => {
     setShowDeleteDialog(false);
     setItemToDelete(null);
   }, []);
-
 // Di TimbanganManual.jsx - UPDATE handleSaveFleetSelection
 
 const handleSaveFleetSelection = useCallback(
@@ -508,7 +409,7 @@ const handleSaveFleetSelection = useCallback(
         }
       }, 300);
     },
-    [setSelectedFleets]
+    [setSelectedFleets, setSelectedFleetsByType]
   );
 
 useEffect(() => {
@@ -522,7 +423,6 @@ useEffect(() => {
       const hasExistingFleets = currentState.fleetConfigs.length > 0;
       const hasSelectedFleets = currentState.selectedFleetIds.length > 0;
 
-      // Load fleet configs jika belum ada
       if (!hasExistingFleets && !hasSelectedFleets) {
         const today = new Date();
         const todayStr = today.toISOString().split("T")[0];
@@ -532,20 +432,18 @@ useEffect(() => {
           { from: todayStr, to: todayStr },
           "Timbangan"
         );
-
-        await new Promise((resolve) =>
+        
+        await new Promise((resolve) => 
           setTimeout(resolve, FLEET_REFRESH_DELAY)
         );
       }
 
-      await loadTimbanganDataFromAPI(
+      await loadTimbanganData(
         { from: dateRange.from, to: dateRange.to },
-        false,
-        "Timbangan"
+        false
       );
 
       firstDateRangeSet.current = true;
-      setIsFleetInitialized(true);
     } catch (error) {
       console.error("❌ Initial load error:", error);
       showToast.error(TOAST_MESSAGES.ERROR.LOAD_FAILED);
@@ -557,23 +455,6 @@ useEffect(() => {
   initializeData();
 }, []); 
 
-  useEffect(() => {
-    if (
-      autoOpenTriggeredRef.current ||
-      userRole !== USER_ROLES.OPERATOR_JT ||
-      isInitialLoading ||
-      fleetCounts.total === 0
-    ) {
-      return;
-    }
-
-    const timer = setTimeout(() => {
-      handleOpenInputForm();
-      autoOpenTriggeredRef.current = true;
-    }, AUTO_OPEN_DELAY);
-
-    return () => clearTimeout(timer);
-  }, [userRole, isInitialLoading, fleetCounts.total, handleOpenInputForm]);
 
   useEffect(() => {
     if (showInputForm || isFormOpen || showFleetDialog) {
@@ -592,7 +473,7 @@ useEffect(() => {
       const { key, altKey } = KEYBOARD_SHORTCUTS.INPUT_FORM;
       if (e.altKey === altKey && e.key.toLowerCase() === key) {
         e.preventDefault();
-        if (!showInputForm && !isFormOpen && !isCheckingConnection) {
+        if (!showInputForm && !isFormOpen) {
           handleOpenInputForm();
         }
       }
@@ -600,21 +481,19 @@ useEffect(() => {
 
     window.addEventListener("keydown", handleShortcut);
     return () => window.removeEventListener("keydown", handleShortcut);
-  }, [showInputForm, isFormOpen, isCheckingConnection, handleOpenInputForm]);
+  }, [showInputForm, isFormOpen, handleOpenInputForm]);
 
   return (
     <>
       <div className="space-y-6 min-h-screen">
-        {/* Header */}
         <TimbanganHeader
           username={user?.username}
           onOpenInputForm={handleOpenInputForm}
           isInitialLoading={isInitialLoading}
-          isCheckingConnection={isCheckingConnection}
+          isCheckingConnection={false}
           type={Type}
         />
 
-        {/* Fleet Status */}
         <FleetStatusCard
           isInitialLoading={isInitialLoading}
           fleetCounts={fleetCounts}
@@ -624,24 +503,17 @@ useEffect(() => {
           isRefreshingFleet={isRefreshingFleet}
         />
 
-        {/* Error Alert */}
         {error && (
           <Alert variant="destructive">
             <AlertDescription className="flex items-center justify-between">
               <span>{error.message || error}</span>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={clearError}
-                className="cursor-pointer"
-              >
+              <Button variant="ghost" size="sm" onClick={clearError} className="cursor-pointer">
                 <X className="h-4 w-4" />
               </Button>
             </AlertDescription>
           </Alert>
         )}
 
-        {/* Loading Skeleton or Data Table */}
         {isInitialLoading ? (
           <Card className="border-none">
             <CardContent className="p-6">
@@ -654,10 +526,7 @@ useEffect(() => {
                   {[1, 2, 3, 4, 5].map((row) => (
                     <div key={row} className="grid grid-cols-7 gap-4 py-3">
                       {[1, 2, 3, 4, 5, 6, 7].map((col) => (
-                        <div
-                          key={col}
-                          className="h-4 bg-gray-200 rounded animate-pulse"
-                        ></div>
+                        <div key={col} className="h-4 bg-gray-200 rounded animate-pulse"></div>
                       ))}
                     </div>
                   ))}
@@ -667,7 +536,7 @@ useEffect(() => {
           </Card>
         ) : (
           <TimbanganTable
-            title="Data Timbangan"
+            title="Data Timbangan Manual"
             userRole={userRole}
             shipments={filteredTimbanganData}
             onEdit={handleEditItem}
@@ -684,7 +553,7 @@ useEffect(() => {
             showActions={true}
             deleteSelectedItems={handleDeleteSelected}
             onDateRangeChange={handleDateRangeChange}
-            allTimbanganData={timbanganData}
+            allTimbanganData={localTimbanganData}
             fleetCounts={fleetCounts}
             allSelectedFleets={allSelectedFleets}
             onOpenInputForm={handleOpenInputForm}
@@ -698,17 +567,13 @@ useEffect(() => {
         )}
       </div>
 
-      {/* All Modals */}
       <TimbanganModals
         showInputForm={showInputForm}
-        onCloseInputForm={() => {
-          setShowInputForm(false);
-          setShouldAutoConnect(false);
-        }}
+        onCloseInputForm={() => setShowInputForm(false)}
         onSubmitInputForm={handleAddShipment}
         isActionLoading={isActionLoading}
-        shouldAutoConnect={shouldAutoConnect}
-        onAutoConnectComplete={() => setShouldAutoConnect(false)}
+        shouldAutoConnect={false}
+        onAutoConnectComplete={() => {}}
         isFormOpen={isFormOpen}
         onCloseEditForm={handleCloseForm}
         onSubmitEditForm={handleEditSubmit}
@@ -723,16 +588,14 @@ useEffect(() => {
         onCloseFleetDialog={() => setShowFleetDialog(false)}
         onSaveFleetSelection={handleSaveFleetSelection}
         measurementType="Timbangan"
-         timbanganType={TIMBANGAN_TYPES.INTERNAL}
+        timbanganType={TIMBANGAN_TYPES.MANUAL}
       />
 
-      {/* Loading Overlay */}
       <LoadingOverlay
         isVisible={isActionLoading && !showInputForm && !isFormOpen}
         message="Processing..."
       />
 
-      {/* Hidden Auto-Print Button */}
       {autoPrintData && (
         <div style={{ position: "absolute", left: "-9999px", top: 0 }}>
           <PrintTicketButton
@@ -750,4 +613,4 @@ useEffect(() => {
   );
 };
 
-export default TimbanganManagement;
+export default TimbanganManual;

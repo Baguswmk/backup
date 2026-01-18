@@ -87,7 +87,7 @@ const BypassHistoryModal = ({ isOpen, onClose }) => {
           <div>
             <h2 className="text-xl font-bold flex items-center gap-2 dark:text-white">
               <History className="w-5 h-5" />
-              Riwayat BeltScale Adjustment
+              Riwayat Beltscale Adjustment
             </h2>
             <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
               Daftar adjustment yang pernah dilakukan
