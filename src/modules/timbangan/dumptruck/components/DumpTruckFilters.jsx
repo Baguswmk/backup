@@ -18,16 +18,14 @@ const DumpTruckFilters = ({
   hasActiveFilters,
   onResetFilters,
   canRead,
-  canCreate,
-  shouldShowButton,
-  onAddNew,
 }) => {
   return (
     <div className="space-y-4">
       <TableToolbar
+      activeDateRange={false}
         searchQuery={searchQuery}
         onSearchChange={onSearchChange}
-        searchPlaceholder="Cari nama fleet, excavator, shift, work unit..."
+        searchPlaceholder="Cari nama fleet, excavator, work unit..."
         canSearch={canRead}
         dateRange={dateRange}
         currentShift={currentShift}
@@ -38,7 +36,6 @@ const DumpTruckFilters = ({
         showFilter={true}
         filterExpanded={filterExpanded}
         onToggleFilter={onToggleFilter}
-        showDateRange={false}
       />
 
       {filterExpanded && (

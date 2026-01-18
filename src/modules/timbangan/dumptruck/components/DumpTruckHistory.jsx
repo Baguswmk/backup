@@ -70,15 +70,6 @@ const DumpTruckHistory = () => {
   const isLoading = dumptruckLoading || fleetLoading;
   const isRefreshing = dumptruckRefreshing || fleetRefreshing;
 
-  const shiftOptions = useMemo(
-    () =>
-      (masters?.shifts || []).map((shift) => ({
-        value: shift.name,
-        label: shift.name,
-      })),
-    [masters?.shifts]
-  );
-
   const excavatorOptions = useMemo(
     () =>
       (masters?.excavators || []).map((exc) => ({
@@ -119,17 +110,6 @@ const DumpTruckHistory = () => {
 
   const filterGroups = useMemo(
     () => [
-      {
-        id: "shift",
-        label: "Shift",
-        options: shiftOptions,
-        value: shifts,
-        onChange: (newShifts) => {
-          setShifts(newShifts);
-          setCurrentPage(1);
-        },
-        placeholder: "Pilih Shift",
-      },
       {
         id: "excavator",
         label: "Excavator",
@@ -175,18 +155,7 @@ const DumpTruckHistory = () => {
         placeholder: "Pilih Dumping",
       },
     ],
-    [
-      shiftOptions,
-      excavatorOptions,
-      workUnitOptions,
-      loadingLocOptions,
-      dumpingLocOptions,
-      shifts,
-      excavators,
-      workUnits,
-      loadingLocations,
-      dumpingLocations,
-    ]
+    [excavatorOptions, workUnitOptions, loadingLocOptions, dumpingLocOptions, excavators, workUnits, loadingLocations, dumpingLocations]
   );
 
   const filteredFleets = useMemo(() => {
@@ -196,9 +165,7 @@ const DumpTruckHistory = () => {
       const search = searchQuery.toLowerCase();
       filtered = filtered.filter(
         (fleet) =>
-          fleet.name?.toLowerCase().includes(search) ||
           fleet.excavator?.toLowerCase().includes(search) ||
-          fleet.shift?.toLowerCase().includes(search) ||
           fleet.workUnit?.toLowerCase().includes(search)
       );
     }
@@ -216,9 +183,6 @@ const DumpTruckHistory = () => {
       });
     }
 
-    if (shifts.length > 0) {
-      filtered = filtered.filter((f) => shifts.includes(f.shift));
-    }
     if (excavators.length > 0) {
       filtered = filtered.filter((f) =>
         excavators.includes(String(f.excavatorId))
@@ -294,7 +258,7 @@ const DumpTruckHistory = () => {
       if (dateRange.from || dateRange.to) {
         refreshFleet({ dateRange });
       }
-    }, 500);
+    }, 500);    
 
     return () => clearTimeout(timer);
   }, [dateRange, refreshFleet]);
@@ -404,13 +368,10 @@ const renderContent = () => {
           <thead className="bg-gray-50 dark:bg-gray-900 border-b dark:border-gray-700">
             <tr>
               <th className="px-4 py-3 text-left text-xs font-medium text-black dark:text-gray-200">No</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-black dark:text-gray-200">Nama Fleet</th>
               <th className="px-4 py-3 text-left text-xs font-medium text-black dark:text-gray-200">Excavator</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-black dark:text-gray-200">Shift</th>
               <th className="px-4 py-3 text-left text-xs font-medium text-black dark:text-gray-200">Work Unit</th>
               <th className="px-4 py-3 text-left text-xs font-medium text-black dark:text-gray-200">Loading</th>
               <th className="px-4 py-3 text-left text-xs font-medium text-black dark:text-gray-200">Dumping</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-black dark:text-gray-200">Status Fleet</th>
               <th className="px-4 py-3 text-center text-xs font-medium text-black dark:text-gray-200">Jumlah Unit</th>
               <th className="px-4 py-3 text-left text-xs font-medium text-black dark:text-gray-200">Ditutup Pada</th>
               <th className="px-4 py-3 text-center text-xs font-medium text-black dark:text-gray-200">Aksi</th>
@@ -429,11 +390,8 @@ const renderContent = () => {
                   <td className="px-4 py-3 text-sm font-medium dark:text-gray-300">
                     {index + 1 + (currentPage - 1) * pageSize}
                   </td>
-                  <td className="px-4 py-3 text-sm font-medium dark:text-gray-200">
-                    {fleet.name}
-                  </td>
+                
                   <td className="px-4 py-3 text-sm dark:text-gray-300">{fleet.excavator}</td>
-                  <td className="px-4 py-3 text-sm dark:text-gray-300">{fleet.shift}</td>
                   <td className="px-4 py-3 text-sm dark:text-gray-300">{fleet.workUnit}</td>
                   <td className="px-4 py-3 text-sm dark:text-gray-300">{fleet.loadingLocation}</td>
                   <td className="px-4 py-3 text-sm dark:text-gray-300">{fleet.dumpingLocation}</td>
@@ -509,14 +467,13 @@ return (
       <div className="p-4 sm:p-6">
         <div className="space-y-4">
           <TableToolbar
-            dateRange={dateRange}
-            onDateRangeChange={handleDateRangeChange}
+      activeDateRange={false}
             searchQuery={searchQuery}
             onSearchChange={(value) => {
               setSearchQuery(value);
               setCurrentPage(1);
             }}
-            searchPlaceholder="Cari nama fleet, excavator, shift, work unit..."
+            searchPlaceholder="Cari nama fleet, excavator, work unit..."
             canSearch={true}
             onRefresh={handleRefresh}
             isRefreshing={isRefreshing}
@@ -569,7 +526,7 @@ return (
           <div className="rounded-md border p-3 text-sm space-y-1">
             <div className="flex justify-between">
               <span className="text-gray-600">Fleet:</span>
-              <span className="font-medium">{reactivateTarget.fleet.name}</span>
+              <span className="font-medium">{reactivateTarget.fleet.exca}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-gray-600">Excavator:</span>

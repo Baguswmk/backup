@@ -30,7 +30,6 @@ const DumpTruckExportImport = ({
           fleetId: setting.fleet?.id,
           fleetName: setting.fleet?.name,
           excavator: setting.fleet?.excavator,
-          shift: setting.fleet?.shift,
           workUnit: setting.fleet?.workUnit,
           units: (setting.units || []).map((unit) => ({
             truckId: unit.id,

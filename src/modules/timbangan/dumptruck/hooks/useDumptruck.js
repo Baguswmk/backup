@@ -2,18 +2,15 @@ import { useState, useCallback, useEffect, useMemo } from "react";
 import { dumptruckService } from "@/modules/timbangan/dumptruck/services/dumptruckService";
 import { masterDataService } from "@/modules/timbangan/masterData/services/masterDataService";
 import { showToast } from "@/shared/utils/toast";
-import { withErrorHandling } from "@/shared/utils/errorHandler";
+import { withErrorHandling, handleError } from "@/shared/utils/errorHandler";
 import { offlineService } from "@/shared/services/offlineService";
 
 export const useDumptruck = (fleetHook, measurementType = null) => {
   const {
     user,
     filteredFleetConfigs = [],
-    activeFleetConfigs = [],
     timbanganFleetConfigs = [],
     userRoleInfo,
-    viewingDateRange = null,
-    viewingShift = null,
   } = fleetHook || {};
 
   const [dumptruckSettings, setDumptruckSettings] = useState([]);
@@ -46,7 +43,11 @@ export const useDumptruck = (fleetHook, measurementType = null) => {
       },
       {
         operation: "load available units",
-        onError: (err) => console.error("❌ Failed to load units:", err),
+        showErrorToast: true,
+        onError: (err) => {
+          console.error("❌ Failed to load units:", err);
+          setError(err);
+        },
       }
     );
   }, []);
@@ -70,31 +71,40 @@ export const useDumptruck = (fleetHook, measurementType = null) => {
 
       return await withErrorHandling(
         async () => {
-          const effectiveShift = options.shift || viewingShift;
           const result = await dumptruckService.fetchDumptruckSettings({
             user,
             forceRefresh: options.forceRefresh || false,
-            dateRange: options.dateRange || viewingDateRange,
-            shift: effectiveShift,
             measurementType: measurementType || options.measurementType || null,
             ...options,
           });
+
+          // Handle validation errors from backend
+          if (!result.success && result.isValidation) {
+            showToast.warning(result.error);
+            setDumptruckSettings([]);
+            return { success: false, data: [], error: result.error };
+          }
+
+          if (!result.success) {
+            throw new Error(result.error || "Failed to load settings");
+          }
 
           setDumptruckSettings(result.data);
           return { success: true, data: result.data };
         },
         {
           operation: "load dumptruck settings",
+          showErrorToast: true,
           onError: (err) => {
             console.error("❌ Load dumptruck settings error:", err);
-            setError(err.message);
+            setError(err);
           },
         }
       ).finally(() => {
         loadingState(false);
       });
     },
-    [user, viewingDateRange, measurementType, viewingShift]
+    [user, measurementType]
   );
 
   const refresh = useCallback(async () => {
@@ -112,64 +122,63 @@ export const useDumptruck = (fleetHook, measurementType = null) => {
       loadDumptruckSettings({
         forceRefresh: true,
         isRefresh: true,
-        dateRange: viewingDateRange,
-        shift: viewingShift,
         measurementType,
       }),
       loadAvailableUnits(),
     ]);
-  }, [
-    loadDumptruckSettings,
-    loadAvailableUnits,
-    user,
-    viewingDateRange,
-    measurementType,
-    viewingShift,
-  ]);
+  }, [loadDumptruckSettings, loadAvailableUnits, user, measurementType]);
 
   const reactivateDumptruckSetting = useCallback(
     async (settingId) => {
       setIsLoading(true);
       setError(null);
 
-      try {
-        const setting = dumptruckSettings.find(
-          (s) => String(s.id) === String(settingId)
-        );
-
-        if (!setting) {
-          throw new Error("Setting tidak ditemukan");
-        }
-
-        if (setting.fleet?.status !== "CLOSED") {
-          throw new Error(
-            `Fleet dengan status ${setting.fleet?.status} tidak bisa direaktivasi`
+      return await withErrorHandling(
+        async () => {
+          const setting = dumptruckSettings.find(
+            (s) => String(s.id) === String(settingId)
           );
-        }
 
-        const result = await dumptruckService.reactivateDumptruckSetting(
-          settingId
-        );
+          if (!setting) {
+            throw new Error("Setting tidak ditemukan");
+          }
 
-        if (result.success) {
+          if (setting.fleet?.status !== "CLOSED") {
+            throw new Error(
+              `Fleet dengan status ${setting.fleet?.status} tidak bisa direaktivasi`
+            );
+          }
+
+          const result = await dumptruckService.reactivateDumptruckSetting(
+            settingId
+          );
+
+          // Handle validation errors
+          if (!result.success && result.isValidation) {
+            showToast.warning(result.error);
+            return { success: false, error: result.error };
+          }
+
+          if (!result.success) {
+            throw new Error(result.error || "Failed to reactivate setting");
+          }
+
           showToast.success("Fleet berhasil direaktivasi ke status ACTIVE");
-
           await refresh();
 
           return { success: true };
+        },
+        {
+          operation: "reactivate dumptruck setting",
+          showErrorToast: true,
+          onError: (err) => {
+            console.error("❌ Reactivate error:", err);
+            setError(err);
+          },
         }
-
-        throw new Error(result.error || "Failed to reactivate setting");
-      } catch (error) {
-        console.error("❌ Reactivate error:", error);
-        setError(error.response.data.message);
-        showToast.error(
-          error.response.data.message || "Gagal mereaktivasi fleet"
-        );
-        return { success: false, error: error.response.data.message };
-      } finally {
+      ).finally(() => {
         setIsLoading(false);
-      }
+      });
     },
     [dumptruckSettings, refresh]
   );
@@ -188,9 +197,18 @@ export const useDumptruck = (fleetHook, measurementType = null) => {
         return result.data;
       }
 
+      // Handle validation errors
+      if (result.isValidation) {
+        showToast.warning(result.error);
+      }
+
       return [];
     } catch (error) {
-      console.error("❌ Failed to get filtered units:", error);
+      const handled = handleError(error, {
+        operation: "get filtered units",
+        showNotification: true,
+      });
+      console.error("❌ Failed to get filtered units:", handled.error);
       return [];
     }
   }, []);
@@ -223,12 +241,24 @@ export const useDumptruck = (fleetHook, measurementType = null) => {
             pair_dt_op: pairDtOp,
           });
 
+          // Handle validation errors
+          if (!result.success && result.isValidation) {
+            showToast.warning(result.error);
+            return { success: false, error: result.error };
+          }
+
+          if (!result.success) {
+            throw new Error(result.error || "Failed to create setting");
+          }
+
+          showToast.success("Setting dump truck berhasil dibuat");
           await refresh();
           return { success: true, data: result.data || {} };
         },
         {
           operation: "create dumptruck setting",
-          onError: (err) => setError(err.message),
+          showErrorToast: true,
+          onError: (err) => setError(err),
         }
       ).finally(() => {
         setIsLoading(false);
@@ -270,12 +300,24 @@ export const useDumptruck = (fleetHook, measurementType = null) => {
             updatePayload
           );
 
+          // Handle validation errors
+          if (!result.success && result.isValidation) {
+            showToast.warning(result.error);
+            return { success: false, error: result.error };
+          }
+
+          if (!result.success) {
+            throw new Error(result.error || "Failed to update setting");
+          }
+
+          showToast.success("Setting dump truck berhasil diperbarui");
           await refresh();
           return { success: true, data: result.data };
         },
         {
           operation: "update dumptruck setting",
-          onError: (err) => setError(err.message),
+          showErrorToast: true,
+          onError: (err) => setError(err),
         }
       ).finally(() => {
         setIsLoading(false);
@@ -291,13 +333,26 @@ export const useDumptruck = (fleetHook, measurementType = null) => {
 
       return await withErrorHandling(
         async () => {
-          await dumptruckService.deleteDumptruckSetting(settingId);
+          const result = await dumptruckService.deleteDumptruckSetting(settingId);
+
+          // Handle validation errors
+          if (!result.success && result.isValidation) {
+            showToast.warning(result.error);
+            return { success: false, error: result.error };
+          }
+
+          if (!result.success) {
+            throw new Error(result.error || "Failed to delete setting");
+          }
+
+          showToast.success("Setting dump truck berhasil dihapus");
           await refresh();
           return { success: true };
         },
         {
           operation: "delete dumptruck setting",
-          onError: (err) => setError(err.message),
+          showErrorToast: true,
+          onError: (err) => setError(err),
         }
       ).finally(() => {
         setIsLoading(false);
@@ -309,20 +364,23 @@ export const useDumptruck = (fleetHook, measurementType = null) => {
   const getUnitsForFleet = useCallback(
     async (fleetId) => {
       try {
-        const fleet = activeFleetConfigs.find((f) => f.id === fleetId);
 
-        if (!fleet) {
+        if (!fleetId) {
           console.warn(`⚠️ Fleet ${fleetId} not found in filtered configs`);
           return [];
         }
 
         return await getFilteredUnitsForFleet(fleetId);
       } catch (error) {
-        console.error("❌ Error filtering units for fleet:", error);
+        const handled = handleError(error, {
+          operation: "get units for fleet",
+          showNotification: false,
+        });
+        console.error("❌ Error filtering units for fleet:", handled.error);
         return availableUnits.filter((u) => u.type === "DUMP_TRUCK");
       }
     },
-    [activeFleetConfigs, availableUnits, getFilteredUnitsForFleet]
+    [ availableUnits, getFilteredUnitsForFleet]
   );
 
   const getDumptrucksByWorkUnit = useCallback(
@@ -342,7 +400,6 @@ export const useDumptruck = (fleetHook, measurementType = null) => {
 
       await Promise.all([
         loadDumptruckSettings({
-          dateRange: viewingDateRange,
           measurementType,
         }),
         loadAvailableUnits(),
@@ -350,14 +407,7 @@ export const useDumptruck = (fleetHook, measurementType = null) => {
     };
 
     initializeData();
-  }, [
-    user,
-    filteredFleetConfigs.length,
-    timbanganFleetConfigs.length,
-    viewingDateRange,
-    measurementType,
-    loadDumptruckSettings,
-  ]);
+  }, [user, filteredFleetConfigs.length, timbanganFleetConfigs.length, measurementType, loadDumptruckSettings, loadAvailableUnits]);
 
   return {
     dumptruckSettings,

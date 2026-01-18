@@ -114,6 +114,49 @@ const DumptruckModal = ({
     };
   }, [isOpen, showAllUnits]);
 
+  // ✅ FIXED: Remove problematic dependency that causes infinite re-render
+
+useEffect(() => {
+  if (!isOpen) return;
+  
+  if (editingSetting) {
+    setSelectedFleet(editingSetting.fleet || null);
+    setSelectedUnits(editingSetting.units || []);
+
+    const initialOperators = {};
+    (editingSetting.units || []).forEach((unit) => {
+      if (unit.operatorId) {
+        initialOperators[unit.id] = String(unit.operatorId);
+      }
+    });
+    setUnitOperators(initialOperators);
+
+    if (editingSetting.fleet?.id) {
+      setIsLoadingFilteredUnits(true);
+      getFilteredUnitsForFleet(String(editingSetting.fleet.id))
+        .then((filtered) => {
+          setFleetFilteredUnits(filtered);
+        })
+        .catch((error) => {
+          console.error("Failed to load filtered units:", error);
+          setFleetFilteredUnits([]);
+        })
+        .finally(() => {
+          setIsLoadingFilteredUnits(false);
+        });
+    }
+  } else {
+    setSelectedFleet(null);
+    setSelectedUnits([]);
+    setUnitOperators({});
+    setFleetFilteredUnits([]);
+  }
+  
+  setSearchQuery("");
+  setShowAllUnits(false);
+  setErrors({});
+}, [isOpen, editingSetting?.id]); 
+
   const handleFleetChangeWithFilter = useCallback(
     async (fleetId) => {
       const fleet = availableFleets.find(
@@ -169,7 +212,7 @@ const DumptruckModal = ({
         })
         .map((fleet) => ({
           value: String(fleet.id),
-          label: `${fleet.name} (${fleet.excavator} - ${fleet.shift})`,
+          label: ` (${fleet.excavator})`,
           hint: `${fleet.workUnit ?? ""} • ${fleet.loadingLocation ?? ""}`,
         })),
     [availableFleets, editingSetting]
@@ -435,7 +478,6 @@ const DumptruckModal = ({
           {selectedFleet && !isLoadingFilteredUnits && (
             <InfoCard title={CARD_TITLES.FLEET_SELECTED} variant="primary">
               <InfoItem label="Excavator" value={selectedFleet.excavator} />
-              <InfoItem label="Shift" value={selectedFleet.shift} />
               <InfoItem label="Work Unit" value={selectedFleet.workUnit} />
               <InfoItem label="Loading" value={selectedFleet.loadingLocation} />
               <InfoItem label="Dumping" value={selectedFleet.dumpingLocation} />

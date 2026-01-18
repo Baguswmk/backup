@@ -59,22 +59,14 @@ const DumpTruckTable = memo(
       );
     };
 
-    const isReadOnly = (fleet) => {
-      return fleet.id_digifleet != null && fleet.id_digifleet !== "";
-    };
+
 
     // ✅ NEW: Generate table actions based on fleet state
     const getTableActions = (fleet) => {
       const hasSetting = hasDumptruckSetting(fleet);
-      const readOnly = isReadOnly(fleet);
 
       // History mode actions
       if (isHistoryMode) {
-        return [];
-      }
-
-      // Read-only mode - only view action
-      if (readOnly) {
         return [];
       }
 
@@ -145,15 +137,11 @@ const DumpTruckTable = memo(
                 <th className="px-4 py-3 text-left text-xs font-medium text-black dark:text-gray-200">
                   No
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-black dark:text-gray-200">
-                  Nama Fleet
-                </th>
+              
                 <th className="px-4 py-3 text-left text-xs font-medium text-black dark:text-gray-200">
                   Excavator
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-black dark:text-gray-200">
-                  Shift
-                </th>
+              
                 <th className="px-4 py-3 text-left text-xs font-medium text-black dark:text-gray-200">
                   Work Unit
                 </th>
@@ -162,9 +150,6 @@ const DumpTruckTable = memo(
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-black dark:text-gray-200">
                   Dumping
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-black dark:text-gray-200">
-                  Status Fleet
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-black dark:text-gray-200">
                   Type Fleet
@@ -184,7 +169,6 @@ const DumpTruckTable = memo(
               {sortedPaginatedFleets.map((fleet, index) => {
                 const dtCount = getDumptruckCount(fleet);
                 const hasSetting = hasDumptruckSetting(fleet);
-                const readOnly = isReadOnly(fleet);
                 const actions = getTableActions(fleet);
 
                 return (
@@ -195,14 +179,9 @@ const DumpTruckTable = memo(
                     <td className="px-4 py-3 text-sm font-medium dark:text-gray-300">
                       {index + 1 + (currentPage - 1) * pageSize}
                     </td>
-                    <td className="px-4 py-3 text-sm font-medium dark:text-gray-200">
-                      {fleet.name}
-                    </td>
+                    
                     <td className="px-4 py-3 text-sm dark:text-gray-300">
                       {fleet.excavator}
-                    </td>
-                    <td className="px-4 py-3 text-sm dark:text-gray-300">
-                      {fleet.shift}
                     </td>
                     <td className="px-4 py-3 text-sm dark:text-gray-300">
                       {fleet.workUnit}
@@ -212,9 +191,6 @@ const DumpTruckTable = memo(
                     </td>
                     <td className="px-4 py-3 text-sm dark:text-gray-300">
                       {fleet.dumpingLocation}
-                    </td>
-                    <td className="px-4 py-3 text-sm">
-                      <StatusBadge status={fleet.status} />
                     </td>
                     <td className="px-4 py-3 text-sm dark:text-gray-300">
                       {fleet.measurementType}
@@ -239,7 +215,7 @@ const DumpTruckTable = memo(
                             <Eye className="w-4 h-4 mr-1" />
                             Lihat
                           </Button>
-                          {hasSetting && onReactivate && !readOnly && (
+                          {hasSetting && onReactivate &&  (
                             <Button
                               variant="ghost"
                               size="sm"
@@ -251,18 +227,6 @@ const DumpTruckTable = memo(
                             </Button>
                           )}
                         </div>
-                      ) : readOnly ? (
-                        /* ✅ READ-ONLY MODE - Single view button */
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => onViewUnits?.(fleet)}
-                          disabled={!hasSetting}
-                          className="cursor-pointer disabled:cursor-not-allowed dark:text-gray-200 dark:hover:bg-gray-700"
-                        >
-                          <Eye className="w-4 h-4 mr-1" />
-                          Lihat Unit
-                        </Button>
                       ) : (
                         /* ✅ NORMAL MODE - Use TableActions component */
                         <TableActions 
