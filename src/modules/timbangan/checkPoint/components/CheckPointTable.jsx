@@ -18,22 +18,20 @@ import {
   TrendingUp,
   Lock,
   Calendar,
+  FileDown,
 } from "lucide-react";
-import Pagination from "@/modules/timbangan/timbangan/components/Pagination";
-import LoadingContent from "@/modules/timbangan/timbangan/components/LoadingContent";
-import TimbanganDetailModal from "@/modules/timbangan/timbangan/components/timbangan/TimbanganDetailModal";
-import AdvancedFilter from "@/modules/timbangan/timbangan/components/AdvancedFilter";
-import EmptyState from "@/modules/timbangan/timbangan/components/EmptyState";
+import Pagination from "@/shared/components/Pagination";
+import LoadingContent from "@/shared/components/LoadingContent";
+import AdvancedFilter from "@/shared/components/AdvancedFilter";
+import EmptyState from "@/shared/components/EmptyState";
+import TimbanganDetailModal from "@/modules/timbangan/timbangan/components/TimbanganDetailModal";
 import { useTimbanganPermissions } from "@/shared/permissions/usePermissions";
 import { showToast } from "@/shared/utils/toast";
-import {
-  formatDate,
-  formatTime,
-} from "@/shared/utils/date";
+import { formatDate, formatTime } from "@/shared/utils/date";
 import { getFirstTruthyValue } from "@/shared/utils/object";
 import TableToolbar from "@/shared/components/TableToolbar";
 
-export const TimbanganTable = ({
+export const CheckpointTable = ({
   title = "Data Timbangan",
   shipments = [],
   onEdit,
@@ -48,11 +46,8 @@ export const TimbanganTable = ({
   showActions = true,
   onDateRangeChange,
   onRefresh,
-  // deleteSelectedItems,
   dateRange,
-  // Props baru untuk EmptyState
   allTimbanganData = [],
-  fleetCounts = { total: 0, timbangan: 0, digifleet: 0 },
   allSelectedFleets = [],
   onOpenInputForm,
   onOpenFleetDialog,
@@ -76,6 +71,7 @@ export const TimbanganTable = ({
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [filterExpanded, setFilterExpanded] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
 
   const [shifts, setShifts] = useState([]);
   const [excavators, setExcavators] = useState([]);
@@ -321,9 +317,6 @@ export const TimbanganTable = ({
 
   const totalPages = Math.ceil(filteredShipments.length / pageSize);
 
-  // ✅ Using formatDate and formatTime from @/shared/utils/date
-  // Removed duplicate formatDate/formatTime functions
-
   const isItemSelected = (itemId) => {
     return selectedItems.includes(itemId);
   };
@@ -413,6 +406,101 @@ export const TimbanganTable = ({
     handleCloseModal();
   };
 
+  const handleExportToExcel = async () => {
+    try {
+      setIsExporting(true);
+
+      const XLSX = await import("xlsx");
+      const exportData = filteredShipments.map((item, index) => ({
+        No: index + 1,
+        Tanggal: formatDate(item.tanggal || item.createdAt || item.timestamp),
+        Shift: getFirstTruthyValue(item, "fleet_shift", "shift"),
+        Waktu: formatTime(item.createdAt || item.timestamp),
+        "Hull No": getFirstTruthyValue(
+          item,
+          "hull_no",
+          "dumptruck",
+          "unit_dump_truck"
+        ),
+        Excavator: getFirstTruthyValue(
+          item,
+          "fleet_excavator",
+          "unit_exca",
+          "excavator"
+        ),
+        "Dump Truck": getFirstTruthyValue(
+          item,
+          "dumptruck",
+          "unit_dump_truck",
+          "hull_no"
+        ),
+        Operator: getFirstTruthyValue(
+          item,
+          "operator",
+          "operator_name",
+          "operatorId"
+        ),
+        "Loading Location": getFirstTruthyValue(
+          item,
+          "fleet_loading",
+          "loading_location",
+          "source"
+        ),
+        "Dumping Location": getFirstTruthyValue(
+          item,
+          "fleet_dumping",
+          "dumping_location",
+          "destination"
+        ),
+        "Net Weight (ton)": parseFloat(
+          item.net_weight || item.tonnage || 0
+        ).toFixed(2),
+        "Gross Weight (ton)": parseFloat(item.gross_weight),
+        "Tare Weight (ton)": parseFloat(item.tare_weight),
+        "Measurement Type": getFirstTruthyValue(
+          item,
+          "measurement_type",
+          "type_measurement"
+        ),
+        "Weigh Bridge": item.weigh_bridge || "-",
+      }));
+
+      const ws = XLSX.utils.json_to_sheet(exportData);
+
+      const columnWidths = [];
+      const headers = Object.keys(exportData[0] || {});
+
+      headers.forEach((header) => {
+        const maxLength = Math.max(
+          header.length,
+          ...exportData.map((row) => {
+            const value = row[header];
+            return value ? String(value).length : 0;
+          })
+        );
+        columnWidths.push({ wch: Math.min(maxLength + 2, 50) });
+      });
+
+      ws["!cols"] = columnWidths;
+
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Data Timbangan");
+
+      const date = new Date();
+      const dateStr = date.toISOString().split("T")[0];
+      const filename = `Timbangan_${dateStr}.xlsx`;
+
+      XLSX.writeFile(wb, filename);
+
+      showToast.success(`Data berhasil diexport ke ${filename}`);
+    } catch (error) {
+      console.error("Export error:", error);
+      showToast.error("Gagal export data ke Excel");
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   return (
     <>
       <Card className="border-none dark:text-gray-200">
@@ -432,21 +520,35 @@ export const TimbanganTable = ({
                   </Badge>
                 )}
               </div>
-              <div className="text-sm text-gray-600">
-                Total:{" "}
-                <span className="font-medium">
-                  {accessibleShipments.length}
-                </span>{" "}
-                data
-                {hasActiveFilters && (
-                  <>
-                    {" "}
-                    • Ditampilkan:{" "}
-                    <span className="font-medium text-blue-600">
-                      {filteredShipments.length}
-                    </span>
-                  </>
-                )}
+              <div className="flex items-center gap-3">
+                <Button
+                  onClick={handleExportToExcel}
+                  disabled={
+                    isLoading || filteredShipments.length === 0 || isExporting
+                  }
+                  variant="outline"
+                  size="sm"
+                  className="gap-2"
+                >
+                  <FileDown className="w-4 h-4" />
+                  {isExporting ? "Exporting..." : "Export Excel"}
+                </Button>
+                <div className="text-sm text-gray-600">
+                  Total:{" "}
+                  <span className="font-medium">
+                    {accessibleShipments.length}
+                  </span>{" "}
+                  data
+                  {hasActiveFilters && (
+                    <>
+                      {" "}
+                      • Ditampilkan:{" "}
+                      <span className="font-medium text-blue-600">
+                        {filteredShipments.length}
+                      </span>
+                    </>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -474,8 +576,6 @@ export const TimbanganTable = ({
                 showFilter={true}
                 filterExpanded={filterExpanded}
                 onToggleFilter={() => setFilterExpanded(!filterExpanded)}
-                // selectedItems={selectedItems}
-                // onDeleteSelected={deleteSelectedItems}
               />
 
               {/* Advanced Filter Panel */}
@@ -495,7 +595,6 @@ export const TimbanganTable = ({
             {isLoading ? (
               <LoadingContent />
             ) : filteredShipments.length === 0 ? (
-              // EmptyState di dalam Card, setelah TableToolbar
               <EmptyState
                 icon={Calendar}
                 title={
@@ -508,11 +607,9 @@ export const TimbanganTable = ({
                     ? "Mulai input data timbangan pertama Anda"
                     : allSelectedFleets.length === 0
                     ? `Total data: ${allTimbanganData.length}, tapi belum ada fleet yang dipilih. Pilih fleet di atas untuk menampilkan data.`
-                    : `Total data: ${allTimbanganData.length} (${
-                        fleetCounts.timbangan
-                      } Timbangan + ${
-                        fleetCounts.digifleet
-                      } DigiFleet), tapi tidak ada yang sesuai filter tanggal${
+                    : `Total data: ${
+                        allTimbanganData.length
+                      } fleet, tapi tidak ada yang sesuai filter tanggal${
                         dateRange?.shift !== "All" ? " dan shift" : ""
                       }`
                 }
@@ -537,8 +634,7 @@ export const TimbanganTable = ({
                 {/* Table */}
                 <div className="overflow-x-auto">
                   <table className="w-full table-auto">
-        <thead className="bg-gray-50 dark:bg-gray-900 ">
-
+                    <thead className="bg-gray-50 dark:bg-gray-900  ">
                       <tr>
                         {showSelection && canUpdate && (
                           <th className="px-4 py-3 text-left">
@@ -551,8 +647,7 @@ export const TimbanganTable = ({
                             />
                           </th>
                         )}
-            <th className="px-4 py-3 text-left text-xs font-medium text-black dark:text-gray-200">
-
+                        <th className="px-4 py-3 text-left text-xs font-medium text-black dark:text-gray-200">
                           Waktu
                         </th>
                         <th className="px-4 py-3 text-left text-xs font-medium text-black dark:text-gray-200">
@@ -578,6 +673,9 @@ export const TimbanganTable = ({
                         </th>
                         <th className="px-4 py-3 text-left text-xs font-medium text-black dark:text-gray-200">
                           Shift
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-black dark:text-gray-200">
+                          Measurement Type
                         </th>
                         {showActions && (
                           <th className="px-4 py-3 text-center text-xs font-medium text-black dark:text-gray-200">
@@ -629,6 +727,11 @@ export const TimbanganTable = ({
                           "fleet_shift",
                           "shift"
                         );
+                        const measurementType = getFirstTruthyValue(
+                          item,
+                          "measurement_type",
+                          "type_measurement"
+                        );
                         const netWeight = item.net_weight || item.tonnage || 0;
                         const hasAccess = canAccessItem(item);
 
@@ -636,7 +739,7 @@ export const TimbanganTable = ({
                           <tr
                             key={item.id}
                             className={` hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors ${
-                              isItemSelected(item.id) ? "bg-blue-50" : ""
+                              isItemSelected(item.id) ? "bg-blue-50 dark:bg-gray-800" : ""
                             } ${!hasAccess ? "opacity-50" : ""}`}
                           >
                             {showSelection && canUpdate && (
@@ -710,11 +813,14 @@ export const TimbanganTable = ({
                                 className={
                                   shift === "PAGI"
                                     ? "bg-yellow-50 dark:bg-gray-800 dark:text-gray-200  "
-                              : "bg-blue-50 dark:bg-gray-800 dark:text-gray-200"
+                                    : "bg-blue-50 dark:bg-gray-800 dark:text-gray-200"
                                 }
                               >
                                 {shift}
                               </Badge>
+                            </td>
+                            <td className="px-4 py-3 text-sm">
+                              <span className="text-xs">{measurementType}</span>
                             </td>
                             {showActions && (
                               <td className="px-4 py-3 text-center">
@@ -729,7 +835,10 @@ export const TimbanganTable = ({
                                       <MoreVertical className="h-4 w-4" />
                                     </Button>
                                   </DropdownMenuTrigger>
-                                  <DropdownMenuContent align="end" className="bg-white dark:bg-gray-800 dark:text-gray-200 border-none">
+                                  <DropdownMenuContent
+                                    align="end"
+                                    className="bg-white dark:bg-gray-800 dark:text-gray-200 border-none"
+                                  >
                                     {canRead && (
                                       <DropdownMenuItem
                                         onClick={() => handleView(item)}
@@ -881,4 +990,4 @@ export const TimbanganTable = ({
   );
 };
 
-export default TimbanganTable;
+export default CheckpointTable;

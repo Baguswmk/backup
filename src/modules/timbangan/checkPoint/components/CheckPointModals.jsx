@@ -1,11 +1,10 @@
 import React from "react";
 import { Plus, Edit } from "lucide-react";
-import TimbanganForm from "@/modules/timbangan/timbangan/TimbanganForm";
+import CheckpointForm from "@/modules/timbangan/checkpoint/components/CheckpointForm";
 import DeleteConfirmDialog from "@/shared/components/DeleteConfirmDialog";
 import FleetSelectionDialog from "@/shared/components/FleetSelectionDialog";
 import ModalHeader from "@/shared/components/ModalHeader";
 
-// Input Form Modal
 export const InputFormModal = ({
   isOpen,
   onClose,
@@ -26,7 +25,7 @@ export const InputFormModal = ({
             onClose={onClose}
             disabled={isActionLoading}
           />
-          <TimbanganForm
+          <CheckpointForm
             onSubmit={onSubmit}
             isSubmitting={isActionLoading}
             shouldAutoConnect={shouldAutoConnect}
@@ -38,7 +37,6 @@ export const InputFormModal = ({
   );
 };
 
-// Edit Form Modal
 export const EditFormModal = ({
   isOpen,
   onClose,
@@ -59,7 +57,7 @@ export const EditFormModal = ({
             onClose={onClose}
             disabled={isActionLoading}
           />
-          <TimbanganForm
+          <CheckpointForm
             onSubmit={onSubmit}
             editingItem={editingItem}
             isSubmitting={isActionLoading}
@@ -71,7 +69,6 @@ export const EditFormModal = ({
   );
 };
 
-// Delete Confirmation Modal
 export const DeleteModal = ({
   isOpen,
   onClose,
@@ -100,42 +97,41 @@ export const DeleteModal = ({
   );
 };
 
-// Fleet Selection Modal
-export const FleetModal = ({ isOpen, onClose, onSave }) => {
+export const FleetModal = ({ isOpen, onClose, onSave, measurementType }) => {
   return (
     <FleetSelectionDialog
       isOpen={isOpen}
       onClose={onClose}
       onSave={onSave}
+      measurementType={measurementType}
     />
   );
 };
 
-// All Modals Container
-const TimbanganModals = ({
-  // Input Form
+const CheckpointModals = ({
   showInputForm,
   onCloseInputForm,
   onSubmitInputForm,
   isActionLoading,
   shouldAutoConnect,
   onAutoConnectComplete,
-  // Edit Form
+
   isFormOpen,
   onCloseEditForm,
   onSubmitEditForm,
   editingItem,
   formMode,
-  // Delete
+
   showDeleteDialog,
   onCloseDeleteDialog,
   onConfirmDelete,
   itemToDelete,
   isDeleting,
-  // Fleet
+
   showFleetDialog,
   onCloseFleetDialog,
   onSaveFleetSelection,
+  measurementType,
 }) => {
   return (
     <>
@@ -169,9 +165,10 @@ const TimbanganModals = ({
         isOpen={showFleetDialog}
         onClose={onCloseFleetDialog}
         onSave={onSaveFleetSelection}
+        measurementType={measurementType}
       />
     </>
   );
 };
 
-export default TimbanganModals;
+export default CheckpointModals;

@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { dashboardService } from "@/modules/timbangan/dashboard/services/dashboardService";
 import { showToast } from "@/shared/utils/toast";
 import { withErrorHandling } from "@/shared/utils/errorHandler";
-import { useDebouncedValue } from "@/shared/hooks/useDebouncedValue";
 
 export const useDashboardDaily = (params = {}, autoFetch = true) => {
   const [data, setData] = useState(null);
@@ -13,8 +12,9 @@ export const useDashboardDaily = (params = {}, autoFetch = true) => {
   const isMountedRef = useRef(true);
   const abortControllerRef = useRef(null);
   const lastFetchedParamsRef = useRef(null);
+  const isInitialMountRef = useRef(true);
 
-  // ✅ Use memoized params
+  // ✅ Memoized params dengan stable reference
   const memoizedParams = useMemo(
     () => ({
       startDate: params.startDate,
@@ -24,12 +24,18 @@ export const useDashboardDaily = (params = {}, autoFetch = true) => {
     [params.startDate, params.endDate, params.shift]
   );
 
-  // ✅ ADDED - Use debounced params to prevent excessive API calls
-  const debouncedParams = useDebouncedValue(memoizedParams, 300);
+  // ✅ Create params signature untuk comparison
+  const paramsSignature = useMemo(() => {
+    return `${memoizedParams.startDate}|${memoizedParams.endDate}|${memoizedParams.shift}`;
+  }, [memoizedParams]);
 
-  // ✅ REFACTORED - Use withErrorHandling
+  /**
+   * Fetch Dashboard Data
+   * @param {boolean} forceRefresh - Force refresh bypass cache
+   */
   const fetchDashboard = useCallback(
     async (forceRefresh = false) => {
+      // ✅ Validasi params
       if (!params.startDate || !params.endDate) {
         const errorMsg = "Tanggal mulai dan akhir harus diisi";
         setError(errorMsg);
@@ -37,6 +43,7 @@ export const useDashboardDaily = (params = {}, autoFetch = true) => {
         return { success: false, error: errorMsg };
       }
 
+      // ✅ Cancel previous request
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
       }
@@ -47,10 +54,11 @@ export const useDashboardDaily = (params = {}, autoFetch = true) => {
 
       return await withErrorHandling(
         async () => {
+          // ✅ Call service dengan params yang sesuai BE
           const response = await dashboardService.getDashboardDaily({
             start_date: params.startDate,
             end_date: params.endDate,
-            shift: params.shift || "All",
+            shift: params.shift || "All", // BE default "All"
             forceRefresh,
           });
 
@@ -58,10 +66,11 @@ export const useDashboardDaily = (params = {}, autoFetch = true) => {
             throw new Error("Component unmounted");
           }
 
+          // ✅ Set data dari response
           setData(response);
           setLastFetch(new Date());
           setError(null);
-          lastFetchedParamsRef.current = memoizedParams;
+          lastFetchedParamsRef.current = paramsSignature;
 
           return { success: true, data: response };
         },
@@ -71,6 +80,7 @@ export const useDashboardDaily = (params = {}, autoFetch = true) => {
           onError: (err) => {
             if (!isMountedRef.current) return;
 
+            // ✅ Skip abort errors
             if (err.name === "AbortError" || err.message === "Component unmounted") {
               return;
             }
@@ -78,11 +88,12 @@ export const useDashboardDaily = (params = {}, autoFetch = true) => {
             setData(null);
             setError(err.message);
 
-            // Only show toast for non-expected errors
+            // ✅ Only show toast for unexpected errors
+            // Sesuai dengan error message BE
             if (
               !err.message.includes("tidak ditemukan") &&
               !err.message.includes("harus diisi") &&
-              !err.message.includes("400")
+              !err.message.includes("tidak valid")
             ) {
               showToast.error(err.message);
             }
@@ -95,13 +106,19 @@ export const useDashboardDaily = (params = {}, autoFetch = true) => {
         abortControllerRef.current = null;
       });
     },
-    [params.startDate, params.endDate, params.shift, memoizedParams]
+    [params.startDate, params.endDate, params.shift, paramsSignature]
   );
 
+  /**
+   * Refresh - Force refresh dengan bypass cache
+   */
   const refresh = useCallback(() => {
     return fetchDashboard(true);
   }, [fetchDashboard]);
 
+  /**
+   * Clear Data
+   */
   const clearData = useCallback(() => {
     setData(null);
     setError(null);
@@ -109,7 +126,9 @@ export const useDashboardDaily = (params = {}, autoFetch = true) => {
     lastFetchedParamsRef.current = null;
   }, []);
 
-  // ✅ REFACTORED - Use withErrorHandling
+  /**
+   * Clear Cache
+   */
   const clearCache = useCallback(async () => {
     return await withErrorHandling(
       async () => {
@@ -125,31 +144,38 @@ export const useDashboardDaily = (params = {}, autoFetch = true) => {
     );
   }, [refresh]);
 
-  // ✅ IMPROVED - Use debounced params instead of manual setTimeout
+  // ✅ Auto fetch effect
   useEffect(() => {
     if (!autoFetch) return;
-    if (!debouncedParams.startDate || !debouncedParams.endDate) return;
+    if (!memoizedParams.startDate || !memoizedParams.endDate) return;
 
     const lastParams = lastFetchedParamsRef.current;
+    const currentParams = paramsSignature;
 
-    // Skip if params haven't changed and we have data
-    if (
-      lastParams &&
-      lastParams.startDate === debouncedParams.startDate &&
-      lastParams.endDate === debouncedParams.endDate &&
-      lastParams.shift === debouncedParams.shift &&
-      data !== null
-    ) {
+    // ✅ Kondisi fetch:
+    // 1. Initial mount - always fetch
+    // 2. Params changed - fetch
+    const shouldFetch = 
+      isInitialMountRef.current || 
+      lastParams !== currentParams;
+
+    if (!shouldFetch) {
       return;
+    }
+    
+    if (isInitialMountRef.current) {
+      isInitialMountRef.current = false;
     }
 
     if (isMountedRef.current) {
       fetchDashboard(false);
     }
-  }, [debouncedParams, autoFetch, fetchDashboard, data]);
+  }, [paramsSignature, autoFetch, fetchDashboard, memoizedParams.startDate, memoizedParams.endDate]);
 
+  // ✅ Mount/unmount effect
   useEffect(() => {
     isMountedRef.current = true;
+    isInitialMountRef.current = true;
 
     return () => {
       isMountedRef.current = false;
@@ -160,18 +186,22 @@ export const useDashboardDaily = (params = {}, autoFetch = true) => {
     };
   }, []);
 
+  // ✅ Return values sesuai dengan struktur BE response
   return {
+    // Raw data
     data,
     isLoading,
     error,
     lastFetch,
 
+    // Actions
     fetchDashboard,
     refresh,
     clearData,
     clearCache,
 
-    hasData: data !== null && data?.data !== null,
+    // Computed values - sesuai struktur BE
+    hasData: data !== null && data?.success && data?.data !== null,
     isEmpty: data?.data?.tableData?.length === 0,
     summaryData: data?.data?.summary || null,
     tableData: data?.data?.tableData || [],
