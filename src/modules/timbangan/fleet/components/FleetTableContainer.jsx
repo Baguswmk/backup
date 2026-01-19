@@ -2,81 +2,61 @@ import React, { useState, useMemo, useCallback } from "react";
 import { Button } from "@/shared/components/ui/button";
 import { Download, Upload, RefreshCw } from "lucide-react";
 import FleetTable from "@/modules/timbangan/fleet/components/FleetTable";
-// import FleetBulkActions from "@/modules/timbangan/fleet/components/FleetBulkActions";
+
 import FleetBulkOperations from "@/modules/timbangan/fleet/components/FleetBulkOperations";
-import { PAGE_SIZE, TOAST_MESSAGES } from "@/modules/timbangan/fleet/constant/fleetConstants";
+import {
+  PAGE_SIZE,
+  TOAST_MESSAGES,
+} from "@/modules/timbangan/fleet/constant/fleetConstants";
 import { showToast } from "@/shared/utils/toast";
 import { handleError } from "@/shared/utils/errorHandler";
 
-/**
- * FleetTableContainer - Simplified for Timbangan only
- * 
- * Features:
- * - Pagination with page info
- * - Bulk selection and actions
- * - Export/Import functionality
- * - Quick actions toolbar
- * - Responsive design
- */
 const FleetTableContainer = ({
-  // Data props
   filteredConfigs = [],
   paginatedConfigs = [],
-  
-  // State props
+
   isLoading = false,
   hasActiveFilters = false,
   isRefreshing = false,
   isSaving = false,
-  
-  // Permission props
+
   canRead = true,
   canUpdate = false,
   canDelete = false,
-  
-  // Handler props
+
   onResetFilters,
   onViewConfig,
   onEditConfig,
   onDeleteConfig,
   onStatusChange,
   onRefresh,
-  
-  // Dumptruck props
+
   getDumptruckCount,
   getDumptruckList,
-  
-  // Pagination props
+
   currentPage = PAGE_SIZE.DEFAULT_PAGE,
   onPageChange,
-  
-  // Status update tracking
+
   updatingStatusId = null,
-  
-  // Optional: Bulk operations
+
   enableBulkActions = false,
   onBulkStatusChange,
   onBulkDelete,
-  
-  // Optional: Export/Import
+
   enableExport = false,
   onExport,
   onImport,
 }) => {
-  // Bulk selection state
   const [selectedIds, setSelectedIds] = useState([]);
 
-  // Calculate total pages
   const totalPages = useMemo(() => {
     return Math.ceil(filteredConfigs.length / PAGE_SIZE.PAGE_SIZE);
   }, [filteredConfigs.length]);
 
-  // Check if there's data to display
   const hasData = useMemo(() => {
     return filteredConfigs.length > 0;
   }, [filteredConfigs.length]);
 
-  // Calculate current page range info
   const pageInfo = useMemo(() => {
     if (!hasData) {
       return { start: 0, end: 0, total: 0 };
@@ -85,59 +65,65 @@ const FleetTableContainer = ({
     const start = (currentPage - 1) * PAGE_SIZE.PAGE_SIZE + 1;
     const end = Math.min(
       currentPage * PAGE_SIZE.PAGE_SIZE,
-      filteredConfigs.length
+      filteredConfigs.length,
     );
 
     return { start, end, total: filteredConfigs.length };
   }, [hasData, currentPage, filteredConfigs.length]);
 
-  // Reset selection when page changes
-  const handlePageChange = useCallback((newPage) => {
-    setSelectedIds([]);
-    onPageChange(newPage);
-  }, [onPageChange]);
-
-  // Handle bulk status change
-  const handleBulkStatusChange = useCallback(async (ids, status) => {
-    if (!onBulkStatusChange) return;
-    
-    try {
-      await onBulkStatusChange(ids, status);
+  const handlePageChange = useCallback(
+    (newPage) => {
       setSelectedIds([]);
-      showToast.success(TOAST_MESSAGES.SUCCESS.UPDATE);
-    } catch (error) {
-      handleError(error, {
-        operation: "bulk status change",
-        defaultMessage: TOAST_MESSAGES.ERROR.UPDATE_FAILED,
-      });
-    }
-  }, [onBulkStatusChange]);
+      onPageChange(newPage);
+    },
+    [onPageChange],
+  );
 
-  // Handle bulk delete
-  const handleBulkDelete = useCallback(async (ids) => {
-    if (!onBulkDelete) return;
-    
-    try {
-      await onBulkDelete(ids);
-      setSelectedIds([]);
-      showToast.success(TOAST_MESSAGES.SUCCESS.DELETE);
-    } catch (error) {
-      handleError(error, {
-        operation: "bulk delete",
-        defaultMessage: TOAST_MESSAGES.ERROR.DELETE_FAILED,
-      });
-    }
-  }, [onBulkDelete]);
+  const handleBulkStatusChange = useCallback(
+    async (ids, status) => {
+      if (!onBulkStatusChange) return;
 
-  // Handle export
+      try {
+        await onBulkStatusChange(ids, status);
+        setSelectedIds([]);
+        showToast.success(TOAST_MESSAGES.SUCCESS.UPDATE);
+      } catch (error) {
+        handleError(error, {
+          operation: "bulk status change",
+          defaultMessage: TOAST_MESSAGES.ERROR.UPDATE_FAILED,
+        });
+      }
+    },
+    [onBulkStatusChange],
+  );
+
+  const handleBulkDelete = useCallback(
+    async (ids) => {
+      if (!onBulkDelete) return;
+
+      try {
+        await onBulkDelete(ids);
+        setSelectedIds([]);
+        showToast.success(TOAST_MESSAGES.SUCCESS.DELETE);
+      } catch (error) {
+        handleError(error, {
+          operation: "bulk delete",
+          defaultMessage: TOAST_MESSAGES.ERROR.DELETE_FAILED,
+        });
+      }
+    },
+    [onBulkDelete],
+  );
+
   const handleExport = useCallback(() => {
     if (!onExport) return;
-    
+
     try {
-      const selectedConfigs = selectedIds.length > 0
-        ? filteredConfigs.filter(c => selectedIds.includes(c.id))
-        : filteredConfigs;
-        
+      const selectedConfigs =
+        selectedIds.length > 0
+          ? filteredConfigs.filter((c) => selectedIds.includes(c.id))
+          : filteredConfigs;
+
       onExport(selectedConfigs);
       showToast.success(`${selectedConfigs.length} fleet berhasil diexport`);
     } catch (error) {
@@ -191,7 +177,9 @@ const FleetTableContainer = ({
                 disabled={isLoading || isRefreshing}
                 className="cursor-pointer disabled:cursor-not-allowed dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
               >
-                <RefreshCw className={`w-4 h-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
+                <RefreshCw
+                  className={`w-4 h-4 mr-2 ${isRefreshing ? "animate-spin" : ""}`}
+                />
                 Refresh
               </Button>
             )}
@@ -212,14 +200,14 @@ const FleetTableContainer = ({
       {/* Bulk Actions Component */}
       {enableBulkActions && hasData && (
         <FleetBulkOperations
-  fleets={paginatedConfigs}
-  selectedIds={selectedIds}
-  onSelectionChange={setSelectedIds}
-  onBulkStatusChange={handleBulkStatusChange}
-  onBulkDelete={handleBulkDelete}
-  canUpdate={canUpdate}
-  canDelete={canDelete}
-/>
+          fleets={paginatedConfigs}
+          selectedIds={selectedIds}
+          onSelectionChange={setSelectedIds}
+          onBulkStatusChange={handleBulkStatusChange}
+          onBulkDelete={handleBulkDelete}
+          canUpdate={canUpdate}
+          canDelete={canDelete}
+        />
       )}
 
       {/* Fleet Table */}
@@ -243,28 +231,27 @@ const FleetTableContainer = ({
         onPageChange={handlePageChange}
         updatingStatusId={updatingStatusId}
         isHistoryMode={false}
-        // Bulk selection props (if needed in table)
         isPickingMode={enableBulkActions}
         selectedIds={selectedIds}
         onToggleSelect={(id) => {
-          setSelectedIds(prev => 
-            prev.includes(id) 
-              ? prev.filter(i => i !== id)
-              : [...prev, id]
+          setSelectedIds((prev) =>
+            prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id],
           );
         }}
         allPageSelected={
           paginatedConfigs.length > 0 &&
-          paginatedConfigs.every(c => selectedIds.includes(c.id))
+          paginatedConfigs.every((c) => selectedIds.includes(c.id))
         }
         onSelectAllPage={() => {
-          const pageIds = paginatedConfigs.map(c => c.id);
-          const allSelected = pageIds.every(id => selectedIds.includes(id));
-          
+          const pageIds = paginatedConfigs.map((c) => c.id);
+          const allSelected = pageIds.every((id) => selectedIds.includes(id));
+
           if (allSelected) {
-            setSelectedIds(prev => prev.filter(id => !pageIds.includes(id)));
+            setSelectedIds((prev) =>
+              prev.filter((id) => !pageIds.includes(id)),
+            );
           } else {
-            setSelectedIds(prev => [...new Set([...prev, ...pageIds])]);
+            setSelectedIds((prev) => [...new Set([...prev, ...pageIds])]);
           }
         }}
       />
@@ -275,7 +262,7 @@ const FleetTableContainer = ({
           <p className="text-xs text-gray-500 dark:text-gray-400">
             Halaman {currentPage} dari {totalPages}
           </p>
-          
+
           {selectedIds.length > 0 && (
             <p className="text-xs text-gray-500 dark:text-gray-400">
               Tip: Pilihan akan direset saat pindah halaman

@@ -52,10 +52,10 @@ export const useFleet = (userAuth = null, measurementType = null) => {
   const fleetConfigs = useTimbanganStore((state) => state.fleetConfigs);
   const selectedFleetIds = useTimbanganStore((state) => state.selectedFleetIds);
   const setSelectedFleets = useTimbanganStore(
-    (state) => state.setSelectedFleets
+    (state) => state.setSelectedFleets,
   );
   const setDumptruckIndexFromConfigs = useTimbanganStore(
-    (state) => state.setDumptruckIndexFromConfigs
+    (state) => state.setDumptruckIndexFromConfigs,
   );
 
   const [isLoading, setIsLoading] = useState(false);
@@ -65,8 +65,6 @@ export const useFleet = (userAuth = null, measurementType = null) => {
     excavators: [],
     loadingLocations: [],
     dumpingLocations: [],
-    shifts: [],
-    status: [],
     workUnits: [],
     companies: [],
     coalTypes: [],
@@ -170,12 +168,12 @@ export const useFleet = (userAuth = null, measurementType = null) => {
             mastersCache.loading = false;
             setMastersLoading(false);
           },
-        }
+        },
       ).finally(() => {
         setMastersLoading(false);
       });
     },
-    [masters]
+    [masters],
   );
 
   const preloadAllFleets = useCallback(
@@ -200,7 +198,9 @@ export const useFleet = (userAuth = null, measurementType = null) => {
             measurementType || options.measurementType || "Timbangan";
 
           if (options.forceRefresh) {
-            await offlineService.clearCache("fleets_");
+            await offlineService.clearCache(
+              `fleets_${user?.id || "nouser"}_${effectiveMeasurementType}`,
+            );
           }
 
           const result = await fleetService.fetchFleetConfigs({
@@ -214,58 +214,55 @@ export const useFleet = (userAuth = null, measurementType = null) => {
             throw new Error(result.error || "Failed to fetch fleet configs");
           }
 
-          const allConfigs = result.data || [];
+          const newConfigs = result.data || [];
 
           const currentStore = useTimbanganStore.getState();
-          const existingSelectedIds = currentStore.selectedFleetIds || [];
-
-          const existingSelectedFleets = currentStore.fleetConfigs.filter((f) =>
-            existingSelectedIds.includes(f.id)
-          );
-
-          const mergedConfigs = [...existingSelectedFleets, ...allConfigs];
-          const uniqueConfigs = Array.from(
-            new Map(mergedConfigs.map((c) => [c.id, c])).values()
-          );
-
-          const store = useTimbanganStore.getState();
-          store.setDumptruckIndexFromConfigs(uniqueConfigs, measurementType);
-
-          const byType = {
+          const existingByType = currentStore.fleetConfigsByType || {
             Timbangan: [],
             FOB: [],
             Bypass: [],
             Beltscale: [],
           };
 
-          uniqueConfigs.forEach((config) => {
-            const type = config.measurementType;
+          const updatedByType = {
+            ...existingByType,
+            [effectiveMeasurementType]: newConfigs,
+          };
 
-            if (type === "Timbangan") {
-              byType["Timbangan"].push(config);
-            } else if (type === "FOB") {
-              byType["FOB"].push(config);
-            } else if (type === "Bypass") {
-              byType["Bypass"].push(config);
-            } else if (type === "Beltscale") {
-              byType["Beltscale"].push(config);
-            }
-          });
+          const allConfigs = [
+            ...updatedByType.Timbangan,
+            ...updatedByType.FOB,
+            ...updatedByType.Bypass,
+            ...updatedByType.Beltscale,
+          ];
+
+          const uniqueConfigs = Array.from(
+            new Map(allConfigs.map((c) => [c.id, c])).values(),
+          );
 
           useTimbanganStore.setState({
             fleetConfigs: uniqueConfigs,
-            fleetConfigsByType: byType,
+            fleetConfigsByType: updatedByType,
           });
+
+          const store = useTimbanganStore.getState();
+          store.setDumptruckIndexFromConfigs(uniqueConfigs, measurementType);
 
           if (viewMode === "normal" && !options.skipAutoActivate) {
             const today = format(new Date(), "yyyy-MM-dd");
-            const activeToday = allConfigs.filter(
-              (c) => c.status === "ACTIVE" && c.date === today
+            const activeToday = newConfigs.filter(
+              (c) => c.status === "ACTIVE" && c.date === today,
             );
 
             if (activeToday.length > 0) {
               const activeIds = activeToday.map((c) => c.id);
-              setSelectedFleets(activeIds);
+
+              const currentSelectedIds = currentStore.selectedFleetIds || [];
+              const mergedSelectedIds = Array.from(
+                new Set([...currentSelectedIds, ...activeIds]),
+              );
+
+              setSelectedFleets(mergedSelectedIds);
               setDumptruckIndexFromConfigs(uniqueConfigs);
             }
           } else {
@@ -274,7 +271,7 @@ export const useFleet = (userAuth = null, measurementType = null) => {
 
           return {
             success: true,
-            data: allConfigs,
+            data: newConfigs,
           };
         },
         {
@@ -285,7 +282,7 @@ export const useFleet = (userAuth = null, measurementType = null) => {
               setError(err.message);
             }
           },
-        }
+        },
       ).finally(() => {
         setIsLoading(false);
         abortControllerRef.current = null;
@@ -295,7 +292,13 @@ export const useFleet = (userAuth = null, measurementType = null) => {
       pendingFleetRequestRef.current = requestPromise;
       return requestPromise;
     },
-    [user, viewMode, setSelectedFleets, setDumptruckIndexFromConfigs, measurementType]
+    [
+      user,
+      viewMode,
+      setSelectedFleets,
+      setDumptruckIndexFromConfigs,
+      measurementType,
+    ],
   );
 
   const loadFleetConfigs = useCallback(
@@ -310,7 +313,9 @@ export const useFleet = (userAuth = null, measurementType = null) => {
             measurementType || options.measurementType || "Timbangan";
 
           if (options.forceRefresh) {
-            fleetService.clearCache();
+            await offlineService.clearCache(
+              `fleets_${user?.id || "nouser"}_${effectiveMeasurementType}`,
+            );
           }
 
           const result = await fleetService.fetchFleetConfigs({
@@ -320,39 +325,34 @@ export const useFleet = (userAuth = null, measurementType = null) => {
           });
 
           if (result.success) {
-            const currentConfigs = useTimbanganStore.getState().fleetConfigs;
-            const uniqueConfigs = Array.from(
-              new Map(
-                [...currentConfigs, ...result.data].map((c) => [c.id, c])
-              ).values()
-            );
-
-            const byType = {
+            const currentStore = useTimbanganStore.getState();
+            const existingByType = currentStore.fleetConfigsByType || {
               Timbangan: [],
               FOB: [],
               Bypass: [],
               Beltscale: [],
             };
 
-            uniqueConfigs.forEach((config) => {
-              const type = config.measurementType;
+            const updatedByType = {
+              ...existingByType,
+              [effectiveMeasurementType]: result.data,
+            };
 
-              if (type === "Timbangan") {
-                byType["Timbangan"].push(config);
-              } else if (type === "FOB") {
-                byType["FOB"].push(config);
-              } else if (type === "Bypass") {
-                byType["Bypass"].push(config);
-              } else if (type === "Beltscale") {
-                byType["Beltscale"].push(config);
-              }
-            });
+            const allConfigs = [
+              ...updatedByType.Timbangan,
+              ...updatedByType.FOB,
+              ...updatedByType.Bypass,
+              ...updatedByType.Beltscale,
+            ];
+
+            const uniqueConfigs = Array.from(
+              new Map(allConfigs.map((c) => [c.id, c])).values(),
+            );
 
             useTimbanganStore.setState({
               fleetConfigs: uniqueConfigs,
-              fleetConfigsByType: byType,
+              fleetConfigsByType: updatedByType,
             });
-
             if (
               viewMode === "normal" &&
               !options.skipAutoActivate &&
@@ -360,7 +360,7 @@ export const useFleet = (userAuth = null, measurementType = null) => {
             ) {
               const today = format(new Date(), "yyyy-MM-dd");
               const activeToday = result.data.filter(
-                (c) => c.status === "ACTIVE" && c.date === today
+                (c) => c.status === "ACTIVE" && c.date === today,
               );
 
               if (activeToday.length > 0) {
@@ -369,7 +369,7 @@ export const useFleet = (userAuth = null, measurementType = null) => {
                   useTimbanganStore.getState().selectedFleetIds;
 
                 const updatedSelection = Array.from(
-                  new Set([...currentSelectedIds, ...activeIds])
+                  new Set([...currentSelectedIds, ...activeIds]),
                 );
 
                 const finalSelection = updatedSelection.filter((id) => {
@@ -397,12 +397,18 @@ export const useFleet = (userAuth = null, measurementType = null) => {
           operation: "load fleet configs",
           showSuccessToast: false,
           onError: (err) => setError(err.message),
-        }
+        },
       ).finally(() => {
         loadingState(false);
       });
     },
-    [user, viewMode, setSelectedFleets, setDumptruckIndexFromConfigs, measurementType]
+    [
+      user,
+      viewMode,
+      setSelectedFleets,
+      setDumptruckIndexFromConfigs,
+      measurementType,
+    ],
   );
 
   const createFleetConfig = useCallback(
@@ -420,7 +426,6 @@ export const useFleet = (userAuth = null, measurementType = null) => {
             ...configData,
             createdByUserId: user?.id || null,
           };
-
           if (!enrichedData.measurement_type) {
             const fleetTypeMap = {
               Jembatan: "Timbangan",
@@ -452,7 +457,7 @@ export const useFleet = (userAuth = null, measurementType = null) => {
               !enrichedData.weightBridgeId
             ) {
               throw new Error(
-                "Jembatan timbang wajib dipilih untuk fleet Timbangan"
+                "Jembatan timbang wajib dipilih untuk fleet Timbangan",
               );
             }
           }
@@ -479,19 +484,19 @@ export const useFleet = (userAuth = null, measurementType = null) => {
           }
 
           throw new Error(
-            result.error || result.message || "Failed to create config"
+            result.error || result.message || "Failed to create config",
           );
         },
         {
           operation: "create fleet config",
           showSuccessToast: true,
           onError: (err) => setError(err.message),
-        }
+        },
       ).finally(() => {
         setIsLoading(false);
       });
     },
-    [loadFleetConfigs, user, userRoleInfo, measurementType]
+    [loadFleetConfigs, user, userRoleInfo, measurementType],
   );
 
   const updateConfig = useCallback(
@@ -501,7 +506,7 @@ export const useFleet = (userAuth = null, measurementType = null) => {
 
       const currentConfigs = useTimbanganStore.getState().fleetConfigs;
       const optimisticConfigs = currentConfigs.map((c) =>
-        c.id === configId ? { ...c, ...updates } : c
+        c.id === configId ? { ...c, ...updates } : c,
       );
 
       useTimbanganStore.setState({ fleetConfigs: optimisticConfigs });
@@ -510,7 +515,7 @@ export const useFleet = (userAuth = null, measurementType = null) => {
         async () => {
           const result = await fleetService.updateFleetConfig(
             configId,
-            updates
+            updates,
           );
 
           if (result.success) {
@@ -535,12 +540,12 @@ export const useFleet = (userAuth = null, measurementType = null) => {
             useTimbanganStore.setState({ fleetConfigs: currentConfigs });
             setError(err.message);
           },
-        }
+        },
       ).finally(() => {
         setIsLoading(false);
       });
     },
-    [loadFleetConfigs]
+    [loadFleetConfigs],
   );
 
   const deleteConfig = useCallback(
@@ -562,7 +567,7 @@ export const useFleet = (userAuth = null, measurementType = null) => {
 
       let foundType = null;
       for (const [type, configs] of Object.entries(
-        currentState.fleetConfigsByType
+        currentState.fleetConfigsByType,
       )) {
         if (configs.some((c) => c.id === configId)) {
           foundType = type;
@@ -574,14 +579,14 @@ export const useFleet = (userAuth = null, measurementType = null) => {
         const optimisticByType = {
           ...currentState.fleetConfigsByType,
           [foundType]: currentState.fleetConfigsByType[foundType].filter(
-            (c) => c.id !== configId
+            (c) => c.id !== configId,
           ),
         };
 
         const optimisticSelectedByType = {
           ...currentState.selectedFleetIdsByType,
           [foundType]: currentState.selectedFleetIdsByType[foundType].filter(
-            (id) => id !== configId
+            (id) => id !== configId,
           ),
         };
 
@@ -590,7 +595,7 @@ export const useFleet = (userAuth = null, measurementType = null) => {
           fleetConfigsByType: optimisticByType,
           selectedFleetIdsByType: optimisticSelectedByType,
           selectedFleetIds: currentState.selectedFleetIds.filter(
-            (id) => id !== configId
+            (id) => id !== configId,
           ),
         });
       }
@@ -629,15 +634,13 @@ export const useFleet = (userAuth = null, measurementType = null) => {
             useTimbanganStore.setState(backup);
             setError(err.message);
           },
-        }
+        },
       ).finally(() => {
         setIsLoading(false);
       });
     },
-    [loadFleetConfigs]
+    [loadFleetConfigs],
   );
-
-
 
   const reactivateFleet = useCallback(
     async (configId, newStatus = "ACTIVE") => {
@@ -652,7 +655,7 @@ export const useFleet = (userAuth = null, measurementType = null) => {
 
           const result = await fleetService.reactivateFleet(
             configId,
-            newStatus
+            newStatus,
           );
 
           if (result.success) {
@@ -678,12 +681,12 @@ export const useFleet = (userAuth = null, measurementType = null) => {
           showSuccessToast: true,
           successMessage: "Fleet berhasil direaktivasi",
           onError: (err) => setError(err.message),
-        }
+        },
       ).finally(() => {
         setIsLoading(false);
       });
     },
-    [loadFleetConfigs]
+    [loadFleetConfigs],
   );
 
   const activateConfig = useCallback(
@@ -707,17 +710,17 @@ export const useFleet = (userAuth = null, measurementType = null) => {
           showSuccessToast: true,
           successMessage: "Konfigurasi berhasil diaktifkan",
           onError: (err) => setError(err.message),
-        }
+        },
       ).finally(() => {
         setIsLoading(false);
       });
     },
-    [loadFleetConfigs]
+    [loadFleetConfigs],
   );
 
   const getFleetById = useCallback(
     (id) => fleetConfigs.find((c) => c.id === id),
-    [fleetConfigs]
+    [fleetConfigs],
   );
 
   const switchViewMode = useCallback(
@@ -730,7 +733,7 @@ export const useFleet = (userAuth = null, measurementType = null) => {
       setViewMode(mode);
       setTimeout(() => preloadAllFleets({ forceRefresh: true }), 0);
     },
-    [preloadAllFleets]
+    [preloadAllFleets],
   );
 
   const refresh = useCallback(
@@ -745,12 +748,12 @@ export const useFleet = (userAuth = null, measurementType = null) => {
 
       return result;
     },
-    [preloadAllFleets]
+    [preloadAllFleets],
   );
 
   const refreshMasters = useCallback(
     async () => loadMasters({ forceRefresh: true }),
-    [loadMasters]
+    [loadMasters],
   );
 
   const clearMastersCache = useCallback(() => {

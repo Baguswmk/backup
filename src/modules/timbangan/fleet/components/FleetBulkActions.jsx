@@ -1,4 +1,3 @@
-// FleetBulkActions.jsx - Bulk Operations Component
 import React, { useState, useMemo } from "react";
 import { Button } from "@/shared/components/ui/button";
 import { Checkbox } from "@/shared/components/ui/checkbox";
@@ -153,7 +152,10 @@ const FleetBulkActions = ({
                   Ubah Status
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="dark:bg-gray-800 dark:border-gray-700">
+              <DropdownMenuContent
+                align="end"
+                className="dark:bg-gray-800 dark:border-gray-700"
+              >
                 <DropdownMenuItem
                   onClick={() => handleStatusChange("ACTIVE")}
                   className="cursor-pointer dark:text-gray-200 dark:hover:bg-gray-700"

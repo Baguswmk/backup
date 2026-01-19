@@ -12,15 +12,14 @@ import {
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/shared/components/ui/dropdown-menu";
 import Pagination from "@/shared/components/Pagination";
 import LoadingContent from "@/shared/components/LoadingContent";
-import StatusBadge from "@/shared/components/StatusBadge";
 import TableActions from "@/shared/components/TableActions";
 import EmptyState from "@/shared/components/EmptyState";
 import { formatDate } from "@/shared/utils/date";
+import StatusBadge from "@/shared/components/StatusBadge";
 
 const FleetTable = ({
   configs = [],
@@ -32,7 +31,6 @@ const FleetTable = ({
   onViewConfig,
   onEditConfig,
   onDeleteConfig,
-  onStatusChange,
   onReactivate,
   getDumptruckCount,
   getDumptruckList,
@@ -40,7 +38,6 @@ const FleetTable = ({
   pageSize = 10,
   totalPages = 1,
   onPageChange,
-  updatingStatusId = null,
   isHistoryMode = false,
   isPickingMode = false,
   selectedIds = [],
@@ -60,8 +57,8 @@ const FleetTable = ({
           hasActiveFilters
             ? "Tidak ada hasil"
             : isHistoryMode
-            ? "Tidak Ada Riwayat"
-            : "Belum Ada Konfigurasi"
+              ? "Tidak Ada Riwayat"
+              : "Belum Ada Konfigurasi"
         }
         description={
           isHistoryMode
@@ -111,7 +108,6 @@ const FleetTable = ({
               <th className="px-4 py-3 text-left text-xs font-medium text-black dark:text-gray-200">
                 Excavator
               </th>
-            
               <th className="px-4 py-3 text-left text-xs font-medium text-black dark:text-gray-200">
                 Work Unit
               </th>
@@ -121,9 +117,6 @@ const FleetTable = ({
               <th className="px-4 py-3 text-left text-xs font-medium text-black dark:text-gray-200">
                 Dumping
               </th>
-              {/* <th className="px-4 py-3 text-left text-xs font-medium text-black dark:text-gray-200">
-                Status
-              </th> */}
               {!isHistoryMode && getDumptruckCount && (
                 <th className="px-4 py-3 text-left text-xs font-medium text-black dark:text-gray-200">
                   Dump Truck
@@ -149,10 +142,6 @@ const FleetTable = ({
                 <tr
                   key={config.id}
                   className={`shadow-sm dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 ${
-                    isSelected && !isPickingMode
-                      ? "bg-green-50 dark:bg-green-900/20"
-                      : ""
-                  } ${
                     isSelected && isPickingMode
                       ? "bg-blue-50 dark:bg-blue-900/20"
                       : ""
@@ -167,15 +156,7 @@ const FleetTable = ({
                     </td>
                   )}
                   <td className="px-4 py-3 text-sm font-medium dark:text-gray-300">
-                    <div className="flex items-center gap-2">
-                      {index + 1 + (currentPage - 1) * pageSize}
-                      {isSelected && !isPickingMode && (
-                        <CheckCircle2
-                          className="w-4 h-4 text-green-600 dark:text-green-400"
-                          title="Auto-selected"
-                        />
-                      )}
-                    </div>
+                    {index + 1 + (currentPage - 1) * pageSize}
                   </td>
                   <td className="px-4 py-3 text-sm font-medium dark:text-gray-200">
                     {config.excavator}
@@ -189,55 +170,7 @@ const FleetTable = ({
                   <td className="px-4 py-3 text-sm dark:text-gray-300">
                     {config.dumpingLocation}
                   </td>
-                  {/* <td className="px-4 py-3 text-sm">
-                    {!isPickingMode && onStatusChange && !isHistoryMode ? (
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-8 px-2 cursor-pointer disabled:cursor-not-allowed"
-                            disabled={isUpdatingStatus}
-                          >
-                            {isUpdatingStatus ? (
-                              <Loader2 className="w-4 h-4 animate-spin" />
-                            ) : (
-                              <StatusBadge status={config.status} />
-                            )}
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent
-                          align="start"
-                          className="bg-white border-none dark:text-gray-200 dark:bg-gray-900 min-w-8"
-                        >
-                          <DropdownMenuItem
-                            className="cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-700 "
-                            onClick={() => onStatusChange(config.id, "ACTIVE")}
-                          >
-                            <StatusBadge status="ACTIVE" />
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            className="cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-700"
-                            onClick={() =>
-                              onStatusChange(config.id, "INACTIVE")
-                            }
-                          >
-                            <StatusBadge status="INACTIVE" />
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            className="cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-700"
-                            onClick={() => onStatusChange(config.id, "CLOSED")}
-                          >
-                            <StatusBadge status="CLOSED" />
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    ) : (
-                      <StatusBadge status={config.status} />
-                    )}
-                  </td> */}
 
-                  {/* Dump Truck Column */}
                   {!isHistoryMode && getDumptruckCount && (
                     <td className="px-4 py-3 text-sm">
                       <DropdownMenu>
@@ -274,7 +207,7 @@ const FleetTable = ({
                                 {dtList.map((dt, i) => (
                                   <div
                                     key={dt.id}
-                                    className="flex px-4 py-2 border-b text-xs hover:bg-gray-100 dark:hover:bg-gray-700 cursor-default"
+                                    className="flex px-4 py-2 border-b text-xs hover:bg-gray-100 dark:hover:bg-gray-700"
                                   >
                                     <div className="font-medium pr-2">
                                       {i + 1}.{" "}
@@ -296,76 +229,49 @@ const FleetTable = ({
                     </td>
                   )}
 
-                  {/* Updated At Column */}
                   <td className="px-4 py-3 text-sm dark:text-gray-100">
                     {formatDate(config.updatedAt)}
                   </td>
 
-                  {/* Action Column */}
                   <td className="px-4 py-3 text-center dark:text-gray-100">
-                    {isHistoryMode ? (
-                      <div className="flex items-center justify-center gap-2">
-                         <TableActions
-                        actions={[
-                          {
-                            label: "Lihat",
-                            icon: Eye,
-                            onClick: () => onViewConfig(config),
-                          },
-                          ...(onReactivate
-                            ? [
-                                {
-                                  label: "Reaktivasi",
-                                  icon: RotateCcw,
-                                  onClick: () => onReactivate(config),
-                                },
-                              ]
-                            : []),
-                          ...(onDeleteConfig
-                            ? [
-                                {
-                                  label: "Delete",
-                                  icon: Trash2,
-                                  onClick: () => onDeleteConfig(config),
-                                  disabled: config.isActive,
-                                  variant: "destructive",
-                                },
-                              ]
-                            : []),
-                        ]}
-                      />
-                      </div>
-                    ) :  (
-                      <TableActions
-                        actions={[
-                          {
-                            label: "Detail",
-                            icon: Eye,
-                            onClick: () => onViewConfig(config),
-                          },
-                          ...(onEditConfig
-                            ? [
-                                {
-                                  label: "Edit",
-                                  icon: Edit,
-                                  onClick: () => onEditConfig(config),
-                                },
-                              ]
-                            : []),
-                          ...(onDeleteConfig
-                            ? [
-                                {
-                                  label: "Delete",
-                                  icon: Trash2,
-                                  onClick: () => onDeleteConfig(config),
-                                  disabled: config.isActive,
-                                  variant: "destructive",
-                                },
-                              ]
-                            : []),
-                        ]}
-                      />
-                    )}
+                    <TableActions
+                      actions={[
+                        {
+                          label: isHistoryMode ? "Lihat" : "Detail",
+                          icon: Eye,
+                          onClick: () => onViewConfig(config),
+                        },
+                        ...(onEditConfig && !isHistoryMode
+                          ? [
+                              {
+                                label: "Edit",
+                                icon: Edit,
+                                onClick: () => onEditConfig(config),
+                              },
+                            ]
+                          : []),
+                        ...(onReactivate && isHistoryMode
+                          ? [
+                              {
+                                label: "Reaktivasi",
+                                icon: RotateCcw,
+                                onClick: () => onReactivate(config),
+                              },
+                            ]
+                          : []),
+                        ...(onDeleteConfig
+                          ? [
+                              {
+                                label: "Delete",
+                                icon: Trash2,
+                                onClick: () => onDeleteConfig(config),
+                                disabled: config.isActive,
+                                variant: "destructive",
+                              },
+                            ]
+                          : []),
+                      ]}
+                    />
                   </td>
                 </tr>
               );

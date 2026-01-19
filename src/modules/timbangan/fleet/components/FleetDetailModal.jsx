@@ -42,7 +42,7 @@ const FleetDetailModal = ({ isOpen, config, onClose, onEdit, dumptruck }) => {
 
         <div className="p-6 space-y-6">
           {/* Basic Information */}
-       
+
           {/* Fleet Configuration */}
           <InfoCard title="Konfigurasi Fleet" icon={Settings} variant="default">
             <InfoItem

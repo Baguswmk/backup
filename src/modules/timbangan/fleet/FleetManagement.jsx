@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useCallback } from "react";
+import React, { useState, useMemo, useCallback } from "react";
 import { Alert, AlertDescription } from "@/shared/components/ui/alert";
 import { Lock, Info } from "lucide-react";
 import { useFleet } from "@/modules/timbangan/fleet/hooks/useFleet";
@@ -60,10 +60,10 @@ const FleetManagement = ({ Type }) => {
   }, [canAccessFleetType, Type]);
 
   const selectedFleetIds = useTimbanganStore(
-    (state) => state.selectedFleetIds || []
+    (state) => state.selectedFleetIds || [],
   );
   const setSelectedFleets = useTimbanganStore(
-    (state) => state.setSelectedFleets
+    (state) => state.setSelectedFleets,
   );
 
   const fleetHook = useFleet(user ? { user } : null, measurementType);
@@ -75,9 +75,6 @@ const FleetManagement = ({ Type }) => {
     masters,
     deleteConfig,
     refresh: refreshFleet,
-    viewingDateRange,
-    currentShift,
-    viewingShift,
   } = fleetHook;
 
   const dumptruckHook = useDumptruck(fleetHook);
@@ -91,17 +88,16 @@ const FleetManagement = ({ Type }) => {
   const configSearch = useDebouncedValue(configSearchInput, DEBOUNCE_TIME);
   const [isSaving, setIsSaving] = useState(false);
   const [filterExpanded, setFilterExpanded] = useState(false);
-  const [updatingStatusId, setUpdatingStatusId] = useState(null);
 
   const fleetConfigsByType = useTimbanganStore(
-    (state) => state.fleetConfigsByType[Type] || []
+    (state) => state.fleetConfigsByType[Type] || [],
   );
 
   const filteredFleetConfigs = useMemo(() => {
     if (!Array.isArray(fleetConfigsByType)) return [];
 
     let filtered = fleetConfigsByType.filter(
-      (fleet) => fleet.status !== "CLOSED"
+      (fleet) => fleet.status !== "CLOSED",
     );
 
     filtered = filterDataBySatker(filtered);
@@ -116,14 +112,13 @@ const FleetManagement = ({ Type }) => {
     updateFilter,
     resetFilters,
   } = useFilteredData(filteredFleetConfigs, {
-    searchFields: ["name", "excavator",  "workUnit"],
+    searchFields: ["name", "excavator", "workUnit"],
     dateField: null,
     customFilters: {
       excavators: "excavatorId",
       workUnits: "workUnitId",
       loadingLocations: "loadingLocationId",
       dumpingLocations: "dumpingLocationId",
-      statusValues: "status",
     },
   });
 
@@ -134,7 +129,7 @@ const FleetManagement = ({ Type }) => {
     return filteredFleetConfigs.filter(
       (config) =>
         config.excavator?.toLowerCase().includes(search) ||
-        config.workUnit?.toLowerCase().includes(search)
+        config.workUnit?.toLowerCase().includes(search),
     );
   }, [filteredFleetConfigs, configSearch]);
 
@@ -143,27 +138,22 @@ const FleetManagement = ({ Type }) => {
 
     if (activeFilters.excavators?.length > 0) {
       filtered = filtered.filter((c) =>
-        activeFilters.excavators.includes(String(c.excavatorId))
+        activeFilters.excavators.includes(String(c.excavatorId)),
       );
     }
     if (activeFilters.workUnits?.length > 0) {
       filtered = filtered.filter((c) =>
-        activeFilters.workUnits.includes(String(c.workUnitId))
+        activeFilters.workUnits.includes(String(c.workUnitId)),
       );
     }
     if (activeFilters.loadingLocations?.length > 0) {
       filtered = filtered.filter((c) =>
-        activeFilters.loadingLocations.includes(String(c.loadingLocationId))
+        activeFilters.loadingLocations.includes(String(c.loadingLocationId)),
       );
     }
     if (activeFilters.dumpingLocations?.length > 0) {
       filtered = filtered.filter((c) =>
-        activeFilters.dumpingLocations.includes(String(c.dumpingLocationId))
-      );
-    }
-    if (activeFilters.statusValues?.length > 0) {
-      filtered = filtered.filter((c) =>
-        activeFilters.statusValues.includes(c.status)
+        activeFilters.dumpingLocations.includes(String(c.dumpingLocationId)),
       );
     }
 
@@ -184,10 +174,9 @@ const FleetManagement = ({ Type }) => {
         activeFilters.excavators?.length ||
         activeFilters.workUnits?.length ||
         activeFilters.loadingLocations?.length ||
-        activeFilters.dumpingLocations?.length ||
-        activeFilters.statusValues?.length
+        activeFilters.dumpingLocations?.length
       ),
-    [configSearch, activeFilters]
+    [configSearch, activeFilters],
   );
 
   const { openModal, closeModal, getModalState } = useModalState({
@@ -225,7 +214,7 @@ const FleetManagement = ({ Type }) => {
       }
       return 0;
     },
-    [dumptruckSettings, filteredFleetConfigs]
+    [dumptruckSettings, filteredFleetConfigs],
   );
 
   const getFleetDumptruckList = useCallback(
@@ -233,7 +222,7 @@ const FleetManagement = ({ Type }) => {
       if (!fleetConfig) return [];
 
       const setting = dumptruckSettings.find(
-        (s) => String(s.fleet?.id) === String(fleetConfig.id)
+        (s) => String(s.fleet?.id) === String(fleetConfig.id),
       );
 
       if (setting?.units?.length > 0) {
@@ -286,7 +275,7 @@ const FleetManagement = ({ Type }) => {
 
       return [];
     },
-    [dumptruckSettings]
+    [dumptruckSettings],
   );
 
   const filterOptions = useMemo(
@@ -309,17 +298,12 @@ const FleetManagement = ({ Type }) => {
         value: String(loc.id),
         label: loc.name,
       })),
-      status: (masters?.status || []).map((st) => ({
-        value: st.id,
-        label: st.name,
-      })),
     }),
-    [masters]
+    [masters],
   );
 
   const filterGroups = useMemo(
     () => [
-   
       {
         id: FILTER_FIELDS.EXCAVATOR,
         label: "Excavator",
@@ -352,16 +336,8 @@ const FleetManagement = ({ Type }) => {
         onChange: (v) => updateFilter("dumpingLocations", v),
         placeholder: "Pilih Dumping",
       },
-      {
-        id: FILTER_FIELDS.STATUS,
-        label: "Status",
-        options: filterOptions.status,
-        value: activeFilters.statusValues || [],
-        onChange: (v) => updateFilter("statusValues", v),
-        placeholder: "Pilih Status",
-      },
     ],
-    [filterOptions, activeFilters, updateFilter]
+    [filterOptions, activeFilters, updateFilter],
   );
 
   const allSelectedFleets = useMemo(() => {
@@ -373,15 +349,13 @@ const FleetManagement = ({ Type }) => {
       total: allSelectedFleets.length,
       timbangan: allSelectedFleets.length,
     }),
-    [allSelectedFleets]
+    [allSelectedFleets],
   );
 
   const handleResetFilters = useCallback(() => {
     setConfigSearchInput("");
     resetFilters();
-    refreshFleet({ dateRange: null });
-  }, [resetFilters, refreshFleet]);
-
+  }, [resetFilters]);
 
   const handleCreateConfig = useCallback(() => {
     if (isReadOnly) {
@@ -426,7 +400,7 @@ const FleetManagement = ({ Type }) => {
       openModal,
       closeModal,
       getModalState,
-    ]
+    ],
   );
 
   const handleViewConfig = useCallback(
@@ -444,7 +418,7 @@ const FleetManagement = ({ Type }) => {
         openModal("detail", config);
       }, 100);
     },
-    [canRead, getDisabledMessage, openModal, closeModal, getModalState]
+    [canRead, getDisabledMessage, openModal, closeModal, getModalState],
   );
 
   const handleDeleteConfig = useCallback(
@@ -465,7 +439,7 @@ const FleetManagement = ({ Type }) => {
 
       openModal("delete", config);
     },
-    [isReadOnly, canDeletePerm, checkDataAccess, getDisabledMessage, openModal]
+    [isReadOnly, canDeletePerm, checkDataAccess, getDisabledMessage, openModal],
   );
 
   const handleSaveConfig = async (configData) => {
@@ -487,7 +461,7 @@ const FleetManagement = ({ Type }) => {
 
     setIsSaving(true);
 
-    await withErrorHandling(
+    return await withErrorHandling(
       async () => {
         const result = selectedConfig
           ? await updateConfig(selectedConfig.id, configData)
@@ -495,47 +469,32 @@ const FleetManagement = ({ Type }) => {
 
         validateResponse(
           result,
-          selectedConfig ? "update fleet" : "create fleet"
+          selectedConfig ? "update fleet" : "create fleet",
         );
 
-        closeModal("config");
+        if (result?.success) {
+          closeModal("config");
+        }
+
         return result;
       },
       {
         operation: selectedConfig ? "update fleet" : "create fleet",
         defaultMessage: TOAST_MESSAGES.ERROR.UPDATE_FAILED,
         onError: (error) => {
-          if (!error.message?.includes("wajib")) {
-            closeModal("config");
+          if (!error.message?.includes("wajib") && !error.validationError) {
+            const isQueued =
+              error?.queued ||
+              error?.message?.includes("queued for offline sync");
+            if (!isQueued) {
+              closeModal("config");
+            }
           }
         },
-      }
-    );
-
-    setIsSaving(false);
-  };
-
-  const handleStatusChange = async (configId, newStatus) => {
-    if (isReadOnly) {
-      showToast.error("Anda tidak memiliki akses untuk mengubah status");
-      return;
-    }
-    if (!canUpdate) {
-      showToast.error(getDisabledMessage("update"));
-      return;
-    }
-
-    setUpdatingStatusId(configId);
-    try {
-      const result = await updateConfig(configId, { status: newStatus });
-      if (!result?.success) {
-        showToast.error(TOAST_MESSAGES.ERROR.STATUS_CHANGE_FAILED);
-      }
-    } catch (error) {
-      showToast.error(TOAST_MESSAGES.ERROR.STATUS_CHANGE_FAILED);
-    } finally {
-      setUpdatingStatusId(null);
-    }
+      },
+    ).finally(() => {
+      setIsSaving(false);
+    });
   };
 
   const handleConfirmDelete = useCallback(async () => {
@@ -579,192 +538,102 @@ const FleetManagement = ({ Type }) => {
     }
 
     try {
-      await refreshFleet({
-        skipAutoActivate: true,
-      });
+      await refreshFleet();
       if (refreshDumptruck) await refreshDumptruck();
       showToast.success(TOAST_MESSAGES.SUCCESS.REFRESH);
     } catch (error) {
       showToast.error(TOAST_MESSAGES.ERROR.REFRESH_FAILED);
     }
-  }, [
-    refreshFleet,
-    refreshDumptruck,
-    canRead,
-    getDisabledMessage,
-  ]);
+  }, [refreshFleet, refreshDumptruck, canRead, getDisabledMessage]);
 
   const handleSaveFleetSelection = useCallback(
     (allIds) => {
       setSelectedFleets(allIds);
       showToast.success(
-        TOAST_MESSAGES.SUCCESS.FLEET_SELECTION(allIds.length, 0)
+        TOAST_MESSAGES.SUCCESS.FLEET_SELECTION(allIds.length, 0),
       );
     },
-    [setSelectedFleets]
+    [setSelectedFleets],
   );
 
-  const handleBulkStatusChange = useCallback(
-  async (fleetIds, newStatus) => {
-    if (!canUpdate) {
-      showToast.error("Anda tidak memiliki akses untuk mengubah status fleet");
-      return;
-    }
-
-    if (!Array.isArray(fleetIds) || fleetIds.length === 0) {
-      showToast.error("Tidak ada fleet yang dipilih");
-      return;
-    }
-
-    if (!["ACTIVE", "INACTIVE", "CLOSED"].includes(newStatus)) {
-      showToast.error("Status tidak valid");
-      return;
-    }
-
-    setIsSaving(true);
-
-    return await withErrorHandling(
-      async () => {
-        const results = [];
-        const errors = [];
-
-        // Update status untuk setiap fleet
-        for (const fleetId of fleetIds) {
-          try {
-            const result = await updateConfig(fleetId, { status: newStatus });
-            
-            if (result?.success) {
-              results.push(fleetId);
-            } else {
-              errors.push({ fleetId, error: result?.error || "Unknown error" });
-            }
-          } catch (error) {
-            errors.push({ fleetId, error: error.message });
-          }
-        }
-
-        // Refresh data setelah update
-        await refreshFleet({
-          skipAutoActivate: true,
-        });
-
-        // Show result toast
-        if (errors.length === 0) {
-          showToast.success(
-            `Berhasil mengubah status ${results.length} fleet menjadi ${newStatus}`
-          );
-        } else if (results.length > 0) {
-          showToast.warning(
-            `${results.length} fleet berhasil diubah, ${errors.length} gagal`
-          );
-        } else {
-          showToast.error(`Gagal mengubah status semua fleet`);
-        }
-
-        return {
-          success: results.length > 0,
-          successCount: results.length,
-          errorCount: errors.length,
-          errors,
-        };
-      },
-      {
-        operation: "bulk status change",
-        defaultMessage: "Gagal mengubah status fleet",
+  const handleBulkDelete = useCallback(
+    async (fleetIds) => {
+      if (!canDeletePerm) {
+        showToast.error("Anda tidak memiliki akses untuk menghapus fleet");
+        return;
       }
-    ).finally(() => {
-      setIsSaving(false);
-    });
-  },
-  [canUpdate, updateConfig, refreshFleet, viewingDateRange, viewingShift]
-);
 
-const handleBulkDelete = useCallback(
-  async (fleetIds) => {
-    if (!canDeletePerm) {
-      showToast.error("Anda tidak memiliki akses untuk menghapus fleet");
-      return;
-    }
+      if (!Array.isArray(fleetIds) || fleetIds.length === 0) {
+        showToast.error("Tidak ada fleet yang dipilih");
+        return;
+      }
 
-    if (!Array.isArray(fleetIds) || fleetIds.length === 0) {
-      showToast.error("Tidak ada fleet yang dipilih");
-      return;
-    }
-
-    // Validate: tidak boleh menghapus fleet dengan status ACTIVE
-    const selectedFleets = filteredFleetConfigs.filter((f) =>
-      fleetIds.includes(f.id)
-    );
-
-    const activeFleets = selectedFleets.filter((f) => f.status === "ACTIVE");
-
-    if (activeFleets.length > 0) {
-      showToast.error(
-        `Tidak dapat menghapus ${activeFleets.length} fleet dengan status ACTIVE. Ubah status terlebih dahulu.`
+      const selectedFleets = filteredFleetConfigs.filter((f) =>
+        fleetIds.includes(f.id),
       );
-      return;
-    }
 
-    setIsSaving(true);
+      const activeFleets = selectedFleets.filter((f) => f.status === "ACTIVE");
 
-    return await withErrorHandling(
-      async () => {
-        const results = [];
-        const errors = [];
-
-        // Delete setiap fleet
-        for (const fleetId of fleetIds) {
-          try {
-            const result = await deleteConfig(fleetId);
-
-            if (result?.success) {
-              results.push(fleetId);
-            } else {
-              errors.push({ fleetId, error: result?.error || "Unknown error" });
-            }
-          } catch (error) {
-            errors.push({ fleetId, error: error.message });
-          }
-        }
-
-        // Refresh data setelah delete
-        await refreshFleet({
-          skipAutoActivate: true,
-        });
-
-        // Show result toast
-        if (errors.length === 0) {
-          showToast.success(`Berhasil menghapus ${results.length} fleet`);
-        } else if (results.length > 0) {
-          showToast.warning(
-            `${results.length} fleet berhasil dihapus, ${errors.length} gagal`
-          );
-        } else {
-          showToast.error(`Gagal menghapus semua fleet`);
-        }
-
-        return {
-          success: results.length > 0,
-          successCount: results.length,
-          errorCount: errors.length,
-          errors,
-        };
-      },
-      {
-        operation: "bulk delete",
-        defaultMessage: "Gagal menghapus fleet",
+      if (activeFleets.length > 0) {
+        showToast.error(
+          `Tidak dapat menghapus ${activeFleets.length} fleet dengan status ACTIVE. Ubah status terlebih dahulu.`,
+        );
+        return;
       }
-    ).finally(() => {
-      setIsSaving(false);
-    });
-  },
-  [
-    canDeletePerm,
-    deleteConfig,
-    refreshFleet,
-    filteredFleetConfigs,
-  ]
-);
+
+      setIsSaving(true);
+
+      return await withErrorHandling(
+        async () => {
+          const results = [];
+          const errors = [];
+
+          for (const fleetId of fleetIds) {
+            try {
+              const result = await deleteConfig(fleetId);
+
+              if (result?.success) {
+                results.push(fleetId);
+              } else {
+                errors.push({
+                  fleetId,
+                  error: result?.error || "Unknown error",
+                });
+              }
+            } catch (error) {
+              errors.push({ fleetId, error: error.message });
+            }
+          }
+
+          await refreshFleet();
+
+          if (errors.length === 0) {
+            showToast.success(`Berhasil menghapus ${results.length} fleet`);
+          } else if (results.length > 0) {
+            showToast.warning(
+              `${results.length} fleet berhasil dihapus, ${errors.length} gagal`,
+            );
+          } else {
+            showToast.error(`Gagal menghapus semua fleet`);
+          }
+
+          return {
+            success: results.length > 0,
+            successCount: results.length,
+            errorCount: errors.length,
+            errors,
+          };
+        },
+        {
+          operation: "bulk delete",
+          defaultMessage: "Gagal menghapus fleet",
+        },
+      ).finally(() => {
+        setIsSaving(false);
+      });
+    },
+    [canDeletePerm, deleteConfig, refreshFleet, filteredFleetConfigs],
+  );
 
   if (!canAccessType) {
     return (
@@ -791,8 +660,8 @@ const handleBulkDelete = useCallback(
             filterType === "subsatker"
               ? userSatker
               : filterType === "company"
-              ? userCompany?.name
-              : userWeighBridge?.name
+                ? userCompany?.name
+                : userWeighBridge?.name
           }
           isRefreshing={false}
           canRead={false}
@@ -815,7 +684,6 @@ const handleBulkDelete = useCallback(
 
   return (
     <div className="space-y-6 min-h-screen">
-      {/* Header */}
       <FleetHeader
         type={Type}
         userRole={userRole}
@@ -824,8 +692,8 @@ const handleBulkDelete = useCallback(
           filterType === "subsatker"
             ? userSatker
             : filterType === "company"
-            ? userCompany?.name
-            : userWeighBridge?.name
+              ? userCompany?.name
+              : userWeighBridge?.name
         }
         isRefreshing={isRefreshing}
         canRead={canRead}
@@ -838,7 +706,6 @@ const handleBulkDelete = useCallback(
         fleetCounts={fleetCounts}
       />
 
-      {/* CCR Subsatker Validation Alert */}
       {userRole?.toLowerCase() === "ccr" && !userSatker && (
         <Alert
           variant="destructive"
@@ -855,30 +722,6 @@ const handleBulkDelete = useCallback(
         </Alert>
       )}
 
-      {/* Read-Only Alert */}
-      {/* {isReadOnly && (
-          <Alert className="border-orange-200 dark:border-orange-800 bg-orange-50 dark:bg-orange-900/20">
-            <Info className="w-4 h-4 text-orange-600 dark:text-orange-400" />
-            <AlertDescription>
-              <p className="text-sm text-orange-900 dark:text-orange-300">
-                <strong>Mode Read-Only:</strong> Anda hanya dapat melihat fleet{" "}
-                {Type}.
-                {filterType === "company" &&
-                  ` Data difilter berdasarkan company: ${
-                    userCompany?.name || "N/A"
-                  }`}
-                {filterType === "subsatker" &&
-                  ` Data difilter berdasarkan work unit: ${userSatker || "N/A"}`}
-                {filterType === "weigh_bridge" &&
-                  ` Data difilter berdasarkan jembatan: ${
-                    userWeighBridge?.name || "N/A"
-                  }`}
-              </p>
-            </AlertDescription>
-          </Alert>
-        )} */}
-
-      {/* Fleet Selection Alert */}
       {!isReadOnly && (
         <FleetSelectionAlert
           fleetCounts={fleetCounts}
@@ -886,16 +729,10 @@ const handleBulkDelete = useCallback(
         />
       )}
 
-      {/* Main Content */}
       <div className="bg-white dark:bg-gray-800 rounded-lg dark:border-gray-700 shadow-sm">
         <div className="p-4 sm:p-6">
           <div className="space-y-4">
-            {/* Filter Section */}
             <FleetFilterSection
-            activeDateRange={false}
-              dateRange={viewingDateRange}
-              currentShift={currentShift}
-              viewingShift={viewingShift}
               searchQuery={configSearchInput}
               onSearchChange={(value) => {
                 setConfigSearchInput(value);
@@ -912,7 +749,6 @@ const handleBulkDelete = useCallback(
               onResetFilters={handleResetFilters}
             />
 
-            {/* Fleet Table */}
             <FleetTableContainer
               filteredConfigs={finalFilteredConfigs}
               paginatedConfigs={finalPaginatedConfigs}
@@ -927,21 +763,17 @@ const handleBulkDelete = useCallback(
               onViewConfig={handleViewConfig}
               onEditConfig={!isReadOnly ? handleEditConfig : undefined}
               onDeleteConfig={!isReadOnly ? handleDeleteConfig : undefined}
-              onStatusChange={!isReadOnly ? handleStatusChange : undefined}
               getDumptruckCount={getFleetDumptruckCount}
               getDumptruckList={getFleetDumptruckList}
               currentPage={configPage}
               onPageChange={setConfigPage}
-              updatingStatusId={updatingStatusId}
-               enableBulkActions={true}
-     onBulkStatusChange={handleBulkStatusChange}
-     onBulkDelete={handleBulkDelete}
+              enableBulkActions={true}
+              onBulkDelete={handleBulkDelete}
             />
           </div>
         </div>
       </div>
 
-      {/* Modals - Show detail modal even in read-only mode */}
       <FleetModalsManager
         showConfigModal={!isReadOnly && getModalState("config").isOpen}
         onCloseConfigModal={() => closeModal("config")}

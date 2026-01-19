@@ -12,18 +12,9 @@ import SearchableSelect from "@/shared/components/SearchableSelect";
 import ModalHeader from "@/shared/components/ModalHeader";
 import LoadingOverlay from "@/shared/components/LoadingOverlay";
 import { InfoCard } from "@/shared/components/InfoCard";
-import { Calendar } from "@/shared/components/ui/calendar";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/shared/components/ui/popover";
-import { format } from "date-fns";
-import { id } from "date-fns/locale";
 
 const MEASUREMENT_TYPE_OPTIONS = [
   { value: "Timbangan", label: "Timbangan" },
-
   { value: "Bypass", label: "Bypass" },
   { value: "Beltscale", label: "Beltscale" },
 ];
@@ -106,15 +97,13 @@ const FleetModal = ({
       setDistanceText(
         editingConfig.distance != null && editingConfig.distance !== ""
           ? String(editingConfig.distance)
-          : ""
+          : "",
       );
       setInspectorId(editingConfig.inspectorId || "");
       setCheckerId(editingConfig.checkerId || "");
     } else {
       const measurementTypeMap = {
-        Jembatan: "Timbangan",
         Timbangan: "Timbangan",
-        FOB: "FOB",
         Bypass: "Bypass",
         Beltscale: "Beltscale",
       };
@@ -129,7 +118,6 @@ const FleetModal = ({
         coalType: "",
         distance: 0,
         workUnit: "",
-        status: "INACTIVE",
         measurementType: defaultMeasurementType,
         weightBridgeId: formConfig.weighBridgeValue || "",
       };
@@ -154,11 +142,14 @@ const FleetModal = ({
       e.measurementType = "Pilih measurement type";
 
     if (fleetData.measurementType === "Timbangan") {
-      if (formConfig.showWeighBridgeSelect && !fleetData.weightBridgeId) {
-        e.weightBridgeId = "Pilih jembatan timbang";
-      }
-      if (formConfig.autoWeighBridge && !formConfig.weighBridgeValue) {
-        e.weightBridgeId = "Jembatan timbang tidak ditemukan untuk user Anda";
+      if (formConfig.autoWeighBridge) {
+        if (!formConfig.weighBridgeValue) {
+          e.weightBridgeId = "Jembatan timbang tidak ditemukan untuk akun Anda";
+        }
+      } else if (formConfig.showWeighBridgeSelect) {
+        if (!fleetData.weightBridgeId) {
+          e.weightBridgeId = "Pilih jembatan timbang";
+        }
       }
     }
 
@@ -167,8 +158,8 @@ const FleetModal = ({
       cleaned === ""
         ? 0
         : Number.isFinite(parseFloat(cleaned))
-        ? parseFloat(cleaned)
-        : NaN;
+          ? parseFloat(cleaned)
+          : NaN;
     if (!Number.isFinite(distNum) || distNum < 0) {
       e.distance = "Distance harus angka valid (≥ 0)";
     }
@@ -204,6 +195,7 @@ const FleetModal = ({
     }
 
     setIsSaving(true);
+
     try {
       const cleaned = (distanceText || "").trim().replace(",", ".");
       let dist = cleaned === "" ? 0 : parseFloat(cleaned);
@@ -223,9 +215,25 @@ const FleetModal = ({
 
       if (fleetData.measurementType === "Timbangan") {
         if (formConfig.autoWeighBridge) {
+          if (!formConfig.weighBridgeValue) {
+            showToast.error("Jembatan timbang tidak ditemukan pada akun Anda");
+            setErrors((prev) => ({
+              ...prev,
+              weightBridgeId: "Jembatan timbang tidak ditemukan",
+            }));
+            return;
+          }
           basePayload.weightBridgeId = formConfig.weighBridgeValue;
         } else if (formConfig.showWeighBridgeSelect || isEdit) {
-          basePayload.weightBridgeId = fleetData.weightBridgeId || null;
+          if (!fleetData.weightBridgeId) {
+            showToast.error("Jembatan timbang wajib dipilih");
+            setErrors((prev) => ({
+              ...prev,
+              weightBridgeId: "Jembatan timbang wajib dipilih",
+            }));
+            return;
+          }
+          basePayload.weightBridgeId = fleetData.weightBridgeId;
         }
       }
 
@@ -244,17 +252,50 @@ const FleetModal = ({
         return;
       }
 
-      const payload = isEdit
-        ? {
-            ...basePayload,
-          }
-        : basePayload;
+      const payload = isEdit ? { ...basePayload } : basePayload;
 
-      await onSave(payload);
-      setFleetData((p) => ({ ...p, distance: dist }));
-    } catch (error) {
-      console.error("❌ Fleet save error:", error);
-      showToast.error(error.message || "Gagal menyimpan data");
+      const result = await onSave(payload);
+
+      if (result?.success) {
+        setFleetData((p) => ({ ...p, distance: dist }));
+        onClose();
+      }
+    } catch (err) {
+      console.error("❌ Fleet save error:", err);
+
+      const isQueued =
+        err?.queued || err?.message?.includes("queued for offline sync");
+      const isValidation =
+        err?.validationError ||
+        (err?.response?.status >= 400 && err?.response?.status < 500);
+
+      if (isQueued) {
+        setErrors((p) => ({ ...p, submit: null }));
+
+        showToast.info(
+          "📤 Data disimpan di queue dan akan otomatis tersinkron saat online",
+          { duration: 4000 },
+        );
+
+        setTimeout(() => {
+          onClose();
+        }, 1000);
+      } else if (isValidation) {
+        setErrors((p) => ({
+          ...p,
+          submit: err?.message || "Validasi gagal. Periksa input Anda.",
+        }));
+
+        showToast.error(err?.message || "Validasi gagal");
+      } else {
+        const errorMsg = err?.message || "Gagal menyimpan data";
+        setErrors((p) => ({
+          ...p,
+          submit: errorMsg,
+        }));
+
+        showToast.error(errorMsg);
+      }
     } finally {
       setIsSaving(false);
     }
@@ -266,6 +307,7 @@ const FleetModal = ({
     inspectorId,
     checkerId,
     onSave,
+    onClose,
     formConfig.autoWeighBridge,
     formConfig.showWeighBridgeSelect,
     formConfig.weighBridgeValue,
@@ -278,7 +320,7 @@ const FleetModal = ({
         label: e.hull_no || e.name || `Excavator #${e.id}`,
         hint: [e.company, e.workUnit].filter(Boolean).join(" • "),
       })),
-    [masters?.excavators]
+    [masters?.excavators],
   );
 
   const shiftItems = useMemo(
@@ -287,7 +329,7 @@ const FleetModal = ({
         value: s.name || String(s.id),
         label: s.name ?? s.id,
       })),
-    [masters?.shifts]
+    [masters?.shifts],
   );
 
   const loadLocItems = useMemo(
@@ -296,7 +338,7 @@ const FleetModal = ({
         value: String(l.id),
         label: l.name ?? "-",
       })),
-    [masters?.loadingLocations]
+    [masters?.loadingLocations],
   );
 
   const dumpLocItems = useMemo(
@@ -305,7 +347,7 @@ const FleetModal = ({
         value: String(l.id),
         label: l.name ?? "-",
       })),
-    [masters?.dumpingLocations]
+    [masters?.dumpingLocations],
   );
 
   const coalTypeItems = useMemo(
@@ -314,7 +356,7 @@ const FleetModal = ({
         value: String(ct.id),
         label: ct.name ?? "-",
       })),
-    [masters?.coalTypes]
+    [masters?.coalTypes],
   );
 
   const workUnitItems = useMemo(
@@ -324,7 +366,7 @@ const FleetModal = ({
         label: wu.subsatker || wu.name || `Work Unit #${wu.id}`,
         hint: wu.name && wu.subsatker !== wu.name ? wu.name : undefined,
       })),
-    [masters?.workUnits]
+    [masters?.workUnits],
   );
 
   const weighBridgeItems = useMemo(
@@ -333,7 +375,7 @@ const FleetModal = ({
         value: String(wb.id),
         label: wb.name ?? `Jembatan #${wb.id}`,
       })),
-    [masters]
+    [masters],
   );
 
   const userItems = useMemo(
@@ -342,26 +384,26 @@ const FleetModal = ({
         value: String(u.id),
         label: u.username || u.email || `User #${u.id}`,
         hint: u.email && u.username !== u.email ? u.email : undefined,
+        role: u.role,
       })),
-    [masters?.users]
+    [masters?.users],
   );
 
   const checkerItems = useMemo(
     () =>
       userItems.filter(
         (u) =>
-          u.role === "Checker" || u.label?.toLowerCase()?.includes("checker")
+          u.role === "Checker" || u.label?.toLowerCase()?.includes("checker"),
       ),
-    [userItems]
+    [userItems],
   );
-
   const inspectorItems = useMemo(
     () =>
       userItems.filter(
         (u) =>
-          u.role === "Pengawas" || u.label?.toLowerCase()?.includes("pengawas")
+          u.role === "Pengawas" || u.label?.toLowerCase()?.includes("pengawas"),
       ),
-    [userItems]
+    [userItems],
   );
 
   if (!isOpen) return null;
@@ -433,7 +475,7 @@ const FleetModal = ({
                       placeholder="Pilih measurement type"
                       emptyText="Measurement type tidak ditemukan"
                       error={!!errors.measurementType}
-                      disabled={isSaving || formConfig.measurementTypeDisabled}
+                      disabled={true}
                     />
                     {errors.measurementType && (
                       <p className="text-sm text-red-500">
@@ -646,7 +688,6 @@ const FleetModal = ({
                 )}
               </div>
             </InfoCard>
-
 
             {/* Footer Actions */}
             <div className="flex justify-end gap-2 pt-4">

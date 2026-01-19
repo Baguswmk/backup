@@ -77,7 +77,7 @@ const FleetHistory = ({ Type }) => {
       case "checker":
         if (user?.company?.id) {
           filtered = filtered.filter(
-            (c) => c.excavatorCompanyId === String(user.company.id)
+            (c) => c.excavatorCompanyId === String(user.company.id),
           );
         }
         break;
@@ -85,7 +85,7 @@ const FleetHistory = ({ Type }) => {
       case "operator_jt":
         if (user?.weigh_bridge?.id) {
           filtered = filtered.filter(
-            (c) => c.weightBridgeId === String(user.weigh_bridge.id)
+            (c) => c.weightBridgeId === String(user.weigh_bridge.id),
           );
         }
         break;
@@ -95,7 +95,7 @@ const FleetHistory = ({ Type }) => {
       case "evaluator":
         if (user?.work_unit?.id) {
           filtered = filtered.filter(
-            (c) => c.workUnitId === String(user.work_unit.id)
+            (c) => c.workUnitId === String(user.work_unit.id),
           );
         }
         break;
@@ -110,7 +110,6 @@ const FleetHistory = ({ Type }) => {
     return filtered;
   }, [fleetConfigs, user]);
 
-
   const excavatorOptions = useMemo(
     () =>
       (masters?.excavators || []).map((exc) => ({
@@ -118,7 +117,7 @@ const FleetHistory = ({ Type }) => {
         label: exc.hull_no,
         hint: exc.company || "-",
       })),
-    [masters?.excavators]
+    [masters?.excavators],
   );
 
   const workUnitOptions = useMemo(
@@ -128,7 +127,7 @@ const FleetHistory = ({ Type }) => {
         label: wu.subsatker,
         hint: wu.satker || "-",
       })),
-    [masters?.workUnits]
+    [masters?.workUnits],
   );
 
   const loadingLocOptions = useMemo(
@@ -137,7 +136,7 @@ const FleetHistory = ({ Type }) => {
         value: String(loc.id),
         label: loc.name,
       })),
-    [masters?.loadingLocations]
+    [masters?.loadingLocations],
   );
 
   const dumpingLocOptions = useMemo(
@@ -146,7 +145,7 @@ const FleetHistory = ({ Type }) => {
         value: String(loc.id),
         label: loc.name,
       })),
-    [masters?.dumpingLocations]
+    [masters?.dumpingLocations],
   );
 
   const companyOptions = useMemo(
@@ -155,12 +154,11 @@ const FleetHistory = ({ Type }) => {
         value: String(comp.id),
         label: comp.name,
       })),
-    [masters?.companies]
+    [masters?.companies],
   );
 
   const filterGroups = useMemo(
     () => [
-   
       {
         id: FILTER_FIELDS.EXCAVATOR,
         label: "Excavator",
@@ -217,7 +215,18 @@ const FleetHistory = ({ Type }) => {
         placeholder: "Pilih Company",
       },
     ],
-    [excavatorOptions, workUnitOptions, loadingLocOptions, dumpingLocOptions, companyOptions, excavators, workUnits, loadingLocations, dumpingLocations, companies]
+    [
+      excavatorOptions,
+      workUnitOptions,
+      loadingLocOptions,
+      dumpingLocOptions,
+      companyOptions,
+      excavators,
+      workUnits,
+      loadingLocations,
+      dumpingLocations,
+      companies,
+    ],
   );
 
   const filteredConfigs = useMemo(() => {
@@ -228,50 +237,47 @@ const FleetHistory = ({ Type }) => {
       filtered = filtered.filter(
         (config) =>
           config.excavator?.toLowerCase().includes(search) ||
-          config.workUnit?.toLowerCase().includes(search)
+          config.workUnit?.toLowerCase().includes(search),
       );
     }
 
-  // Filter measurement_type - GANTI INI
-  if (measurementType) {
-    filtered = filtered.filter(
-      (c) => c.measurementType === measurementType  // ✅ Pakai measurementType (camelCase)
-    );
-  }
+    if (measurementType) {
+      filtered = filtered.filter((c) => c.measurementType === measurementType);
+    }
 
     if (excavators.length > 0) {
       filtered = filtered.filter((c) =>
-        excavators.includes(String(c.excavatorId))
+        excavators.includes(String(c.excavatorId)),
       );
     }
 
     if (workUnits.length > 0) {
       filtered = filtered.filter((c) =>
-        workUnits.includes(String(c.workUnitId))
+        workUnits.includes(String(c.workUnitId)),
       );
     }
 
     if (loadingLocations.length > 0) {
       filtered = filtered.filter((c) =>
-        loadingLocations.includes(String(c.loadingLocationId))
+        loadingLocations.includes(String(c.loadingLocationId)),
       );
     }
 
     if (dumpingLocations.length > 0) {
       filtered = filtered.filter((c) =>
-        dumpingLocations.includes(String(c.dumpingLocationId))
+        dumpingLocations.includes(String(c.dumpingLocationId)),
       );
     }
 
     if (companies.length > 0) {
       filtered = filtered.filter((c) =>
-        companies.includes(String(c.excavatorCompanyId))
+        companies.includes(String(c.excavatorCompanyId)),
       );
     }
 
     if (weighBridges.length > 0) {
       filtered = filtered.filter((c) =>
-        weighBridges.includes(String(c.weightBridgeId))
+        weighBridges.includes(String(c.weightBridgeId)),
       );
     }
 
@@ -329,7 +335,7 @@ const FleetHistory = ({ Type }) => {
       setReactivateTarget(config);
       setShowReactivateDialog(true);
     },
-    [permissions]
+    [permissions],
   );
 
   const handleConfirmReactivate = useCallback(async () => {
@@ -423,7 +429,7 @@ const FleetHistory = ({ Type }) => {
         <div className="p-4 sm:p-6">
           <div className="space-y-4">
             <TableToolbar
-            activeDateRange={false}
+              activeDateRange={false}
               searchQuery={configSearchInput}
               onSearchChange={(value) => {
                 setConfigSearchInput(value);

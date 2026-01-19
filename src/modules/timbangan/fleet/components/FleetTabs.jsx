@@ -1,7 +1,3 @@
-// FleetTabs.jsx - SIMPLIFIED VERSION (No Tabs, Just Info Display)
-// Since we only have Timbangan now, tabs are not needed
-// This component can be used to show fleet count info
-
 import React from "react";
 import { Badge } from "@/shared/components/ui/badge";
 import { Truck } from "lucide-react";
@@ -21,7 +17,7 @@ const FleetTabs = ({ fleetCounts }) => {
             </Badge>
           )}
         </div>
-        
+
         {fleetCounts.total > 0 && (
           <p className="text-sm text-gray-600 dark:text-gray-400">
             Total {fleetCounts.timbangan} fleet terpilih
@@ -33,22 +29,3 @@ const FleetTabs = ({ fleetCounts }) => {
 };
 
 export default FleetTabs;
-
-// ============================================
-// ALTERNATIVE: If you want to completely remove this component
-// ============================================
-// You can delete this file entirely and remove imports from:
-// - FleetManagement.jsx
-// - Any other components using FleetTabs
-//
-// Then in FleetManagement.jsx, remove:
-// import FleetTabs from "@/modules/timbangan/fleet/components/FleetTabs";
-// 
-// And remove this JSX:
-// <FleetTabs
-//   activeTab={activeTab}
-//   onTabChange={setActiveTab}
-//   fleetCounts={fleetCounts}
-// />
-//
-// The component is already removed from the fixed FleetManagement.jsx above

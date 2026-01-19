@@ -4,12 +4,6 @@ import AdvancedFilter from "@/shared/components/AdvancedFilter";
 import { SEARCH_PLACEHOLDERS } from "@/modules/timbangan/fleet/constant/fleetConstants";
 
 const FleetFilterSection = ({
-  activeDateRange,
-  activeTab,
-  dateRange,
-  currentShift,
-  viewingShift,
-  onDateRangeChange,
   searchQuery,
   onSearchChange,
   canRead,
@@ -22,31 +16,22 @@ const FleetFilterSection = ({
   hasActiveFilters,
   onResetFilters,
 }) => {
-  const showDateRange = activeTab === "timbangan";
-  const showFilter = activeTab === "timbangan";
   return (
     <div className="space-y-4">
-      {/* Toolbar */}
       <TableToolbar
-        dateRange={dateRange}
-        activeDateRange={activeDateRange}
-        currentShift={currentShift}
-        viewingShift={viewingShift}
-        onDateRangeChange={onDateRangeChange}
-        showDateRange={showDateRange}
+        activeDateRange={false}
         searchQuery={searchQuery}
         onSearchChange={onSearchChange}
         searchPlaceholder={SEARCH_PLACEHOLDERS.FLEET}
         canSearch={canRead}
         onRefresh={onRefresh}
         isRefreshing={isRefreshing}
-        showFilter={showFilter}
+        showFilter={true}
         filterExpanded={filterExpanded}
         onToggleFilter={onToggleFilter}
       />
 
-      {/* Advanced Filter Panel */}
-      {showFilter && filterExpanded && (
+      {filterExpanded && (
         <AdvancedFilter
           isExpanded={filterExpanded}
           onToggleExpand={onToggleFilter}

@@ -2,11 +2,10 @@ import { offlineService } from "@/shared/services/offlineService";
 import { logger } from "@/shared/services/log";
 
 const CACHE_TTL = {
-  FLEET_DATA: 5 * 60 * 1000, // 5 menit
+  FLEET_DATA: 5 * 60 * 1000,
   MASTERS: 30 * 60 * 1000,
 };
 
-// ✅ Helper function untuk extract error message
 const extractErrorMessage = (error) => {
   return (
     error?.response?.data?.message ||
@@ -22,7 +21,6 @@ const buildFilters = (options = {}) => {
   const filters = {};
   const role = user?.role?.toLowerCase();
 
-  // Hanya filter measurement_type jika bukan super_admin
   if (role === "super_admin") {
     logger.info("⭐️ Skipping measurement_type filter", {
       role,
@@ -36,18 +34,8 @@ const buildFilters = (options = {}) => {
     });
   }
 
-  // Filter berdasarkan role
   switch (role) {
     case "operator_jt":
-      if (user?.weigh_bridge?.id) {
-        filters.weigh_bridge = {
-          id: { $eq: parseInt(user.weigh_bridge.id) },
-        };
-        logger.info("⚖️ Weigh_bridge filter applied (operator_jt)", {
-          weighBridgeId: user.weigh_bridge.id,
-        });
-      }
-
       if (!filters.measurement_type) {
         filters.measurement_type = { $eq: "Timbangan" };
         logger.info("📊 Auto measurement_type: Timbangan (operator_jt)");
@@ -96,6 +84,12 @@ const buildFilters = (options = {}) => {
         };
         logger.info("🏢 Company filter applied (admin)", {
           companyId: user.company.id,
+          filterPath: "unit_exca.company.id",
+        });
+      } else {
+        logger.warn("⚠️ Admin: company.id tidak ditemukan", {
+          userId: user.id,
+          company: user.company,
         });
       }
       break;
@@ -111,6 +105,12 @@ const buildFilters = (options = {}) => {
         logger.info("🏢 Company filter applied", {
           role,
           companyId: user.company.id,
+          filterPath: "unit_exca.company.id",
+        });
+      } else {
+        logger.warn(`⚠️ ${role}: company.id tidak ditemukan`, {
+          userId: user.id,
+          company: user.company,
         });
       }
       break;
@@ -177,6 +177,7 @@ export const fleetService = {
         params: {
           populate: [
             "unit_exca",
+            "unit_exca.company",
             "unit_exca.work_unit",
             "loading_location",
             "dumping_location",
@@ -206,7 +207,7 @@ export const fleetService = {
       });
 
       const configs = response.data.map((item) =>
-        this._transformFleetConfig(item)
+        this._transformFleetConfig(item),
       );
 
       logger.info(`✅ Fleet configs fetched: ${configs.length}`, {
@@ -217,18 +218,17 @@ export const fleetService = {
 
       return { success: true, data: configs };
     } catch (error) {
-      // ✅ Extract error message
       const errorMessage = extractErrorMessage(error);
-      
+
       logger.error("❌ Failed to fetch fleet configs", {
         error: errorMessage,
         details: error.response?.data,
       });
-      
-      return { 
-        success: false, 
-        data: [], 
-        error: errorMessage 
+
+      return {
+        success: false,
+        data: [],
+        error: errorMessage,
       };
     }
   },
@@ -282,7 +282,7 @@ export const fleetService = {
 
       const response = await offlineService.post(
         "/v1/custom/setting-fleet",
-        payload
+        payload,
       );
 
       await offlineService.clearCache("fleets_");
@@ -299,14 +299,13 @@ export const fleetService = {
         setting_fleet_id: response.data?.data?.id || response.data?.id,
       };
     } catch (error) {
-      // ✅ Extract error message
       const errorMessage = extractErrorMessage(error);
-      
+
       logger.error("❌ Failed to create fleet config", {
         error: errorMessage,
         details: error.response?.data,
       });
-      
+
       return {
         success: false,
         error: errorMessage,
@@ -322,14 +321,14 @@ export const fleetService = {
 
       const getCurrentResponse = await offlineService.get(
         `/setting-fleets/${configId}`,
-        { params: { populate: ["unit_exca"] } }
+        { params: { populate: ["unit_exca"] } },
       );
 
       const currentStatus = getCurrentResponse.data?.attributes?.status;
 
       if (currentStatus !== "CLOSED") {
         throw new Error(
-          `Fleet dengan status ${currentStatus} tidak bisa direaktivasi`
+          `Fleet dengan status ${currentStatus} tidak bisa direaktivasi`,
         );
       }
 
@@ -353,14 +352,13 @@ export const fleetService = {
 
       throw new Error(result.error || "Gagal mereaktivasi fleet");
     } catch (error) {
-      // ✅ Extract error message
       const errorMessage = extractErrorMessage(error);
-      
-      logger.error("❌ Failed to reactivate fleet", { 
+
+      logger.error("❌ Failed to reactivate fleet", {
         error: errorMessage,
         details: error.response?.data,
       });
-      
+
       return {
         success: false,
         error: errorMessage,
@@ -433,14 +431,13 @@ export const fleetService = {
         data: this._transformFleetConfig(response.data),
       };
     } catch (error) {
-      // ✅ Extract error message
       const errorMessage = extractErrorMessage(error);
-      
+
       logger.error("❌ Failed to update fleet config", {
         error: errorMessage,
         details: error.response?.data,
       });
-      
+
       return {
         success: false,
         error: errorMessage,
@@ -469,14 +466,13 @@ export const fleetService = {
         deletedId: configId,
       };
     } catch (error) {
-      // ✅ Extract error message
       const errorMessage = extractErrorMessage(error);
-      
+
       logger.error("❌ Failed to delete fleet config", {
         error: errorMessage,
         details: error.response?.data,
       });
-      
+
       return {
         success: false,
         error: errorMessage,
@@ -505,14 +501,13 @@ export const fleetService = {
         total: fleetIds.length,
       };
 
-      // Update setiap fleet
       for (const fleetId of fleetIds) {
         try {
           const response = await offlineService.put(
             `/setting-fleets/${fleetId}`,
             {
               data: { status: newStatus },
-            }
+            },
           );
 
           results.success.push({
@@ -522,9 +517,8 @@ export const fleetService = {
 
           logger.info(`✅ Fleet ${fleetId} status updated to ${newStatus}`);
         } catch (error) {
-          // ✅ Extract error message per item
           const errorMessage = extractErrorMessage(error);
-          
+
           results.failed.push({
             id: fleetId,
             error: errorMessage,
@@ -536,7 +530,6 @@ export const fleetService = {
         }
       }
 
-      // Clear cache after bulk update
       await Promise.all([
         offlineService.clearCacheByPrefix("fleets"),
         offlineService.clearCacheByPrefix("ritases"),
@@ -560,14 +553,13 @@ export const fleetService = {
           : `${results.success.length} berhasil, ${results.failed.length} gagal`,
       };
     } catch (error) {
-      // ✅ Extract error message
       const errorMessage = extractErrorMessage(error);
-      
+
       logger.error("❌ Bulk status update failed", {
         error: errorMessage,
         details: error.response?.data,
       });
-      
+
       return {
         success: false,
         error: errorMessage,
@@ -592,11 +584,12 @@ export const fleetService = {
         total: fleetIds.length,
       };
 
-      // Validate: Check if any fleet is ACTIVE
       const validationErrors = [];
       for (const fleetId of fleetIds) {
         try {
-          const response = await offlineService.get(`/setting-fleets/${fleetId}`);
+          const response = await offlineService.get(
+            `/setting-fleets/${fleetId}`,
+          );
           const fleet = response.data;
           const status = fleet?.attributes?.status;
 
@@ -613,7 +606,6 @@ export const fleetService = {
         }
       }
 
-      // If there are validation errors, return early
       if (validationErrors.length > 0) {
         logger.warn("⚠️ Bulk delete validation failed", {
           errors: validationErrors.length,
@@ -630,7 +622,6 @@ export const fleetService = {
         };
       }
 
-      // Delete setiap fleet
       for (const fleetId of fleetIds) {
         try {
           await offlineService.delete(`/setting-fleets/${fleetId}`);
@@ -639,9 +630,8 @@ export const fleetService = {
 
           logger.info(`✅ Fleet ${fleetId} deleted`);
         } catch (error) {
-          // ✅ Extract error message per item
           const errorMessage = extractErrorMessage(error);
-          
+
           results.failed.push({
             id: fleetId,
             error: errorMessage,
@@ -653,7 +643,6 @@ export const fleetService = {
         }
       }
 
-      // Clear cache after bulk delete
       await Promise.all([
         offlineService.clearCache("fleets_"),
         offlineService.clearCacheByPrefix("fleets"),
@@ -677,14 +666,13 @@ export const fleetService = {
           : `${results.success.length} berhasil, ${results.failed.length} gagal`,
       };
     } catch (error) {
-      // ✅ Extract error message
       const errorMessage = extractErrorMessage(error);
-      
+
       logger.error("❌ Bulk delete failed", {
         error: errorMessage,
         details: error.response?.data,
       });
-      
+
       return {
         success: false,
         error: errorMessage,
@@ -703,7 +691,9 @@ export const fleetService = {
 
       for (const fleetId of fleetIds) {
         try {
-          const response = await offlineService.get(`/setting-fleets/${fleetId}`);
+          const response = await offlineService.get(
+            `/setting-fleets/${fleetId}`,
+          );
           const fleet = response.data;
           const status = fleet?.attributes?.status;
 
@@ -723,9 +713,8 @@ export const fleetService = {
             validations.valid.push(validation);
           }
         } catch (error) {
-          // ✅ Extract error message per item
           const errorMessage = extractErrorMessage(error);
-          
+
           validations.invalid.push({
             id: fleetId,
             error: errorMessage,
@@ -740,14 +729,13 @@ export const fleetService = {
         allValid: validations.invalid.length === 0,
       };
     } catch (error) {
-      // ✅ Extract error message
       const errorMessage = extractErrorMessage(error);
-      
-      logger.error("❌ Validation failed", { 
+
+      logger.error("❌ Validation failed", {
         error: errorMessage,
         details: error.response?.data,
       });
-      
+
       return {
         success: false,
         error: errorMessage,
@@ -766,7 +754,7 @@ export const fleetService = {
       }
 
       const activeConfigs = result.data.filter(
-        (c) => c.status === "ACTIVE" && c.id !== configId.toString()
+        (c) => c.status === "ACTIVE" && c.id !== configId.toString(),
       );
 
       for (const config of activeConfigs) {
@@ -784,14 +772,13 @@ export const fleetService = {
       logger.info("✅ Active fleet config changed", { id: configId });
       return { success: true, message: "Konfigurasi berhasil diaktifkan" };
     } catch (error) {
-      // ✅ Extract error message
       const errorMessage = extractErrorMessage(error);
-      
+
       logger.error("❌ Failed to set active fleet config", {
         error: errorMessage,
         details: error.response?.data,
       });
-      
+
       return {
         success: false,
         error: errorMessage,
@@ -834,25 +821,30 @@ export const fleetService = {
 
         return dts.map((dt) => ({
           pairId: pair.id?.toString() || "",
-
           dumpTruckId: dt.id?.toString() || "",
           hull_no: dt.attributes?.hull_no || "",
           type: dt.attributes?.type || "DUMP_TRUCK",
           tareWeight: dt.attributes?.tare_weight ?? null,
-
           company: dt.attributes?.company?.data?.attributes?.name || "-",
           companyId: dt.attributes?.company?.data?.id?.toString() || "",
-
           operator: ops[0]?.attributes?.name || null,
           operatorId: ops[0]?.id?.toString() || null,
         }));
       });
+
+      const excavatorCompanyData =
+        attr.unit_exca?.data?.attributes?.company?.data;
+      const excavatorCompanyId = excavatorCompanyData?.id?.toString() || null;
+      const excavatorCompany = excavatorCompanyData?.attributes?.name || null;
 
       return {
         id: item.id.toString(),
 
         excavator: attr.unit_exca?.data?.attributes?.hull_no || "",
         excavatorId: attr.unit_exca?.data?.id?.toString() || "",
+
+        excavatorCompanyId,
+        excavatorCompany,
 
         loadingLocation: attr.loading_location?.data?.attributes?.name || "",
         loadingLocationId: attr.loading_location?.data?.id?.toString() || "",
