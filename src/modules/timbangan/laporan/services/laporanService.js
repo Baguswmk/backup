@@ -1,88 +1,113 @@
-import { offlineService } from '@/shared/services/offlineService';
-import { logger } from '@/shared/services/log';
-import { createValidationError } from '@/shared/utils/errorHandler';
-import { generateFile } from '@/modules/timbangan/laporan/services/fileGeneratorService';
+import { offlineService } from "@/shared/services/offlineService";
+import { logger } from "@/shared/services/log";
+import { createValidationError } from "@/shared/utils/errorHandler";
+import { generateFile } from "@/modules/timbangan/laporan/services/fileGeneratorService";
 
 /**
  * Laporan Service
- * ✅ UPDATED - Fetch data dari backend, generate file di frontend
+ * ✅ UPDATED - Support date range & filters (spph, unit_dump_truck)
  */
 
 /**
  * Validate download parameters
  */
 const validateDownloadParams = (params) => {
-  const { date, shift, format } = params;
-  
-  if (!date) {
-    throw createValidationError('Tanggal harus dipilih');
+  const { startDate, endDate, shift, format } = params;
+
+  if (!startDate) {
+    throw createValidationError("Tanggal mulai harus dipilih");
   }
-  
+
+  if (!endDate) {
+    throw createValidationError("Tanggal akhir harus dipilih");
+  }
+
   if (!shift) {
-    throw createValidationError('Shift harus dipilih');
+    throw createValidationError("Shift harus dipilih");
   }
-  
-  if (!format || !['pdf', 'excel', 'csv'].includes(format)) {
-    throw createValidationError('Format laporan tidak valid');
+
+  if (!format || !["pdf", "excel", "csv"].includes(format)) {
+    throw createValidationError("Format laporan tidak valid");
   }
-  
+
   return true;
 };
 
 /**
- * ✅ NEW - Fetch data dan generate file di frontend
+ * ✅ UPDATED - Fetch data dengan date range & filters
  */
 const fetchDataAndGenerateFile = async (endpoint, params) => {
   try {
     validateDownloadParams(params);
-    
-    const { date, shift, format } = params;
-    
+
+    const { startDate, endDate, shift, format, spph, unit_dump_truck } = params;
+
     logger.info(`📥 Fetching report data from ${endpoint}`, {
-      date,
+      startDate,
+      endDate,
       shift,
-      format
+      format,
+      spph,
+      unit_dump_truck,
     });
-    
-    // ✅ 1. Fetch data JSON dari backend
+
+    const queryParams = {
+      startDate,
+      endDate,
+      shift,
+    };
+
+    if (spph) {
+      queryParams.spph = spph;
+    }
+
+    if (unit_dump_truck) {
+      queryParams.unit_dump_truck = unit_dump_truck;
+    }
+
     const response = await offlineService.get(endpoint, {
-      params: {
-        date,
-        shift,
-      },
+      params: queryParams,
     });
 
     const data = response.data?.data || response.data;
 
     if (!data || data.length === 0) {
-      throw new Error('Tidak ada data untuk periode yang dipilih');
+      throw new Error("Tidak ada data untuk periode yang dipilih");
     }
 
     logger.info(`✅ Data fetched: ${data.length} records`);
 
-    // ✅ 2. Generate file di frontend menggunakan fileGeneratorService
-    const result = generateFile(data, format, { date, shift });
+    const result = generateFile(data, format, {
+      startDate,
+      endDate,
+      shift,
+      spph,
+      unit_dump_truck,
+    });
 
     logger.info(`✅ File generated successfully`, {
       filename: result.filename,
-      format
+      format,
     });
 
     return {
       success: true,
       filename: result.filename,
-      message: 'Laporan berhasil diunduh',
+      message: "Laporan berhasil diunduh",
       totalRecords: data.length,
     };
   } catch (error) {
     logger.error(`❌ Error generating report from ${endpoint}`, {
       error: error.message,
-      params
+      params,
     });
-    
+
     throw {
-      message: error.message || error.response?.data?.message || 'Gagal mengunduh laporan',
-      status: error.response?.status
+      message:
+        error.message ||
+        error.response?.data?.message ||
+        "Gagal mengunduh laporan",
+      status: error.response?.status,
     };
   }
 };
@@ -90,47 +115,51 @@ const fetchDataAndGenerateFile = async (endpoint, params) => {
 const laporanService = {
   /**
    * ✅ Download Laporan Generic
-   * Endpoint: /v1/custom/report
    */
   downloadLaporan: async (params) => {
-    return fetchDataAndGenerateFile('/v1/custom/report', params);
+    return fetchDataAndGenerateFile("/v1/custom/report", params);
   },
 
   /**
    * Download Laporan SPPH
    */
   downloadLaporanSPPH: async (params) => {
-    return fetchDataAndGenerateFile('/v1/custom/report', params);
+    return fetchDataAndGenerateFile("/v1/custom/report", params);
   },
 
   /**
    * Download Laporan Dump Truck
    */
   downloadLaporanDumpTruck: async (params) => {
-    return fetchDataAndGenerateFile('/v1/custom/report', params);
+    return fetchDataAndGenerateFile("/v1/custom/report", params);
   },
-
-  // ==================== TEMPLATE UNTUK LAPORAN BARU ====================
-  /*
-  downloadLaporanCustom: async (params) => {
-    return fetchDataAndGenerateFile('/v1/custom/report', params);
-  },
-  */
 
   /**
    * Preview Laporan (Get data only, no file generation)
    */
   previewLaporan: async (params) => {
     try {
-      const { date, shift } = params;
-      
-      logger.info(`👁️ Previewing laporan`, { date, shift });
-      
-      const response = await offlineService.get('/v1/custom/report', {
-        params: {
-          date,
-          shift,
-        },
+      const { startDate, endDate, shift, spph, unit_dump_truck } = params;
+
+      logger.info(`👁️ Previewing laporan`, {
+        startDate,
+        endDate,
+        shift,
+        spph,
+        unit_dump_truck,
+      });
+
+      const queryParams = {
+        startDate,
+        endDate,
+        shift,
+      };
+
+      if (spph) queryParams.spph = spph;
+      if (unit_dump_truck) queryParams.unit_dump_truck = unit_dump_truck;
+
+      const response = await offlineService.get("/v1/custom/report", {
+        params: queryParams,
       });
 
       const data = response.data?.data || response.data;
@@ -139,15 +168,16 @@ const laporanService = {
       return data;
     } catch (error) {
       logger.error(`❌ Error preview laporan`, {
-        error: error.message
+        error: error.message,
       });
-      
+
       throw {
-        message: error.response?.data?.message || 'Gagal memuat preview laporan',
-        status: error.response?.status
+        message:
+          error.response?.data?.message || "Gagal memuat preview laporan",
+        status: error.response?.status,
       };
     }
-  }
+  },
 };
 
 export default laporanService;

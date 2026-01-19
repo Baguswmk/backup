@@ -1,54 +1,66 @@
-import jsPDF from 'jspdf';
-import 'jspdf-autotable';
-import * as XLSX from 'xlsx';
-import Papa from 'papaparse';
-import { format } from 'date-fns';
-import { id as localeId } from 'date-fns/locale';
+import { jsPDF } from "jspdf";
+import autoTable from "jspdf-autotable";
+import * as XLSX from "xlsx";
+import Papa from "papaparse";
+import { format } from "date-fns";
+import { id as localeId } from "date-fns/locale";
 
 /**
  * File Generator Service
- * Generate PDF, Excel, CSV dari data JSON di Frontend
+ * ✅ Generate PDF, Excel, CSV dengan date range
+ * ✅ Fixed jsPDF autoTable import issue
  */
 
 /**
- * ✅ Generate PDF dari data ritase
+ * ✅ Generate PDF dengan date range
  */
 export const generatePDF = (data, params) => {
-  const { date, shift } = params;
-  
+  const { startDate, endDate, shift } = params;
+
   const doc = new jsPDF();
-  
-  // Header
+
   doc.setFontSize(18);
-  doc.text('Laporan Tonase Ritase', 14, 20);
-  
+  doc.text("Laporan Tonase Ritase", 14, 20);
+
   doc.setFontSize(11);
-  doc.text(`Tanggal: ${format(new Date(date), 'dd MMMM yyyy', { locale: localeId })}`, 14, 30);
+  doc.text(
+    `Periode: ${format(new Date(startDate), "dd MMM yyyy", { locale: localeId })} - ${format(new Date(endDate), "dd MMM yyyy", { locale: localeId })}`,
+    14,
+    30,
+  );
   doc.text(`Shift: ${shift}`, 14, 36);
-  
-  // Prepare table data
+
   const tableData = data.map((item, index) => [
     index + 1,
-    item.unit_dump_truck || '-',
-    item.unit_exca || '-',
-    item.loading_location || '-',
-    item.dumping_location || '-',
+    item.unit_dump_truck || "-",
+    item.unit_exca || "-",
+    item.loading_location || "-",
+    item.dumping_location || "-",
     item.net_weight || 0,
-    item.coal_type || '-',
-    item.operator || '-',
+    item.coal_type || "-",
+    item.spph || "-",
   ]);
-  
-  // Generate table
-  doc.autoTable({
-    head: [['No', 'Dump Truck', 'Excavator', 'Loading', 'Dumping', 'Net Weight', 'Coal Type', 'Operator']],
+
+  autoTable(doc, {
+    head: [
+      [
+        "No",
+        "Dump Truck",
+        "Excavator",
+        "Loading",
+        "Dumping",
+        "Net Weight",
+        "Coal Type",
+        "SPPH",
+      ],
+    ],
     body: tableData,
     startY: 45,
     styles: { fontSize: 8 },
     headStyles: { fillColor: [41, 128, 185] },
     alternateRowStyles: { fillColor: [245, 245, 245] },
   });
-  
-  // Footer
+
   const pageCount = doc.internal.getNumberOfPages();
   for (let i = 1; i <= pageCount; i++) {
     doc.setPage(i);
@@ -56,124 +68,133 @@ export const generatePDF = (data, params) => {
     doc.text(
       `Total Data: ${data.length} | Halaman ${i} dari ${pageCount}`,
       14,
-      doc.internal.pageSize.height - 10
+      doc.internal.pageSize.height - 10,
     );
     doc.text(
-      `Dicetak: ${format(new Date(), 'dd/MM/yyyy HH:mm', { locale: localeId })}`,
+      `Dicetak: ${format(new Date(), "dd/MM/yyyy HH:mm", { locale: localeId })}`,
       doc.internal.pageSize.width - 14,
       doc.internal.pageSize.height - 10,
-      { align: 'right' }
+      { align: "right" },
     );
   }
-  
-  // Generate filename
-  const filename = `laporan-tonase-${date}-shift-${shift}.pdf`;
-  
-  // Download
+
+  const filename = `laporan-tonase-${startDate}-to-${endDate}-shift-${shift}.pdf`;
+
   doc.save(filename);
-  
+
   return { filename, success: true };
 };
 
 /**
- * ✅ Generate Excel dari data ritase
+ * ✅ Generate Excel dengan date range
  */
 export const generateExcel = (data, params) => {
-  const { date, shift } = params;
-  
-  // Prepare worksheet data
+  const { startDate, endDate, shift } = params;
+
   const worksheetData = [
-    ['LAPORAN TONASE RITASE'],
-    [`Tanggal: ${format(new Date(date), 'dd MMMM yyyy', { locale: localeId })}`],
+    ["LAPORAN TONASE RITASE"],
+    [
+      `Periode: ${format(new Date(startDate), "dd MMM yyyy", { locale: localeId })} - ${format(new Date(endDate), "dd MMM yyyy", { locale: localeId })}`,
+    ],
     [`Shift: ${shift}`],
-    [], // Empty row
-    ['No', 'Dump Truck', 'Excavator', 'Loading', 'Dumping', 'Net Weight', 'Distance', 'Coal Type', 'Operator', 'Checker'],
+    [],
+    [
+      "No",
+      "Dump Truck",
+      "Excavator",
+      "Loading",
+      "Dumping",
+      "Net Weight",
+      "Distance",
+      "Coal Type",
+      "SPPH",
+      "Operator",
+      "Checker",
+    ],
     ...data.map((item, index) => [
       index + 1,
-      item.unit_dump_truck || '-',
-      item.unit_exca || '-',
-      item.loading_location || '-',
-      item.dumping_location || '-',
+      item.unit_dump_truck || "-",
+      item.unit_exca || "-",
+      item.loading_location || "-",
+      item.dumping_location || "-",
       item.net_weight || 0,
       item.distance || 0,
-      item.coal_type || '-',
-      item.operator || '-',
-      item.checker || '-',
+      item.coal_type || "-",
+      item.spph || "-",
+      item.operator || "-",
+      item.checker || "-",
     ]),
-    [], // Empty row
+    [],
     [`Total Data: ${data.length}`],
-    [`Dicetak: ${format(new Date(), 'dd/MM/yyyy HH:mm', { locale: localeId })}`],
+    [
+      `Dicetak: ${format(new Date(), "dd/MM/yyyy HH:mm", { locale: localeId })}`,
+    ],
   ];
-  
-  // Create workbook and worksheet
+
   const ws = XLSX.utils.aoa_to_sheet(worksheetData);
   const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, 'Laporan');
-  
-  // Set column widths
-  ws['!cols'] = [
-    { wch: 5 },  // No
-    { wch: 15 }, // Dump Truck
-    { wch: 15 }, // Excavator
-    { wch: 20 }, // Loading
-    { wch: 20 }, // Dumping
-    { wch: 12 }, // Net Weight
-    { wch: 10 }, // Distance
-    { wch: 15 }, // Coal Type
-    { wch: 20 }, // Operator
-    { wch: 20 }, // Checker
+  XLSX.utils.book_append_sheet(wb, ws, "Laporan");
+
+  ws["!cols"] = [
+    { wch: 5 },
+    { wch: 15 },
+    { wch: 15 },
+    { wch: 20 },
+    { wch: 20 },
+    { wch: 12 },
+    { wch: 10 },
+    { wch: 15 },
+    { wch: 15 },
+    { wch: 20 },
+    { wch: 20 },
   ];
-  
-  // Generate filename
-  const filename = `laporan-tonase-${date}-shift-${shift}.xlsx`;
-  
-  // Download
+
+  const filename = `laporan-tonase-${startDate}-to-${endDate}-shift-${shift}.xlsx`;
+
   XLSX.writeFile(wb, filename);
-  
+
   return { filename, success: true };
 };
 
 /**
- * ✅ Generate CSV dari data ritase
+ * ✅ Generate CSV dengan date range
  */
 export const generateCSV = (data, params) => {
-  const { date, shift } = params;
-  
-  // Prepare CSV data
+  const { startDate, endDate, shift } = params;
+
   const csvData = data.map((item, index) => ({
-    'No': index + 1,
-    'Tanggal': date,
-    'Shift': shift,
-    'Dump Truck': item.unit_dump_truck || '-',
-    'Excavator': item.unit_exca || '-',
-    'Loading': item.loading_location || '-',
-    'Dumping': item.dumping_location || '-',
-    'Net Weight': item.net_weight || 0,
-    'Distance': item.distance || 0,
-    'Coal Type': item.coal_type || '-',
-    'Operator': item.operator || '-',
-    'Checker': item.checker || '-',
-    'Inspector': item.inspector || '-',
-    'Weigh Bridge': item.weigh_bridge || '-',
+    No: index + 1,
+    Periode: `${startDate} - ${endDate}`,
+    Shift: shift,
+    SPPH: item.spph || "-",
+    "Dump Truck": item.unit_dump_truck || "-",
+    Excavator: item.unit_exca || "-",
+    Loading: item.loading_location || "-",
+    Dumping: item.dumping_location || "-",
+    "Net Weight": item.net_weight || 0,
+    Distance: item.distance || 0,
+    "Coal Type": item.coal_type || "-",
+    Operator: item.operator || "-",
+    Checker: item.checker || "-",
+    Inspector: item.inspector || "-",
+    "Weigh Bridge": item.weigh_bridge || "-",
   }));
-  
-  // Convert to CSV
+
   const csv = Papa.unparse(csvData);
-  
-  // Create blob and download
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-  const link = document.createElement('a');
+
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const link = document.createElement("a");
   const url = URL.createObjectURL(blob);
-  
-  const filename = `laporan-tonase-${date}-shift-${shift}.csv`;
-  
-  link.setAttribute('href', url);
-  link.setAttribute('download', filename);
-  link.style.visibility = 'hidden';
+
+  const filename = `laporan-tonase-${startDate}-to-${endDate}-shift-${shift}.csv`;
+
+  link.setAttribute("href", url);
+  link.setAttribute("download", filename);
+  link.style.visibility = "hidden";
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
-  
+
   return { filename, success: true };
 };
 
@@ -182,15 +203,15 @@ export const generateCSV = (data, params) => {
  */
 export const generateFile = (data, format, params) => {
   if (!data || data.length === 0) {
-    throw new Error('Tidak ada data untuk diexport');
+    throw new Error("Tidak ada data untuk diexport");
   }
-  
+
   switch (format) {
-    case 'pdf':
+    case "pdf":
       return generatePDF(data, params);
-    case 'excel':
+    case "excel":
       return generateExcel(data, params);
-    case 'csv':
+    case "csv":
       return generateCSV(data, params);
     default:
       throw new Error(`Format '${format}' tidak didukung`);

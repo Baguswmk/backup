@@ -1,22 +1,43 @@
-import React from 'react';
-import LaporanCard from '@/modules/timbangan/laporan/components/LaporanCard';
-import { useLaporan } from '@/modules/timbangan/laporan/hooks/useLaporan';
-import { LAPORAN_CONFIG } from '@/modules/timbangan/laporan/config/LaporanConfig';
+import React, { useEffect, useMemo } from "react";
+import LaporanCard from "@/modules/timbangan/laporan/components/LaporanCard";
+import { useLaporan } from "@/modules/timbangan/laporan/hooks/useLaporan";
+import { LAPORAN_CONFIG } from "@/modules/timbangan/laporan/config/LaporanConfig";
+import { useMasterData } from "@/modules/timbangan/masterData/hooks/useMasterData";
 
-/**
- * ✅ UPDATED - Disesuaikan dengan backend params: date, shift, format
- */
 const LaporanManagement = () => {
   const { downloadLaporan, isFormatDownloading } = useLaporan();
 
-  /**
-   * ✅ Handle download dengan params yang sesuai backend
-   */
+  const {
+    data: dumpTruckData,
+    isLoading: isLoadingUnits,
+    loadData: loadUnits,
+  } = useMasterData("units");
+
+  useEffect(() => {
+    loadUnits(false);
+  }, [loadUnits]);
+
+  const dumpTruckOptions = useMemo(() => {
+    if (!Array.isArray(dumpTruckData)) return [];
+
+    return dumpTruckData
+      .filter((unit) => unit.type === "DUMP_TRUCK")
+      .map((unit) => ({
+        value: unit.hull_no,
+        label: unit.hull_no,
+        hint: unit.company || "-",
+      }))
+      .sort((a, b) => a.label.localeCompare(b.label));
+  }, [dumpTruckData]);
+
   const handleDownload = async (type, format, params) => {
     await downloadLaporan(type, {
-      date: params.date,
+      startDate: params.startDate,
+      endDate: params.endDate,
       shift: params.shift,
       format,
+      spph: params.spph,
+      unit_dump_truck: params.unit_dump_truck,
     });
   };
 
@@ -32,6 +53,15 @@ const LaporanManagement = () => {
         </p>
       </div>
 
+      {/* Loading State */}
+      {isLoadingUnits && (
+        <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+          <p className="text-sm text-blue-800 dark:text-blue-400">
+            ⏳ Memuat data unit dump truck...
+          </p>
+        </div>
+      )}
+
       {/* Cards Container - Grid Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
         {LAPORAN_CONFIG.map((laporan) => (
@@ -43,10 +73,11 @@ const LaporanManagement = () => {
             iconBgColor={laporan.iconBgColor}
             iconColor={laporan.iconColor}
             downloadFormats={laporan.downloadFormats}
-            onDownload={(format, params) => 
+            dumpTruckOptions={dumpTruckOptions}
+            onDownload={(format, params) =>
               handleDownload(laporan.type, format, params)
             }
-            isDownloading={(format) => 
+            isDownloading={(format) =>
               isFormatDownloading(laporan.type, format)
             }
           />

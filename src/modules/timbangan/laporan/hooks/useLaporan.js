@@ -1,35 +1,40 @@
-import { useState, useCallback } from 'react';
-import laporanService from '@/modules/timbangan/laporan/services/laporanService';
-import { showToast } from '@/shared/utils/toast';
+import { useState, useCallback } from "react";
+import laporanService from "@/modules/timbangan/laporan/services/laporanService";
+import { showToast } from "@/shared/utils/toast";
 
-
+/**
+ * ✅ UPDATED - Support date range & filters
+ */
 export const useLaporan = () => {
   const [isDownloading, setIsDownloading] = useState(false);
   const [downloadType, setDownloadType] = useState(null);
   const [downloadFormat, setDownloadFormat] = useState(null);
 
-
   const downloadLaporan = useCallback(async (type, params) => {
-    const { date, shift, format } = params;
+    const { startDate, endDate, shift, format, spph, unit_dump_truck } = params;
 
-    // Validasi
-    if (!date) {
-      showToast.error('Tanggal harus dipilih');
+    if (!startDate) {
+      showToast.error("Tanggal mulai harus dipilih");
+      return;
+    }
+
+    if (!endDate) {
+      showToast.error("Tanggal akhir harus dipilih");
       return;
     }
 
     if (!shift) {
-      showToast.error('Shift harus dipilih');
+      showToast.error("Shift harus dipilih");
       return;
     }
 
     if (!format) {
-      showToast.error('Format laporan harus dipilih');
+      showToast.error("Format laporan harus dipilih");
       return;
     }
 
     if (!type) {
-      showToast.error('Tipe laporan tidak valid');
+      showToast.error("Tipe laporan tidak valid");
       return;
     }
 
@@ -38,53 +43,49 @@ export const useLaporan = () => {
     setDownloadFormat(format);
 
     const loadingToast = showToast.loading(
-      `Mengunduh laporan ${type} (${format.toUpperCase()})...`
+      `Mengunduh laporan ${type} (${format.toUpperCase()})...`,
     );
 
     try {
       let result;
 
-      // Dynamic service call berdasarkan type
       switch (type) {
-        case 'spph':
+        case "spph":
           result = await laporanService.downloadLaporanSPPH({
-            date,
+            startDate,
+            endDate,
             shift,
             format,
+            spph,
+            unit_dump_truck,
           });
           break;
 
-        case 'dump-truck':
+        case "dump-truck":
           result = await laporanService.downloadLaporanDumpTruck({
-            date,
+            startDate,
+            endDate,
             shift,
             format,
+            spph,
+            unit_dump_truck,
           });
           break;
-
-        // ==================== TEMPLATE UNTUK LAPORAN BARU ====================
-        /*
-        case 'tipe-laporan-baru':
-          result = await laporanService.downloadLaporanCustom({
-            date,
-            shift,
-            format,
-          });
-          break;
-        */
 
         default:
-          // ✅ Fallback ke generic service
           result = await laporanService.downloadLaporan({
-            date,
+            startDate,
+            endDate,
             shift,
             format,
+            spph,
+            unit_dump_truck,
           });
       }
 
       showToast.safeDismiss(loadingToast);
       showToast.success(`Laporan berhasil diunduh: ${result.filename}`);
-      
+
       return result;
     } catch (error) {
       showToast.safeDismiss(loadingToast);
@@ -100,38 +101,52 @@ export const useLaporan = () => {
   /**
    * Shortcut: Download Laporan SPPH
    */
-  const downloadLaporanSPPH = useCallback(async (params) => {
-    return downloadLaporan('spph', params);
-  }, [downloadLaporan]);
+  const downloadLaporanSPPH = useCallback(
+    async (params) => {
+      return downloadLaporan("spph", params);
+    },
+    [downloadLaporan],
+  );
 
   /**
    * Shortcut: Download Laporan Dump Truck
    */
-  const downloadLaporanDumpTruck = useCallback(async (params) => {
-    return downloadLaporan('dump-truck', params);
-  }, [downloadLaporan]);
+  const downloadLaporanDumpTruck = useCallback(
+    async (params) => {
+      return downloadLaporan("dump-truck", params);
+    },
+    [downloadLaporan],
+  );
 
   /**
    * Check if specific type is downloading
    */
-  const isTypeDownloading = useCallback((type) => {
-    return isDownloading && downloadType === type;
-  }, [isDownloading, downloadType]);
+  const isTypeDownloading = useCallback(
+    (type) => {
+      return isDownloading && downloadType === type;
+    },
+    [isDownloading, downloadType],
+  );
 
   /**
    * Check if specific format is downloading for a type
    */
-  const isFormatDownloading = useCallback((type, format) => {
-    return isDownloading && downloadType === type && downloadFormat === format;
-  }, [isDownloading, downloadType, downloadFormat]);
+  const isFormatDownloading = useCallback(
+    (type, format) => {
+      return (
+        isDownloading && downloadType === type && downloadFormat === format
+      );
+    },
+    [isDownloading, downloadType, downloadFormat],
+  );
 
   return {
     isDownloading,
     downloadType,
     downloadFormat,
-    downloadLaporan, // Generic method untuk semua tipe
-    downloadLaporanSPPH, // Shortcut
-    downloadLaporanDumpTruck, // Shortcut
+    downloadLaporan,
+    downloadLaporanSPPH,
+    downloadLaporanDumpTruck,
     isTypeDownloading,
     isFormatDownloading,
   };
