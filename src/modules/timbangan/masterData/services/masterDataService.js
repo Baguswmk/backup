@@ -78,6 +78,10 @@ const getPopulateFields = (category, userRole) => {
   return populateMap[category] || ["*"];
 };
 
+const shouldFilterByCompany = (userRole) => {
+  return ["admin", "evaluator"].includes(userRole);
+};
+
 export const masterDataService = {
   cache: MASTER_DATA_CACHE,
 
@@ -197,9 +201,9 @@ export const masterDataService = {
   },
 
   async fetchUnits(filters = {}) {
-    const { forceRefresh = false, type, userRole } = filters;
+    const { forceRefresh = false, type, userRole, userCompanyId } = filters;
 
-    const cacheKey = buildCacheKey("units", { type, userRole });
+    const cacheKey = buildCacheKey("units", { type, userRole, userCompanyId });
 
     if (!forceRefresh) {
       const cached = MASTER_DATA_CACHE.get(cacheKey);
@@ -227,6 +231,13 @@ export const masterDataService = {
         type: { $eq: "DUMP_TRUCK" },
       };
       params.pagination.pageSize = 200;
+    }
+
+    if (shouldFilterByCompany(userRole) && userCompanyId) {
+      params.filters = {
+        ...params.filters,
+        company: { id: { $eq: userCompanyId } },
+      };
     }
 
     const response = await offlineService.get("/units", {
@@ -360,9 +371,9 @@ export const masterDataService = {
   },
 
   async fetchOperators(options = {}) {
-    const { forceRefresh = false, userRole } = options;
+    const { forceRefresh = false, userRole, userCompanyId } = options;
 
-    const cacheKey = buildCacheKey("operators", { userRole });
+    const cacheKey = buildCacheKey("operators", { userRole, userCompanyId });
 
     if (!forceRefresh) {
       const cached = MASTER_DATA_CACHE.get(cacheKey);
@@ -377,6 +388,12 @@ export const masterDataService = {
     };
 
     params.populate = getPopulateFields("operators", userRole);
+
+    if (shouldFilterByCompany(userRole) && userCompanyId) {
+      params.filters = {
+        company: { id: { $eq: userCompanyId } },
+      };
+    }
 
     const response = await offlineService.get("/operators", {
       params,

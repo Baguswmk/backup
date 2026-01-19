@@ -111,7 +111,7 @@ export const useMasterData = (category) => {
 
           const result = await masterDataService.fetchData(
             category,
-            fetchOptions
+            fetchOptions,
           );
 
           if (isMountedRef.current) {
@@ -157,7 +157,7 @@ export const useMasterData = (category) => {
       pendingRequestRef.current = requestPromise;
       return requestPromise;
     },
-    [category, userRole]
+    [category, userRole],
   );
 
   /**
@@ -220,7 +220,7 @@ export const useMasterData = (category) => {
         setIsLoading(false);
       }
     },
-    [category, loadData, refreshAllMasterData]
+    [category, loadData, refreshAllMasterData],
   );
 
   /**
@@ -233,7 +233,7 @@ export const useMasterData = (category) => {
         const result = await masterDataService.updateData(
           category,
           id,
-          formData
+          formData,
         );
 
         await loadData(true);
@@ -249,7 +249,7 @@ export const useMasterData = (category) => {
         setIsLoading(false);
       }
     },
-    [category, loadData, refreshAllMasterData]
+    [category, loadData, refreshAllMasterData],
   );
 
   /**
@@ -276,7 +276,7 @@ export const useMasterData = (category) => {
         setIsLoading(false);
       }
     },
-    [category, loadData, refreshAllMasterData]
+    [category, loadData, refreshAllMasterData],
   );
 
   /**

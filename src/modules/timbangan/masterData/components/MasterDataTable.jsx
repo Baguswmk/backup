@@ -16,9 +16,9 @@ const MasterDataTable = ({
   canDelete = false,
   canWeigh = false,
 }) => {
-if (isLoading) {
-  return <LoadingContent/>
-}
+  if (isLoading) {
+    return <LoadingContent />;
+  }
 
   if (!data || data.length === 0) {
     return (
@@ -236,12 +236,15 @@ const DesktopTable = ({
             className="hover:bg-gray-50 transition-colors dark:hover:bg-gray-700 "
           >
             {columns.map((col) => (
-              <td key={col.key} className="px-4 py-3 text-gray-900 dark:text-gray-300">
+              <td
+                key={col.key}
+                className="px-4 py-3 text-gray-900 dark:text-gray-300"
+              >
                 {col.key === "__no__"
                   ? rowStart + idx + 1
                   : col.render
-                  ? col.render(row[col.key], row)
-                  : row[col.key] || "-"}
+                    ? col.render(row[col.key], row)
+                    : row[col.key] || "-"}
               </td>
             ))}
 

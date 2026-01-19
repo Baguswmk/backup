@@ -66,10 +66,10 @@ export const TareWeightCell = ({ tareWeight, updatedAt }) => {
 
   return (
     <div className="space-y-1">
-      <Badge variant="secondary" className={cn(
-  config.className,
-  "dark:bg-opacity-30" 
-)}>
+      <Badge
+        variant="secondary"
+        className={cn(config.className, "dark:bg-opacity-30")}
+      >
         <Icon className="w-3 h-3 mr-1" />
         {typeof tareWeight === "number" ? tareWeight.toFixed(2) : "0.00"}t
       </Badge>

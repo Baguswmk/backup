@@ -1,5 +1,10 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/shared/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/shared/components/ui/card";
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
 import { Label } from "@/shared/components/ui/label";
@@ -203,7 +208,7 @@ const TareWeightModal = ({
 
     if (!manualMode && insertedWeight === null && isConnected) {
       setError(
-        "Klik tombol Insert terlebih dahulu untuk mengambil berat dari timbangan"
+        "Klik tombol Insert terlebih dahulu untuk mengambil berat dari timbangan",
       );
       showToast.error("⌛ Klik Insert untuk mengambil berat terlebih dahulu");
       return;
@@ -231,8 +236,8 @@ const TareWeightModal = ({
       method: manualMode
         ? "manual"
         : insertedWeight !== null
-        ? "inserted"
-        : "live",
+          ? "inserted"
+          : "live",
     });
   };
 
@@ -247,7 +252,7 @@ const TareWeightModal = ({
   const currentStatus = currentUnit?.tare_weight
     ? getTareWeightStatus(
         currentUnit.tare_weight,
-        currentUnit.updatedAt || currentUnit.update_at
+        currentUnit.updatedAt || currentUnit.update_at,
       )
     : null;
 
@@ -260,12 +265,16 @@ const TareWeightModal = ({
   return (
     <div className="detail-modal fixed inset-0 bg-black/50 z-50  flex items-center justify-center p-4">
       <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto dark:bg-gray-800 border-none">
-<ModalHeader
-  title={isSelectionMode ? "Timbang Kosong (Tare Weight)" : `Penimbangan Tare Weight - ${currentUnit?.hull_no}`}
-  icon={Scale}
-  onClose={handleClose}
-  disabled={isSaving}
-/>
+        <ModalHeader
+          title={
+            isSelectionMode
+              ? "Timbang Kosong (Tare Weight)"
+              : `Penimbangan Tare Weight - ${currentUnit?.hull_no}`
+          }
+          icon={Scale}
+          onClose={handleClose}
+          disabled={isSaving}
+        />
 
         <CardContent className="space-y-4">
           {/* Unit Selection (only in selection mode) */}
@@ -356,7 +365,7 @@ const TareWeightModal = ({
                             {" "}
                             | Update:{" "}
                             {new Date(
-                              currentUnit.updatedAt || currentUnit.update_at
+                              currentUnit.updatedAt || currentUnit.update_at,
                             ).toLocaleDateString("id-ID")}
                           </>
                         )}
@@ -522,10 +531,10 @@ const TareWeightModal = ({
                     manualMode
                       ? "bg-yellow-50 border-yellow-400 text-black"
                       : insertedWeight !== null
-                      ? "bg-green-50 border-green-400"
-                      : isConnected
-                      ? "bg-blue-50 border-blue-300"
-                      : ""
+                        ? "bg-green-50 border-green-400"
+                        : isConnected
+                          ? "bg-blue-50 border-blue-300"
+                          : ""
                   }`}
                   placeholder="0.00"
                   disabled={
@@ -552,7 +561,9 @@ const TareWeightModal = ({
                   type="button"
                   onClick={handleToggleManual}
                   className={
-                    manualMode ? "bg-yellow-600 hover:bg-yellow-700 cursor-pointer " :  "cursor-pointer dark:bg-slate-700 dark:hover:bg-gray-200 dark:hover:text-black"
+                    manualMode
+                      ? "bg-yellow-600 hover:bg-yellow-700 cursor-pointer "
+                      : "cursor-pointer dark:bg-slate-700 dark:hover:bg-gray-200 dark:hover:text-black"
                   }
                 >
                   {manualMode ? "Auto" : "Manual"}

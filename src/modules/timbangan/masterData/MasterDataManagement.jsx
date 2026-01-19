@@ -5,7 +5,12 @@ import React, {
   useEffect,
   useReducer,
 } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/shared/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/shared/components/ui/card";
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
 import { Alert, AlertDescription } from "@/shared/components/ui/alert";
@@ -110,11 +115,14 @@ const MasterDataManagement = () => {
   }, [userRole]);
 
   const [activeCategory, setActiveCategory] = useState(
-    allowedCategories.length > 0 ? allowedCategories[0].id : "companies"
+    allowedCategories.length > 0 ? allowedCategories[0].id : "companies",
   );
   const [ui, setUI] = useReducer(uiReducer, initialUI);
   const debouncedSearch = useDebouncedValue(ui.searchQuery, 250);
-  const canAccessCategory = canAccessMasterDataCategory(userRole, activeCategory);
+  const canAccessCategory = canAccessMasterDataCategory(
+    userRole,
+    activeCategory,
+  );
 
   const [filterExpanded, setFilterExpanded] = useState(false);
   const [activeFilters, setActiveFilters] = useState({
@@ -122,7 +130,8 @@ const MasterDataManagement = () => {
     locations: [],
   });
 
-  const hookCategory = activeCategory === "alatLoader" ? "units" : activeCategory;
+  const hookCategory =
+    activeCategory === "alatLoader" ? "units" : activeCategory;
 
   const {
     data,
@@ -177,30 +186,33 @@ const MasterDataManagement = () => {
 
   const filterGroups = useMemo(() => {
     const groups = [];
-    if (['units', 'alatLoader', 'operators'].includes(activeCategory)) {
+    if (["units", "alatLoader", "operators"].includes(activeCategory)) {
       groups.push({
-        id: 'companies',
-        label: 'Company',
+        id: "companies",
+        label: "Company",
         options: companyOptions,
         value: activeFilters.companies || [],
-        onChange: (val) => setActiveFilters(prev => ({ ...prev, companies: val })),
-        placeholder: 'Pilih Company',
+        onChange: (val) =>
+          setActiveFilters((prev) => ({ ...prev, companies: val })),
+        placeholder: "Pilih Company",
       });
     }
-    if (activeCategory === 'work-units') {
+    if (activeCategory === "work-units") {
       groups.push({
-        id: 'locations',
-        label: 'Locations',
+        id: "locations",
+        label: "Locations",
         options: locationOptions,
         value: activeFilters.locations || [],
-        onChange: (val) => setActiveFilters(prev => ({ ...prev, locations: val })),
-        placeholder: 'Pilih Location',
+        onChange: (val) =>
+          setActiveFilters((prev) => ({ ...prev, locations: val })),
+        placeholder: "Pilih Location",
       });
     }
     return groups;
   }, [activeCategory, companyOptions, locationOptions, activeFilters]);
 
-  const hasActiveFilters = activeFilters.companies.length > 0 || activeFilters.locations.length > 0;
+  const hasActiveFilters =
+    activeFilters.companies.length > 0 || activeFilters.locations.length > 0;
 
   const handleResetFilters = () => {
     setActiveFilters({ companies: [], locations: [] });
@@ -214,8 +226,8 @@ const MasterDataManagement = () => {
         Object.values(item).some(
           (v) =>
             (typeof v === "string" || typeof v === "number") &&
-            String(v).toLowerCase().includes(search)
-        )
+            String(v).toLowerCase().includes(search),
+        ),
       );
     }
     if (activeFilters.companies.length > 0) {
@@ -224,10 +236,12 @@ const MasterDataManagement = () => {
         return companyId && activeFilters.companies.includes(String(companyId));
       });
     }
-    if (activeFilters.locations.length > 0 && activeCategory === 'work-units') {
+    if (activeFilters.locations.length > 0 && activeCategory === "work-units") {
       result = result.filter((item) => {
         const itemLocationIds = item.locationIds || [];
-        return itemLocationIds.some(locId => activeFilters.locations.includes(String(locId)));
+        return itemLocationIds.some((locId) =>
+          activeFilters.locations.includes(String(locId)),
+        );
       });
     }
     return result;
@@ -245,22 +259,69 @@ const MasterDataManagement = () => {
       companies: [
         { key: "__no__", label: "No" },
         { key: "name", label: "Name" },
-        { key: "createdAt", label: "Created", render: (val) => val ? new Date(val).toLocaleDateString("id-ID") : "-" },
+        {
+          key: "createdAt",
+          label: "Created",
+          render: (val) =>
+            val ? new Date(val).toLocaleDateString("id-ID") : "-",
+        },
       ],
       units: [
         { key: "__no__", label: "No" },
         { key: "hull_no", label: "Hull No" },
         { key: "company", label: "Company" },
-        { key: "rfid", label: "RFID", render: (val) => val ? (<Badge variant="secondary" className="font-mono"><Tag className="w-3 h-3 mr-1" />{val}</Badge>) : "-" },
-        { key: "bypass_tonnage", label: "Bypass Tonnage", render: (val) => val ? `${parseFloat(val).toFixed(2)} ton` : "-" },
-        { key: "tare_weight", label: "Tare Weight", render: (val, row) => (<TareWeightCell tareWeight={row.tare_weight} updatedAt={row.updatedAt} />) },
-        { key: "updatedAt", label: "Last Updated", render: (val) => val ? new Date(val).toLocaleDateString("id-ID") : "-" },
+        {
+          key: "rfid",
+          label: "RFID",
+          render: (val) =>
+            val ? (
+              <Badge variant="secondary" className="font-mono">
+                <Tag className="w-3 h-3 mr-1" />
+                {val}
+              </Badge>
+            ) : (
+              "-"
+            ),
+        },
+        {
+          key: "bypass_tonnage",
+          label: "Bypass Tonnage",
+          render: (val) => (val ? `${parseFloat(val).toFixed(2)} ton` : "-"),
+        },
+        {
+          key: "tare_weight",
+          label: "Tare Weight",
+          render: (val, row) => (
+            <TareWeightCell
+              tareWeight={row.tare_weight}
+              updatedAt={row.updatedAt}
+            />
+          ),
+        },
+        {
+          key: "updatedAt",
+          label: "Last Updated",
+          render: (val) =>
+            val ? new Date(val).toLocaleDateString("id-ID") : "-",
+        },
       ],
       alatLoader: [
         { key: "__no__", label: "No" },
         { key: "hull_no", label: "Name" },
         { key: "company", label: "Company" },
-        { key: "rfid", label: "RFID", render: (val) => val ? (<Badge variant="secondary" className="font-mono"><Tag className="w-3 h-3 mr-1" />{val}</Badge>) : "-" },
+        {
+          key: "rfid",
+          label: "RFID",
+          render: (val) =>
+            val ? (
+              <Badge variant="secondary" className="font-mono">
+                <Tag className="w-3 h-3 mr-1" />
+                {val}
+              </Badge>
+            ) : (
+              "-"
+            ),
+        },
       ],
       operators: [
         { key: "__no__", label: "No" },
@@ -270,7 +331,15 @@ const MasterDataManagement = () => {
       locations: [
         { key: "__no__", label: "No" },
         { key: "name", label: "Name" },
-        { key: "type", label: "Type", render: (val) => (<Badge variant={val === "LOADING" ? "default" : "secondary"}>{val}</Badge>) },
+        {
+          key: "type",
+          label: "Type",
+          render: (val) => (
+            <Badge variant={val === "LOADING" ? "default" : "secondary"}>
+              {val}
+            </Badge>
+          ),
+        },
       ],
       "work-units": [
         { key: "__no__", label: "No" },
@@ -281,11 +350,23 @@ const MasterDataManagement = () => {
           label: "Locations",
           render: (val) => (
             <ExpandableList
-              items={Array.isArray(val) ? val.map((id) => Array.isArray(locations) ? locations.find((loc) => loc.id === id) : null).filter(Boolean) : []}
+              items={
+                Array.isArray(val)
+                  ? val
+                      .map((id) =>
+                        Array.isArray(locations)
+                          ? locations.find((loc) => loc.id === id)
+                          : null,
+                      )
+                      .filter(Boolean)
+                  : []
+              }
               icon={MapPin}
               labelKey="name"
               badgeKey="type"
-              badgeVariant={(item) => item.type === "LOADING" ? "default" : "secondary"}
+              badgeVariant={(item) =>
+                item.type === "LOADING" ? "default" : "secondary"
+              }
               titleSingular="location"
               titlePlural="locations"
               emptyText="No locations"
@@ -300,8 +381,27 @@ const MasterDataManagement = () => {
       "weigh-bridge": [
         { key: "__no__", label: "No" },
         { key: "name", label: "Name" },
-        { key: "operators", label: "Users", render: (operators) => (<ExpandableList items={operators} icon={User} labelKey="name" badgeKey="username" titleSingular="operator" titlePlural="operators" emptyText="No users" />) },
-        { key: "createdAt", label: "Created", render: (val) => val ? new Date(val).toLocaleDateString("id-ID") : "-" },
+        {
+          key: "operators",
+          label: "Users",
+          render: (operators) => (
+            <ExpandableList
+              items={operators}
+              icon={User}
+              labelKey="name"
+              badgeKey="username"
+              titleSingular="operator"
+              titlePlural="operators"
+              emptyText="No users"
+            />
+          ),
+        },
+        {
+          key: "createdAt",
+          label: "Created",
+          render: (val) =>
+            val ? new Date(val).toLocaleDateString("id-ID") : "-",
+        },
       ],
     };
     return columnMap[activeCategory] || [];
@@ -315,27 +415,38 @@ const MasterDataManagement = () => {
     setUI({ editingItem: null, showModal: true });
   }, [permissions]);
 
-  const handleEdit = useCallback((item) => {
-    if (isOnlyTareWeight && activeCategory === "units") {
-      showToast.error("Anda hanya bisa update tare weight. Gunakan tombol timbangan.");
-      return;
-    }
-    if (!permissions.canUpdate) {
-      showToast.error(permissions.getDisabledMessage("update"));
-      return;
-    }
-    setUI({ editingItem: item, showModal: true });
-  }, [permissions, isOnlyTareWeight, activeCategory]);
+  const handleEdit = useCallback(
+    (item) => {
+      if (isOnlyTareWeight && activeCategory === "units") {
+        showToast.error(
+          "Anda hanya bisa update tare weight. Gunakan tombol timbangan.",
+        );
+        return;
+      }
+      if (!permissions.canUpdate) {
+        showToast.error(permissions.getDisabledMessage("update"));
+        return;
+      }
+      setUI({ editingItem: item, showModal: true });
+    },
+    [permissions, isOnlyTareWeight, activeCategory],
+  );
 
-  const handleAskDelete = useCallback((item) => {
-    if (!permissions.canDelete) {
-      showToast.error(permissions.getDisabledMessage("delete"));
-      return;
-    }
-    setUI({ deletingItem: item, showDelete: true });
-  }, [permissions]);
+  const handleAskDelete = useCallback(
+    (item) => {
+      if (!permissions.canDelete) {
+        showToast.error(permissions.getDisabledMessage("delete"));
+        return;
+      }
+      setUI({ deletingItem: item, showDelete: true });
+    },
+    [permissions],
+  );
 
-  const cancelDelete = useCallback(() => setUI({ showDelete: false, deletingItem: null }), []);
+  const cancelDelete = useCallback(
+    () => setUI({ showDelete: false, deletingItem: null }),
+    [],
+  );
 
   const confirmDelete = useCallback(async () => {
     if (!ui.deletingItem) return;
@@ -348,13 +459,16 @@ const MasterDataManagement = () => {
     }
   }, [ui.deletingItem, deleteItem]);
 
-  const handleWeigh = useCallback((unit) => {
-    if (!permissions.canUpdate && !isOnlyTareWeight) {
-      showToast.error("Anda tidak memiliki akses untuk update tare weight");
-      return;
-    }
-    setUI({ weighingUnit: unit, tareMode: "single", showTareModal: true });
-  }, [permissions, isOnlyTareWeight]);
+  const handleWeigh = useCallback(
+    (unit) => {
+      if (!permissions.canUpdate && !isOnlyTareWeight) {
+        showToast.error("Anda tidak memiliki akses untuk update tare weight");
+        return;
+      }
+      setUI({ weighingUnit: unit, tareMode: "single", showTareModal: true });
+    },
+    [permissions, isOnlyTareWeight],
+  );
 
   const handleQuickTare = useCallback(() => {
     if (!permissions.canUpdate && !isOnlyTareWeight) {
@@ -364,47 +478,60 @@ const MasterDataManagement = () => {
     setUI({ weighingUnit: null, tareMode: "selection", showTareModal: true });
   }, [permissions, isOnlyTareWeight]);
 
-  const handleSaveTareWeight = useCallback(async (data) => {
-    setUI({ isSavingTare: true });
-    try {
-      const payload = { tare_weight: data.tareWeight };
-      const result = await masterDataService.updateUnit(data.unitId, payload);
-      if (result) {
-        showToast.success("Tare weight berhasil disimpan");
-        await refresh();
-        setUI({ showTareModal: false, weighingUnit: null, tareMode: null });
+  const handleSaveTareWeight = useCallback(
+    async (data) => {
+      setUI({ isSavingTare: true });
+      try {
+        const payload = { tare_weight: data.tareWeight };
+        const result = await masterDataService.updateUnit(data.unitId, payload);
+        if (result) {
+          showToast.success("Tare weight berhasil disimpan");
+          await refresh();
+          setUI({ showTareModal: false, weighingUnit: null, tareMode: null });
+        }
+      } catch (error) {
+        console.error("Failed to save tare weight:", error);
+        showToast.error("Gagal menyimpan tare weight");
+      } finally {
+        setUI({ isSavingTare: false });
       }
-    } catch (error) {
-      console.error("Failed to save tare weight:", error);
-      showToast.error("Gagal menyimpan tare weight");
-    } finally {
-      setUI({ isSavingTare: false });
-    }
-  }, [refresh]);
+    },
+    [refresh],
+  );
 
-  const handleSave = useCallback(async (formData) => {
-    let payload = { ...formData };
-    if (activeCategory === "units" && payload.type !== "DUMP_TRUCK") payload.type = "DUMP_TRUCK";
-    if (activeCategory === "alatLoader" && payload.type === "DUMP_TRUCK") payload.type = "EXCAVATOR";
-    setUI({ isSaving: true });
-    try {
-      const result = ui.editingItem ? await updateItem(ui.editingItem.id, payload) : await createItem(payload);
-      if (result?.success) setUI({ showModal: false, editingItem: null });
-    } finally {
-      setUI({ isSaving: false });
-    }
-  }, [activeCategory, ui.editingItem, createItem, updateItem]);
+  const handleSave = useCallback(
+    async (formData) => {
+      let payload = { ...formData };
+      if (activeCategory === "units" && payload.type !== "DUMP_TRUCK")
+        payload.type = "DUMP_TRUCK";
+      if (activeCategory === "alatLoader" && payload.type === "DUMP_TRUCK")
+        payload.type = "EXCAVATOR";
+      setUI({ isSaving: true });
+      try {
+        const result = ui.editingItem
+          ? await updateItem(ui.editingItem.id, payload)
+          : await createItem(payload);
+        if (result?.success) setUI({ showModal: false, editingItem: null });
+      } finally {
+        setUI({ isSaving: false });
+      }
+    },
+    [activeCategory, ui.editingItem, createItem, updateItem],
+  );
 
   const handleRefresh = useCallback(() => refresh(), [refresh]);
 
-  const handleCategoryChange = useCallback((categoryId) => {
-    if (!canAccessMasterDataCategory(userRole, categoryId)) {
-      showToast.error("Anda tidak memiliki akses ke kategori ini");
-      return;
-    }
-    setActiveCategory(categoryId);
-    setUI({ searchQuery: "", currentPage: 1 });
-  }, [userRole]);
+  const handleCategoryChange = useCallback(
+    (categoryId) => {
+      if (!canAccessMasterDataCategory(userRole, categoryId)) {
+        showToast.error("Anda tidak memiliki akses ke kategori ini");
+        return;
+      }
+      setActiveCategory(categoryId);
+      setUI({ searchQuery: "", currentPage: 1 });
+    },
+    [userRole],
+  );
 
   const activeConfig = ALL_CATEGORIES.find((c) => c.id === activeCategory);
   const Icon = activeConfig?.icon;
@@ -413,7 +540,11 @@ const MasterDataManagement = () => {
   const deleteTarget = useMemo(() => {
     if (!ui.deletingItem) return null;
     return {
-      name: ui.deletingItem.name || ui.deletingItem.hull_no || ui.deletingItem.subsatker || "-",
+      name:
+        ui.deletingItem.name ||
+        ui.deletingItem.hull_no ||
+        ui.deletingItem.subsatker ||
+        "-",
       excavator: ui.deletingItem.excavator || "-",
       shift: ui.deletingItem.shift || "-",
       workUnit: ui.deletingItem.workUnit || ui.deletingItem.subsatker || "-",
@@ -431,7 +562,9 @@ const MasterDataManagement = () => {
           <AlertDescription>
             <p className="font-semibold mb-2">Akses Ditolak</p>
             <p>Anda tidak memiliki akses ke Master Data Management.</p>
-            <p className="text-xs mt-2">Role: <strong>{userRole}</strong></p>
+            <p className="text-xs mt-2">
+              Role: <strong>{userRole}</strong>
+            </p>
           </AlertDescription>
         </Alert>
       </div>
@@ -445,8 +578,13 @@ const MasterDataManagement = () => {
           <Lock className="w-4 h-4" />
           <AlertDescription>
             <p className="font-semibold mb-2">Kategori Tidak Tersedia</p>
-            <p>Anda tidak memiliki akses ke kategori <strong>{activeConfig?.label}</strong>.</p>
-            <p className="text-xs mt-2">Role: <strong>{userRole}</strong></p>
+            <p>
+              Anda tidak memiliki akses ke kategori{" "}
+              <strong>{activeConfig?.label}</strong>.
+            </p>
+            <p className="text-xs mt-2">
+              Role: <strong>{userRole}</strong>
+            </p>
           </AlertDescription>
         </Alert>
       </div>
@@ -462,7 +600,9 @@ const MasterDataManagement = () => {
               <Database className="w-5 h-5 sm:w-6 sm:h-6" />
               Master Data Management
             </h1>
-            <p className="text-gray-600 dark:text-gray-400 mt-1 text-sm sm:text-base">{permissions.roleDescription}</p>
+            <p className="text-gray-600 dark:text-gray-400 mt-1 text-sm sm:text-base">
+              {permissions.roleDescription}
+            </p>
           </div>
           <Badge variant="outline" className="w-fit">
             <User className="w-3 h-3 mr-1" />
@@ -476,7 +616,8 @@ const MasterDataManagement = () => {
             <AlertDescription className="text-purple-800 dark:text-purple-300">
               <p className="font-medium">Mode Khusus: Timbang Kosong</p>
               <p className="text-sm mt-1">
-                Anda hanya dapat melakukan update tare weight pada dump truck. Gunakan tombol <strong>Timbangan</strong> untuk menimbang.
+                Anda hanya dapat melakukan update tare weight pada dump truck.
+                Gunakan tombol <strong>Timbangan</strong> untuk menimbang.
               </p>
             </AlertDescription>
           </Alert>
@@ -514,7 +655,9 @@ const MasterDataManagement = () => {
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
               <CardTitle className="flex items-center gap-2">
                 {Icon && <Icon className={`w-5 h-5 ${iconColorClass}`} />}
-                <span className="text-base sm:text-lg">{activeConfig?.label}</span>
+                <span className="text-base sm:text-lg">
+                  {activeConfig?.label}
+                </span>
               </CardTitle>
 
               <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
@@ -529,23 +672,44 @@ const MasterDataManagement = () => {
                   />
                 </div>
                 <div className="flex items-center gap-2">
-                  <Button variant="ghost" size="sm" onClick={handleRefresh} disabled={isLoading} className="cursor-pointer hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-200">
-                    <RefreshCw className={`w-4 h-4 ${isLoading ? "animate-spin" : ""}`} />
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleRefresh}
+                    disabled={isLoading}
+                    className="cursor-pointer hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-200"
+                  >
+                    <RefreshCw
+                      className={`w-4 h-4 ${isLoading ? "animate-spin" : ""}`}
+                    />
                   </Button>
 
-                  {isUnitsCategory && (permissions.canUpdate || isOnlyTareWeight) && (
-                    <Button size="sm" variant="secondary" onClick={handleQuickTare} disabled={isLoading} className="cursor-pointer hover:bg-gray-200 dark:bg-blue-600 dark:hover:bg-blue-700 dark:text-gray-200">
-                      <Scale className="w-4 h-4 mr-1" />
-                      <span className="hidden md:inline">Timbang Kosong</span>
-                    </Button>
-                  )}
+                  {isUnitsCategory &&
+                    (permissions.canUpdate || isOnlyTareWeight) && (
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onClick={handleQuickTare}
+                        disabled={isLoading}
+                        className="cursor-pointer hover:bg-gray-200 dark:bg-blue-600 dark:hover:bg-blue-700 dark:text-gray-200"
+                      >
+                        <Scale className="w-4 h-4 mr-1" />
+                        <span className="hidden md:inline">Timbang Kosong</span>
+                      </Button>
+                    )}
 
-                  {permissions.shouldShowButton("create") && !isOnlyTareWeight && (
-                    <Button size="sm" onClick={handleAdd} disabled={isLoading} className="cursor-pointer dark:hover:bg-gray-700">
-                      <Plus className="w-4 h-4 mr-1" />
-                      <span>Add New</span>
-                    </Button>
-                  )}
+                  {permissions.shouldShowButton("create") &&
+                    !isOnlyTareWeight && (
+                      <Button
+                        size="sm"
+                        onClick={handleAdd}
+                        disabled={isLoading}
+                        className="cursor-pointer dark:hover:bg-gray-700"
+                      >
+                        <Plus className="w-4 h-4 mr-1" />
+                        <span>Add New</span>
+                      </Button>
+                    )}
 
                   {filterGroups.length > 0 && (
                     <AdvancedFilter
@@ -563,26 +727,43 @@ const MasterDataManagement = () => {
           </CardHeader>
 
           <CardContent>
-            {!isLoading && paginatedData.length === 0 && !debouncedSearch && !hasActiveFilters && (
-              <EmptyState
-                icon={Icon}
-                title="Tidak ada data"
-                description={`Belum ada ${activeConfig?.label.toLowerCase()} untuk ditampilkan`}
-                actionLabel={permissions.canCreate && !isOnlyTareWeight ? "Tambah Baru" : undefined}
-                onAction={permissions.canCreate && !isOnlyTareWeight ? handleAdd : undefined}
-                variant="primary"
-              />
-            )}
+            {!isLoading &&
+              paginatedData.length === 0 &&
+              !debouncedSearch &&
+              !hasActiveFilters && (
+                <EmptyState
+                  icon={Icon}
+                  title="Tidak ada data"
+                  description={`Belum ada ${activeConfig?.label.toLowerCase()} untuk ditampilkan`}
+                  actionLabel={
+                    permissions.canCreate && !isOnlyTareWeight
+                      ? "Tambah Baru"
+                      : undefined
+                  }
+                  onAction={
+                    permissions.canCreate && !isOnlyTareWeight
+                      ? handleAdd
+                      : undefined
+                  }
+                  variant="primary"
+                />
+              )}
 
-            {!isLoading && paginatedData.length === 0 && (debouncedSearch || hasActiveFilters) && (
-              <EmptyState
-                icon={Search}
-                title="Tidak ditemukan"
-                description={debouncedSearch ? `Tidak ada hasil untuk "${debouncedSearch}"` : "Tidak ada hasil dengan filter yang dipilih"}
-                actionLabel={hasActiveFilters ? "Reset Filter" : undefined}
-                onAction={hasActiveFilters ? handleResetFilters : undefined}
-              />
-            )}
+            {!isLoading &&
+              paginatedData.length === 0 &&
+              (debouncedSearch || hasActiveFilters) && (
+                <EmptyState
+                  icon={Search}
+                  title="Tidak ditemukan"
+                  description={
+                    debouncedSearch
+                      ? `Tidak ada hasil untuk "${debouncedSearch}"`
+                      : "Tidak ada hasil dengan filter yang dipilih"
+                  }
+                  actionLabel={hasActiveFilters ? "Reset Filter" : undefined}
+                  onAction={hasActiveFilters ? handleResetFilters : undefined}
+                />
+              )}
 
             {(isLoading || paginatedData.length > 0) && (
               <MasterDataTable
@@ -596,7 +777,9 @@ const MasterDataManagement = () => {
                 category={activeCategory}
                 canEdit={permissions.canUpdate && !isOnlyTareWeight}
                 canDelete={permissions.canDelete}
-                canWeigh={isUnitsCategory && (permissions.canUpdate || isOnlyTareWeight)}
+                canWeigh={
+                  isUnitsCategory && (permissions.canUpdate || isOnlyTareWeight)
+                }
               />
             )}
 
@@ -637,7 +820,9 @@ const MasterDataManagement = () => {
 
       <TareWeightModal
         isOpen={ui.showTareModal}
-        onClose={() => setUI({ showTareModal: false, weighingUnit: null, tareMode: null })}
+        onClose={() =>
+          setUI({ showTareModal: false, weighingUnit: null, tareMode: null })
+        }
         unit={ui.tareMode === "single" ? ui.weighingUnit : null}
         units={ui.tareMode === "selection" ? baseData : null}
         onSave={handleSaveTareWeight}

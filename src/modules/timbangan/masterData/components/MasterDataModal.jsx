@@ -1,5 +1,10 @@
 import { useState, useEffect, useMemo } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/shared/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/shared/components/ui/card";
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
 import { Label } from "@/shared/components/ui/label";
@@ -43,7 +48,7 @@ const MasterDataModal = ({
         value: c.id,
         label: c.name,
       })) || [],
-    [companies]
+    [companies],
   );
 
   const workUnitOptions = useMemo(
@@ -53,7 +58,7 @@ const MasterDataModal = ({
         label: wu.subsatker,
         hint: wu.satker,
       })) || [],
-    [workUnits]
+    [workUnits],
   );
 
   const userOptions = useMemo(
@@ -63,7 +68,7 @@ const MasterDataModal = ({
         label: u.username,
         hint: u.name,
       })) || [],
-    [users]
+    [users],
   );
 
   const locationOptions = useMemo(
@@ -73,7 +78,7 @@ const MasterDataModal = ({
         label: loc.name,
         hint: loc.type,
       })) || [],
-    [locations]
+    [locations],
   );
 
   const typeOptions = useMemo(() => {
@@ -99,7 +104,7 @@ const MasterDataModal = ({
       setFormData(editData);
 
       setSelectedLocations(
-        (editData.locationIds || []).map((id) => String(id))
+        (editData.locationIds || []).map((id) => String(id)),
       );
 
       setSelectedUsers((editData.userIds || []).map((id) => String(id)));
@@ -138,10 +143,16 @@ const MasterDataModal = ({
       case "alatLoader":
         if (!formData.hull_no?.trim()) newErrors.hull_no = "Required";
         if (!formData.type) newErrors.type = "Required";
-        if (formData.bypass_tonnage && isNaN(parseFloat(formData.bypass_tonnage))) {
+        if (
+          formData.bypass_tonnage &&
+          isNaN(parseFloat(formData.bypass_tonnage))
+        ) {
           newErrors.bypass_tonnage = "Harus berupa angka";
         }
-        if (formData.bypass_tonnage && parseFloat(formData.bypass_tonnage) < 0) {
+        if (
+          formData.bypass_tonnage &&
+          parseFloat(formData.bypass_tonnage) < 0
+        ) {
           newErrors.bypass_tonnage = "Tidak boleh negatif";
         }
         break;
@@ -203,7 +214,11 @@ const MasterDataModal = ({
               id="name"
               value={formData.name || ""}
               onChange={(e) => updateField("name", e.target.value)}
-              className={errors.name ? "border-red-500" : " border-none bg-gray-200 dark:bg-gray-700"}
+              className={
+                errors.name
+                  ? "border-red-500"
+                  : " border-none bg-gray-200 dark:bg-gray-700"
+              }
               placeholder="Enter company name"
             />
             {errors.name && (
@@ -222,7 +237,11 @@ const MasterDataModal = ({
                 id="hull_no"
                 value={formData.hull_no || ""}
                 onChange={(e) => updateField("hull_no", e.target.value)}
-                className={errors.hull_no ? "border-red-500" : " border-none bg-gray-200 dark:bg-gray-700"}
+                className={
+                  errors.hull_no
+                    ? "border-red-500"
+                    : " border-none bg-gray-200 dark:bg-gray-700"
+                }
                 placeholder="Enter hull number"
               />
               {errors.hull_no && (
@@ -243,7 +262,7 @@ const MasterDataModal = ({
                 <p className="text-sm text-red-500">{errors.type}</p>
               )}
             </div>
-                <div className="space-y-2">
+            <div className="space-y-2">
               <Label htmlFor="spph" className="flex items-center gap-2">
                 SPPH
               </Label>
@@ -255,7 +274,7 @@ const MasterDataModal = ({
                 placeholder="Enter SPPH "
               />
             </div>
-            
+
             {/* RFID Field - Optional */}
             <div className="space-y-2">
               <Label htmlFor="rfid" className="flex items-center gap-2">
@@ -276,7 +295,10 @@ const MasterDataModal = ({
             {/* Bypass Tonnage Field - Optional, only for units (DUMP_TRUCK) */}
             {category === "units" && (
               <div className="space-y-2">
-                <Label htmlFor="bypass_tonnage" className="flex items-center gap-2">
+                <Label
+                  htmlFor="bypass_tonnage"
+                  className="flex items-center gap-2"
+                >
                   Bypass Tonnage (Opsional)
                 </Label>
                 <Input
@@ -285,12 +307,20 @@ const MasterDataModal = ({
                   step="0.01"
                   min="0"
                   value={formData.bypass_tonnage || ""}
-                  onChange={(e) => updateField("bypass_tonnage", e.target.value)}
-                  className={errors.bypass_tonnage ? "border-red-500" : "border-none bg-gray-200 dark:bg-gray-700"}
+                  onChange={(e) =>
+                    updateField("bypass_tonnage", e.target.value)
+                  }
+                  className={
+                    errors.bypass_tonnage
+                      ? "border-red-500"
+                      : "border-none bg-gray-200 dark:bg-gray-700"
+                  }
                   placeholder="0.00"
                 />
                 {errors.bypass_tonnage && (
-                  <p className="text-sm text-red-500">{errors.bypass_tonnage}</p>
+                  <p className="text-sm text-red-500">
+                    {errors.bypass_tonnage}
+                  </p>
                 )}
                 <p className="text-xs text-gray-500">
                   Tonase bypass untuk unit ini (dalam ton)
@@ -332,7 +362,11 @@ const MasterDataModal = ({
                 id="name"
                 value={formData.name || ""}
                 onChange={(e) => updateField("name", e.target.value)}
-                className={errors.name ? "border-red-500" : " border-none bg-gray-200 dark:bg-gray-700"}
+                className={
+                  errors.name
+                    ? "border-red-500"
+                    : " border-none bg-gray-200 dark:bg-gray-700"
+                }
                 placeholder="Enter operator name"
               />
               {errors.name && (
@@ -362,7 +396,11 @@ const MasterDataModal = ({
                 id="name"
                 value={formData.name || ""}
                 onChange={(e) => updateField("name", e.target.value)}
-                className={errors.name ? "border-red-500" : " border-none bg-gray-200 dark:bg-gray-700"}
+                className={
+                  errors.name
+                    ? "border-red-500"
+                    : " border-none bg-gray-200 dark:bg-gray-700"
+                }
                 placeholder="Enter location name"
               />
               {errors.name && (
@@ -395,7 +433,11 @@ const MasterDataModal = ({
                 id="satker"
                 value={formData.satker || ""}
                 onChange={(e) => updateField("satker", e.target.value)}
-                className={errors.satker ? "border-red-500" : " border-none bg-gray-200 dark:bg-gray-700"}
+                className={
+                  errors.satker
+                    ? "border-red-500"
+                    : " border-none bg-gray-200 dark:bg-gray-700"
+                }
                 placeholder="Enter satker"
               />
               {errors.satker && (
@@ -408,7 +450,11 @@ const MasterDataModal = ({
                 id="subsatker"
                 value={formData.subsatker || ""}
                 onChange={(e) => updateField("subsatker", e.target.value)}
-                className={errors.subsatker ? "border-red-500" : " border-none bg-gray-200 dark:bg-gray-700"}
+                className={
+                  errors.subsatker
+                    ? "border-red-500"
+                    : " border-none bg-gray-200 dark:bg-gray-700"
+                }
                 placeholder="Enter subsatker"
               />
               {errors.subsatker && (
@@ -440,7 +486,11 @@ const MasterDataModal = ({
               id="name"
               value={formData.name || ""}
               onChange={(e) => updateField("name", e.target.value)}
-              className={errors.name ? "border-red-500" : " border-none bg-gray-200 dark:bg-gray-700"}
+              className={
+                errors.name
+                  ? "border-red-500"
+                  : " border-none bg-gray-200 dark:bg-gray-700"
+              }
               placeholder="Enter coal type name"
             />
             {errors.name && (
@@ -458,7 +508,11 @@ const MasterDataModal = ({
                 id="name"
                 value={formData.name || ""}
                 onChange={(e) => updateField("name", e.target.value)}
-                className={errors.name ? "border-red-500 " : " border-none bg-gray-200 dark:bg-gray-700"}
+                className={
+                  errors.name
+                    ? "border-red-500 "
+                    : " border-none bg-gray-200 dark:bg-gray-700"
+                }
                 placeholder="Enter bridge name"
               />
               {errors.name && (
