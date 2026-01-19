@@ -22,13 +22,13 @@ export const FLEET_TYPE_ACCESS = {
     canSelectWeighBridge: true,
     measurementTypeMap: {
       Jembatan: "Timbangan",
-      FOB: "FOB",
       Bypass: "Bypass",
       Beltscale: "Beltscale",
     },
   },
   operator_jt: {
-    allowedTypes: ["Jembatan"], // ✅ FIXED: Only Timbangan Internal
+    allowedTypes: ["Jembatan"], 
+    filterBy: "subsatker",
     autoWeighBridge: true,
     autoMeasurementType: "Timbangan",
     canSelectWeighBridge: false,
@@ -38,12 +38,12 @@ export const FLEET_TYPE_ACCESS = {
   },
   ccr: {
     allowedTypes: ["Jembatan", "FOB", "Bypass", "Beltscale"],
+    filterBy: "subsatker",
     autoWeighBridge: false,
     autoMeasurementType: null,
     canSelectWeighBridge: true,
     measurementTypeMap: {
       Jembatan: "Timbangan",
-      FOB: "FOB",
       Bypass: "Bypass",
       Beltscale: "Beltscale",
     },
@@ -56,7 +56,6 @@ export const FLEET_TYPE_ACCESS = {
     canSelectWeighBridge: false,
     measurementTypeMap: {
       Jembatan: "Timbangan",
-      FOB: "FOB",
       Bypass: "Bypass",
       Beltscale: "Beltscale",
     },
@@ -69,7 +68,6 @@ export const FLEET_TYPE_ACCESS = {
     canSelectWeighBridge: false,
     measurementTypeMap: {
       Jembatan: "Timbangan",
-      FOB: "FOB",
       Bypass: "Bypass",
       Beltscale: "Beltscale",
     },
@@ -82,7 +80,6 @@ export const FLEET_TYPE_ACCESS = {
     canSelectWeighBridge: false,
     measurementTypeMap: {
       Jembatan: "Timbangan",
-      FOB: "FOB",
       Bypass: "Bypass",
       Beltscale: "Beltscale",
     },
@@ -95,7 +92,6 @@ export const FLEET_TYPE_ACCESS = {
     canSelectWeighBridge: false,
     measurementTypeMap: {
       Jembatan: "Timbangan",
-      FOB: "FOB",
       Bypass: "Bypass",
       Beltscale: "Beltscale",
     },
@@ -108,7 +104,6 @@ export const FLEET_TYPE_ACCESS = {
     canSelectWeighBridge: false,
     measurementTypeMap: {
       Jembatan: "Timbangan",
-      FOB: "FOB",
       Bypass: "Bypass",
       Beltscale: "Beltscale",
     },
@@ -121,7 +116,6 @@ export const FLEET_TYPE_ACCESS = {
     canSelectWeighBridge: false,
     measurementTypeMap: {
       Jembatan: "Timbangan",
-      FOB: "FOB",
       Bypass: "Bypass",
       Beltscale: "Beltscale",
     },
@@ -140,7 +134,7 @@ export const ROLE_PERMISSIONS = {
     dumptruck: [PERMISSIONS.READ, PERMISSIONS.CREATE, PERMISSIONS.UPDATE],
     masterData: [PERMISSIONS.READ, PERMISSIONS.CREATE, PERMISSIONS.UPDATE],
     masterDataCategories: ["units"],
-    filterBy: "weigh_bridge",
+    // filterBy: "subsatker",
     fleetTypes: ["Timbangan"],
     autoWeighBridge: true,
     autoMeasurementType: "Timbangan",
@@ -174,11 +168,30 @@ export const ROLE_PERMISSIONS = {
       PERMISSIONS.UPDATE,
       PERMISSIONS.DELETE,
     ],
-    filterBy: "subsatker",
+    filterBy: "company",
     fleetTypes: ["Timbangan", "Beltscale", "Bypass"],
     canSelectWeighBridge: true,
-    canDeleteWithRitase: true, // ✅ ADDED - CCR can delete fleet with ritase
-    description: "CRUD untuk Timbangan/Beltscale/Bypass, filter by subsatker",
+    canDeleteWithRitase: true, 
+    description: "CRUD untuk Timbangan/Beltscale/Bypass, filter by company",
+  },
+
+  ccr:{
+    timbangan: [
+      PERMISSIONS.READ,
+      PERMISSIONS.CREATE,
+      PERMISSIONS.UPDATE,
+      PERMISSIONS.EXPORT,
+    ],
+    fleet: [PERMISSIONS.READ, PERMISSIONS.CREATE, PERMISSIONS.UPDATE],
+    dumptruck: [PERMISSIONS.READ, PERMISSIONS.CREATE, PERMISSIONS.UPDATE],
+    masterData: [PERMISSIONS.READ, PERMISSIONS.CREATE, PERMISSIONS.UPDATE],
+    masterDataCategories: ["units"],
+    // filterBy: "subsatker",
+    fleetTypes: ["Timbangan", "Beltscale", "Bypass"],
+    autoWeighBridge: true,
+    autoMeasurementType: "Timbangan",
+    canSelectWeighBridge: true,
+    description: "CRU untuk Timbangan Internal only, filter by subsatker",
   },
 
   pengawas: {
@@ -186,9 +199,9 @@ export const ROLE_PERMISSIONS = {
     fleet: [PERMISSIONS.READ],
     dumptruck: [PERMISSIONS.READ],
     masterData: [],
-    filterBy: "subsatker",
+    filterBy: "company",
     fleetTypes: ["Timbangan", "Beltscale", "Bypass"],
-    description: "Read only, filter by subsatker",
+    description: "Read only, filter by company",
   },
 
   evaluator: {
@@ -346,48 +359,133 @@ export const isReadOnly = (userRole) => {
 /**
  * Filter data based on role filter type
  */
-export const filterDataByRole = (data, userRole, user) => {
-  const filterType = getFilterType(userRole);
+// ✅ COMPLETE FIXED filterDataByRole function
+// Copy this entire function to replace the existing one in rolePermissions.js
 
-  if (!filterType) return data;
+/**
+ * Filter data based on role filter type
+ * ✅ Updated to handle string fields from ritases schema
+ */
+export const filterDataByRole = (data, userRole, user) => {
+  if (!userRole || !user) {
+    console.warn('⚠️ filterDataByRole: Missing userRole or user');
+    return data;
+  }
+
+  const roleLower = userRole.toLowerCase();
+  
+  // Get filter type from role permissions
+  const rolePerms = ROLE_PERMISSIONS[roleLower];
+  if (!rolePerms) {
+    console.warn(`⚠️ No permissions found for role: ${roleLower}`);
+    return data;
+  }
+
+  const filterType = rolePerms.filterBy;
+  
+  if (!filterType) {
+    // No filter - return all data (e.g., super_admin)
+    return data;
+  }
 
   switch (filterType) {
-    case "company": {
-      const userCompanyId = user?.company?.id;
-      if (!userCompanyId) return data;
+    case "weigh_bridge": {
+      // ✅ For operator_jt - filter by weigh_bridge name (string)
+      const userWeighBridgeName = user?.weigh_bridge?.name;
+      if (!userWeighBridgeName) {
+        console.warn("⚠️ operator_jt: User weigh bridge name not found");
+        console.warn("⚠️ User object:", user);
+        return data; // Show all if not configured
+      }
 
-      return data.filter((item) => {
-        const itemCompanyId =
-          item.excavatorCompanyId || item.company?.id || item.companyId;
-        return String(itemCompanyId) === String(userCompanyId);
+      const filtered = data.filter((item) => {
+        // weigh_bridge is a string field in ritases table
+        const itemWeighBridge = item.weigh_bridge || item.fleet_weigh_bridge;
+        const match = itemWeighBridge === userWeighBridgeName;
+        
+        return match;
       });
+
+      return filtered;
     }
 
     case "subsatker": {
+      // ✅ For ccr, pengawas, evaluator, pic - filter by subsatker (string)
       const userSubsatker = user?.work_unit?.subsatker || user?.subsatker;
-      if (!userSubsatker) return data;
+      if (!userSubsatker) {
+        console.warn(`⚠️ ${roleLower}: User subsatker not found`);
+        return [];
+      }
 
-      return data.filter((item) => {
-        const itemSubsatker =
-          item.workUnit || item.subsatker || item.work_unit?.subsatker;
-        return itemSubsatker === userSubsatker;
+      const filtered = data.filter((item) => {
+        // pic_work_unit is a string field in ritases table
+        const itemSubsatker = 
+          item.pic_work_unit || 
+          item.work_unit || 
+          item.fleet_work_unit;
+        
+        const match = itemSubsatker === userSubsatker;
+        return match;
       });
+
+      return filtered;
     }
 
-    case "weigh_bridge": {
-      const userWeighBridgeId = user?.weigh_bridge?.id;
-      if (!userWeighBridgeId) return data;
-
-      return data.filter((item) => {
-        const itemWbId = item.weightBridgeId || item.weigh_bridge?.id;
-        return String(itemWbId) === String(userWeighBridgeId);
-      });
+    case "company": {
+      // ⚠️ Company filter NOT SUPPORTED because ritases table has no company field
+      // All fields are strings, no company relation
+      const userCompanyName = user?.company?.name;
+      
+      console.warn(`⚠️ ${roleLower}: Company filter not supported (field not in schema)`);
+      console.warn(`⚠️ Showing all data for company: ${userCompanyName}`);
+      
+      // Return all data - cannot filter by company
+      return data;
     }
 
     default:
+      console.warn(`⚠️ Unknown filter type: ${filterType}`);
       return data;
   }
 };
+
+
+/**
+ * ✅ Helper to check if role needs special handling
+ */
+export const isRestrictedRole = (userRole) => {
+  const roleLower = userRole?.toLowerCase();
+  const restrictedRoles = [
+    "operator_jt",    // Filter by weigh_bridge
+    "ccr",            // Filter by subsatker
+    "pengawas",       // Filter by subsatker
+    "evaluator",      // Filter by subsatker
+    "pic",            // Filter by subsatker
+  ];
+  return restrictedRoles.includes(roleLower);
+};
+
+/**
+ * ✅ Get filter description for UI
+ */
+export const getFilterDescription = (userRole, user) => {
+  const rolePerms = ROLE_PERMISSIONS[userRole?.toLowerCase()];
+  if (!rolePerms || !rolePerms.filterBy) {
+    return null;
+  }
+
+  switch (rolePerms.filterBy) {
+    case "weigh_bridge":
+      return `Timbangan: ${user?.weigh_bridge?.name || "Not configured"}`;
+    case "subsatker":
+      return `Subsatker: ${user?.work_unit?.subsatker || "Not configured"}`;
+    case "company":
+      return `Company: ${user?.company?.name || "Not configured"}`;
+    default:
+      return null;
+  }
+};
+
 
 export const hasPermission = (userRole, module, permission) => {
   if (!userRole || !module || !permission) return false;

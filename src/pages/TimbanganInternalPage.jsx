@@ -13,19 +13,16 @@ import {
   TruckIcon,
   Scale,
   Database,
-  Settings,
-  History,
   BarChart3,
   ClipboardList,
   Cog,
   Construction,
-  MapPinCheck,
   Anvil,
-  Bus,
   EggFried,
   Flame,
   MapPinCheckInside,
   HardDrive,
+  Car,
 } from "lucide-react";
 import FleetManagement from "@/modules/timbangan/fleet/FleetManagement";
 import MasterDataManagement from "@/modules/timbangan/masterData/MasterDataManagement";
@@ -42,6 +39,7 @@ import { OfflineProvider } from "@/shared/components/OfflineProvider";
 import { OfflineSyncStatus } from "@/shared/components/OfflineSyncStatus";
 import { queryClient } from "@/shared/config/queryClient";
 import TimbanganManual from "@/modules/timbangan/timbangan/TimbanganManual";
+import TimbanganBypass from "@/modules/timbangan/timbangan/TimbanganBypass";
 const TimbanganInternalPage = () => {
   const { isAuthenticated } = useAuth();
   const { user } = useAuthStore();
@@ -62,6 +60,7 @@ const TimbanganInternalPage = () => {
           "mitra",
           "admin",
           "super_admin",
+          "ccr",
         ],
         children: [
           {
@@ -74,6 +73,7 @@ const TimbanganInternalPage = () => {
               "operator_jt",
               "evaluator",
               "mitra",
+              "ccr",
               "admin",
               "super_admin",
             ],
@@ -103,12 +103,11 @@ const TimbanganInternalPage = () => {
           "operator_jt",
           "evaluator",
           "mitra",
+          "ccr",
           "admin",
           "super_admin",
         ],
-            locationId: "setting-dumpt-truck",
-
-        
+        locationId: "setting-dumpt-truck",
       },
       {
         name: "Timbangan",
@@ -122,6 +121,7 @@ const TimbanganInternalPage = () => {
           "mitra",
           "super_admin",
           "admin",
+          "ccr",
         ],
         children: [
           {
@@ -136,14 +136,21 @@ const TimbanganInternalPage = () => {
               "mitra",
               "admin",
               "super_admin",
+              "ccr",
             ],
             locationId: "timbangan-internal",
           },
           {
             name: "Timbangan Manual",
             icon: HardDrive,
-            roles: ["pic", "evaluator", "admin", "super_admin", "ccr"],
+            roles: ["pic", "evaluator", "admin", "super_admin"],
             locationId: "timbangan-manual",
+          },
+          {
+            name: "Timbangan Bypass",
+            icon: Car,
+            roles: ["pic", "evaluator", "admin", "super_admin", "ccr"],
+            locationId: "timbangan-bypass",
           },
           {
             name: "Timbangan Belt Scale",
@@ -157,19 +164,20 @@ const TimbanganInternalPage = () => {
       {
         name: "Check Point",
         icon: MapPinCheckInside,
-        roles: ["admin", "super_admin", "operator_jt"],
+
+        roles: ["admin", "super_admin", "ccr"],
         locationId: "checkPoint",
       },
       {
         name: "Dashboard",
         icon: BarChart3,
-        roles: ["admin", "super_admin", "operator_jt"],
+        roles: ["admin", "super_admin"],
         locationId: "Dashboard",
       },
       {
         name: "Laporan",
         icon: ClipboardList,
-        roles: ["admin", "pic", "evaluator", "super_admin", "operator_jt"],
+        roles: ["admin", "pic", "evaluator", "super_admin", "ccr"],
         locationId: "laporan",
       },
       {
@@ -334,6 +342,8 @@ const TimbanganInternalPage = () => {
                 <TimbanganManual Type="Timbangan Manual" />
               ) : activeMenu === "Timbangan Belt Scale" ? (
                 <TimbanganBeltScaleManagement Type="Timbangan Belt Scale" />
+              ) : activeMenu === "Timbangan Bypass" ? (
+                <TimbanganBypass Type="Timbangan Bypass" />
               ) : activeMenu === "Timbangan FOB" ? (
                 <TimbanganManagement Type="Timbangan FOB" />
               ) : activeMenu === "Check Point" ? (

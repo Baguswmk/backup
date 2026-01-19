@@ -1,22 +1,26 @@
-import React from 'react';
-import { useAuth } from '@/modules/auth/hooks/useAuth';
-import { Card, CardContent, CardHeader, CardTitle } from '@/shared/components/ui/card';
-import { Grid3x3 } from 'lucide-react';
-import LoginForm from '@/modules/auth/components/LoginForm';
-import LoadingOverlay from '@/shared/components/LoadingOverlay';
-import LoadingContent from '@/shared/components/LoadingContent';
+import React from "react";
+import { useAuth } from "@/modules/auth/hooks/useAuth";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/shared/components/ui/card";
+import { Grid3x3 } from "lucide-react";
+import LoginForm from "@/modules/auth/components/LoginForm";
+import LoadingOverlay from "@/shared/components/LoadingOverlay";
+import LoadingContent from "@/shared/components/LoadingContent";
 
 const LoginPage = () => {
-  const {
-    login,
-    isLoading,
-    isAuthenticated,
-    error,
-    clearError,
-  } = useAuth();
+  const { login, isLoading, isAuthenticated, error, clearError } = useAuth();
 
   if (isLoading && isAuthenticated) {
-    return <LoadingOverlay isVisible={true} message="Redirecting to Application Hub..." />;
+    return (
+      <LoadingOverlay
+        isVisible={true}
+        message="Redirecting to Application Hub..."
+      />
+    );
   }
 
   return (
@@ -38,12 +42,12 @@ const LoginPage = () => {
               </p>
             </div>
           </CardHeader>
-          
+
           <CardContent>
             {isLoading && !isAuthenticated ? (
               <LoadingContent />
             ) : (
-              <LoginForm 
+              <LoginForm
                 onSubmit={login}
                 isLoading={isLoading}
                 error={error}
@@ -54,9 +58,9 @@ const LoginPage = () => {
         </Card>
       </div>
 
-      <LoadingOverlay 
-        isVisible={isLoading && !isAuthenticated} 
-        message="Signing in..." 
+      <LoadingOverlay
+        isVisible={isLoading && !isAuthenticated}
+        message="Signing in..."
       />
     </div>
   );

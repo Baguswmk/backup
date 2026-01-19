@@ -1,11 +1,8 @@
 export const ROLE_GROUPS = {
-  // Super Admin roles
   SUPER_ADMIN: ["super_admin"],
 
-  // Admin roles
   ADMIN: ["admin", "archive"],
 
-  // B-Trace data entry roles
   BTRACE_DATA_ENTRY: [
     "super_admin",
     "data_entry_118",
@@ -14,6 +11,7 @@ export const ROLE_GROUPS = {
     "data_entry_in_36",
     "data_entry_out_36",
     "data_entry_sdj",
+    "ccr"
   ],
 
   // Timbangan roles
@@ -26,6 +24,7 @@ export const ROLE_GROUPS = {
     "mitra",
     "admin",
     "super_admin",
+    "ccr"
   ],
 
   TIMBANGAN_FOB: ["operator_timbangan_fob"],
@@ -151,9 +150,6 @@ export const getAppsForRole = (userRole) => {
     .filter(([_, roles]) => roles.includes(userRole))
     .map(([appKey]) => {
       const app = getAppConfig(appKey);
-      // if (!app) {
-      //   console.warn(`[ROLE_CONFIG] Missing metadata for app: ${appKey}`);
-      // }
       return app;
     })
     .filter(Boolean);

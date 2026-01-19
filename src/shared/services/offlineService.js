@@ -9,17 +9,16 @@ const STORES = {
   FAILED: "failed_queue",
 };
 
-
 const CACHE_CONFIG = {
-  FLEET_TODAY: 5 * 60 * 1000,       
-  FLEET_HISTORY: 30 * 60 * 1000,    
-  TIMBANGAN_TODAY: 5 * 60 * 1000,   
-  TIMBANGAN_HISTORY: 30 * 60 * 1000, 
-  MASTERS: 60 * 60 * 1000,          
-  MAX_AGE_DAYS: 7,                 
-  MAX_ENTRIES: 100,                
-  CLEANUP_INTERVAL: 1 * 60 * 60 * 1000, 
-  AUTO_CLEANUP_ENABLED: true
+  FLEET_TODAY: 5 * 60 * 1000,
+  FLEET_HISTORY: 30 * 60 * 1000,
+  TIMBANGAN_TODAY: 5 * 60 * 1000,
+  TIMBANGAN_HISTORY: 30 * 60 * 1000,
+  MASTERS: 60 * 60 * 1000,
+  MAX_AGE_DAYS: 7,
+  MAX_ENTRIES: 100,
+  CLEANUP_INTERVAL: 1 * 60 * 60 * 1000,
+  AUTO_CLEANUP_ENABLED: true,
 };
 
 const CACHE_CLEANUP_INTERVAL = 5 * 60 * 1000;
@@ -35,23 +34,23 @@ const activeListeners = new Map();
 const coalescedEvents = new Map();
 const COALESCE_DELAY = 200;
 
-
 const isDateRangeToday = (dateRange) => {
   if (!dateRange?.from || !dateRange?.to) return false;
-  const today = new Date().toISOString().split('T')[0];
+  const today = new Date().toISOString().split("T")[0];
   return dateRange.from === today && dateRange.to === today;
 };
 
-
-const getTTLForDate = (dateRange, type = 'fleet') => {
+const getTTLForDate = (dateRange, type = "fleet") => {
   const isTodayRange = isDateRangeToday(dateRange);
-  
-  if (type === 'fleet') {
+
+  if (type === "fleet") {
     return isTodayRange ? CACHE_CONFIG.FLEET_TODAY : CACHE_CONFIG.FLEET_HISTORY;
-  } else if (type === 'timbangan') {
-    return isTodayRange ? CACHE_CONFIG.TIMBANGAN_TODAY : CACHE_CONFIG.TIMBANGAN_HISTORY;
+  } else if (type === "timbangan") {
+    return isTodayRange
+      ? CACHE_CONFIG.TIMBANGAN_TODAY
+      : CACHE_CONFIG.TIMBANGAN_HISTORY;
   }
-  
+
   return CACHE_CONFIG.MASTERS;
 };
 
@@ -70,29 +69,25 @@ function cleanupCoalescedEvents() {
 function emitCoalescedEvent(eventName, detail = {}) {
   if (coalescedEvents.has(eventName)) {
     const existingData = coalescedEvents.get(eventName);
-    
+
     if (existingData.timer) {
       clearTimeout(existingData.timer);
     }
-    
+
     const mergedPayload = {
       ...existingData.payload,
-      ...detail, 
-      timestamp: Date.now(), 
+      ...detail,
+      timestamp: Date.now(),
     };
-    
+
     if (Array.isArray(detail.ids) && Array.isArray(existingData.payload.ids)) {
       mergedPayload.ids = [
-        ...new Set([
-          ...existingData.payload.ids,
-          ...detail.ids,
-        ]),
+        ...new Set([...existingData.payload.ids, ...detail.ids]),
       ];
     }
 
     existingData.payload = mergedPayload;
   } else {
-    
     coalescedEvents.set(eventName, {
       payload: { ...detail, timestamp: Date.now() },
       timer: null,
@@ -103,12 +98,11 @@ function emitCoalescedEvent(eventName, detail = {}) {
 
   data.timer = setTimeout(() => {
     const finalPayload = data.payload;
-    
-    
+
     eventBus.dispatchEvent(
-      new CustomEvent(eventName, { detail: finalPayload })
+      new CustomEvent(eventName, { detail: finalPayload }),
     );
-    
+
     coalescedEvents.delete(eventName);
   }, COALESCE_DELAY);
 }
@@ -198,31 +192,28 @@ async function cleanupStaleCache() {
   }
 }
 
-
 /**
  * ✅ IMPROVED: Efficient cache cleanup using IndexedDB features
  */
 async function cleanupOldCache() {
   try {
     const db = await getDB();
-    const cutoffTime = Date.now() - (CACHE_CONFIG.MAX_AGE_DAYS * 24 * 60 * 60 * 1000);
+    const cutoffTime =
+      Date.now() - CACHE_CONFIG.MAX_AGE_DAYS * 24 * 60 * 60 * 1000;
     const maxEntries = CACHE_CONFIG.MAX_ENTRIES;
 
     let deletedCount = 0;
     let deletedByAge = 0;
     let deletedByLimit = 0;
 
-    
     {
       const tx = db.transaction(STORES.CACHE, "readwrite");
       const store = tx.objectStore(STORES.CACHE);
       const index = store.index("timestamp");
 
-      
       const oldEntries = await index.getAll(IDBKeyRange.upperBound(cutoffTime));
 
-      
-      await Promise.all(oldEntries.map(entry => store.delete(entry.key)));
+      await Promise.all(oldEntries.map((entry) => store.delete(entry.key)));
 
       deletedByAge = oldEntries.length;
       deletedCount += deletedByAge;
@@ -230,12 +221,10 @@ async function cleanupOldCache() {
       await tx.done;
     }
 
-    
     {
       const tx = db.transaction(STORES.CACHE, "readonly");
       const store = tx.objectStore(STORES.CACHE);
-      
-      
+
       const countRequest = store.count();
       const currentCount = await new Promise((resolve, reject) => {
         countRequest.onsuccess = () => resolve(countRequest.result);
@@ -245,14 +234,14 @@ async function cleanupOldCache() {
       if (currentCount > maxEntries) {
         const excessCount = currentCount - maxEntries;
         const index = store.index("timestamp");
-        const allOldest = await index.getAll(null, excessCount); 
+        const allOldest = await index.getAll(null, excessCount);
 
         await tx.done;
 
         const tx2 = db.transaction(STORES.CACHE, "readwrite");
         const store2 = tx2.objectStore(STORES.CACHE);
-        
-        await Promise.all(allOldest.map(entry => store2.delete(entry.key)));
+
+        await Promise.all(allOldest.map((entry) => store2.delete(entry.key)));
 
         deletedByLimit = allOldest.length;
         deletedCount += deletedByLimit;
@@ -278,46 +267,66 @@ async function cleanupOldCache() {
   }
 }
 
-
 async function getCacheStats() {
   try {
     const db = await getDB();
     const allCache = await db.getAll(STORES.CACHE);
-    
+
     const now = Date.now();
-    const oneDayAgo = now - (24 * 60 * 60 * 1000);
-    const sevenDaysAgo = now - (7 * 24 * 60 * 60 * 1000);
-    
-    
-    const fleetCache = allCache.filter(c => c.key.includes('fleet'));
-    const timbanganCache = allCache.filter(c => c.key.includes('ritase') || c.key.includes('timbangan'));
-    const masterCache = allCache.filter(c => c.key.includes('master') || c.key.includes('unit') || c.key.includes('location'));
-    
+    const oneDayAgo = now - 24 * 60 * 60 * 1000;
+    const sevenDaysAgo = now - 7 * 24 * 60 * 60 * 1000;
+
+    const fleetCache = allCache.filter((c) => c.key.includes("fleet"));
+    const timbanganCache = allCache.filter(
+      (c) => c.key.includes("ritase") || c.key.includes("timbangan"),
+    );
+    const masterCache = allCache.filter(
+      (c) =>
+        c.key.includes("master") ||
+        c.key.includes("unit") ||
+        c.key.includes("location"),
+    );
+
     const stats = {
       total: allCache.length,
-      today: allCache.filter(c => c.timestamp > oneDayAgo).length,
-      week: allCache.filter(c => c.timestamp > sevenDaysAgo).length,
-      expired: allCache.filter(c => c.expiry < now).length,
-      
+      today: allCache.filter((c) => c.timestamp > oneDayAgo).length,
+      week: allCache.filter((c) => c.timestamp > sevenDaysAgo).length,
+      expired: allCache.filter((c) => c.expiry < now).length,
+
       byType: {
         fleet: fleetCache.length,
         timbangan: timbanganCache.length,
         master: masterCache.length,
-        other: allCache.length - fleetCache.length - timbanganCache.length - masterCache.length
+        other:
+          allCache.length -
+          fleetCache.length -
+          timbanganCache.length -
+          masterCache.length,
       },
-      
-      oldestTimestamp: allCache.length > 0 ? Math.min(...allCache.map(c => c.timestamp)) : null,
-      newestTimestamp: allCache.length > 0 ? Math.max(...allCache.map(c => c.timestamp)) : null,
-      
+
+      oldestTimestamp:
+        allCache.length > 0
+          ? Math.min(...allCache.map((c) => c.timestamp))
+          : null,
+      newestTimestamp:
+        allCache.length > 0
+          ? Math.max(...allCache.map((c) => c.timestamp))
+          : null,
+
       totalSize: allCache.reduce((sum, item) => {
         return sum + JSON.stringify(item.data).length;
       }, 0),
-      
-      averageAge: allCache.length > 0 
-        ? (now - (allCache.reduce((sum, c) => sum + c.timestamp, 0) / allCache.length)) / 1000 / 60
-        : 0
+
+      averageAge:
+        allCache.length > 0
+          ? (now -
+              allCache.reduce((sum, c) => sum + c.timestamp, 0) /
+                allCache.length) /
+            1000 /
+            60
+          : 0,
     };
-    
+
     return stats;
   } catch (error) {
     console.error("❌ Failed to get cache stats:", error);
@@ -356,7 +365,6 @@ function startAutoCleanup() {
   autoCacheCleanupTimer = setInterval(async () => {
     await cleanupOldCache();
   }, CACHE_CONFIG.CLEANUP_INTERVAL);
-
 }
 
 function stopCacheCleanup() {
@@ -364,7 +372,7 @@ function stopCacheCleanup() {
     clearInterval(cacheCleanupTimer);
     cacheCleanupTimer = null;
   }
-  
+
   if (autoCacheCleanupTimer) {
     clearInterval(autoCacheCleanupTimer);
     autoCacheCleanupTimer = null;
@@ -391,7 +399,6 @@ async function clearStoreChunked(storeName, chunkSize = 50) {
   }
 }
 
-
 function generateCacheKey(url, config = {}) {
   const { params, filters } = config;
   const parts = [url];
@@ -407,8 +414,6 @@ function generateCacheKey(url, config = {}) {
   return parts.join("|");
 }
 
-// Perbaikan di fungsi apiCall, sekitar baris 440-470
-
 async function apiCall(url, method = "GET", data = null, options = {}) {
   const {
     cacheKey = null,
@@ -422,7 +427,6 @@ async function apiCall(url, method = "GET", data = null, options = {}) {
   const effectiveCacheKey =
     cacheKey || (method === "GET" ? generateCacheKey(url, { params }) : null);
 
-  // Clear cache jika forceRefresh
   if (forceRefresh && method === "GET" && effectiveCacheKey) {
     const db = await getDB();
     await db.delete(STORES.CACHE, effectiveCacheKey);
@@ -449,62 +453,54 @@ async function apiCall(url, method = "GET", data = null, options = {}) {
 
       return response.data;
     } catch (error) {
-      // ✅ PERBAIKAN: Extract error message dengan benar
       let errorMessage = "Request failed";
       let errorDetails = {};
-      
+
       if (error.response) {
-        // Error dari server dengan response
         const responseData = error.response.data;
-        
-        // Support berbagai struktur error response
-        errorMessage = 
-          responseData?.message ||           // {message: "..."}
-          responseData?.error?.message ||    // {error: {message: "..."}}
-          responseData?.error ||             // {error: "..."}
+
+        errorMessage =
+          responseData?.message ||
+          responseData?.error?.message ||
+          responseData?.error ||
           error.message ||
           "Request failed";
-        
+
         errorDetails = {
           status: error.response.status,
           data: responseData,
         };
-        
+
         console.error(`❌ API call failed: ${method} ${url}`, {
           message: errorMessage,
           status: error.response.status,
           data: responseData,
         });
       } else if (error.request) {
-        // Request dibuat tapi tidak ada response
         errorMessage = "No response from server";
         console.error(`❌ No response: ${method} ${url}`, error.request);
       } else {
-        // Error lainnya
         errorMessage = error.message;
         console.error(`❌ Request error: ${method} ${url}`, error.message);
       }
 
-      // ✅ PERBAIKAN: Jangan queue jika ini validation error (4xx)
-      const isValidationError = error.response?.status >= 400 && error.response?.status < 500;
-      
+      const isValidationError =
+        error.response?.status >= 400 && error.response?.status < 500;
+
       if (!bypassQueue && ["POST", "PUT", "PATCH"].includes(method)) {
         if (isValidationError) {
-          // Jangan queue validation error, langsung throw dengan message yang jelas
           const enhancedError = new Error(errorMessage);
           enhancedError.response = error.response;
           enhancedError.validationError = true;
           enhancedError.details = errorDetails;
           throw enhancedError;
         } else {
-          // Queue hanya untuk network error atau server error (5xx)
           await addToQueue({ url, method, data, options });
           emitCoalescedEvent("queue:updated");
           throw new Error("Request queued for offline sync");
         }
       }
 
-      // Throw error dengan informasi lengkap
       const enhancedError = new Error(errorMessage);
       enhancedError.response = error.response;
       enhancedError.details = errorDetails;
@@ -512,7 +508,6 @@ async function apiCall(url, method = "GET", data = null, options = {}) {
     }
   }
 
-  // Offline handling
   if (bypassQueue) {
     throw new Error("Network unavailable and bypass queue enabled");
   }
@@ -727,7 +722,7 @@ async function clearCacheByPrefix(prefix) {
   const db = await getDB();
   const allCache = await db.getAll(STORES.CACHE);
   let deletedCount = 0;
-  
+
   const tx = db.transaction(STORES.CACHE, "readwrite");
   for (const item of allCache) {
     if (item.key.startsWith(prefix)) {
@@ -736,22 +731,22 @@ async function clearCacheByPrefix(prefix) {
     }
   }
   await tx.done;
-  
+
   return { success: true, deletedCount };
 }
 
 async function clearCache(pattern = null) {
   if (!pattern) {
     await clearStoreChunked(STORES.CACHE);
-    emitCoalescedEvent("cache:cleared", { pattern: 'all' });
-    return { success: true, deletedCount: 'all' };
+    emitCoalescedEvent("cache:cleared", { pattern: "all" });
+    return { success: true, deletedCount: "all" };
   }
-  
+
   try {
     const db = await getDB();
     const allCache = await db.getAll(STORES.CACHE);
     let deletedCount = 0;
-    
+
     const tx = db.transaction(STORES.CACHE, "readwrite");
     for (const item of allCache) {
       if (item.key.includes(pattern)) {
@@ -760,11 +755,11 @@ async function clearCache(pattern = null) {
       }
     }
     await tx.done;
-    
+
     if (deletedCount > 0) {
       emitCoalescedEvent("cache:cleared", { pattern, deletedCount });
     }
-    
+
     return { success: true, deletedCount };
   } catch (error) {
     console.error("❌ Pattern cache clear error:", error);
@@ -879,8 +874,7 @@ export const offlineService = {
   getCacheStats,
   cleanup,
   removeAllListeners,
-  
-  
+
   getTTLForDate,
   isDateRangeToday,
   CACHE_CONFIG,

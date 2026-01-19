@@ -75,7 +75,7 @@ const SearchableSelect = ({
       >
         <Command loop shouldFilter className="dark:bg-gray-800 dark:text-gray-200">
           <CommandInput
-            placeholder={`Cari ${placeholder.toLowerCase()}`}
+            placeholder={`${placeholder.toLowerCase()}`}
             className="h-9 dark:text-gray-200"
           />
           <CommandList>

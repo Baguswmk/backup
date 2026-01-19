@@ -43,14 +43,12 @@ export const usePermissions = (module = "timbangan") => {
         canExport: false,
         isReadOnly: false,
 
-        // Fleet type access
         allowedFleetTypes: [],
         canAccessFleetType: () => false,
         getMeasurementType: () => null,
         autoWeighBridge: false,
         canSelectWeighBridge: false,
 
-        // Filtering
         filterType: null,
         filterValue: null,
 
@@ -61,7 +59,6 @@ export const usePermissions = (module = "timbangan") => {
     const fleetTypeAccess = getFleetTypeAccess(userRole);
     const filterType = getFilterType(userRole);
 
-    // Determine filter value based on filter type
     let filterValue = null;
     switch (filterType) {
       case "company":
@@ -83,17 +80,15 @@ export const usePermissions = (module = "timbangan") => {
       canExport: canExport(userRole, module),
       isReadOnly: isReadOnly(userRole),
 
-      // Fleet type access
       allowedFleetTypes: fleetTypeAccess?.allowedTypes || [],
       canAccessFleetType: (type) => canAccessFleetType(userRole, type),
       getMeasurementType: (type) => getMeasurementTypeForFleet(userRole, type),
       autoWeighBridge: shouldAutoAttachWeighBridge(userRole),
       canSelectWeighBridge: canSelectWeighBridgePermission(userRole),
 
-      // Filtering
       filterType,
       filterValue,
-      filterBy: filterType, // alias
+      filterBy: filterType,
 
       roleDescription: getRoleDescription(userRole),
     };
@@ -113,7 +108,6 @@ export const usePermissions = (module = "timbangan") => {
   const checkDataAccess = (item) => {
     if (!userRole) return false;
     if (isReadOnly(userRole)) {
-      // Apply role-based filtering
       const filtered = filterDataByRole([item], userRole, user);
       return filtered.length > 0;
     }
@@ -193,19 +187,17 @@ export const usePermissions = (module = "timbangan") => {
       const autoWB = permissions.autoWeighBridge;
 
       return {
-        // Weigh Bridge Config
         showWeighBridgeSelect: permissions.canSelectWeighBridge && !autoWB,
         autoWeighBridge: autoWB,
         weighBridgeValue: autoWB ? userWeighBridge?.id : null,
 
-        // Measurement Type Config
         showMeasurementTypeSelect: !measurementType && !autoWB,
         autoMeasurementType: measurementType,
         measurementTypeValue: measurementType,
         measurementTypeDisabled: !!measurementType,
       };
     },
-    [permissions, userWeighBridge]
+    [permissions, userWeighBridge],
   );
 
   return {
@@ -237,17 +229,14 @@ export const useFleetPermissions = () => {
   return {
     ...basePermissions,
 
-    // Fleet-specific helper
     isFleetTypeAllowed: (type) => {
       return basePermissions.allowedFleetTypes.includes(type);
     },
 
-    // Get available fleet types for user
     getAvailableFleetTypes: () => {
       return basePermissions.allowedFleetTypes;
     },
 
-    // Check if user should see fleet type in menu
     shouldShowFleetTypeMenu: (type) => {
       return basePermissions.canAccessFleetType(type);
     },
