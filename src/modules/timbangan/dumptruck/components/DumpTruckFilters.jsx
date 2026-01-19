@@ -22,7 +22,7 @@ const DumpTruckFilters = ({
   return (
     <div className="space-y-4">
       <TableToolbar
-      activeDateRange={false}
+        activeDateRange={false}
         searchQuery={searchQuery}
         onSearchChange={onSearchChange}
         searchPlaceholder="Cari nama fleet, excavator, work unit..."

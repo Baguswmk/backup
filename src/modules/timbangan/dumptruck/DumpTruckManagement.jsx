@@ -60,7 +60,7 @@ const DumpTruckManagement = () => {
 
     const allowedMeasurementTypes = [
       ...new Set(
-        allowedFleetTypes.map((type) => measurementTypeMap[type] || type)
+        allowedFleetTypes.map((type) => measurementTypeMap[type] || type),
       ),
     ];
 
@@ -93,14 +93,14 @@ const DumpTruckManagement = () => {
 
     let filtered = allFilteredFleetConfigs;
 
-        filtered = filtered.filter((fleet) => {
+    filtered = filtered.filter((fleet) => {
       if (
         fleet.measurementType ||
         fleet.measurementType === null ||
         fleet.measurementType === undefined ||
         fleet.measurementType === ""
-      ) 
-      return true;
+      )
+        return true;
     });
 
     if (isSatkerRestricted && !canViewAllSatker) {
@@ -110,11 +110,11 @@ const DumpTruckManagement = () => {
     if (measurementTypeFilter) {
       if (Array.isArray(measurementTypeFilter)) {
         filtered = filtered.filter((fleet) =>
-          measurementTypeFilter.includes(fleet.measurementType)
+          measurementTypeFilter.includes(fleet.measurementType),
         );
       } else {
         filtered = filtered.filter(
-          (fleet) => fleet.measurementType === measurementTypeFilter
+          (fleet) => fleet.measurementType === measurementTypeFilter,
         );
       }
     }
@@ -156,28 +156,28 @@ const DumpTruckManagement = () => {
       filtered = filtered.filter(
         (fleet) =>
           fleet.excavator?.toLowerCase().includes(q) ||
-          fleet.workUnit?.toLowerCase().includes(q)
+          fleet.workUnit?.toLowerCase().includes(q),
       );
     }
 
     if (excavators.length > 0) {
       filtered = filtered.filter((f) =>
-        excavators.includes(String(f.excavatorId))
+        excavators.includes(String(f.excavatorId)),
       );
     }
     if (workUnits.length > 0) {
       filtered = filtered.filter((f) =>
-        workUnits.includes(String(f.workUnitId))
+        workUnits.includes(String(f.workUnitId)),
       );
     }
     if (loadingLocations.length > 0) {
       filtered = filtered.filter((f) =>
-        loadingLocations.includes(String(f.loadingLocationId))
+        loadingLocations.includes(String(f.loadingLocationId)),
       );
     }
     if (dumpingLocations.length > 0) {
       filtered = filtered.filter((f) =>
-        dumpingLocations.includes(String(f.dumpingLocationId))
+        dumpingLocations.includes(String(f.dumpingLocationId)),
       );
     }
     if (statusValues.length > 0) {
@@ -307,7 +307,6 @@ const DumpTruckManagement = () => {
 
   const filterGroups = useMemo(
     () => [
-     
       {
         id: "excavator",
         label: "Excavator",
@@ -349,7 +348,18 @@ const DumpTruckManagement = () => {
         placeholder: "Pilih Status",
       },
     ],
-    [excavatorOptions, workUnitOptions, loadingLocOptions, dumpingLocOptions, statusOptions, excavators, workUnits, loadingLocations, dumpingLocations, statusValues]
+    [
+      excavatorOptions,
+      workUnitOptions,
+      loadingLocOptions,
+      dumpingLocOptions,
+      statusOptions,
+      excavators,
+      workUnits,
+      loadingLocations,
+      dumpingLocations,
+      statusValues,
+    ],
   );
 
   const handleAddNewSetting = useCallback(() => {
@@ -375,7 +385,7 @@ const DumpTruckManagement = () => {
       }
 
       const existingSetting = dumptruckSettings.find(
-        (s) => String(s.fleet?.id) === String(fleet.id)
+        (s) => String(s.fleet?.id) === String(fleet.id),
       );
 
       const settingData = existingSetting || {
@@ -392,7 +402,7 @@ const DumpTruckManagement = () => {
       dumptruckSettings,
       openModal,
       getDisabledMessage,
-    ]
+    ],
   );
 
   const handleDeleteSetting = useCallback(
@@ -408,7 +418,7 @@ const DumpTruckManagement = () => {
       }
 
       const existingSetting = dumptruckSettings.find(
-        (s) => String(s.fleet?.id) === String(fleet.id)
+        (s) => String(s.fleet?.id) === String(fleet.id),
       );
 
       if (existingSetting) {
@@ -421,7 +431,7 @@ const DumpTruckManagement = () => {
       checkDataAccess,
       getDisabledMessage,
       openModal,
-    ]
+    ],
   );
 
   const fetchLatestSettingData = useCallback(
@@ -456,7 +466,7 @@ const DumpTruckManagement = () => {
         return null;
       }
     },
-    [user, measurementTypeFilter]
+    [user, measurementTypeFilter],
   );
 
   const handleMoveUnit = useCallback(
@@ -476,7 +486,7 @@ const DumpTruckManagement = () => {
 
           const sourceUnits = latestSource.units || [];
           const unitToMove = sourceUnits.find(
-            (u) => String(u.id) === String(unitId)
+            (u) => String(u.id) === String(unitId),
           );
 
           if (!unitToMove) {
@@ -497,7 +507,7 @@ const DumpTruckManagement = () => {
           validateResponse(resSource, "remove unit from source");
 
           const target = dumptruckSettings.find(
-            (s) => String(s.fleet?.id) === String(targetFleetId)
+            (s) => String(s.fleet?.id) === String(targetFleetId),
           );
 
           if (target) {
@@ -508,7 +518,7 @@ const DumpTruckManagement = () => {
 
             const targetUnits = latestTarget.units || [];
             const alreadyInTarget = targetUnits.some(
-              (u) => String(u.id) === String(unitId)
+              (u) => String(u.id) === String(unitId),
             );
 
             if (!alreadyInTarget) {
@@ -543,22 +553,28 @@ const DumpTruckManagement = () => {
             validateResponse(resNew, "create new setting");
           }
 
-          await Promise.all([
-            refreshFleet(),
-            refreshDumptruck(),
-          ]);
+          await Promise.all([refreshFleet(), refreshDumptruck()]);
 
           showToast.success(TOAST_MESSAGES.SUCCESS.MOVE_UNIT);
         },
         {
           operation: "move unit",
           defaultMessage: TOAST_MESSAGES.ERROR.MOVE_UNIT_FAILED,
-        }
+        },
       );
 
       setIsSaving(false);
     },
-    [canUpdate, getDisabledMessage, fetchLatestSettingData, dumptruckSettings, updateSetting, createSetting, refreshFleet, refreshDumptruck]
+    [
+      canUpdate,
+      getDisabledMessage,
+      fetchLatestSettingData,
+      dumptruckSettings,
+      updateSetting,
+      createSetting,
+      refreshFleet,
+      refreshDumptruck,
+    ],
   );
 
   const handleSave = useCallback(
@@ -566,10 +582,12 @@ const DumpTruckManagement = () => {
       const editingSetting = getModalState("config").data;
 
       if (!canCreate && !canUpdate) {
-        showToast.error(
-          getDisabledMessage(editingSetting?.id ? "update" : "create")
+        const errorMsg = getDisabledMessage(
+          editingSetting?.id ? "update" : "create",
         );
-        return;
+        showToast.error(errorMsg);
+
+        throw new Error(errorMsg);
       }
 
       setIsSaving(true);
@@ -585,12 +603,12 @@ const DumpTruckManagement = () => {
         }
 
         const invalidPairs = pairDtOp.filter(
-          (pair) => !pair.truckId || !pair.operatorId
+          (pair) => !pair.truckId || !pair.operatorId,
         );
 
         if (invalidPairs.length > 0) {
           throw new Error(
-            TOAST_MESSAGES.ERROR.INVALID_PAIRS(invalidPairs.length)
+            TOAST_MESSAGES.ERROR.INVALID_PAIRS(invalidPairs.length),
           );
         }
 
@@ -608,26 +626,38 @@ const DumpTruckManagement = () => {
 
         if (result?.success) {
           closeModal("config");
-          await Promise.all([
-            refreshFleet(),
-            refreshDumptruck(),
-          ]);
+          await Promise.all([refreshFleet(), refreshDumptruck()]);
           showToast.success(
             editingSetting?.id
               ? TOAST_MESSAGES.SUCCESS.UPDATE
-              : TOAST_MESSAGES.SUCCESS.SAVE
+              : TOAST_MESSAGES.SUCCESS.SAVE,
           );
+
+          return result;
         } else {
           throw new Error(result?.error || TOAST_MESSAGES.ERROR.SAVE_FAILED);
         }
       } catch (error) {
         console.error("Error in handleSave:", error);
+
         showToast.error(error.message || TOAST_MESSAGES.ERROR.SAVE_FAILED);
+
+        throw error;
       } finally {
         setIsSaving(false);
       }
     },
-    [getModalState, updateSetting, createSetting, refreshFleet, refreshDumptruck, canCreate, canUpdate, getDisabledMessage, closeModal]
+    [
+      getModalState,
+      updateSetting,
+      createSetting,
+      refreshFleet,
+      refreshDumptruck,
+      canCreate,
+      canUpdate,
+      getDisabledMessage,
+      closeModal,
+    ],
   );
 
   const handleConfirmDelete = useCallback(async () => {
@@ -639,10 +669,7 @@ const DumpTruckManagement = () => {
     try {
       await deleteSetting(deleteTarget.id);
       closeModal("delete");
-      await Promise.all([
-        refreshFleet(),
-        refreshDumptruck(),
-      ]);
+      await Promise.all([refreshFleet(), refreshDumptruck()]);
       showToast.success(TOAST_MESSAGES.SUCCESS.DELETE);
     } catch (error) {
       showToast.error(TOAST_MESSAGES.ERROR.DELETE_FAILED);
@@ -679,19 +706,19 @@ const DumpTruckManagement = () => {
 
         if (!latestSetting) {
           throw new Error(
-            "Setting tidak ditemukan. Data mungkin sudah berubah."
+            "Setting tidak ditemukan. Data mungkin sudah berubah.",
           );
         }
 
         const currentUnits = latestSetting.units || [];
 
         const remainingUnits = currentUnits.filter(
-          (unit) => !unitIds.includes(unit.id)
+          (unit) => !unitIds.includes(unit.id),
         );
 
         if (remainingUnits.length === 0) {
           throw new Error(
-            "Tidak bisa menghapus semua unit. Minimal 1 unit harus tersisa atau hapus setting fleet."
+            "Tidak bisa menghapus semua unit. Minimal 1 unit harus tersisa atau hapus setting fleet.",
           );
         }
 
@@ -714,13 +741,10 @@ const DumpTruckManagement = () => {
           throw new Error(errorMsg);
         }
 
-        await Promise.all([
-          refreshFleet(),
-          refreshDumptruck(),
-        ]);
+        await Promise.all([refreshFleet(), refreshDumptruck()]);
 
         showToast.success(
-          `Berhasil menghapus ${unitIds.length} unit dari fleet`
+          `Berhasil menghapus ${unitIds.length} unit dari fleet`,
         );
 
         return { success: true };
@@ -751,7 +775,7 @@ const DumpTruckManagement = () => {
       updateSetting,
       refreshFleet,
       refreshDumptruck,
-    ]
+    ],
   );
 
   const handleViewUnits = useCallback(
@@ -762,14 +786,14 @@ const DumpTruckManagement = () => {
       }
 
       const existingSetting = dumptruckSettings.find(
-        (s) => String(s.fleet?.id) === String(fleet.id)
+        (s) => String(s.fleet?.id) === String(fleet.id),
       );
 
       if (existingSetting) {
         openModal("detail", existingSetting);
       }
     },
-    [dumptruckSettings, canRead, getDisabledMessage, openModal]
+    [dumptruckSettings, canRead, getDisabledMessage, openModal],
   );
 
   const handleRefresh = useCallback(async () => {
@@ -778,24 +802,13 @@ const DumpTruckManagement = () => {
       return;
     }
 
-    await Promise.all([
-      refreshFleet(),
-      refreshDumptruck(),
-    ]);
+    await Promise.all([refreshFleet(), refreshDumptruck()]);
 
     showToast.success(TOAST_MESSAGES.SUCCESS.REFRESH);
-  }, [
-    refreshFleet,
-    refreshDumptruck,
-    canRead,
-    getDisabledMessage,
-  ]);
+  }, [refreshFleet, refreshDumptruck, canRead, getDisabledMessage]);
 
   const handleDetailModalRefresh = useCallback(async () => {
-    await Promise.all([
-      refreshFleet(),
-      refreshDumptruck(),
-    ]);
+    await Promise.all([refreshFleet(), refreshDumptruck()]);
   }, [refreshFleet, refreshDumptruck]);
 
   if (!canRead) {

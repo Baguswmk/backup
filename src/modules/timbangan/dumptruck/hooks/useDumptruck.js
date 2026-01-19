@@ -24,10 +24,10 @@ export const useDumptruck = (fleetHook, measurementType = null) => {
     const total = availableUnits.length;
     const active = availableUnits.filter((dt) => dt.status === "active").length;
     const maintenance = availableUnits.filter(
-      (dt) => dt.status === "maintenance"
+      (dt) => dt.status === "maintenance",
     ).length;
     const inactive = availableUnits.filter(
-      (dt) => !dt.status || dt.status === "inactive"
+      (dt) => !dt.status || dt.status === "inactive",
     ).length;
     return { total, active, maintenance, inactive };
   }, [availableUnits]);
@@ -48,7 +48,7 @@ export const useDumptruck = (fleetHook, measurementType = null) => {
           console.error("❌ Failed to load units:", err);
           setError(err);
         },
-      }
+      },
     );
   }, []);
 
@@ -78,7 +78,6 @@ export const useDumptruck = (fleetHook, measurementType = null) => {
             ...options,
           });
 
-          // Handle validation errors from backend
           if (!result.success && result.isValidation) {
             showToast.warning(result.error);
             setDumptruckSettings([]);
@@ -99,12 +98,12 @@ export const useDumptruck = (fleetHook, measurementType = null) => {
             console.error("❌ Load dumptruck settings error:", err);
             setError(err);
           },
-        }
+        },
       ).finally(() => {
         loadingState(false);
       });
     },
-    [user, measurementType]
+    [user, measurementType],
   );
 
   const refresh = useCallback(async () => {
@@ -136,7 +135,7 @@ export const useDumptruck = (fleetHook, measurementType = null) => {
       return await withErrorHandling(
         async () => {
           const setting = dumptruckSettings.find(
-            (s) => String(s.id) === String(settingId)
+            (s) => String(s.id) === String(settingId),
           );
 
           if (!setting) {
@@ -145,15 +144,13 @@ export const useDumptruck = (fleetHook, measurementType = null) => {
 
           if (setting.fleet?.status !== "CLOSED") {
             throw new Error(
-              `Fleet dengan status ${setting.fleet?.status} tidak bisa direaktivasi`
+              `Fleet dengan status ${setting.fleet?.status} tidak bisa direaktivasi`,
             );
           }
 
-          const result = await dumptruckService.reactivateDumptruckSetting(
-            settingId
-          );
+          const result =
+            await dumptruckService.reactivateDumptruckSetting(settingId);
 
-          // Handle validation errors
           if (!result.success && result.isValidation) {
             showToast.warning(result.error);
             return { success: false, error: result.error };
@@ -175,19 +172,18 @@ export const useDumptruck = (fleetHook, measurementType = null) => {
             console.error("❌ Reactivate error:", err);
             setError(err);
           },
-        }
+        },
       ).finally(() => {
         setIsLoading(false);
       });
     },
-    [dumptruckSettings, refresh]
+    [dumptruckSettings, refresh],
   );
 
   const getFilteredUnitsForFleet = useCallback(async (settingFleetId) => {
     try {
-      const result = await dumptruckService.getFilteredUnitsByFleet(
-        settingFleetId
-      );
+      const result =
+        await dumptruckService.getFilteredUnitsByFleet(settingFleetId);
 
       if (result.success) {
         setFilteredUnitsByFleet((prev) => ({
@@ -197,7 +193,6 @@ export const useDumptruck = (fleetHook, measurementType = null) => {
         return result.data;
       }
 
-      // Handle validation errors
       if (result.isValidation) {
         showToast.warning(result.error);
       }
@@ -227,12 +222,12 @@ export const useDumptruck = (fleetHook, measurementType = null) => {
             throw new Error("Pilih minimal 1 dump truck dan operator");
 
           const invalidPairs = pairDtOp.filter(
-            (pair) => !pair.truckId || !pair.operatorId
+            (pair) => !pair.truckId || !pair.operatorId,
           );
 
           if (invalidPairs.length > 0) {
             throw new Error(
-              `${invalidPairs.length} pasangan tidak valid. Pastikan semua unit memiliki operator.`
+              `${invalidPairs.length} pasangan tidak valid. Pastikan semua unit memiliki operator.`,
             );
           }
 
@@ -241,7 +236,6 @@ export const useDumptruck = (fleetHook, measurementType = null) => {
             pair_dt_op: pairDtOp,
           });
 
-          // Handle validation errors
           if (!result.success && result.isValidation) {
             showToast.warning(result.error);
             return { success: false, error: result.error };
@@ -259,12 +253,12 @@ export const useDumptruck = (fleetHook, measurementType = null) => {
           operation: "create dumptruck setting",
           showErrorToast: true,
           onError: (err) => setError(err),
-        }
+        },
       ).finally(() => {
         setIsLoading(false);
       });
     },
-    [refresh]
+    [refresh],
   );
 
   const updateSetting = useCallback(
@@ -279,12 +273,12 @@ export const useDumptruck = (fleetHook, measurementType = null) => {
 
           if (pairDtOp) {
             const invalidPairs = pairDtOp.filter(
-              (pair) => !pair.truckId || !pair.operatorId
+              (pair) => !pair.truckId || !pair.operatorId,
             );
 
             if (invalidPairs.length > 0) {
               throw new Error(
-                `${invalidPairs.length} pasangan tidak valid. Pastikan semua unit memiliki operator.`
+                `${invalidPairs.length} pasangan tidak valid. Pastikan semua unit memiliki operator.`,
               );
             }
 
@@ -297,10 +291,9 @@ export const useDumptruck = (fleetHook, measurementType = null) => {
 
           const result = await dumptruckService.updateDumptruckSetting(
             settingId,
-            updatePayload
+            updatePayload,
           );
 
-          // Handle validation errors
           if (!result.success && result.isValidation) {
             showToast.warning(result.error);
             return { success: false, error: result.error };
@@ -318,12 +311,12 @@ export const useDumptruck = (fleetHook, measurementType = null) => {
           operation: "update dumptruck setting",
           showErrorToast: true,
           onError: (err) => setError(err),
-        }
+        },
       ).finally(() => {
         setIsLoading(false);
       });
     },
-    [refresh]
+    [refresh],
   );
 
   const deleteSetting = useCallback(
@@ -333,9 +326,9 @@ export const useDumptruck = (fleetHook, measurementType = null) => {
 
       return await withErrorHandling(
         async () => {
-          const result = await dumptruckService.deleteDumptruckSetting(settingId);
+          const result =
+            await dumptruckService.deleteDumptruckSetting(settingId);
 
-          // Handle validation errors
           if (!result.success && result.isValidation) {
             showToast.warning(result.error);
             return { success: false, error: result.error };
@@ -353,18 +346,17 @@ export const useDumptruck = (fleetHook, measurementType = null) => {
           operation: "delete dumptruck setting",
           showErrorToast: true,
           onError: (err) => setError(err),
-        }
+        },
       ).finally(() => {
         setIsLoading(false);
       });
     },
-    [refresh]
+    [refresh],
   );
 
   const getUnitsForFleet = useCallback(
     async (fleetId) => {
       try {
-
         if (!fleetId) {
           console.warn(`⚠️ Fleet ${fleetId} not found in filtered configs`);
           return [];
@@ -380,12 +372,12 @@ export const useDumptruck = (fleetHook, measurementType = null) => {
         return availableUnits.filter((u) => u.type === "DUMP_TRUCK");
       }
     },
-    [ availableUnits, getFilteredUnitsForFleet]
+    [availableUnits, getFilteredUnitsForFleet],
   );
 
   const getDumptrucksByWorkUnit = useCallback(
     (workUnitId) => availableUnits.filter((dt) => dt.workUnitId === workUnitId),
-    [availableUnits]
+    [availableUnits],
   );
 
   useEffect(() => {
@@ -407,7 +399,14 @@ export const useDumptruck = (fleetHook, measurementType = null) => {
     };
 
     initializeData();
-  }, [user, filteredFleetConfigs.length, timbanganFleetConfigs.length, measurementType, loadDumptruckSettings, loadAvailableUnits]);
+  }, [
+    user,
+    filteredFleetConfigs.length,
+    timbanganFleetConfigs.length,
+    measurementType,
+    loadDumptruckSettings,
+    loadAvailableUnits,
+  ]);
 
   return {
     dumptruckSettings,

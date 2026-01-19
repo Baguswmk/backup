@@ -31,7 +31,7 @@ const DumpTruckDetailModal = ({
   availableFleets = [],
   onMoveUnit,
   onBulkDelete,
-  onRefresh, // ✅ NEW: Add refresh callback
+  onRefresh,
 }) => {
   const [query, setQuery] = useState("");
   const [operatorsMap, setOperatorsMap] = useState({});
@@ -42,8 +42,7 @@ const DumpTruckDetailModal = ({
   const [showMoveConfirm, setShowMoveConfirm] = useState(false);
   const [targetFleet, setTargetFleet] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
-  
-  // ✅ NEW: Local state to track current units
+
   const [localUnits, setLocalUnits] = useState([]);
 
   useEffect(() => {
@@ -61,7 +60,6 @@ const DumpTruckDetailModal = ({
     };
   }, [isOpen]);
 
-  // ✅ NEW: Sync local units with setting prop
   useEffect(() => {
     if (setting?.units) {
       setLocalUnits(setting.units);
@@ -92,9 +90,8 @@ const DumpTruckDetailModal = ({
 
   if (!setting) return null;
 
-  // ✅ CHANGED: Use localUnits instead of setting.units
   const units = localUnits || [];
-  
+
   const filtered = units.filter((u) => {
     const q = query.trim().toLowerCase();
     if (!q) return true;
@@ -108,7 +105,7 @@ const DumpTruckDetailModal = ({
 
   const currentFleetId = setting.fleet?.id;
   const availableTargetFleets = (availableFleets || []).filter(
-    (f) => String(f.id) !== String(currentFleetId)
+    (f) => String(f.id) !== String(currentFleetId),
   );
 
   const isAllSelected =
@@ -135,7 +132,6 @@ const DumpTruckDetailModal = ({
     });
   };
 
-  // ✅ ENHANCED: Handle bulk delete with real-time update
   const handleBulkDelete = async () => {
     if (!onBulkDelete || selectedUnits.length === 0) return;
 
@@ -143,25 +139,21 @@ const DumpTruckDetailModal = ({
     try {
       const result = await onBulkDelete(
         setting.id,
-        selectedUnits.map((u) => u.id)
+        selectedUnits.map((u) => u.id),
       );
 
       if (result?.success) {
-        // ✅ Update local state immediately
-        const deletedIds = selectedUnits.map(u => u.id);
-        setLocalUnits(prev => prev.filter(u => !deletedIds.includes(u.id)));
-        
-        // Close dialog and reset state
+        const deletedIds = selectedUnits.map((u) => u.id);
+        setLocalUnits((prev) => prev.filter((u) => !deletedIds.includes(u.id)));
+
         setShowDeleteConfirm(false);
         setSelectedUnits([]);
         setShowBulkActions(false);
 
-        // ✅ Trigger parent refresh
         if (onRefresh) {
           await onRefresh();
         }
 
-        // Check if all units were deleted - close modal if true
         if (units.length === selectedUnits.length) {
           setTimeout(() => {
             onClose?.();
@@ -177,14 +169,13 @@ const DumpTruckDetailModal = ({
     }
   };
 
-  // ✅ ENHANCED: Handle bulk move with real-time update
   const handleBulkMove = async () => {
     if (!onMoveUnit || !targetFleet || selectedUnits.length === 0) return;
 
     setIsProcessing(true);
     try {
       let allSuccess = true;
-      
+
       for (const unit of selectedUnits) {
         const result = await onMoveUnit(setting.id, unit.id, targetFleet.id);
         if (!result?.success) {
@@ -194,22 +185,18 @@ const DumpTruckDetailModal = ({
       }
 
       if (allSuccess) {
-        // ✅ Update local state immediately
-        const movedIds = selectedUnits.map(u => u.id);
-        setLocalUnits(prev => prev.filter(u => !movedIds.includes(u.id)));
-        
-        // Close dialogs and reset state
+        const movedIds = selectedUnits.map((u) => u.id);
+        setLocalUnits((prev) => prev.filter((u) => !movedIds.includes(u.id)));
+
         setShowMoveConfirm(false);
         setTargetFleet(null);
         setSelectedUnits([]);
         setShowBulkActions(false);
 
-        // ✅ Trigger parent refresh
         if (onRefresh) {
           await onRefresh();
         }
 
-        // Check if all units were moved - close modal if true
         if (units.length === selectedUnits.length) {
           setTimeout(() => {
             onClose?.();
@@ -252,7 +239,7 @@ const DumpTruckDetailModal = ({
                   onChange={(e) => setQuery(e.target.value)}
                   className={cn(
                     "pl-10 border-none hover:bg-gray-200 cursor-pointer",
-                    "dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-200"
+                    "dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-200",
                   )}
                 />
               </div>
@@ -371,7 +358,7 @@ const DumpTruckDetailModal = ({
                     "grid gap-2 px-3 py-2 text-xs font-medium",
                     showBulkActions ? "grid-cols-6" : "grid-cols-5",
                     "bg-gray-50 dark:bg-gray-900",
-                    "text-gray-600 dark:text-gray-400"
+                    "text-gray-600 dark:text-gray-400",
                   )}
                 >
                   {showBulkActions && <div></div>}
@@ -385,7 +372,7 @@ const DumpTruckDetailModal = ({
                 <div className="max-h-96 overflow-auto">
                   {filtered.map((u) => {
                     const isSelected = selectedUnits.some(
-                      (su) => su.id === u.id
+                      (su) => su.id === u.id,
                     );
 
                     return (
@@ -398,7 +385,7 @@ const DumpTruckDetailModal = ({
                             ? "bg-blue-50 dark:bg-blue-900/20"
                             : "hover:bg-gray-50 dark:hover:bg-gray-700",
                           "border-b border-gray-100 dark:border-gray-700",
-                          "dark:text-gray-300"
+                          "dark:text-gray-300",
                         )}
                       >
                         {showBulkActions && (
@@ -436,7 +423,7 @@ const DumpTruckDetailModal = ({
                                     size="sm"
                                     className={cn(
                                       "h-7 gap-2 cursor-pointer hover:bg-gray-200 disabled:cursor-not-allowed",
-                                      "dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
+                                      "dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600",
                                     )}
                                     disabled={
                                       availableTargetFleets.length === 0
@@ -450,7 +437,7 @@ const DumpTruckDetailModal = ({
                                   align="end"
                                   className={cn(
                                     "w-80 bg-white border-none",
-                                    "dark:bg-gray-800 dark:border-gray-700"
+                                    "dark:bg-gray-800 dark:border-gray-700",
                                   )}
                                 >
                                   <div className="px-3 py-1.5 text-xs text-gray-500 dark:text-gray-400">
@@ -464,10 +451,10 @@ const DumpTruckDetailModal = ({
                                       }
                                       className={cn(
                                         "cursor-pointer",
-                                        "dark:text-gray-200 dark:hover:bg-gray-700"
+                                        "dark:text-gray-200 dark:hover:bg-gray-700",
                                       )}
                                     >
-                                     {fleet.excavator}
+                                      {fleet.excavator}
                                     </DropdownMenuItem>
                                   ))}
                                 </DropdownMenuContent>
@@ -493,7 +480,7 @@ const DumpTruckDetailModal = ({
               onClick={onClose}
               className={cn(
                 "cursor-pointer disabled:cursor-not-allowed hover:bg-gray-200",
-                "dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
+                "dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600",
               )}
             >
               Tutup

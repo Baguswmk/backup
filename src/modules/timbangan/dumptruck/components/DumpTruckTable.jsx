@@ -1,14 +1,7 @@
 import React, { memo, useMemo } from "react";
 import { Button } from "@/shared/components/ui/button";
-import {
-  Truck,
-  Eye,
-  Edit,
-  Trash2,
-  RotateCcw,
-  Plus,
-} from "lucide-react";
-import TableActions from "@/shared/components/TableActions"; // ✅ ADDED
+import { Truck, Eye, Edit, Trash2, RotateCcw, Plus } from "lucide-react";
+import TableActions from "@/shared/components/TableActions";
 import Pagination from "@/shared/components/Pagination";
 import LoadingContent from "@/shared/components/LoadingContent";
 import EmptyState from "@/shared/components/EmptyState";
@@ -48,29 +41,24 @@ const DumpTruckTable = memo(
 
     const getDumptruckCount = (fleet) => {
       const existingSetting = dumptruckSettings.find(
-        (s) => String(s.fleet?.id) === String(fleet.id)
+        (s) => String(s.fleet?.id) === String(fleet.id),
       );
       return existingSetting?.units?.length || 0;
     };
 
     const hasDumptruckSetting = (fleet) => {
       return dumptruckSettings.some(
-        (s) => String(s.fleet?.id) === String(fleet.id)
+        (s) => String(s.fleet?.id) === String(fleet.id),
       );
     };
 
-
-
-    // ✅ NEW: Generate table actions based on fleet state
     const getTableActions = (fleet) => {
       const hasSetting = hasDumptruckSetting(fleet);
 
-      // History mode actions
       if (isHistoryMode) {
         return [];
       }
 
-      // Normal mode - all actions
       const actions = [];
 
       if (onInputUpdateSetting) {
@@ -116,8 +104,8 @@ const DumpTruckTable = memo(
             hasActiveFilters
               ? "Tidak ada hasil"
               : isHistoryMode
-              ? "Belum Ada Riwayat"
-              : "Belum Ada Fleet"
+                ? "Belum Ada Riwayat"
+                : "Belum Ada Fleet"
           }
           description={
             isHistoryMode
@@ -137,11 +125,11 @@ const DumpTruckTable = memo(
                 <th className="px-4 py-3 text-left text-xs font-medium text-black dark:text-gray-200">
                   No
                 </th>
-              
+
                 <th className="px-4 py-3 text-left text-xs font-medium text-black dark:text-gray-200">
                   Excavator
                 </th>
-              
+
                 <th className="px-4 py-3 text-left text-xs font-medium text-black dark:text-gray-200">
                   Work Unit
                 </th>
@@ -179,7 +167,7 @@ const DumpTruckTable = memo(
                     <td className="px-4 py-3 text-sm font-medium dark:text-gray-300">
                       {index + 1 + (currentPage - 1) * pageSize}
                     </td>
-                    
+
                     <td className="px-4 py-3 text-sm dark:text-gray-300">
                       {fleet.excavator}
                     </td>
@@ -215,7 +203,7 @@ const DumpTruckTable = memo(
                             <Eye className="w-4 h-4 mr-1" />
                             Lihat
                           </Button>
-                          {hasSetting && onReactivate &&  (
+                          {hasSetting && onReactivate && (
                             <Button
                               variant="ghost"
                               size="sm"
@@ -228,11 +216,7 @@ const DumpTruckTable = memo(
                           )}
                         </div>
                       ) : (
-                        /* ✅ NORMAL MODE - Use TableActions component */
-                        <TableActions 
-                          actions={actions} 
-                          disabled={isLoading}
-                        />
+                        <TableActions actions={actions} disabled={isLoading} />
                       )}
                     </td>
                   </tr>
@@ -252,7 +236,7 @@ const DumpTruckTable = memo(
         )}
       </>
     );
-  }
+  },
 );
 
 DumpTruckTable.displayName = "DumpTruckTable";

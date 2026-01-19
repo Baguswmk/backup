@@ -1,5 +1,10 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/shared/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/shared/components/ui/card";
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
 import { Label } from "@/shared/components/ui/label";
@@ -24,7 +29,7 @@ import {
   LOADING_MESSAGES,
   TOAST_MESSAGES,
 } from "@/modules/timbangan/dumptruck/constant/dumptruckConstants";
-
+import { showToast } from "@/shared/utils/toast";
 const DumptruckModal = ({
   isOpen,
   onClose,
@@ -114,53 +119,51 @@ const DumptruckModal = ({
     };
   }, [isOpen, showAllUnits]);
 
-  // ✅ FIXED: Remove problematic dependency that causes infinite re-render
+  useEffect(() => {
+    if (!isOpen) return;
 
-useEffect(() => {
-  if (!isOpen) return;
-  
-  if (editingSetting) {
-    setSelectedFleet(editingSetting.fleet || null);
-    setSelectedUnits(editingSetting.units || []);
+    if (editingSetting) {
+      setSelectedFleet(editingSetting.fleet || null);
+      setSelectedUnits(editingSetting.units || []);
 
-    const initialOperators = {};
-    (editingSetting.units || []).forEach((unit) => {
-      if (unit.operatorId) {
-        initialOperators[unit.id] = String(unit.operatorId);
+      const initialOperators = {};
+      (editingSetting.units || []).forEach((unit) => {
+        if (unit.operatorId) {
+          initialOperators[unit.id] = String(unit.operatorId);
+        }
+      });
+      setUnitOperators(initialOperators);
+
+      if (editingSetting.fleet?.id) {
+        setIsLoadingFilteredUnits(true);
+        getFilteredUnitsForFleet(String(editingSetting.fleet.id))
+          .then((filtered) => {
+            setFleetFilteredUnits(filtered);
+          })
+          .catch((error) => {
+            console.error("Failed to load filtered units:", error);
+            setFleetFilteredUnits([]);
+          })
+          .finally(() => {
+            setIsLoadingFilteredUnits(false);
+          });
       }
-    });
-    setUnitOperators(initialOperators);
-
-    if (editingSetting.fleet?.id) {
-      setIsLoadingFilteredUnits(true);
-      getFilteredUnitsForFleet(String(editingSetting.fleet.id))
-        .then((filtered) => {
-          setFleetFilteredUnits(filtered);
-        })
-        .catch((error) => {
-          console.error("Failed to load filtered units:", error);
-          setFleetFilteredUnits([]);
-        })
-        .finally(() => {
-          setIsLoadingFilteredUnits(false);
-        });
+    } else {
+      setSelectedFleet(null);
+      setSelectedUnits([]);
+      setUnitOperators({});
+      setFleetFilteredUnits([]);
     }
-  } else {
-    setSelectedFleet(null);
-    setSelectedUnits([]);
-    setUnitOperators({});
-    setFleetFilteredUnits([]);
-  }
-  
-  setSearchQuery("");
-  setShowAllUnits(false);
-  setErrors({});
-}, [isOpen, editingSetting?.id]); 
+
+    setSearchQuery("");
+    setShowAllUnits(false);
+    setErrors({});
+  }, [isOpen, editingSetting?.id]);
 
   const handleFleetChangeWithFilter = useCallback(
     async (fleetId) => {
       const fleet = availableFleets.find(
-        (f) => String(f.id) === String(fleetId)
+        (f) => String(f.id) === String(fleetId),
       );
       setSelectedFleet(fleet || null);
       setSelectedUnits([]);
@@ -198,7 +201,7 @@ useEffect(() => {
         setFleetFilteredUnits([]);
       }
     },
-    [availableFleets, getFilteredUnitsForFleet]
+    [availableFleets, getFilteredUnitsForFleet],
   );
 
   const fleetOptions = useMemo(
@@ -215,7 +218,7 @@ useEffect(() => {
           label: ` (${fleet.excavator})`,
           hint: `${fleet.workUnit ?? ""} • ${fleet.loadingLocation ?? ""}`,
         })),
-    [availableFleets, editingSetting]
+    [availableFleets, editingSetting],
   );
 
   const operatorOptions = useMemo(
@@ -225,7 +228,7 @@ useEffect(() => {
         label: op.name,
         hint: op.company || "-",
       })),
-    [operators]
+    [operators],
   );
 
   const filteredUnits = useMemo(() => {
@@ -240,13 +243,13 @@ useEffect(() => {
     units = units.filter((unit) => {
       if (editingSetting) {
         const isCurrentSettingUnit = (editingSetting.units || []).some(
-          (u) => String(u.id) === String(unit.id)
+          (u) => String(u.id) === String(unit.id),
         );
         if (isCurrentSettingUnit) return true;
       }
       const isAssignedToAnySetting = (availableDumptruckSettings || []).some(
         (setting) =>
-          (setting.units || []).some((u) => String(u.id) === String(unit.id))
+          (setting.units || []).some((u) => String(u.id) === String(unit.id)),
       );
       return !isAssignedToAnySetting;
     });
@@ -257,7 +260,7 @@ useEffect(() => {
         (u) =>
           u.hull_no?.toLowerCase().includes(q) ||
           u.company?.toLowerCase().includes(q) ||
-          u.workUnit?.toLowerCase().includes(q)
+          u.workUnit?.toLowerCase().includes(q),
       );
     }
 
@@ -273,9 +276,11 @@ useEffect(() => {
 
   const groupedUnits = useMemo(() => {
     const active = filteredUnits.filter((u) => u.status === UNIT_STATUS.ACTIVE);
-    const maintenance = filteredUnits.filter((u) => u.status === UNIT_STATUS.MAINTENANCE);
+    const maintenance = filteredUnits.filter(
+      (u) => u.status === UNIT_STATUS.MAINTENANCE,
+    );
     const inactive = filteredUnits.filter(
-      (u) => u.status === UNIT_STATUS.INACTIVE || !u.status
+      (u) => u.status === UNIT_STATUS.INACTIVE || !u.status,
     );
     return { active, maintenance, inactive };
   }, [filteredUnits]);
@@ -359,13 +364,13 @@ useEffect(() => {
     (status) => {
       const units = groupedUnits[status] || [];
       const allSelected = units.every((u) =>
-        selectedUnits.some((su) => su.id === u.id)
+        selectedUnits.some((su) => su.id === u.id),
       );
 
       if (allSelected) {
         const unitsToRemove = units.map((u) => u.id);
         setSelectedUnits((prev) =>
-          prev.filter((su) => !unitsToRemove.includes(su.id))
+          prev.filter((su) => !unitsToRemove.includes(su.id)),
         );
         setUnitOperators((prev) => {
           const newOps = { ...prev };
@@ -379,7 +384,7 @@ useEffect(() => {
         ]);
       }
     },
-    [groupedUnits, selectedUnits]
+    [groupedUnits, selectedUnits],
   );
 
   const validateForm = useCallback(() => {
@@ -407,13 +412,14 @@ useEffect(() => {
   const handleSave = useCallback(async () => {
     if (!validateForm()) return;
     setIsSaving(true);
+
     try {
       const pairDtOp = selectedUnits.map((unit) => ({
         truckId: parseInt(unit.id),
         operatorId: parseInt(unitOperators[unit.id]),
       }));
 
-      await onSave({
+      const result = await onSave({
         fleetId: selectedFleet?.id,
         pairDtOp: pairDtOp,
         selectedUnits: selectedUnits.map((unit) => ({
@@ -421,13 +427,58 @@ useEffect(() => {
           operatorId: unitOperators[unit.id],
         })),
       });
+
+      if (result?.success) {
+        onClose();
+      }
     } catch (err) {
       console.error("Save error:", err);
-      setErrors((p) => ({ ...p, submit: err?.message || TOAST_MESSAGES.ERROR.SAVE_FAILED }));
+
+      const isQueued =
+        err?.queued || err?.message?.includes("queued for offline sync");
+      const isValidation =
+        err?.validationError ||
+        (err?.response?.status >= 400 && err?.response?.status < 500);
+
+      if (isQueued) {
+        setErrors((p) => ({ ...p, submit: null }));
+
+        showToast.info(
+          "📤 Data disimpan di queue dan akan otomatis tersinkron saat online",
+          { duration: 4000 },
+        );
+
+        setTimeout(() => {
+          onClose();
+        }, 1000);
+      } else if (isValidation) {
+        setErrors((p) => ({
+          ...p,
+          submit: err?.message || "Validasi gagal. Periksa input Anda.",
+        }));
+
+        showToast.error(err?.message || "Validasi gagal");
+      } else {
+        const errorMsg =
+          err?.message || "Terjadi kesalahan. Silakan coba lagi.";
+        setErrors((p) => ({
+          ...p,
+          submit: errorMsg,
+        }));
+
+        showToast.error(errorMsg);
+      }
     } finally {
       setIsSaving(false);
     }
-  }, [validateForm, onSave, selectedFleet, selectedUnits, unitOperators]);
+  }, [
+    validateForm,
+    onSave,
+    selectedFleet,
+    selectedUnits,
+    unitOperators,
+    onClose,
+  ]);
 
   if (!isOpen) return null;
 
@@ -446,7 +497,9 @@ useEffect(() => {
           {/* Fleet Selection Card */}
           <Card className="dark:bg-gray-900 border-none">
             <CardHeader>
-              <CardTitle className="text-base dark:text-white">{CARD_TITLES.FLEET}</CardTitle>
+              <CardTitle className="text-base dark:text-white">
+                {CARD_TITLES.FLEET}
+              </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
               <Label className="dark:text-gray-300">Pilih Fleet *</Label>
@@ -461,7 +514,9 @@ useEffect(() => {
                 allowClear={false}
               />
               {errors.fleet && (
-                <p className="text-sm text-red-500 dark:text-red-400">{errors.fleet}</p>
+                <p className="text-sm text-red-500 dark:text-red-400">
+                  {errors.fleet}
+                </p>
               )}
               {isLoadingFilteredUnits && (
                 <Alert className="bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800">
@@ -500,9 +555,14 @@ useEffect(() => {
             </CardHeader>
             <CardContent className="space-y-4">
               {errors.units && (
-                <Alert variant="destructive" className="mb-2 dark:bg-red-900/20 dark:border-red-800">
+                <Alert
+                  variant="destructive"
+                  className="mb-2 dark:bg-red-900/20 dark:border-red-800"
+                >
                   <AlertCircle className="h-4 w-4 dark:text-red-400" />
-                  <AlertDescription className="dark:text-red-300">{errors.units}</AlertDescription>
+                  <AlertDescription className="dark:text-red-300">
+                    {errors.units}
+                  </AlertDescription>
                 </Alert>
               )}
 
@@ -538,7 +598,9 @@ useEffect(() => {
                           <div
                             className={`px-3 py-2 flex items-center justify-between sticky top-0 z-10 ${UNIT_STATUS_COLORS[status].bg}`}
                           >
-                            <Badge className={`${UNIT_STATUS_COLORS[status].bg} ${UNIT_STATUS_COLORS[status].text}`}>
+                            <Badge
+                              className={`${UNIT_STATUS_COLORS[status].bg} ${UNIT_STATUS_COLORS[status].text}`}
+                            >
                               {status.charAt(0).toUpperCase() + status.slice(1)}{" "}
                               ({(groupedUnits[status] || []).length})
                             </Badge>
@@ -551,7 +613,7 @@ useEffect(() => {
                               disabled={isSaving}
                             >
                               {(groupedUnits[status] || []).every((u) =>
-                                selectedUnits.some((s) => s.id === u.id)
+                                selectedUnits.some((s) => s.id === u.id),
                               )
                                 ? BUTTON_LABELS.DESELECT_ALL
                                 : BUTTON_LABELS.SELECT_ALL}
@@ -561,9 +623,10 @@ useEffect(() => {
                           <div>
                             {(groupedUnits[status] || []).map((unit) => {
                               const isSelected = selectedUnits.some(
-                                (u) => u.id === unit.id
+                                (u) => u.id === unit.id,
                               );
-                              const hasOperatorError = errors[`operator_${unit.id}`];
+                              const hasOperatorError =
+                                errors[`operator_${unit.id}`];
 
                               return (
                                 <div
@@ -578,7 +641,9 @@ useEffect(() => {
                                     <div className="pt-1">
                                       <Checkbox
                                         checked={isSelected}
-                                        onCheckedChange={() => handleUnitToggle(unit)}
+                                        onCheckedChange={() =>
+                                          handleUnitToggle(unit)
+                                        }
                                         disabled={isSaving}
                                         className="dark:text-gray-200"
                                       />
@@ -601,7 +666,9 @@ useEffect(() => {
                                             {unit.company} • {unit.workUnit}
                                           </p>
                                         </div>
-                                        <Badge className={`${UNIT_STATUS_COLORS[status].bg} ${UNIT_STATUS_COLORS[status].text}`}>
+                                        <Badge
+                                          className={`${UNIT_STATUS_COLORS[status].bg} ${UNIT_STATUS_COLORS[status].text}`}
+                                        >
                                           {status}
                                         </Badge>
                                       </div>
@@ -616,11 +683,16 @@ useEffect(() => {
                                             items={operatorOptions}
                                             value={unitOperators[unit.id] || ""}
                                             onChange={(operatorId) =>
-                                              handleOperatorChange(unit.id, operatorId)
+                                              handleOperatorChange(
+                                                unit.id,
+                                                operatorId,
+                                              )
                                             }
                                             placeholder="Pilih operator"
                                             emptyText="Tidak ada operator"
-                                            disabled={isSaving || operatorsLoading}
+                                            disabled={
+                                              isSaving || operatorsLoading
+                                            }
                                             error={!!hasOperatorError}
                                           />
                                           {hasOperatorError && (
@@ -637,7 +709,7 @@ useEffect(() => {
                             })}
                           </div>
                         </div>
-                      ) : null
+                      ) : null,
                     )}
                   </div>
                 )}
@@ -645,9 +717,14 @@ useEffect(() => {
           </Card>
 
           {errors.submit && (
-            <Alert variant="destructive" className="dark:bg-red-900/20 dark:border-red-800">
+            <Alert
+              variant="destructive"
+              className="dark:bg-red-900/20 dark:border-red-800"
+            >
               <AlertCircle className="h-4 w-4 dark:text-red-400" />
-              <AlertDescription className="dark:text-red-300">{errors.submit}</AlertDescription>
+              <AlertDescription className="dark:text-red-300">
+                {errors.submit}
+              </AlertDescription>
             </Alert>
           )}
 
@@ -662,7 +739,9 @@ useEffect(() => {
             </Button>
             <Button
               onClick={handleSave}
-              disabled={isSaving || !allUnitsHaveOperators || selectedUnits.length === 0}
+              disabled={
+                isSaving || !allUnitsHaveOperators || selectedUnits.length === 0
+              }
               className="cursor-pointer disabled:cursor-not-allowed bg-blue-600 hover:bg-blue-700 text-white dark:bg-blue-600 dark:text-gray-200 dark:hover:bg-blue-700"
             >
               {isSaving ? (

@@ -1,4 +1,3 @@
-// DumpTruckExportImport.jsx - Export/Import Component
 import React, { useState, useRef } from "react";
 import { Button } from "@/shared/components/ui/button";
 import { Download, Upload, FileText, Loader2, AlertCircle } from "lucide-react";
@@ -97,12 +96,10 @@ const DumpTruckExportImport = ({
     setImportError(null);
 
     try {
-      // Validate import data structure
       if (!data.settings || !Array.isArray(data.settings)) {
         throw new Error("Format data import tidak valid");
       }
 
-      // Map imported settings to fleet IDs
       const importedSettings = [];
       const errors = [];
 
@@ -110,7 +107,7 @@ const DumpTruckExportImport = ({
         const fleet = fleets.find(
           (f) =>
             String(f.id) === String(setting.fleetId) ||
-            f.name === setting.fleetName
+            f.name === setting.fleetName,
         );
 
         if (!fleet) {
@@ -134,23 +131,17 @@ const DumpTruckExportImport = ({
       }
 
       if (errors.length > 0) {
-        setImportError(
-          `Beberapa fleet tidak ditemukan:\n${errors.join("\n")}`
-        );
+        setImportError(`Beberapa fleet tidak ditemukan:\n${errors.join("\n")}`);
       }
 
       if (importedSettings.length === 0) {
         throw new Error("Tidak ada data valid untuk diimport");
       }
 
-      // Call parent handler
       await onImport(importedSettings);
 
-      showToast.success(
-        `Berhasil import ${importedSettings.length} settings`
-      );
+      showToast.success(`Berhasil import ${importedSettings.length} settings`);
 
-      // Reset file input
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
       }
@@ -218,7 +209,10 @@ const DumpTruckExportImport = ({
       </div>
 
       {importError && (
-        <Alert variant="destructive" className="dark:bg-red-900/20 dark:border-red-800">
+        <Alert
+          variant="destructive"
+          className="dark:bg-red-900/20 dark:border-red-800"
+        >
           <AlertCircle className="w-4 h-4 dark:text-red-400" />
           <AlertDescription className="dark:text-red-300">
             <pre className="text-xs whitespace-pre-wrap">{importError}</pre>
@@ -246,4 +240,4 @@ const DumpTruckExportImport = ({
   );
 };
 
-export default DumpTruckExportImport;   
+export default DumpTruckExportImport;

@@ -2,7 +2,6 @@ import { offlineService } from "@/shared/services/offlineService";
 import { logger } from "@/shared/services/log";
 import { masterDataService } from "@/modules/timbangan/masterData/services/masterDataService";
 
-// ✅ Helper function untuk extract error message
 const extractErrorMessage = (error) => {
   return (
     error?.response?.data?.message ||
@@ -18,7 +17,6 @@ const buildFilters = (options = {}) => {
   const filters = {};
   const role = user?.role?.toLowerCase();
 
-  // Filter measurement_type jika ada
   if (measurementType) {
     if (!filters.setting_fleet) {
       filters.setting_fleet = {};
@@ -27,18 +25,8 @@ const buildFilters = (options = {}) => {
     logger.info("📊 Measurement type filter applied", { measurementType });
   }
 
-  // Filter berdasarkan role
   switch (role) {
     case "operator_jt":
-      if (user?.weigh_bridge?.id) {
-        if (!filters.setting_fleet) {
-          filters.setting_fleet = {};
-        }
-        filters.setting_fleet.weigh_bridge = {
-          id: { $eq: parseInt(user.weigh_bridge.id) },
-        };
-      }
-
       if (!measurementType) {
         if (!filters.setting_fleet) {
           filters.setting_fleet = {};
@@ -195,7 +183,7 @@ export const dumptruckService = {
       }
 
       const settings = response.data.map((item) =>
-        this._transformDumptruckSetting(item, operatorsMap)
+        this._transformDumptruckSetting(item, operatorsMap),
       );
 
       logger.info("✅ Dumptruck settings fetched", {
@@ -206,18 +194,17 @@ export const dumptruckService = {
 
       return { success: true, data: settings };
     } catch (error) {
-      // ✅ Extract error message
       const errorMessage = extractErrorMessage(error);
-      
+
       logger.error("❌ Failed to fetch dumptruck settings", {
         error: errorMessage,
         details: error.response?.data,
       });
-      
-      return { 
-        success: false, 
-        data: [], 
-        error: errorMessage 
+
+      return {
+        success: false,
+        data: [],
+        error: errorMessage,
       };
     }
   },
@@ -236,7 +223,7 @@ export const dumptruckService = {
           },
           cacheKey: `fleet_${settingFleetId}`,
           ttl: 3 * 60 * 1000,
-        }
+        },
       );
 
       const excavatorCompanyId =
@@ -280,18 +267,17 @@ export const dumptruckService = {
       logger.info("Filtered units fetched", { count: units.length });
       return { success: true, data: units };
     } catch (error) {
-      // ✅ Extract error message
       const errorMessage = extractErrorMessage(error);
-      
+
       logger.error("Failed to get filtered units by fleet", {
         error: errorMessage,
         details: error.response?.data,
       });
-      
-      return { 
-        success: false, 
-        data: [], 
-        error: errorMessage 
+
+      return {
+        success: false,
+        data: [],
+        error: errorMessage,
       };
     }
   },
@@ -317,7 +303,7 @@ export const dumptruckService = {
 
       const response = await offlineService.post(
         "/v1/custom/setting-dump-truck",
-        payload
+        payload,
       );
 
       const settingId =
@@ -354,11 +340,11 @@ export const dumptruckService = {
             ],
           },
           forceRefresh: true,
-        }
+        },
       );
 
       const transformedData = this._transformDumptruckSetting(
-        fullResponse.data
+        fullResponse.data,
       );
 
       await offlineService.clearCache("dumptruck_settings");
@@ -374,14 +360,13 @@ export const dumptruckService = {
         data: transformedData,
       };
     } catch (error) {
-      // ✅ Extract error message
       const errorMessage = extractErrorMessage(error);
-      
+
       logger.error("❌ Failed to create dumptruck setting", {
         error: errorMessage,
         details: error.response?.data,
       });
-      
+
       return {
         success: false,
         error: errorMessage,
@@ -402,14 +387,13 @@ export const dumptruckService = {
       logger.info("✅ Dumptruck setting deleted", { id: settingId });
       return { success: true, message: "Setting berhasil dihapus" };
     } catch (error) {
-      // ✅ Extract error message
       const errorMessage = extractErrorMessage(error);
-      
+
       logger.error("❌ Failed to delete dumptruck setting", {
         error: errorMessage,
         details: error.response?.data,
       });
-      
+
       return {
         success: false,
         error: errorMessage,
@@ -426,7 +410,7 @@ export const dumptruckService = {
 
       const response = await offlineService.put(
         `/v1/custom/setting-dump-truck/${settingId}/reactivate`,
-        {}
+        {},
       );
 
       logger.info("🔄 Fetching reactivated setting with full populate", {
@@ -456,11 +440,11 @@ export const dumptruckService = {
             ],
           },
           forceRefresh: true,
-        }
+        },
       );
 
       const transformedData = this._transformDumptruckSetting(
-        fullResponse.data
+        fullResponse.data,
       );
 
       await offlineService.clearCache("dumptruck_settings");
@@ -476,14 +460,13 @@ export const dumptruckService = {
         data: transformedData,
       };
     } catch (error) {
-      // ✅ Extract error message
       const errorMessage = extractErrorMessage(error);
-      
+
       logger.error("❌ Failed to reactivate dumptruck setting", {
         error: errorMessage,
         details: error.response?.data,
       });
-      
+
       return {
         success: false,
         error: errorMessage,
@@ -494,7 +477,6 @@ export const dumptruckService = {
 
   async bulkDeleteUnits(settingId, unitIds) {
     try {
-      // Validate inputs
       if (!settingId) {
         throw new Error("Setting ID tidak boleh kosong");
       }
@@ -503,7 +485,6 @@ export const dumptruckService = {
         throw new Error("Tidak ada unit yang dipilih untuk dihapus");
       }
 
-      // Fetch current setting
       const currentResponse = await offlineService.get(
         `/setting-dump-trucks/${settingId}`,
         {
@@ -511,31 +492,27 @@ export const dumptruckService = {
             populate: ["pair_dt_op", "pair_dt_op.dts", "pair_dt_op.ops"],
           },
           forceRefresh: true,
-        }
+        },
       );
 
       if (!currentResponse || !currentResponse.data) {
         throw new Error("Setting tidak ditemukan");
       }
 
-      // Transform setting
       const currentSetting = this._transformDumptruckSetting(
-        currentResponse.data
+        currentResponse.data,
       );
 
-      // Filter out units to be deleted
       const remainingUnits = (currentSetting.units || []).filter(
-        (unit) => !unitIds.includes(String(unit.id))
+        (unit) => !unitIds.includes(String(unit.id)),
       );
 
-      // Validate remaining units
       if (remainingUnits.length === 0) {
         throw new Error(
-          "Tidak bisa menghapus semua unit. Minimal 1 unit harus tersisa."
+          "Tidak bisa menghapus semua unit. Minimal 1 unit harus tersisa.",
         );
       }
 
-      // Prepare payload
       const payload = {
         pair_dt_op: remainingUnits.map((unit) => ({
           truckId: parseInt(unit.id),
@@ -543,13 +520,11 @@ export const dumptruckService = {
         })),
       };
 
-      // Update setting
       await offlineService.patch(
         `/v1/custom/setting-dump-truck/${settingId}`,
-        payload
+        payload,
       );
 
-      // Fetch updated setting
       const fullResponse = await offlineService.get(
         `/setting-dump-trucks/${settingId}`,
         {
@@ -573,14 +548,13 @@ export const dumptruckService = {
             ],
           },
           forceRefresh: true,
-        }
+        },
       );
 
       const transformedData = this._transformDumptruckSetting(
-        fullResponse.data
+        fullResponse.data,
       );
 
-      // Clear caches
       await offlineService.clearCache("dumptruck_settings");
       await offlineService.clearCache("fleets_");
 
@@ -590,9 +564,8 @@ export const dumptruckService = {
         deletedCount: unitIds.length,
       };
     } catch (error) {
-      // ✅ Extract error message
       const errorMessage = extractErrorMessage(error);
-      
+
       logger.error("❌ Service: Bulk delete failed", {
         settingId,
         unitIds,
@@ -626,7 +599,7 @@ export const dumptruckService = {
 
       await offlineService.patch(
         `/v1/custom/setting-dump-truck/${settingId}`,
-        payload
+        payload,
       );
 
       logger.info("🔄 Fetching updated setting with full populate", {
@@ -656,11 +629,11 @@ export const dumptruckService = {
             ],
           },
           forceRefresh: true,
-        }
+        },
       );
 
       const transformedData = this._transformDumptruckSetting(
-        fullResponse.data
+        fullResponse.data,
       );
 
       await offlineService.clearCache("dumptruck_settings");
@@ -676,9 +649,8 @@ export const dumptruckService = {
         data: transformedData,
       };
     } catch (error) {
-      // ✅ Extract error message
       const errorMessage = extractErrorMessage(error);
-      
+
       logger.error("❌ Failed to update dumptruck setting", {
         settingId,
         error: errorMessage,
@@ -702,7 +674,6 @@ export const dumptruckService = {
         unitIds,
       });
 
-      // Fetch source setting
       const sourceResponse = await offlineService.get(
         `/setting-dump-trucks/${sourceSettingId}`,
         {
@@ -710,27 +681,25 @@ export const dumptruckService = {
             populate: ["pair_dt_op", "pair_dt_op.dts", "pair_dt_op.ops"],
           },
           forceRefresh: true,
-        }
+        },
       );
 
       const sourceSetting = this._transformDumptruckSetting(
-        sourceResponse.data
+        sourceResponse.data,
       );
 
-      // Separate units to move and units to keep
       const unitsToMove = (sourceSetting.units || []).filter((unit) =>
-        unitIds.includes(String(unit.id))
+        unitIds.includes(String(unit.id)),
       );
 
       const unitsToKeep = (sourceSetting.units || []).filter(
-        (unit) => !unitIds.includes(String(unit.id))
+        (unit) => !unitIds.includes(String(unit.id)),
       );
 
       if (unitsToMove.length === 0) {
         throw new Error("Tidak ada unit yang ditemukan untuk dipindahkan");
       }
 
-      // Update source setting (remove moved units)
       if (unitsToKeep.length > 0) {
         const sourcePayload = {
           pair_dt_op: unitsToKeep.map((unit) => ({
@@ -741,24 +710,21 @@ export const dumptruckService = {
 
         await offlineService.patch(
           `/v1/custom/setting-dump-truck/${sourceSettingId}`,
-          sourcePayload
+          sourcePayload,
         );
       } else {
-        // If no units left, delete the setting
         await this.deleteDumptruckSetting(sourceSettingId);
       }
 
-      // Check if target fleet already has a setting
       const allSettings = await this.fetchDumptruckSettings({
         forceRefresh: true,
       });
 
       const targetSetting = allSettings.data.find(
-        (s) => String(s.fleet?.id) === String(targetFleetId)
+        (s) => String(s.fleet?.id) === String(targetFleetId),
       );
 
       if (targetSetting) {
-        // Target has setting - append units
         const targetUnits = targetSetting.units || [];
         const mergedPairDtOp = [
           ...targetUnits.map((u) => ({
@@ -773,10 +739,9 @@ export const dumptruckService = {
 
         await offlineService.patch(
           `/v1/custom/setting-dump-truck/${targetSetting.id}`,
-          { pair_dt_op: mergedPairDtOp }
+          { pair_dt_op: mergedPairDtOp },
         );
       } else {
-        // Target has no setting - create new
         await this.createDumptruckSetting({
           setting_fleet_id: String(targetFleetId),
           pair_dt_op: unitsToMove.map((u) => ({
@@ -800,9 +765,8 @@ export const dumptruckService = {
         sourceRemaining: unitsToKeep.length,
       };
     } catch (error) {
-      // ✅ Extract error message
       const errorMessage = extractErrorMessage(error);
-      
+
       logger.error("❌ Failed to bulk move units", {
         error: errorMessage,
         sourceSettingId,
@@ -810,7 +774,7 @@ export const dumptruckService = {
         unitIds,
         details: error.response?.data,
       });
-      
+
       return {
         success: false,
         error: errorMessage,
@@ -891,14 +855,13 @@ export const dumptruckService = {
         updatedAt: attr.updatedAt,
       };
     } catch (error) {
-      // ✅ Extract error message
       const errorMessage = extractErrorMessage(error);
-      
+
       logger.error("❌ Transform error", {
         error: errorMessage,
         response: apiResponse,
       });
-      
+
       throw error;
     }
   },
@@ -909,9 +872,8 @@ export const dumptruckService = {
       offlineService.clearCache("fleets_");
       logger.info("✅ Dumptruck cache cleared");
     } catch (error) {
-      // ✅ Extract error message
       const errorMessage = extractErrorMessage(error);
-      
+
       logger.error("Failed to clear dumptruck cache", {
         error: errorMessage,
       });
