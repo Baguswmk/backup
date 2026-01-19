@@ -69,10 +69,8 @@ const buildFilters = (options = {}) => {
     case "ccr": {
       const subsatker = user?.work_unit?.subsatker;
       if (subsatker) {
-        filters.setting_fleet = {
-          pic_work_unit: {
-            subsatker: { $eq: subsatker },
-          },
+        filters.pic_work_unit = {
+          subsatker: { $eq: subsatker },
         };
         logger.info("🏢 Subsatker filter applied (CCR)", { subsatker });
       }
@@ -83,10 +81,8 @@ const buildFilters = (options = {}) => {
     case "evaluator":
     case "pic":
       if (user.work_unit?.subsatker) {
-        filters.setting_fleet = {
-          pic_work_unit: {
-            subsatker: { $eq: user.work_unit.subsatker },
-          },
+        filters.pic_work_unit = {
+          subsatker: { $eq: user.work_unit.subsatker },
         };
         logger.info("🏢 Subsatker filter applied", {
           role,
@@ -254,7 +250,7 @@ export const timbanganServices = {
           ];
           logger.warn(
             `⚠️ Failed to fetch ${requestNames[index]}:`,
-            result.reason.message
+            result.reason.message,
           );
         }
       });
@@ -328,7 +324,7 @@ export const timbanganServices = {
       await offlineService.setCache(
         cacheKey,
         masters,
-        offlineService.CACHE_CONFIG.MASTERS
+        offlineService.CACHE_CONFIG.MASTERS,
       );
 
       logger.info("✅ Masters fetched from API", {
@@ -499,7 +495,7 @@ export const timbanganServices = {
                 workUnitId:
                   unit.attributes?.work_unit?.data?.id?.toString() || "",
                 status: unit.attributes?.status || "active",
-              })
+              }),
             ) || [],
           dumptruckCount:
             item.attributes.setting_dump_truck?.data?.attributes
@@ -531,7 +527,7 @@ export const timbanganServices = {
 
   async fetchTimbanganData(filters = {}) {
     try {
-      const { user, forceRefresh, measurementType } = filters;
+      const { user, measurementType } = filters;
 
       const validation = validateDateRange(filters);
       if (!validation.valid) {
@@ -550,47 +546,62 @@ export const timbanganServices = {
         }
       }
 
-      const roleFilters = user
-        ? buildFilters({
-            user,
-            dateRange:
-              filters.startDate && filters.endDate
-                ? {
-                    from: filters.startDate,
-                    to: filters.endDate,
-                  }
-                : null,
-            measurementType,
-          })
-        : {};
+      const apiFilters = {};
 
-      const params = {
-        populate: [
-          "unit_dump_truck",
-          "unit_dump_truck.company",
-          "operator",
-          "operator.company",
-          "setting_fleet",
-          "setting_fleet.unit_exca",
-          "setting_fleet.loading_location",
-          "setting_fleet.dumping_location",
-          "setting_fleet.pic_work_unit",
-          "setting_fleet.weigh_bridge",
-        ],
-        sort: ["createdAt:desc"],
-        pagination: { pageSize: 100 },
-        filters: roleFilters,
-      };
+      if (measurementType) {
+        apiFilters.measurement_type = { $eq: measurementType };
+      }
 
-      if (!roleFilters.date && (filters.startDate || filters.endDate)) {
-        if (filters.startDate) {
-          params.filters.createdAt = { $gte: filters.startDate };
-        }
-        if (filters.endDate) {
-          if (!params.filters.createdAt) params.filters.createdAt = {};
-          params.filters.createdAt.$lte = filters.endDate;
+      if (filters.startDate && filters.endDate) {
+        apiFilters.date = {
+          $gte: filters.startDate,
+          $lte: filters.endDate,
+        };
+      } else if (filters.startDate) {
+        apiFilters.date = { $gte: filters.startDate };
+      } else if (filters.endDate) {
+        apiFilters.date = { $lte: filters.endDate };
+      }
+
+      if (filters.shift && filters.shift !== "All") {
+        apiFilters.shift = { $eq: filters.shift };
+      }
+
+      if (user) {
+        const role = user.role?.toLowerCase();
+
+        switch (role) {
+          case "operator_jt":
+            if (user.weigh_bridge?.name) {
+              apiFilters.weigh_bridge = { $eq: user.weigh_bridge.name };
+            }
+            break;
+
+          case "ccr":
+          case "pengawas":
+          case "evaluator":
+          case "pic":
+            if (user.work_unit?.subsatker) {
+              apiFilters.pic_work_unit = { $eq: user.work_unit.subsatker };
+            }
+            break;
+
+          case "mitra":
+          case "checker":
+          case "admin":
+            break;
+
+          case "super_admin":
+            break;
         }
       }
+
+      const params = {
+        populate: ["created_by_user", "updated_by_user"],
+        sort: ["createdAt:desc"],
+        pagination: { pageSize: 100 },
+        filters: apiFilters,
+      };
 
       const dateRange =
         filters.startDate && filters.endDate
@@ -600,18 +611,20 @@ export const timbanganServices = {
       const cacheKey = buildDateRangeCacheKey("ritases", dateRange, {
         userId: user?.id,
         measurementType,
+        shift: filters.shift,
       });
 
       const ttl = offlineService.getTTLForDate(dateRange, "timbangan");
 
       logger.info("🔍 Fetching timbangan data", {
-        filters: params.filters,
+        filters: apiFilters,
         cacheKey,
         ttl: `${ttl / 1000}s`,
         forceRefresh: filters.forceRefresh,
         dateRange: validation.days ? `${validation.days} days` : "all",
         role: user?.role,
         measurementType,
+        shift: filters.shift,
       });
 
       const response = await offlineService.get("/ritases", {
@@ -624,88 +637,57 @@ export const timbanganServices = {
       const data = response.data.map((item) => {
         const attr = item.attributes;
 
-        const unitDumpTruck = attr.unit_dump_truck?.data;
-        const operator = attr.operator?.data;
-        const settingFleet = attr.setting_fleet?.data;
-        const fleetAttr = settingFleet?.attributes;
-
         return {
           id: item.id.toString(),
 
           tare_weight: attr.tare_weight || 0,
           net_weight: attr.net_weight || 0,
           gross_weight: attr.gross_weight || 0,
+
           operator: attr.operator || "-",
           loading_location: attr.loading_location || "-",
           dumping_location: attr.dumping_location || "-",
           unit_dump_truck: attr.unit_dump_truck || "-",
+          hull_no: attr.unit_dump_truck || "-",
+          dumptruck: attr.unit_dump_truck || "-",
+
           unit_exca: attr.unit_exca || "-",
+          excavator: attr.unit_exca || "-",
+
           shift: attr.shift || "-",
           coal_type: attr.coal_type || "-",
           checker: attr.checker || "-",
           inspector: attr.inspector || "-",
           pic_work_unit: attr.pic_work_unit || "-",
+          work_unit: attr.pic_work_unit || "-",
           weigh_bridge: attr.weigh_bridge || "-",
           measurement_type: attr.measurement_type || "Timbangan",
+          spph: attr.spph || "-",
+
           date: attr.date || null,
           tanggal: attr.date || attr.createdAt?.split("T")[0] || "",
 
           distance: attr.distance || 0,
-          id_df_setting_fleet: attr.id_df_setting_fleet || null,
-          id_df_setting_dump_truck: attr.id_df_setting_dump_truck || null,
+          id_setting_fleet: attr.id_setting_fleet || null,
 
-          hull_no:
-            attr.unit_dump_truck || unitDumpTruck?.attributes?.hull_no || "-",
+          operatorName: attr.operator || "-",
+          operatorId: null,
+          operatorCompany: "-",
 
-          dumptruck:
-            unitDumpTruck?.attributes?.hull_no || attr.unit_dump_truck || "-",
-          dumptruckId: unitDumpTruck?.id?.toString() || "",
-          dumptruckCompany:
-            unitDumpTruck?.attributes?.company?.data?.attributes?.name || "-",
+          dumptruckId: null,
+          dumptruckCompany: "-",
 
-          operatorId: operator?.id?.toString() || "",
-          operatorName: operator?.attributes?.name || attr.operator || "-",
-          operatorCompany:
-            operator?.attributes?.company?.data?.attributes?.name || "-",
-
-          setting_fleet_id: settingFleet?.id?.toString() || null,
-          fleet_name: fleetAttr?.shift
-            ? `Fleet ${fleetAttr.shift} - ${fleetAttr.date || "-"}`
-            : null,
-          fleet_excavator:
-            fleetAttr?.unit_exca?.data?.attributes?.hull_no ||
-            attr.unit_exca ||
-            null,
-          fleet_shift: fleetAttr?.shift || attr.shift || null,
-          fleet_date: fleetAttr?.date || attr.date || null,
-          fleet_loading:
-            fleetAttr?.loading_location?.data?.attributes?.name ||
-            attr.loading_location ||
-            null,
-          fleet_dumping:
-            fleetAttr?.dumping_location?.data?.attributes?.name ||
-            attr.dumping_location ||
-            null,
-          fleet_coal_type:
-            fleetAttr?.coal_type?.data?.attributes?.name ||
-            attr.coal_type ||
-            null,
-          fleet_checker:
-            fleetAttr?.checker?.data?.attributes?.username ||
-            attr.checker ||
-            null,
-          fleet_inspector:
-            fleetAttr?.inspector?.data?.attributes?.username ||
-            attr.inspector ||
-            null,
-          fleet_work_unit:
-            fleetAttr?.pic_work_unit?.data?.attributes?.subsatker ||
-            attr.pic_work_unit ||
-            null,
-          fleet_weigh_bridge:
-            fleetAttr?.weigh_bridge?.data?.attributes?.name ||
-            attr.weigh_bridge ||
-            null,
+          fleet_excavator: attr.unit_exca || null,
+          fleet_shift: attr.shift || null,
+          fleet_date: attr.date || null,
+          fleet_loading: attr.loading_location || null,
+          fleet_dumping: attr.dumping_location || null,
+          fleet_coal_type: attr.coal_type || null,
+          fleet_checker: attr.checker || null,
+          fleet_inspector: attr.inspector || null,
+          fleet_work_unit: attr.pic_work_unit || null,
+          fleet_weigh_bridge: attr.weigh_bridge || null,
+          setting_fleet_id: attr.id_setting_fleet?.toString() || null,
 
           clientCreatedAt: attr.clientCreatedAt || attr.createdAt,
           timestamp: attr.createdAt,
@@ -723,49 +705,55 @@ export const timbanganServices = {
         cached: !filters.forceRefresh,
         role: user?.role,
         measurementType,
+        shift: filters.shift,
       });
 
       return { success: true, data };
     } catch (error) {
       logger.error("❌ Failed to fetch timbangan data", {
-        error: error,
+        error: error.message,
+        details: error.response?.data,
       });
-      return { success: false, data: [], error: error.response.data.message };
+      return {
+        success: false,
+        data: [],
+        error: error.response?.data?.message || error.message,
+      };
     }
   },
 
-async submitTimbanganForm(formData, type) {
-  try {
-    const grossWeight = formatWeight(formData.gross_weight);
-    const now = new Date().toISOString();
+  async submitTimbanganForm(formData, type) {
+    try {
+      const grossWeight = formatWeight(formData.gross_weight);
+      const now = new Date().toISOString();
 
-    const payload = {
-      setting_fleet: formData.setting_fleet
-        ? parseInt(formData.setting_fleet)
-        : null,
-      unit_dump_truck: formData.unit_dump_truck
-        ? parseInt(formData.unit_dump_truck)
-        : null,
-      operator: formData.operator ? parseInt(formData.operator) : null,
-      gross_weight: parseFloat(grossWeight),
-      created_at: formData.clientCreatedAt || now,
-    };
+      const payload = {
+        setting_fleet: formData.setting_fleet
+          ? parseInt(formData.setting_fleet)
+          : null,
+        unit_dump_truck: formData.unit_dump_truck
+          ? parseInt(formData.unit_dump_truck)
+          : null,
+        operator: formData.operator ? parseInt(formData.operator) : null,
+        gross_weight: parseFloat(grossWeight),
+        created_at: formData.clientCreatedAt || now,
+      };
 
-    if (formData.created_by_user) {
-      payload.created_by_user = parseInt(formData.created_by_user);
-    }
+      if (formData.created_by_user) {
+        payload.created_by_user = parseInt(formData.created_by_user);
+      }
 
-    if (!payload.setting_fleet)
-      throw new Error("Setting fleet wajib dipilih");
-    if (!payload.unit_dump_truck) throw new Error("Dump truck wajib dipilih");
-    if (payload.gross_weight <= 0)
-      throw new Error("Gross weight harus lebih dari 0");
+      if (!payload.setting_fleet)
+        throw new Error("Setting fleet wajib dipilih");
+      if (!payload.unit_dump_truck) throw new Error("Dump truck wajib dipilih");
+      if (payload.gross_weight <= 0)
+        throw new Error("Gross weight harus lebih dari 0");
 
-    logger.info("📤 CREATE Ritase Payload:", payload);
+      logger.info("📤 CREATE Ritase Payload:", payload);
 
-    const response = await offlineService.post("/v1/custom/ritase", payload);
+      const response = await offlineService.post("/v1/custom/ritase", payload);
 
- const serverData = response.data || {};
+      const serverData = response.data || {};
 
       logger.info("✅ Server Response:", serverData);
 
@@ -862,27 +850,45 @@ async submitTimbanganForm(formData, type) {
         data: result,
         message: "Data berhasil disimpan",
       };
+    } catch (error) {
+      const isQueued =
+        error?.queued ||
+        error?.message?.includes("queued for offline sync") ||
+        error?.message?.includes("Request queued");
 
-  } catch (error) {
-    const errorMessage = 
-      error.response?.data?.message ||
-      error.response?.data?.error?.message ||
-      error.response?.data?.error ||
-      error.message ||
-      "Gagal menyimpan data";
+      if (isQueued) {
+        logger.info("📤 Ritase queued for offline sync", {
+          message: error.message,
+        });
 
-    logger.error("Failed to create ritase", {
-      error: errorMessage,
-      details: error.response?.data,
-      status: error.response?.status,
-    });
-    
-    const enhancedError = new Error(errorMessage);
-    enhancedError.response = error.response;
-    enhancedError.originalError = error;
-    throw enhancedError;
-  }
-},
+        return {
+          success: true,
+          queued: true,
+          message: "Data disimpan offline dan akan tersinkron otomatis",
+          data: null,
+        };
+      }
+
+      const errorMessage =
+        error.response?.data?.message ||
+        error.response?.data?.error?.message ||
+        error.response?.data?.error ||
+        error.message ||
+        "Gagal menyimpan data";
+
+      logger.error("Failed to create ritase", {
+        error: errorMessage,
+        details: error.response?.data,
+        status: error.response?.status,
+      });
+
+      const enhancedError = new Error(errorMessage);
+      enhancedError.response = error.response;
+      enhancedError.originalError = error;
+
+      throw enhancedError;
+    }
+  },
 
   async editTimbanganForm(formData, editId) {
     try {
@@ -926,7 +932,7 @@ async submitTimbanganForm(formData, type) {
 
       const response = await offlineService.put(
         `/v1/custom/ritase/${editId}`,
-        payload
+        payload,
       );
 
       const result = {
@@ -971,30 +977,30 @@ async submitTimbanganForm(formData, type) {
         net_weight: result.net_weight,
       });
 
-  return {
-      success: true,
-      data: result,
-      message: "Data berhasil diperbarui",
-    };
-  } catch (error) {
-    const errorMessage = 
-      error.response?.data?.message ||
-      error.response?.data?.error?.message ||
-      error.response?.data?.error ||
-      error.message ||
-      "Gagal memperbarui data";
+      return {
+        success: true,
+        data: result,
+        message: "Data berhasil diperbarui",
+      };
+    } catch (error) {
+      const errorMessage =
+        error.response?.data?.message ||
+        error.response?.data?.error?.message ||
+        error.response?.data?.error ||
+        error.message ||
+        "Gagal memperbarui data";
 
-    logger.error("Failed to update ritase", {
-      error: errorMessage,
-      details: error.response?.data,
-      editId,
-    });
-    
-    const enhancedError = new Error(errorMessage);
-    enhancedError.response = error.response;
-    enhancedError.originalError = error;
-    throw enhancedError;
-  }
+      logger.error("Failed to update ritase", {
+        error: errorMessage,
+        details: error.response?.data,
+        editId,
+      });
+
+      const enhancedError = new Error(errorMessage);
+      enhancedError.response = error.response;
+      enhancedError.originalError = error;
+      throw enhancedError;
+    }
   },
   async deleteTimbanganEntry(id) {
     try {

@@ -104,7 +104,7 @@ const EDIT_VALIDATION_RULES = {
 const findLabelInMasterData = (
   storedValue,
   masterArray,
-  possibleFields = []
+  possibleFields = [],
 ) => {
   if (!storedValue || !masterArray || masterArray.length === 0)
     return storedValue || "";
@@ -119,7 +119,7 @@ const findLabelInMasterData = (
   const numericId = parseInt(storedValue);
   if (!isNaN(numericId)) {
     const foundById = masterArray.find(
-      (item) => item.id === numericId.toString()
+      (item) => item.id === numericId.toString(),
     );
     if (foundById) {
       return getFirstTruthyValue(foundById, ...possibleFields);
@@ -127,7 +127,7 @@ const findLabelInMasterData = (
   }
 
   console.warn(
-    `⚠️ Could not find label for "${storedValue}", using stored value`
+    `⚠️ Could not find label for "${storedValue}", using stored value`,
   );
   return storedValue;
 };
@@ -143,50 +143,50 @@ const createInitialFormData = (editingItem, mode, masters = null) => {
           editingItem,
           "unit_dump_truck",
           "dumptruck",
-          "hull_no"
+          "hull_no",
         ),
         masters.dumpTruck,
-        ["hull_no", "hullNo", "name"]
+        ["hull_no", "hullNo", "name"],
       ),
       unit_exca: findLabelInMasterData(
         getFirstTruthyValue(
           editingItem,
           "unit_exca",
           "excavator",
-          "fleet_excavator"
+          "fleet_excavator",
         ),
         masters.excavators,
-        ["hull_no", "name"]
+        ["hull_no", "name"],
       ),
       loading_location: findLabelInMasterData(
         getFirstTruthyValue(editingItem, "loading_location", "fleet_loading"),
         masters.loadingLocations,
-        ["name"]
+        ["name"],
       ),
       dumping_location: findLabelInMasterData(
         getFirstTruthyValue(editingItem, "dumping_location", "fleet_dumping"),
         masters.dumpingLocations,
-        ["name"]
+        ["name"],
       ),
       pic_work_unit: findLabelInMasterData(
         getFirstTruthyValue(
           editingItem,
           "pic_work_unit",
           "work_unit",
-          "fleet_work_unit"
+          "fleet_work_unit",
         ),
         masters.workUnits,
-        ["subsatker", "satker", "name"]
+        ["subsatker", "satker", "name"],
       ),
       coal_type: findLabelInMasterData(
         getFirstTruthyValue(editingItem, "coal_type", "fleet_coal_type"),
         masters.coalTypes,
-        ["name"]
+        ["name"],
       ),
       shift: findLabelInMasterData(
         getFirstTruthyValue(editingItem, "shift", "fleet_shift"),
         masters.shifts,
-        ["name", "id"]
+        ["name", "id"],
       ),
       operator: getFirstTruthyValue(editingItem, "operator", "operatorName"),
       date: getFirstTruthyValue(editingItem, "date", "fleet_date"),
@@ -206,7 +206,7 @@ const createInitialFormData = (editingItem, mode, masters = null) => {
 export const useTimbanganForm = (
   editingItem = null,
   mode = "create",
-  masters = null
+  masters = null,
 ) => {
   const { user } = useAuthStore();
 
@@ -223,7 +223,7 @@ export const useTimbanganForm = (
   const unhideDumptruck = useTimbanganStore((s) => s.unhideDumptruck);
 
   const [formData, setFormData] = useState(() =>
-    createInitialFormData(editingItem, mode, masters)
+    createInitialFormData(editingItem, mode, masters),
   );
 
   const [errors, setErrors] = useState({});
@@ -373,7 +373,7 @@ export const useTimbanganForm = (
 
       return null;
     },
-    [validationRules]
+    [validationRules],
   );
 
   const validateAllFields = useCallback(() => {
@@ -481,7 +481,7 @@ export const useTimbanganForm = (
         }));
       }
     },
-    [findByHullNo, dtIndex]
+    [findByHullNo, dtIndex],
   );
 
   const updateField = useCallback(
@@ -507,7 +507,7 @@ export const useTimbanganForm = (
 
       setTouched((prev) => ({ ...prev, [fieldName]: true }));
     },
-    [handleHullNoChange, mode]
+    [handleHullNoChange, mode],
   );
 
   const handleFieldBlur = useCallback(
@@ -525,7 +525,7 @@ export const useTimbanganForm = (
         }
       });
     },
-    [formData, validateField]
+    [formData, validateField],
   );
 
   const handleSubmit = useCallback(async () => {
@@ -579,7 +579,7 @@ export const useTimbanganForm = (
           const result = await timbanganServices.editTimbanganForm(
             submissionData,
             editingItem.id,
-            { signal }
+            { signal },
           );
 
           if (!isMountedRef.current) {
@@ -597,7 +597,7 @@ export const useTimbanganForm = (
           showSuccessToast: true,
           successMessage: "Data berhasil diperbarui",
           onError: (err) => setErrors({ submit: "Data Gagal diperbarui" }),
-        }
+        },
       ).finally(() => {
         if (isMountedRef.current) {
           setIsSubmitting(false);
@@ -628,7 +628,7 @@ export const useTimbanganForm = (
           operation: "delete timbangan",
           showSuccessToast: true,
           successMessage: "Data berhasil dihapus",
-        }
+        },
       ).finally(() => {
         if (isMountedRef.current) {
           setIsSubmitting(false);
@@ -654,25 +654,46 @@ export const useTimbanganForm = (
 
           const result = await timbanganServices.submitTimbanganForm(
             submissionData,
-            { signal }
+            { signal },
           );
 
           if (!isMountedRef.current) {
             throw new Error("Component unmounted during request");
           }
 
-          const { addTimbanganEntry, hideDumptruck } =
-            useTimbanganStore.getState();
-          addTimbanganEntry(result.data);
-          hideDumptruck(editingItem?.hull_no || formData.hull_no);
+          if (result.queued) {
+            console.log("📤 [useTimbanganForm] Service returned queued");
 
-          return { success: true, data: result.data };
+            return {
+              success: true,
+              queued: true,
+              data: null,
+              shouldClose: true,
+            };
+          }
+
+          if (result.success && result.data) {
+            const { addTimbanganEntry, hideDumptruck } =
+              useTimbanganStore.getState();
+            addTimbanganEntry(result.data);
+            hideDumptruck(editingItem?.hull_no || formData.hull_no);
+
+            return {
+              success: true,
+              data: result.data,
+              shouldClose: true,
+            };
+          }
+
+          throw new Error(result.error || "Gagal menyimpan data");
         },
         {
           operation: "create timbangan",
-          showSuccessToast: true,
-          successMessage: "Data berhasil disimpan",
-        }
+          showSuccessToast: false,
+          onError: (error) => {
+            throw error;
+          },
+        },
       ).finally(() => {
         if (isMountedRef.current) {
           setIsSubmitting(false);

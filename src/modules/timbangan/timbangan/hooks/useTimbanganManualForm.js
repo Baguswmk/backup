@@ -8,7 +8,7 @@ import useAuthStore from "@/modules/auth/store/authStore";
 
 const DEFAULT_FORM_VALUES = {
   hull_no: "",
-  net_weight: "", // PERBEDAAN UTAMA: input net_weight, bukan gross_weight
+  net_weight: "",
   dumptruck: "",
   operator: "",
   setting_fleet_id: "",
@@ -24,7 +24,7 @@ const CREATE_VALIDATION_RULES = {
     message: "Nomor lambung wajib diisi",
     errorMessage: "Masukkan nomor lambung yang valid",
   },
-  net_weight: { // PERBEDAAN: validasi net_weight
+  net_weight: {
     required: true,
     message: "Net weight wajib diisi",
     validate: (value) => {
@@ -41,7 +41,7 @@ const CREATE_VALIDATION_RULES = {
 };
 
 const EDIT_VALIDATION_RULES = {
-  net_weight: { // PERBEDAAN: validasi net_weight
+  net_weight: {
     required: true,
     message: "Net weight wajib diisi",
     validate: (value) => {
@@ -104,7 +104,7 @@ const EDIT_VALIDATION_RULES = {
 const findLabelInMasterData = (
   storedValue,
   masterArray,
-  possibleFields = []
+  possibleFields = [],
 ) => {
   if (!storedValue || !masterArray || masterArray.length === 0)
     return storedValue || "";
@@ -119,7 +119,7 @@ const findLabelInMasterData = (
   const numericId = parseInt(storedValue);
   if (!isNaN(numericId)) {
     const foundById = masterArray.find(
-      (item) => item.id === numericId.toString()
+      (item) => item.id === numericId.toString(),
     );
     if (foundById) {
       return getFirstTruthyValue(foundById, ...possibleFields);
@@ -127,7 +127,7 @@ const findLabelInMasterData = (
   }
 
   console.warn(
-    `⚠️ Could not find label for "${storedValue}", using stored value`
+    `⚠️ Could not find label for "${storedValue}", using stored value`,
   );
   return storedValue;
 };
@@ -136,57 +136,57 @@ const createInitialFormData = (editingItem, mode, masters = null) => {
   if (editingItem && mode === "edit" && masters) {
     return {
       ...DEFAULT_FORM_VALUES,
-      net_weight: editingItem.net_weight || "", // PERBEDAAN: load net_weight
+      net_weight: editingItem.net_weight || "",
 
       unit_dump_truck: findLabelInMasterData(
         getFirstTruthyValue(
           editingItem,
           "unit_dump_truck",
           "dumptruck",
-          "hull_no"
+          "hull_no",
         ),
         masters.dumpTruck,
-        ["hull_no", "hullNo", "name"]
+        ["hull_no", "hullNo", "name"],
       ),
       unit_exca: findLabelInMasterData(
         getFirstTruthyValue(
           editingItem,
           "unit_exca",
           "excavator",
-          "fleet_excavator"
+          "fleet_excavator",
         ),
         masters.excavators,
-        ["hull_no", "name"]
+        ["hull_no", "name"],
       ),
       loading_location: findLabelInMasterData(
         getFirstTruthyValue(editingItem, "loading_location", "fleet_loading"),
         masters.loadingLocations,
-        ["name"]
+        ["name"],
       ),
       dumping_location: findLabelInMasterData(
         getFirstTruthyValue(editingItem, "dumping_location", "fleet_dumping"),
         masters.dumpingLocations,
-        ["name"]
+        ["name"],
       ),
       pic_work_unit: findLabelInMasterData(
         getFirstTruthyValue(
           editingItem,
           "pic_work_unit",
           "work_unit",
-          "fleet_work_unit"
+          "fleet_work_unit",
         ),
         masters.workUnits,
-        ["subsatker", "satker", "name"]
+        ["subsatker", "satker", "name"],
       ),
       coal_type: findLabelInMasterData(
         getFirstTruthyValue(editingItem, "coal_type", "fleet_coal_type"),
         masters.coalTypes,
-        ["name"]
+        ["name"],
       ),
       shift: findLabelInMasterData(
         getFirstTruthyValue(editingItem, "shift", "fleet_shift"),
         masters.shifts,
-        ["name", "id"]
+        ["name", "id"],
       ),
       operator: getFirstTruthyValue(editingItem, "operator", "operatorName"),
       date: getFirstTruthyValue(editingItem, "date", "fleet_date"),
@@ -206,7 +206,7 @@ const createInitialFormData = (editingItem, mode, masters = null) => {
 export const useTimbanganManualForm = (
   editingItem = null,
   mode = "create",
-  masters = null
+  masters = null,
 ) => {
   const { user } = useAuthStore();
 
@@ -217,7 +217,7 @@ export const useTimbanganManualForm = (
   const dtIndex = useTimbanganStore((s) => s.dtIndex);
 
   const [formData, setFormData] = useState(() =>
-    createInitialFormData(editingItem, mode, masters)
+    createInitialFormData(editingItem, mode, masters),
   );
 
   const [errors, setErrors] = useState({});
@@ -367,7 +367,7 @@ export const useTimbanganManualForm = (
 
       return null;
     },
-    [validationRules]
+    [validationRules],
   );
 
   const validateAllFields = useCallback(() => {
@@ -380,7 +380,6 @@ export const useTimbanganManualForm = (
         isValid = false;
       }
 
-      // PERBEDAAN: validasi net_weight, bukan gross_weight
       if (!formData.net_weight) {
         newErrors.net_weight = "Net weight wajib diisi";
         isValid = false;
@@ -476,7 +475,7 @@ export const useTimbanganManualForm = (
         }));
       }
     },
-    [findByHullNo, dtIndex]
+    [findByHullNo, dtIndex],
   );
 
   const updateField = useCallback(
@@ -502,7 +501,7 @@ export const useTimbanganManualForm = (
 
       setTouched((prev) => ({ ...prev, [fieldName]: true }));
     },
-    [handleHullNoChange, mode]
+    [handleHullNoChange, mode],
   );
 
   const handleFieldBlur = useCallback(
@@ -520,7 +519,7 @@ export const useTimbanganManualForm = (
         }
       });
     },
-    [formData, validateField]
+    [formData, validateField],
   );
 
   const handleSubmit = useCallback(async () => {
@@ -554,7 +553,7 @@ export const useTimbanganManualForm = (
       return await withErrorHandling(
         async () => {
           const submissionData = {
-            net_weight: parseFloat(formData.net_weight), 
+            net_weight: parseFloat(formData.net_weight),
             unit_dump_truck: formData.unit_dump_truck,
             unit_exca: formData.unit_exca,
             loading_location: formData.loading_location,
@@ -574,7 +573,7 @@ export const useTimbanganManualForm = (
           const result = await timbanganManualService.editForm(
             submissionData,
             editingItem.id,
-            { signal }
+            { signal },
           );
 
           if (!isMountedRef.current) {
@@ -588,7 +587,7 @@ export const useTimbanganManualForm = (
           showSuccessToast: true,
           successMessage: "Data berhasil diperbarui",
           onError: (err) => setErrors({ submit: "Data Gagal diperbarui" }),
-        }
+        },
       ).finally(() => {
         if (isMountedRef.current) {
           setIsSubmitting(false);
@@ -611,7 +610,7 @@ export const useTimbanganManualForm = (
           operation: "delete timbangan manual",
           showSuccessToast: true,
           successMessage: "Data berhasil dihapus",
-        }
+        },
       ).finally(() => {
         if (isMountedRef.current) {
           setIsSubmitting(false);
@@ -637,20 +636,41 @@ export const useTimbanganManualForm = (
 
           const result = await timbanganManualService.submitForm(
             submissionData,
-            { signal }
+            { signal },
           );
 
           if (!isMountedRef.current) {
             throw new Error("Component unmounted during request");
           }
 
-          return { success: true, data: result.data };
+          if (result.queued) {
+            console.log("📤 [useTimbanganManualForm] Service returned queued");
+
+            return {
+              success: true,
+              queued: true,
+              data: null,
+              shouldClose: true,
+            };
+          }
+
+          if (result.success && result.data) {
+            return {
+              success: true,
+              data: result.data,
+              shouldClose: true,
+            };
+          }
+
+          throw new Error(result.error || "Gagal menyimpan data");
         },
         {
           operation: "create timbangan manual",
-          showSuccessToast: true,
-          successMessage: "Data berhasil disimpan",
-        }
+          showSuccessToast: false,
+          onError: (error) => {
+            throw error;
+          },
+        },
       ).finally(() => {
         if (isMountedRef.current) {
           setIsSubmitting(false);
@@ -687,7 +707,7 @@ export const useTimbanganManualForm = (
       if (!original) return false;
 
       const hasChanges =
-        parseFloat(formData.net_weight) !== parseFloat(original.net_weight) || // PERBEDAAN
+        parseFloat(formData.net_weight) !== parseFloat(original.net_weight) ||
         formData.unit_dump_truck !== original.unit_dump_truck ||
         formData.unit_exca !== original.unit_exca ||
         formData.loading_location !== original.loading_location ||
@@ -709,14 +729,14 @@ export const useTimbanganManualForm = (
   const formSummary = useMemo(() => {
     if (mode === "edit") {
       return {
-        net_weight: formData.net_weight ? `${formData.net_weight} ton` : "-", // PERBEDAAN
+        net_weight: formData.net_weight ? `${formData.net_weight} ton` : "-",
         isEditMode: true,
       };
     }
 
     return {
       hull_no: formData.hull_no || "-",
-      net_weight: formData.net_weight ? `${formData.net_weight} ton` : "-", // PERBEDAAN
+      net_weight: formData.net_weight ? `${formData.net_weight} ton` : "-",
       isAutoFilled: !!formData.setting_fleet_id && !!currentFleet,
       fleetInfo: currentFleet,
     };

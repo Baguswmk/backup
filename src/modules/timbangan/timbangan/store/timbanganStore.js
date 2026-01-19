@@ -789,7 +789,7 @@ setSelectedFleetsByType: (fleetConfigs, measurementType) => {
 loadTimbanganDataFromAPI: async (
   dateRange = null,
   forceRefresh = true,
-  measurementType = null  // ✅ Parameter ketiga
+  measurementType = null  
 ) => {
   set({ isLoading: true });
 
@@ -798,15 +798,29 @@ loadTimbanganDataFromAPI: async (
     
     const filters = { 
       forceRefresh,
-      user,  // ✅ PENTING: Include user untuk role-based filtering
-      measurementType  // ✅ Pass measurement_type filter
+      user,  
+      measurementType  
     };
 
+    // ✅ FIX: Handle both {from, to} AND {startDate, endDate}
     if (dateRange) {
-      filters.startDate = dateRange.from?.toISOString?.() || dateRange.from;
-      filters.endDate = dateRange.to?.toISOString?.() || dateRange.to;
+      // Cek apakah dateRange punya startDate/endDate (dari component)
+      // atau from/to (dari internal)
+      const fromDate = dateRange.from || dateRange.startDate;
+      const toDate = dateRange.to || dateRange.endDate;
+      
+      if (fromDate) {
+        filters.startDate = fromDate instanceof Date 
+          ? fromDate.toISOString().split('T')[0]
+          : (typeof fromDate === 'string' ? fromDate : null);
+      }
+      
+      if (toDate) {
+        filters.endDate = toDate instanceof Date 
+          ? toDate.toISOString().split('T')[0]
+          : (typeof toDate === 'string' ? toDate : null);
+      }
     }
-
 
     const result = await timbanganServices.fetchTimbanganData(filters);
     

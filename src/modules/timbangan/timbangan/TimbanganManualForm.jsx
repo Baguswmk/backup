@@ -47,7 +47,7 @@ import useAuthStore from "@/modules/auth/store/authStore";
 import { formatWeight } from "@/shared/utils/number";
 import { Calendar } from "@/shared/components/ui/calendar";
 import ConfirmDialog from "@/shared/components/ConfirmDialog";
-
+import { showToast } from "@/shared/utils/toast";
 const TimbanganManualForm = ({
   onSubmit,
   editingItem,
@@ -423,7 +423,7 @@ const TimbanganManualForm = ({
         return {
           value: data.hull_no,
           label: data.hull_no,
-              hint: `${data.excavator} | ${data.operator_name || "No Operator"}`,
+          hint: `${data.excavator} | ${data.operator_name || "No Operator"}`,
           isHidden,
           isCurrent: isCurrentItem,
           __data: data,
@@ -513,6 +513,8 @@ const TimbanganManualForm = ({
       e.preventDefault();
     }
 
+    console.log("🚀 [TimbanganManualForm] handleFormSubmit started");
+
     if (
       !isEditMode &&
       !manualEditMode &&
@@ -520,27 +522,110 @@ const TimbanganManualForm = ({
       insertedWeight === null &&
       currentWeight !== null
     ) {
+      showToast.warning(
+        "Klik tombol 'Insert' untuk mengunci berat terlebih dahulu",
+      );
       return;
     }
-    const result = await handleSubmit();
-    if (result.success && onSubmit) {
-      onSubmit(result);
 
-      if (!isEditMode) {
-        setInsertedWeight(null);
-        setInsertedTime(null);
-        setDisplayWeight("");
-        setManualEditMode(false);
-        setIsWeightStable(false);
-        setStableWeightCount(0);
-        setWaitingForFirstData(true);
-        prevWeightRef.current = null;
-        stableWeightValueRef.current = null;
-        stableWeightStartTimeRef.current = null;
-        if (stableWeightTimerRef.current) {
-          clearTimeout(stableWeightTimerRef.current);
-          stableWeightTimerRef.current = null;
+    try {
+      const result = await handleSubmit();
+      console.log("📊 [TimbanganManualForm] handleSubmit result:", result);
+
+      const isQueued = result?.queued === true;
+      const shouldClose = result?.shouldClose === true;
+
+      console.log("🔍 [TimbanganManualForm] Flags:", {
+        isQueued,
+        shouldClose,
+        result,
+      });
+
+      if (isQueued || (result?.success && !result?.data)) {
+        console.log(
+          "📤 [TimbanganManualForm] Data queued, calling onSubmit...",
+        );
+
+        showToast.info(
+          "📤 Data disimpan di queue dan akan otomatis tersinkron saat online",
+          { duration: 4000 },
+        );
+
+        if (onSubmit) {
+          onSubmit({
+            success: true,
+            queued: true,
+            data: null,
+            shouldClose: true,
+          });
         }
+
+        return;
+      }
+
+      if (result?.success && result?.data) {
+        console.log(
+          "✅ [TimbanganManualForm] Success with data, calling onSubmit...",
+        );
+
+        if (onSubmit) {
+          onSubmit(result);
+        }
+
+        if (!isEditMode) {
+          setInsertedWeight(null);
+          setInsertedTime(null);
+          setDisplayWeight("");
+          setManualEditMode(false);
+          setIsWeightStable(false);
+          setStableWeightCount(0);
+          setWaitingForFirstData(true);
+          prevWeightRef.current = null;
+          stableWeightValueRef.current = null;
+          stableWeightStartTimeRef.current = null;
+          if (stableWeightTimerRef.current) {
+            clearTimeout(stableWeightTimerRef.current);
+            stableWeightTimerRef.current = null;
+          }
+        }
+      }
+    } catch (err) {
+      console.error("❌ [TimbanganManualForm] Error:", err);
+
+      const isQueuedError =
+        err?.queued || err?.message?.includes("queued for offline sync");
+
+      if (isQueuedError) {
+        console.log(
+          "📤 [TimbanganManualForm] Error was queued, treating as success",
+        );
+
+        showToast.info(
+          "📤 Data disimpan di queue dan akan otomatis tersinkron saat online",
+          { duration: 4000 },
+        );
+
+        if (onSubmit) {
+          onSubmit({
+            success: true,
+            queued: true,
+            data: null,
+            shouldClose: true,
+          });
+        }
+
+        return;
+      }
+
+      const isValidation =
+        err?.validationError ||
+        (err?.response?.status >= 400 && err?.response?.status < 500);
+
+      if (isValidation) {
+        showToast.error(err?.message || "Validasi gagal. Periksa input Anda.");
+      } else {
+        const errorMsg = err?.message || "Gagal menyimpan data";
+        showToast.error(errorMsg);
       }
     }
   };
@@ -567,7 +652,7 @@ const TimbanganManualForm = ({
                 commandInput.focus();
                 commandInput.value = "";
                 commandInput.dispatchEvent(
-                  new Event("input", { bubbles: true })
+                  new Event("input", { bubbles: true }),
                 );
               }
             } else {
@@ -581,7 +666,7 @@ const TimbanganManualForm = ({
                   commandInput.focus();
                   commandInput.value = "";
                   commandInput.dispatchEvent(
-                    new Event("input", { bubbles: true })
+                    new Event("input", { bubbles: true }),
                   );
                 }
               }, 100);
@@ -897,7 +982,7 @@ const TimbanganManualForm = ({
                 {format(
                   new Date(editingItem.createdAt),
                   "dd MMM yyyy HH:mm:ss",
-                  { locale: localeId }
+                  { locale: localeId },
                 )}
               </span>
             </div>
@@ -945,7 +1030,7 @@ const TimbanganManualForm = ({
                       ? format(
                           new Date(editingItem.createdAt),
                           "dd MMM yyyy | HH:mm:ss",
-                          { locale: localeId }
+                          { locale: localeId },
                         )
                       : "-"}
                   </span>
@@ -1486,7 +1571,7 @@ const TimbanganManualForm = ({
                 items={hullNoOptions}
                 value={formData.hull_no}
                 onChange={(value) => updateField("hull_no", value)}
-                placeholder="Cari nomor lambung..."
+                placeholder="Input nomor lambung..."
                 emptyText="Nomor lambung tidak ditemukan"
                 disabled={isLoading || hullNoOptions.length === 0}
                 error={!!errors.hull_no}
@@ -1532,10 +1617,10 @@ const TimbanganManualForm = ({
                     manualEditMode
                       ? "bg-yellow-50 border-yellow-400 font-bold dark:text-gray-800"
                       : insertedWeight !== null
-                      ? "bg-green-50 border-green-400 font-bold"
-                      : wsConnected
-                      ? "bg-blue-50 border-blue-300"
-                      : ""
+                        ? "bg-green-50 border-green-400 font-bold"
+                        : wsConnected
+                          ? "bg-blue-50 border-blue-300"
+                          : ""
                   }`}
                   placeholder="0.00"
                   required
@@ -1697,9 +1782,7 @@ const TimbanganManualForm = ({
           <CardContent className="py-3">
             <div className="flex items-center gap-2 mb-3">
               <CheckCircle2 className="w-4 h-4 text-green-600" />
-              <span className="text-sm font-medium text-green-800">
-                Fleet: 
-              </span>
+              <span className="text-sm font-medium text-green-800">Fleet:</span>
               <Badge className="bg-green-600 text-xs">
                 {formSummary.hull_no}
               </Badge>
@@ -1732,8 +1815,6 @@ const TimbanganManualForm = ({
                     {formSummary.fleetInfo.dumpingLocation}
                   </div>
                 </div>
-
-                
 
                 <div className="space-y-1">
                   <div className="text-gray-500">Inspector</div>

@@ -29,13 +29,12 @@ import {
   AUTO_PRINT_DELAY,
   REOPEN_FORM_DELAY,
   FLEET_REFRESH_DELAY,
-  DATE_FILTER_DEBOUNCE,
   CONNECTION_CHECK_TIMEOUT,
   TOAST_MESSAGES,
   FORM_MODES,
   USER_ROLES,
   KEYBOARD_SHORTCUTS,
-  TIMBANGAN_TYPES
+  TIMBANGAN_TYPES,
 } from "@/modules/timbangan/timbangan/constant/timbanganConstants";
 
 const TimbanganManagement = ({ Type }) => {
@@ -48,31 +47,30 @@ const TimbanganManagement = ({ Type }) => {
   const toggleSelectItem = useTimbanganStore((state) => state.toggleSelectItem);
   const toggleSelectAll = useTimbanganStore((state) => state.toggleSelectAll);
   const addTimbanganEntry = useTimbanganStore(
-    (state) => state.addTimbanganEntry
+    (state) => state.addTimbanganEntry,
   );
   const updateTimbanganEntry = useTimbanganStore(
-    (state) => state.updateTimbanganEntry
+    (state) => state.updateTimbanganEntry,
   );
   const deleteTimbanganEntry = useTimbanganStore(
-    (state) => state.deleteTimbanganEntry
+    (state) => state.deleteTimbanganEntry,
   );
   const deleteMultipleTimbanganEntries = useTimbanganStore(
-    (state) => state.deleteMultipleTimbanganEntries
+    (state) => state.deleteMultipleTimbanganEntries,
   );
   const loadTimbanganDataFromAPI = useTimbanganStore(
-    (state) => state.loadTimbanganDataFromAPI
+    (state) => state.loadTimbanganDataFromAPI,
   );
   const loadFleetConfigsFromAPI = useTimbanganStore(
-    (state) => state.loadFleetConfigsFromAPI
-  );
-  const autoFetchTimbanganData = useTimbanganStore(
-    (state) => state.autoFetchTimbanganData
+    (state) => state.loadFleetConfigsFromAPI,
   );
   const setSelectedFleets = useTimbanganStore(
-    (state) => state.setSelectedFleets
+    (state) => state.setSelectedFleets,
   );
-  const setSelectedFleetsByType = useTimbanganStore((state) => state.setSelectedFleetsByType);
-  
+  const setSelectedFleetsByType = useTimbanganStore(
+    (state) => state.setSelectedFleetsByType,
+  );
+
   const hideDumptruck = useTimbanganStore((state) => state.hideDumptruck);
   const unhideDumptruck = useTimbanganStore((state) => state.unhideDumptruck);
 
@@ -99,7 +97,6 @@ const TimbanganManagement = ({ Type }) => {
   const [dateRange, setDateRange] = useState(getInitialDateRange);
 
   const [lastClickTime, setLastClickTime] = useState(0);
-  const [isFleetInitialized, setIsFleetInitialized] = useState(false);
 
   const autoOpenTriggeredRef = useRef(false);
   const autoPrintButtonRef = useRef(null);
@@ -128,7 +125,7 @@ const TimbanganManagement = ({ Type }) => {
     if (dateRange.from || dateRange.to) {
       filtered = filtered.filter((item) => {
         const itemDate = new Date(
-          item.tanggal || item.createdAt || item.timestamp
+          item.tanggal || item.createdAt || item.timestamp,
         );
         if (isNaN(itemDate.getTime())) return false;
         if (dateRange.from && itemDate < dateRange.from) return false;
@@ -170,7 +167,10 @@ const TimbanganManagement = ({ Type }) => {
 
     try {
       const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error("Timeout")), CONNECTION_CHECK_TIMEOUT)
+        setTimeout(
+          () => reject(new Error("Timeout")),
+          CONNECTION_CHECK_TIMEOUT,
+        ),
       );
       const portsPromise = navigator.serial.getPorts();
       const ports = await Promise.race([portsPromise, timeoutPromise]);
@@ -198,39 +198,48 @@ const TimbanganManagement = ({ Type }) => {
     }
   };
 
-const handleDateRangeChange = useCallback((range) => {
-  const normalized = {
-    from: range.from || range.startDate ? new Date(range.from || range.startDate) : null,
-    to: range.to || range.endDate ? new Date(range.to || range.endDate) : null,
-    shift: range.shift || "All",
-  };
+  const handleDateRangeChange = useCallback((range) => {
+    const normalized = {
+      from:
+        range.from || range.startDate
+          ? new Date(range.from || range.startDate)
+          : null,
+      to:
+        range.to || range.endDate ? new Date(range.to || range.endDate) : null,
+      shift: range.shift || "All",
+    };
 
-  if (normalized.from) normalized.from.setHours(0, 0, 0, 0);
-  if (normalized.to) normalized.to.setHours(23, 59, 59, 999);
+    if (normalized.from) normalized.from.setHours(0, 0, 0, 0);
+    if (normalized.to) normalized.to.setHours(23, 59, 59, 999);
 
+    setDateRange(normalized);
 
-  setDateRange(normalized);
+    const { loadTimbanganDataFromAPI } = useTimbanganStore.getState();
 
-  const { loadTimbanganDataFromAPI } = useTimbanganStore.getState();
-  
-  setIsRefreshing(true);
-  
-  loadTimbanganDataFromAPI(
-    { from: normalized.from, to: normalized.to },
-    true,
-    "Timbangan"  // ✅ TAMBAHKAN: Filter by measurement_type = "Timbangan"
-  )
-    .then(() => {
-      showToast.success('Data berhasil dimuat');
-    })
-    .catch((error) => {
-      console.error('❌ Failed to load Timbangan data:', error);
-      showToast.error("Gagal memuat data");
-    })
-    .finally(() => {
-      setIsRefreshing(false);
-    });
-}, []);
+    setIsRefreshing(true);
+
+    loadTimbanganDataFromAPI(
+      { from: normalized.from, to: normalized.to },
+      true,
+      "Timbangan",
+    )
+      .then(() => {
+        showToast.success("Data berhasil dimuat");
+      })
+      .catch((error) => {
+        console.error("❌ Failed to load Timbangan data:", error);
+        showToast.error("Gagal memuat data");
+      })
+      .finally(() => {
+        setIsRefreshing(false);
+      });
+  }, []);
+
+  const handleCloseForm = useCallback(() => {
+    setIsFormOpen(false);
+    setEditingItem(null);
+    setFormMode(FORM_MODES.CREATE);
+  }, []);
 
   const handleRefresh = useCallback(async () => {
     setIsRefreshing(true);
@@ -239,7 +248,7 @@ const handleDateRangeChange = useCallback((range) => {
         loadTimbanganDataFromAPI(
           { from: dateRange.from, to: dateRange.to },
           true,
-          "Timbangan"
+          "Timbangan",
         ),
         loadFleetConfigsFromAPI(
           true,
@@ -247,7 +256,7 @@ const handleDateRangeChange = useCallback((range) => {
             from: dateRange.from,
             to: dateRange.to,
           },
-          "Timbangan"
+          "Timbangan",
         ),
       ]);
       showToast.success(TOAST_MESSAGES.SUCCESS.REFRESH);
@@ -274,80 +283,129 @@ const handleDateRangeChange = useCallback((range) => {
 
   const handleAddShipment = useCallback(
     async (result) => {
+      console.log(
+        "📥 [TimbanganManagement] handleAddShipment called with:",
+        result,
+      );
+
       try {
         setIsActionLoading(true);
 
         if (result.cancelled) {
+          console.log("❌ [TimbanganManagement] User cancelled");
           setShowInputForm(false);
-          setShouldAutoConnect(false);
+          setShouldAutoConnect?.(false);
           return;
         }
 
-        if (result.success && result.data) {
-          setShowInputForm(false);
-          setShouldAutoConnect(false);
+        const isQueued = result?.queued === true;
+        const shouldClose = result?.shouldClose === true;
 
-          if (result.data.hull_no) {
-            hideDumptruck(result.data.hull_no, "submitted");
-          }
+        console.log("🔍 [TimbanganManagement] Detection:", {
+          isQueued,
+          shouldClose,
+          hasData: !!result?.data,
+          success: result?.success,
+        });
 
-          try {
-            await loadTimbanganDataFromAPI(
-              {
-                from: dateRange.from,
-                to: dateRange.to,
-                user,
-              },
-              true
+        if (result.success) {
+          if (isQueued || (shouldClose && !result.data)) {
+            console.log(
+              "📤 [TimbanganManagement] Data queued - CLOSING MODAL IMMEDIATELY",
             );
-          } catch (error) {
-            console.error("⚠️ Gagal reload data setelah submit:", error);
-            addTimbanganEntry(result.data);
+
+            setShowInputForm(false);
+            setShouldAutoConnect?.(false);
+
+            console.log(
+              "✅ [TimbanganManagement] Modal closed, showInputForm =",
+              false,
+            );
+
+            showToast.info(
+              "📤 Data disimpan di queue dan akan otomatis tersinkron saat online",
+              { duration: 4000 },
+            );
+
+            if (userRole === USER_ROLES.OPERATOR_JT) {
+              console.log(
+                "⏱️ [TimbanganManagement] Scheduling reopen in",
+                REOPEN_FORM_DELAY,
+                "ms",
+              );
+              setTimeout(() => {
+                console.log("🔄 [TimbanganManagement] Reopening form...");
+                handleOpenInputForm();
+              }, REOPEN_FORM_DELAY);
+            }
+
+            return;
           }
 
-          setAutoPrintData(result.data);
-          setTimeout(() => {
-            if (autoPrintButtonRef.current) {
-              autoPrintButtonRef.current.click();
-            }
-          }, AUTO_PRINT_DELAY);
+          if (result.data) {
+            console.log("✅ [TimbanganManagement] Success with data");
 
-          if (userRole === USER_ROLES.OPERATOR_JT) {
+            if (shouldClose) {
+              console.log(
+                "🚪 [TimbanganManagement] Closing modal (success with data)",
+              );
+              setShowInputForm(false);
+              setShouldAutoConnect?.(false);
+            }
+
+            if (result.data.hull_no) {
+              hideDumptruck(result.data.hull_no, "submitted");
+            }
+
+            try {
+              await loadTimbanganDataFromAPI(
+                { from: dateRange.from, to: dateRange.to },
+                true,
+              );
+            } catch (error) {
+              console.error("⚠️ Gagal reload data setelah submit:", error);
+              addTimbanganEntry?.(result.data);
+            }
+
+            setAutoPrintData(result.data);
             setTimeout(() => {
-              handleOpenInputForm();
-            }, REOPEN_FORM_DELAY);
+              if (autoPrintButtonRef.current) {
+                autoPrintButtonRef.current.click();
+              }
+            }, AUTO_PRINT_DELAY);
+
+            if (userRole === USER_ROLES.OPERATOR_JT) {
+              setTimeout(() => {
+                handleOpenInputForm();
+              }, REOPEN_FORM_DELAY);
+            }
+
+            showToast.success("Data berhasil disimpan");
           }
         } else {
-          showToast.error(result.error || TOAST_MESSAGES.ERROR.SAVE_FAILED);
+          console.error(
+            "❌ [TimbanganManagement] Submit failed:",
+            result.error,
+          );
+          showToast.error(result.error || "Gagal menyimpan data");
         }
       } catch (error) {
-        console.error("❌ Error in handleAddShipment:", error);
-        showToast.error(TOAST_MESSAGES.ERROR.SAVE_FAILED);
+        console.error("❌ [TimbanganManagement] Exception:", error);
+        showToast.error("Gagal menyimpan data");
       } finally {
         setIsActionLoading(false);
+        console.log("🏁 [TimbanganManagement] handleAddShipment finished");
       }
     },
     [
-      addTimbanganEntry,
       dateRange,
-      loadTimbanganDataFromAPI,
-      hideDumptruck,
       userRole,
       handleOpenInputForm,
-    ]
+      hideDumptruck,
+      loadTimbanganDataFromAPI,
+      addTimbanganEntry,
+    ],
   );
-
-  const handleEditItem = useCallback((item, mode = FORM_MODES.EDIT) => {
-    setEditingItem(item);
-    setFormMode(mode);
-    setIsFormOpen(true);
-  }, []);
-
-  const handleCloseForm = useCallback(() => {
-    setIsFormOpen(false);
-    setEditingItem(null);
-    setFormMode(FORM_MODES.CREATE);
-  }, []);
 
   const handleEditSubmit = useCallback(
     async (result) => {
@@ -359,40 +417,58 @@ const handleDateRangeChange = useCallback((range) => {
           return;
         }
 
-        if (result.success) {
-          showToast.success(result.message || TOAST_MESSAGES.SUCCESS.UPDATE);
-          handleCloseForm();
+        const isQueued = result?.queued || false;
 
-          try {
-            await loadTimbanganDataFromAPI(
-              {
-                from: dateRange.from,
-                to: dateRange.to,
-                user,
-              },
-              true
+        if (result.success) {
+          if (result.shouldClose || result.data) {
+            handleCloseForm();
+          }
+
+          if (isQueued) {
+            showToast.info(
+              "📤 Perubahan disimpan offline dan akan tersinkron otomatis saat online",
+              { duration: 4000 },
             );
-          } catch (error) {
-            console.error("⚠️ Gagal reload data setelah edit:", error);
-            updateTimbanganEntry(editingItem.id, result.data);
+            return;
+          }
+
+          if (result.data) {
+            showToast.success(result.message || "Data berhasil diperbarui");
+
+            try {
+              await loadTimbanganDataFromAPI(
+                { from: dateRange.from, to: dateRange.to },
+                true,
+              );
+            } catch (error) {
+              console.error("⚠️ Gagal reload data setelah edit:", error);
+              updateTimbanganEntry?.(editingItem.id, result.data);
+            }
           }
         } else {
-          showToast.error(result.error || TOAST_MESSAGES.ERROR.UPDATE_FAILED);
+          showToast.error(result.error || "Gagal memperbarui data");
         }
       } catch (error) {
-        showToast.error(TOAST_MESSAGES.ERROR.UPDATE_FAILED);
+        console.error("❌ Error in handleEditSubmit:", error);
+        showToast.error("Gagal memperbarui data");
       } finally {
         setIsActionLoading(false);
       }
     },
     [
       editingItem,
-      updateTimbanganEntry,
       handleCloseForm,
       dateRange,
       loadTimbanganDataFromAPI,
-    ]
+      updateTimbanganEntry,
+    ],
   );
+
+  const handleEditItem = useCallback((item, mode = FORM_MODES.EDIT) => {
+    setEditingItem(item);
+    setFormMode(mode);
+    setIsFormOpen(true);
+  }, []);
 
   const handleDeleteItem = useCallback((item) => {
     setItemToDelete(item);
@@ -417,7 +493,7 @@ const handleDateRangeChange = useCallback((range) => {
               to: dateRange.to,
               user,
             },
-            true
+            true,
           );
         } catch (error) {
           console.error("⚠️ Gagal reload data setelah delete:", error);
@@ -427,7 +503,7 @@ const handleDateRangeChange = useCallback((range) => {
       }
 
       const result = await timbanganServices.deleteTimbanganEntry(
-        itemToDelete.id
+        itemToDelete.id,
       );
 
       if (result.success) {
@@ -436,7 +512,7 @@ const handleDateRangeChange = useCallback((range) => {
         }
 
         showToast.success(
-          result.message || TOAST_MESSAGES.SUCCESS.DELETE_SINGLE
+          result.message || TOAST_MESSAGES.SUCCESS.DELETE_SINGLE,
         );
         setShowDeleteDialog(false);
         setItemToDelete(null);
@@ -448,7 +524,7 @@ const handleDateRangeChange = useCallback((range) => {
               to: dateRange.to,
               user,
             },
-            true
+            true,
           );
         } catch (error) {
           console.error("⚠️ Gagal reload data setelah delete:", error);
@@ -464,11 +540,13 @@ const handleDateRangeChange = useCallback((range) => {
     }
   }, [
     itemToDelete,
-    deleteTimbanganEntry,
+    loadTimbanganDataFromAPI,
+    dateRange.from,
+    dateRange.to,
+    user,
     deleteMultipleTimbanganEntries,
     unhideDumptruck,
-    dateRange,
-    loadTimbanganDataFromAPI,
+    deleteTimbanganEntry,
   ]);
 
   const handleCancelDelete = useCallback(() => {
@@ -476,86 +554,78 @@ const handleDateRangeChange = useCallback((range) => {
     setItemToDelete(null);
   }, []);
 
-// Di TimbanganManual.jsx - UPDATE handleSaveFleetSelection
-
-const handleSaveFleetSelection = useCallback(
+  const handleSaveFleetSelection = useCallback(
     (selectedConfigs) => {
-      
-      // ✅ PERBAIKAN: Simpan full configs, bukan IDs
-      setSelectedFleetsByType(selectedConfigs, 'Timbangan');
-      
-      // Legacy support: juga simpan di selectedFleetIds
-      const ids = selectedConfigs.map(c => c.id);
+      setSelectedFleetsByType(selectedConfigs, "Timbangan");
+
+      const ids = selectedConfigs.map((c) => c.id);
       setSelectedFleets(ids);
-      
-      showToast.success(TOAST_MESSAGES.SUCCESS.FLEET_SELECTION(selectedConfigs.length));
-      
-      // ✅ PENTING: Verify index setelah save
+
+      showToast.success(
+        TOAST_MESSAGES.SUCCESS.FLEET_SELECTION(selectedConfigs.length),
+      );
+
       setTimeout(() => {
         const state = useTimbanganStore.getState();
         const idx = state.dtIndexByType.Timbangan || {};
 
-        
-        // ✅ Jika index kosong, rebuild manual
         if (Object.keys(idx).length === 0) {
-          console.warn('⚠️ Index kosong setelah save, rebuild manual...');
+          console.warn("⚠️ Index kosong setelah save, rebuild manual...");
           const configs = state.fleetConfigsByType.Timbangan || [];
           const selectedIds = state.selectedFleetIdsByType.Timbangan || [];
-          
+
           if (configs.length > 0 && selectedIds.length > 0) {
-            state._executeIndexRebuild(configs, 'Timbangan');
+            state._executeIndexRebuild(configs, "Timbangan");
           }
         }
       }, 300);
     },
-    [setSelectedFleets]
+    [setSelectedFleets],
   );
 
-useEffect(() => {
-  if (initialLoadDone.current) return;
-  initialLoadDone.current = true;
-  setIsInitialLoading(true);
+  useEffect(() => {
+    if (initialLoadDone.current) return;
+    initialLoadDone.current = true;
+    setIsInitialLoading(true);
 
-  const initializeData = async () => {
-    try {
-      const currentState = useTimbanganStore.getState();
-      const hasExistingFleets = currentState.fleetConfigs.length > 0;
-      const hasSelectedFleets = currentState.selectedFleetIds.length > 0;
+    const initializeData = async () => {
+      try {
+        const currentState = useTimbanganStore.getState();
+        const hasExistingFleets = currentState.fleetConfigs.length > 0;
+        const hasSelectedFleets = currentState.selectedFleetIds.length > 0;
 
-      // Load fleet configs jika belum ada
-      if (!hasExistingFleets && !hasSelectedFleets) {
-        const today = new Date();
-        const todayStr = today.toISOString().split("T")[0];
+        if (!hasExistingFleets && !hasSelectedFleets) {
+          const today = new Date();
+          const todayStr = today.toISOString().split("T")[0];
 
-        await loadFleetConfigsFromAPI(
+          await loadFleetConfigsFromAPI(
+            false,
+            { from: todayStr, to: todayStr },
+            "Timbangan",
+          );
+
+          await new Promise((resolve) =>
+            setTimeout(resolve, FLEET_REFRESH_DELAY),
+          );
+        }
+
+        await loadTimbanganDataFromAPI(
+          { from: dateRange.from, to: dateRange.to },
           false,
-          { from: todayStr, to: todayStr },
-          "Timbangan"
+          "Timbangan",
         );
 
-        await new Promise((resolve) =>
-          setTimeout(resolve, FLEET_REFRESH_DELAY)
-        );
+        firstDateRangeSet.current = true;
+      } catch (error) {
+        console.error("❌ Initial load error:", error);
+        showToast.error(TOAST_MESSAGES.ERROR.LOAD_FAILED);
+      } finally {
+        setIsInitialLoading(false);
       }
+    };
 
-      await loadTimbanganDataFromAPI(
-        { from: dateRange.from, to: dateRange.to },
-        false,
-        "Timbangan"
-      );
-
-      firstDateRangeSet.current = true;
-      setIsFleetInitialized(true);
-    } catch (error) {
-      console.error("❌ Initial load error:", error);
-      showToast.error(TOAST_MESSAGES.ERROR.LOAD_FAILED);
-    } finally {
-      setIsInitialLoading(false);
-    }
-  };
-
-  initializeData();
-}, []); 
+    initializeData();
+  }, []);
 
   useEffect(() => {
     if (
@@ -723,7 +793,7 @@ useEffect(() => {
         onCloseFleetDialog={() => setShowFleetDialog(false)}
         onSaveFleetSelection={handleSaveFleetSelection}
         measurementType="Timbangan"
-         timbanganType={TIMBANGAN_TYPES.INTERNAL}
+        timbanganType={TIMBANGAN_TYPES.INTERNAL}
       />
 
       {/* Loading Overlay */}

@@ -1,5 +1,10 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/shared/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/shared/components/ui/card";
 import { Button } from "@/shared/components/ui/button";
 import { Badge } from "@/shared/components/ui/badge";
 import { Input } from "@/shared/components/ui/input";
@@ -15,7 +20,7 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 import { id as localeId } from "date-fns/locale";
-import { beltScaleServices   } from "@/modules/timbangan/timbangan/services/beltscaleServices";
+import { beltScaleServices } from "@/modules/timbangan/timbangan/services/beltscaleServices";
 import { showToast } from "@/shared/utils/toast";
 import { formatWeight } from "@/shared/utils/number";
 import Pagination from "@/shared/components/Pagination";
@@ -27,7 +32,6 @@ const BypassHistoryModal = ({ isOpen, onClose }) => {
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 10;
 
-  // Load history data
   useEffect(() => {
     if (isOpen) {
       loadHistory();
@@ -37,7 +41,7 @@ const BypassHistoryModal = ({ isOpen, onClose }) => {
   const loadHistory = async () => {
     setIsLoading(true);
     try {
-      const result = await beltScaleServices  .getBypassHistory();
+      const result = await beltScaleServices.getBypassHistory();
       if (result.success) {
         setHistoryData(result.data);
       } else {
@@ -51,7 +55,6 @@ const BypassHistoryModal = ({ isOpen, onClose }) => {
     }
   };
 
-  // Filter history
   const filteredHistory = useMemo(() => {
     if (!searchQuery.trim()) return historyData;
 
@@ -69,7 +72,6 @@ const BypassHistoryModal = ({ isOpen, onClose }) => {
     });
   }, [historyData, searchQuery]);
 
-  // Pagination
   const paginatedHistory = useMemo(() => {
     const start = (currentPage - 1) * pageSize;
     return filteredHistory.slice(start, start + pageSize);
@@ -160,11 +162,9 @@ const BypassHistoryModal = ({ isOpen, onClose }) => {
                             <Calendar className="w-4 h-4 text-gray-600" />
                             <span className="font-semibold text-gray-900 dark:text-white">
                               {attrs.date
-                                ? format(
-                                    new Date(attrs.date),
-                                    "dd MMMM yyyy",
-                                    { locale: localeId }
-                                  )
+                                ? format(new Date(attrs.date), "dd MMMM yyyy", {
+                                    locale: localeId,
+                                  })
                                 : "-"}
                             </span>
                             <Badge variant="outline" className="ml-2">

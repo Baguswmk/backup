@@ -48,10 +48,10 @@ const BeltScaleAdjustmentForm = ({ onSubmit, isSubmitting = false }) => {
   });
 
   const SHIFT_OPTIONS = [
-  { value: "Shift 1", label: "Shift 1", hint: "22:00 - 06:00" },
-  { value: "Shift 2", label: "Shift 2", hint: "06:00 - 14:00" },
-  { value: "Shift 3", label: "Shift 3", hint: "14:00 - 22:00" },
-];
+    { value: "Shift 1", label: "Shift 1", hint: "22:00 - 06:00" },
+    { value: "Shift 2", label: "Shift 2", hint: "06:00 - 14:00" },
+    { value: "Shift 3", label: "Shift 3", hint: "14:00 - 22:00" },
+  ];
 
   const [isLoadingPreview, setIsLoadingPreview] = useState(false);
   const [fleetList, setFleetList] = useState([]);
@@ -87,7 +87,7 @@ const BeltScaleAdjustmentForm = ({ onSubmit, isSubmitting = false }) => {
   const totalTonnage = useMemo(() => {
     return selectedFleetData.reduce(
       (sum, fleet) => sum + (fleet.total_tonnage || 0),
-      0
+      0,
     );
   }, [selectedFleetData]);
 
@@ -183,41 +183,68 @@ const BeltScaleAdjustmentForm = ({ onSubmit, isSubmitting = false }) => {
     setBeltscaleWeight(value);
   };
 
-const handleSubmitAdjustment = async () => {
-  if (!beltscaleWeight || parseFloat(beltscaleWeight) <= 0) {
-    showToast.error("Beltscale weight harus lebih dari 0");
-    return;
-  }
-
-  setIsSubmittingAdjustment(true);
-
-  try {
-    const result = await beltScaleServices.submitBeltscaleAdjustment({
-      date: formData.date,
-      shift: formData.shift,
-      dumping_location: formData.dumping_location,
-      beltscale: parseFloat(beltscaleWeight),
-      created_by_user: user?.id || null,
-    });
-
-    if (result.success) {
-      showToast.success(
-        result.message || "Beltscale adjustment berhasil disimpan"
-      );
-
-      handleReset();
-      setShowAdjustModal(false);
-
-      if (onSubmit) {
-        onSubmit(result);
-      }
+  const handleSubmitAdjustment = async () => {
+    if (!beltscaleWeight || parseFloat(beltscaleWeight) <= 0) {
+      showToast.error("Beltscale weight harus lebih dari 0");
+      return;
     }
-  } catch (error) {
-    showToast.error(error.message || "Gagal menyimpan adjustment");
-  } finally {
-    setIsSubmittingAdjustment(false);
-  }
-};
+
+    setIsSubmittingAdjustment(true);
+
+    try {
+      const result = await beltScaleServices.submitBeltscaleAdjustment({
+        date: formData.date,
+        shift: formData.shift,
+        dumping_location: formData.dumping_location,
+        beltscale: parseFloat(beltscaleWeight),
+        created_by_user: user?.id || null,
+      });
+
+      if (result?.success) {
+        showToast.success(
+          result.message || "Beltscale adjustment berhasil disimpan",
+        );
+
+        handleReset();
+        setShowAdjustModal(false);
+
+        if (onSubmit) {
+          onSubmit(result);
+        }
+      }
+    } catch (err) {
+      console.error("❌ Beltscale adjustment error:", err);
+
+      const isQueued =
+        err?.queued || err?.message?.includes("queued for offline sync");
+      const isValidation =
+        err?.validationError ||
+        (err?.response?.status >= 400 && err?.response?.status < 500);
+
+      if (isQueued) {
+        showToast.info(
+          "📤 Data disimpan di queue dan akan otomatis tersinkron saat online",
+          { duration: 4000 },
+        );
+
+        setTimeout(() => {
+          handleReset();
+          setShowAdjustModal(false);
+
+          if (onSubmit) {
+            onSubmit({ success: true, queued: true });
+          }
+        }, 1000);
+      } else if (isValidation) {
+        showToast.error(err?.message || "Validasi gagal. Periksa input Anda.");
+      } else {
+        const errorMsg = err?.message || "Gagal menyimpan adjustment";
+        showToast.error(errorMsg);
+      }
+    } finally {
+      setIsSubmittingAdjustment(false);
+    }
+  };
 
   const handleReset = () => {
     setFormData({
@@ -651,7 +678,7 @@ const handleSubmitAdjustment = async () => {
                       >
                         {parseFloat(beltscaleWeight) > totalTonnage ? "+" : ""}
                         {formatWeight(
-                          parseFloat(beltscaleWeight) - totalTonnage
+                          parseFloat(beltscaleWeight) - totalTonnage,
                         )}{" "}
                         ton
                       </span>

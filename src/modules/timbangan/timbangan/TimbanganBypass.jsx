@@ -18,7 +18,7 @@ import LoadingOverlay from "@/shared/components/LoadingOverlay";
 import PrintTicketButton from "@/modules/timbangan/timbangan/components/PrintTicketButton";
 
 import { useTimbanganStore } from "@/modules/timbangan/timbangan/store/timbanganStore";
-import { timbanganManualService } from "@/modules/timbangan/timbangan/services/timbanganManualService";
+import { timbanganBypassService } from "@/modules/timbangan/timbangan/services/timbanganBypassService";
 import { showToast } from "@/shared/utils/toast";
 import useAuthStore from "@/modules/auth/store/authStore";
 
@@ -36,7 +36,7 @@ import {
   TIMBANGAN_TYPES,
 } from "@/modules/timbangan/timbangan/constant/timbanganConstants";
 
-const TimbanganManual = ({ Type }) => {
+const TimbanganBypass = ({ Type }) => {
   const selectedItems = useTimbanganStore((state) => state.selectedItems);
   const error = useTimbanganStore((state) => state.error);
   const selectedFleetIds = useTimbanganStore((state) => state.selectedFleetIds);
@@ -93,7 +93,7 @@ const TimbanganManual = ({ Type }) => {
 
   const dataFleet = allSelectedFleets.filter((f) => {
     const measurementType = f.measurementType || f.measurement_type;
-    return measurementType === "Timbangan";
+    return measurementType === "Bypass";
   });
 
   const fleetCounts = useMemo(() => {
@@ -108,11 +108,11 @@ const TimbanganManual = ({ Type }) => {
     const selectedTimbangan = state.selectedFleetIdsByType?.Timbangan || [];
 
     if (timbanganConfigs.length > 0 && selectedTimbangan.length === 0) {
-      setSelectedFleetsByType(timbanganConfigs, "Timbangan");
+      setSelectedFleetsByType(timbanganConfigs, "Bypass");
 
       setTimeout(() => {
         const newState = useTimbanganStore.getState();
-        const idx = newState.dtIndexByType.Timbangan || {};
+        newState.dtIndexByType.Timbangan || {};
       }, 300);
     }
   }, [fleetConfigs, setSelectedFleetsByType]);
@@ -193,7 +193,7 @@ const TimbanganManual = ({ Type }) => {
       loadFleetConfigsFromAPI(
         true,
         { from: normalized.from, to: normalized.to },
-        "Timbangan",
+        "Bypass",
       ),
     ])
       .then(() => {
@@ -211,7 +211,7 @@ const TimbanganManual = ({ Type }) => {
   const loadTimbanganData = async (dateRange, forceRefresh = true) => {
     setIsRefreshing(true);
     try {
-      const result = await timbanganManualService.fetchData({
+      const result = await timbanganBypassService.fetchData({
         startDate: dateRange?.from,
         endDate: dateRange?.to,
         user,
@@ -237,7 +237,7 @@ const TimbanganManual = ({ Type }) => {
       loadFleetConfigsFromAPI(
         true,
         { from: dateRange.from, to: dateRange.to },
-        "Timbangan",
+        "Bypass",
       ),
     ]);
     showToast.success(TOAST_MESSAGES.SUCCESS.REFRESH);
@@ -256,11 +256,10 @@ const TimbanganManual = ({ Type }) => {
     });
     setShowDeleteDialog(true);
   }, [selectedItems]);
-
   const handleAddShipment = useCallback(
     async (result) => {
       console.log(
-        "📥 [TimbanganManual] handleAddShipment called with:",
+        "🔥 [TimbanganBypass] handleAddShipment called with:",
         result,
       );
 
@@ -268,7 +267,7 @@ const TimbanganManual = ({ Type }) => {
         setIsActionLoading(true);
 
         if (result.cancelled) {
-          console.log("❌ [TimbanganManual] User cancelled");
+          console.log("❌ [TimbanganBypass] User cancelled");
           setShowInputForm(false);
           return;
         }
@@ -276,7 +275,7 @@ const TimbanganManual = ({ Type }) => {
         const isQueued = result?.queued === true;
         const shouldClose = result?.shouldClose === true;
 
-        console.log("🔍 [TimbanganManual] Detection:", {
+        console.log("🔍 [TimbanganBypass] Detection:", {
           isQueued,
           shouldClose,
           hasData: !!result?.data,
@@ -286,29 +285,29 @@ const TimbanganManual = ({ Type }) => {
         if (result.success) {
           if (isQueued || (shouldClose && !result.data)) {
             console.log(
-              "📤 [TimbanganManual] Data queued - CLOSING MODAL IMMEDIATELY",
+              "📦 [TimbanganBypass] Data queued - CLOSING MODAL IMMEDIATELY",
             );
 
             setShowInputForm(false);
 
             console.log(
-              "✅ [TimbanganManual] Modal closed, showInputForm =",
+              "✅ [TimbanganBypass] Modal closed, showInputForm =",
               false,
             );
 
             showToast.info(
-              "📤 Data disimpan di queue dan akan otomatis tersinkron saat online",
+              "📦 Data disimpan di queue dan akan otomatis tersinkron saat online",
               { duration: 4000 },
             );
 
             if (userRole === USER_ROLES.OPERATOR_JT) {
               console.log(
-                "⏱️ [TimbanganManual] Scheduling reopen in",
+                "⏱️ [TimbanganBypass] Scheduling reopen in",
                 REOPEN_FORM_DELAY,
                 "ms",
               );
               setTimeout(() => {
-                console.log("🔄 [TimbanganManual] Reopening form...");
+                console.log("🔄 [TimbanganBypass] Reopening form...");
                 handleOpenInputForm();
               }, REOPEN_FORM_DELAY);
             }
@@ -317,11 +316,11 @@ const TimbanganManual = ({ Type }) => {
           }
 
           if (result.data) {
-            console.log("✅ [TimbanganManual] Success with data");
+            console.log("✅ [TimbanganBypass] Success with data");
 
             if (shouldClose) {
               console.log(
-                "🚪 [TimbanganManual] Closing modal (success with data)",
+                "🚪 [TimbanganBypass] Closing modal (success with data)",
               );
               setShowInputForm(false);
             }
@@ -351,15 +350,15 @@ const TimbanganManual = ({ Type }) => {
             showToast.success("Data berhasil disimpan");
           }
         } else {
-          console.error("❌ [TimbanganManual] Submit failed:", result.error);
+          console.error("❌ [TimbanganBypass] Submit failed:", result.error);
           showToast.error(result.error || TOAST_MESSAGES.ERROR.SAVE_FAILED);
         }
       } catch (error) {
-        console.error("❌ [TimbanganManual] Exception:", error);
+        console.error("❌ [TimbanganBypass] Exception:", error);
         showToast.error(TOAST_MESSAGES.ERROR.SAVE_FAILED);
       } finally {
         setIsActionLoading(false);
-        console.log("🏁 [TimbanganManual] handleAddShipment finished");
+        console.log("🏁 [TimbanganBypass] handleAddShipment finished");
       }
     },
     [dateRange, userRole, handleOpenInputForm, hideDumptruck],
@@ -428,7 +427,7 @@ const TimbanganManual = ({ Type }) => {
         return;
       }
 
-      const result = await timbanganManualService.deleteEntry(itemToDelete.id);
+      const result = await timbanganBypassService.deleteEntry(itemToDelete.id);
 
       if (result.success) {
         if (itemToDelete.hull_no) {
@@ -461,7 +460,7 @@ const TimbanganManual = ({ Type }) => {
 
   const handleSaveFleetSelection = useCallback(
     (selectedConfigs) => {
-      setSelectedFleetsByType(selectedConfigs, "Timbangan");
+      setSelectedFleetsByType(selectedConfigs, "Bypass");
 
       const ids = selectedConfigs.map((c) => c.id);
       setSelectedFleets(ids);
@@ -480,7 +479,7 @@ const TimbanganManual = ({ Type }) => {
           const selectedIds = state.selectedFleetIdsByType.Timbangan || [];
 
           if (configs.length > 0 && selectedIds.length > 0) {
-            state._executeIndexRebuild(configs, "Timbangan");
+            state._executeIndexRebuild(configs, "Bypass");
           }
         }
       }, 300);
@@ -506,7 +505,7 @@ const TimbanganManual = ({ Type }) => {
           await loadFleetConfigsFromAPI(
             false,
             { from: todayStr, to: todayStr },
-            "Timbangan",
+            "Bypass",
           );
 
           await new Promise((resolve) =>
@@ -619,7 +618,7 @@ const TimbanganManual = ({ Type }) => {
           </Card>
         ) : (
           <TimbanganTable
-            title="Data Timbangan Manual"
+            title="Data Timbangan Bypass"
             userRole={userRole}
             shipments={filteredTimbanganData}
             onEdit={handleEditItem}
@@ -670,7 +669,7 @@ const TimbanganManual = ({ Type }) => {
         showFleetDialog={showFleetDialog}
         onCloseFleetDialog={() => setShowFleetDialog(false)}
         onSaveFleetSelection={handleSaveFleetSelection}
-        measurementType="Timbangan"
+        measurementType="Bypass"
         timbanganType={TIMBANGAN_TYPES.MANUAL}
       />
 
@@ -696,4 +695,4 @@ const TimbanganManual = ({ Type }) => {
   );
 };
 
-export default TimbanganManual;
+export default TimbanganBypass;
