@@ -2,10 +2,6 @@ import { offlineService } from "@/shared/services/offlineService";
 import { logger } from "@/shared/services/log";
 import { buildCacheKey } from "@/shared/utils/cache";
 
-/**
- * Dashboard Service - Overview Daily Dashboard
- * Endpoint: GET /v1/overview/dashboard-daily
- */
 export const dashboardService = {
   /**
    * GET Dashboard Daily Data
@@ -15,38 +11,39 @@ export const dashboardService = {
   async getDashboardDaily(params = {}) {
     try {
       const {
-        start_date,
-        end_date,
+        startDate,
+        endDate,
         shift = "All",
         forceRefresh = false,
       } = params;
 
-      if (!start_date || !end_date) {
-        throw new Error("Parameter start_date dan end_date harus diisi");
+      if (!startDate || !endDate) {
+        throw new Error("Parameter startDate dan endDate harus diisi");
       }
 
       const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
-      if (!dateRegex.test(start_date) || !dateRegex.test(end_date)) {
+      if (!dateRegex.test(startDate) || !dateRegex.test(endDate)) {
         throw new Error("Format tanggal harus YYYY-MM-DD");
       }
 
       const queryParams = new URLSearchParams();
-      queryParams.append("start_date", start_date);
-      queryParams.append("end_date", end_date);
+      queryParams.append("startDate", startDate);
+      queryParams.append("endDate", endDate);
+      queryParams.append("shift", shift);
 
       if (shift && shift !== "All") {
         queryParams.append("shift", shift);
       }
 
       const cacheKey = buildCacheKey("dashboard_daily", {
-        start: start_date,
-        end: end_date,
+        start: startDate,
+        end: endDate,
         shift: shift && shift !== "All" ? shift : undefined,
       });
 
       logger.info("📊 Fetching dashboard daily data", {
-        start_date,
-        end_date,
+        startDate,
+        endDate,
         shift,
         cacheKey,
         forceRefresh,
@@ -64,8 +61,8 @@ export const dashboardService = {
       const transformedData = this._transformDashboardData(response);
 
       logger.info("✅ Dashboard daily data fetched", {
-        start_date,
-        end_date,
+        startDate,
+        endDate,
         shift,
         hasData: transformedData.success,
         summaryData: transformedData.data?.summary,

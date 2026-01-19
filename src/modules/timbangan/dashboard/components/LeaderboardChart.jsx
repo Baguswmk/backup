@@ -82,10 +82,10 @@ const LeaderboardChart = ({ data, isLoading }) => {
       index === 0
         ? "#fbbf24"
         : index === 1
-        ? "#94a3b8"
-        : index === 2
-        ? "#fb923c"
-        : "#3b82f6",
+          ? "#94a3b8"
+          : index === 2
+            ? "#fb923c"
+            : "#3b82f6",
   }));
 
   const getRankIcon = (rank) => {
@@ -146,8 +146,8 @@ const LeaderboardChart = ({ data, isLoading }) => {
                 index === 0
                   ? "bg-yellow-50 border border-yellow-200"
                   : index === 1
-                  ? "bg-gray-50 border border-gray-200"
-                  : "bg-orange-50 border border-orange-200"
+                    ? "bg-gray-50 border border-gray-200"
+                    : "bg-orange-50 border border-orange-200"
               }`}
             >
               <div className="flex justify-center mb-2">

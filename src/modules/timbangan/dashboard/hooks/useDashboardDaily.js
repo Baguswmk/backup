@@ -14,28 +14,21 @@ export const useDashboardDaily = (params = {}, autoFetch = true) => {
   const lastFetchedParamsRef = useRef(null);
   const isInitialMountRef = useRef(true);
 
-  // ✅ Memoized params dengan stable reference
   const memoizedParams = useMemo(
     () => ({
       startDate: params.startDate,
       endDate: params.endDate,
       shift: params.shift || "All",
     }),
-    [params.startDate, params.endDate, params.shift]
+    [params.startDate, params.endDate, params.shift],
   );
 
-  // ✅ Create params signature untuk comparison
   const paramsSignature = useMemo(() => {
     return `${memoizedParams.startDate}|${memoizedParams.endDate}|${memoizedParams.shift}`;
   }, [memoizedParams]);
 
-  /**
-   * Fetch Dashboard Data
-   * @param {boolean} forceRefresh - Force refresh bypass cache
-   */
   const fetchDashboard = useCallback(
     async (forceRefresh = false) => {
-      // ✅ Validasi params
       if (!params.startDate || !params.endDate) {
         const errorMsg = "Tanggal mulai dan akhir harus diisi";
         setError(errorMsg);
@@ -43,7 +36,6 @@ export const useDashboardDaily = (params = {}, autoFetch = true) => {
         return { success: false, error: errorMsg };
       }
 
-      // ✅ Cancel previous request
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
       }
@@ -54,11 +46,10 @@ export const useDashboardDaily = (params = {}, autoFetch = true) => {
 
       return await withErrorHandling(
         async () => {
-          // ✅ Call service dengan params yang sesuai BE
           const response = await dashboardService.getDashboardDaily({
-            start_date: params.startDate,
-            end_date: params.endDate,
-            shift: params.shift || "All", // BE default "All"
+            startDate: params.startDate,
+            endDate: params.endDate,
+            shift: params.shift || "All",
             forceRefresh,
           });
 
@@ -66,7 +57,6 @@ export const useDashboardDaily = (params = {}, autoFetch = true) => {
             throw new Error("Component unmounted");
           }
 
-          // ✅ Set data dari response
           setData(response);
           setLastFetch(new Date());
           setError(null);
@@ -80,16 +70,16 @@ export const useDashboardDaily = (params = {}, autoFetch = true) => {
           onError: (err) => {
             if (!isMountedRef.current) return;
 
-            // ✅ Skip abort errors
-            if (err.name === "AbortError" || err.message === "Component unmounted") {
+            if (
+              err.name === "AbortError" ||
+              err.message === "Component unmounted"
+            ) {
               return;
             }
 
             setData(null);
             setError(err.message);
 
-            // ✅ Only show toast for unexpected errors
-            // Sesuai dengan error message BE
             if (
               !err.message.includes("tidak ditemukan") &&
               !err.message.includes("harus diisi") &&
@@ -97,8 +87,8 @@ export const useDashboardDaily = (params = {}, autoFetch = true) => {
             ) {
               showToast.error(err.message);
             }
-          }
-        }
+          },
+        },
       ).finally(() => {
         if (isMountedRef.current) {
           setIsLoading(false);
@@ -106,19 +96,13 @@ export const useDashboardDaily = (params = {}, autoFetch = true) => {
         abortControllerRef.current = null;
       });
     },
-    [params.startDate, params.endDate, params.shift, paramsSignature]
+    [params.startDate, params.endDate, params.shift, paramsSignature],
   );
 
-  /**
-   * Refresh - Force refresh dengan bypass cache
-   */
   const refresh = useCallback(() => {
     return fetchDashboard(true);
   }, [fetchDashboard]);
 
-  /**
-   * Clear Data
-   */
   const clearData = useCallback(() => {
     setData(null);
     setError(null);
@@ -126,9 +110,6 @@ export const useDashboardDaily = (params = {}, autoFetch = true) => {
     lastFetchedParamsRef.current = null;
   }, []);
 
-  /**
-   * Clear Cache
-   */
   const clearCache = useCallback(async () => {
     return await withErrorHandling(
       async () => {
@@ -140,11 +121,10 @@ export const useDashboardDaily = (params = {}, autoFetch = true) => {
         operation: "clear dashboard cache",
         showSuccessToast: true,
         successMessage: "Cache berhasil dibersihkan",
-      }
+      },
     );
   }, [refresh]);
 
-  // ✅ Auto fetch effect
   useEffect(() => {
     if (!autoFetch) return;
     if (!memoizedParams.startDate || !memoizedParams.endDate) return;
@@ -152,17 +132,13 @@ export const useDashboardDaily = (params = {}, autoFetch = true) => {
     const lastParams = lastFetchedParamsRef.current;
     const currentParams = paramsSignature;
 
-    // ✅ Kondisi fetch:
-    // 1. Initial mount - always fetch
-    // 2. Params changed - fetch
-    const shouldFetch = 
-      isInitialMountRef.current || 
-      lastParams !== currentParams;
+    const shouldFetch =
+      isInitialMountRef.current || lastParams !== currentParams;
 
     if (!shouldFetch) {
       return;
     }
-    
+
     if (isInitialMountRef.current) {
       isInitialMountRef.current = false;
     }
@@ -170,9 +146,14 @@ export const useDashboardDaily = (params = {}, autoFetch = true) => {
     if (isMountedRef.current) {
       fetchDashboard(false);
     }
-  }, [paramsSignature, autoFetch, fetchDashboard, memoizedParams.startDate, memoizedParams.endDate]);
+  }, [
+    paramsSignature,
+    autoFetch,
+    fetchDashboard,
+    memoizedParams.startDate,
+    memoizedParams.endDate,
+  ]);
 
-  // ✅ Mount/unmount effect
   useEffect(() => {
     isMountedRef.current = true;
     isInitialMountRef.current = true;
@@ -186,21 +167,17 @@ export const useDashboardDaily = (params = {}, autoFetch = true) => {
     };
   }, []);
 
-  // ✅ Return values sesuai dengan struktur BE response
   return {
-    // Raw data
     data,
     isLoading,
     error,
     lastFetch,
 
-    // Actions
     fetchDashboard,
     refresh,
     clearData,
     clearCache,
 
-    // Computed values - sesuai struktur BE
     hasData: data !== null && data?.success && data?.data !== null,
     isEmpty: data?.data?.tableData?.length === 0,
     summaryData: data?.data?.summary || null,

@@ -22,23 +22,19 @@ const createInitialFilters = () => {
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
   return {
-    startDate: sevenDaysAgo.toISOString().split('T')[0],
-    endDate: today.toISOString().split('T')[0],
-    shift: 'All',
+    startDate: sevenDaysAgo.toISOString().split("T")[0],
+    endDate: today.toISOString().split("T")[0],
+    shift: "All",
     weighBridge: null,
-    dim: 'loading', // for location breakdown
-    by: 'dumptruck', // for leaderboard
+    dim: "loading",
+    by: "dumptruck",
     limit: 10,
   };
 };
 
 export const dashboardStore = create((set, get) => ({
-  // ============================================
-  // STATE
-  // ============================================
   filters: createInitialFilters(),
-  
-  // Widget data
+
   summary: null,
   trend: [],
   byShift: [],
@@ -46,7 +42,6 @@ export const dashboardStore = create((set, get) => ({
   leaderboard: [],
   queue: [],
 
-  // Loading states
   isLoading: false,
   isLoadingSummary: false,
   isLoadingTrend: false,
@@ -55,18 +50,12 @@ export const dashboardStore = create((set, get) => ({
   isLoadingLeaderboard: false,
   isLoadingQueue: false,
 
-  // Error states
   error: null,
 
-  // Last fetch timestamp
   lastFetch: null,
 
-  // Fetch in progress flag
   fetchInProgress: false,
 
-  // ============================================
-  // FILTER ACTIONS
-  // ============================================
   setFilters: (newFilters) => {
     set((state) => ({
       filters: {
@@ -75,7 +64,6 @@ export const dashboardStore = create((set, get) => ({
       },
     }));
 
-    // Debounced fetch
     get().debouncedFetchAll();
   },
 
@@ -95,23 +83,20 @@ export const dashboardStore = create((set, get) => ({
     get().fetchAll();
   },
 
-  // ============================================
-  // FETCH INDIVIDUAL WIDGETS
-  // ============================================
   fetchSummary: async () => {
     const { filters } = get();
     set({ isLoadingSummary: true });
 
     try {
       const result = await dashboardService.getSummary(filters);
-      
+
       if (result.success) {
         set({ summary: result.data, isLoadingSummary: false });
       } else {
         throw new Error(result.error);
       }
     } catch (error) {
-      logger.error('Failed to fetch summary', { error: error.message });
+      logger.error("Failed to fetch summary", { error: error.message });
       set({ isLoadingSummary: false, error: error.message });
     }
   },
@@ -122,14 +107,14 @@ export const dashboardStore = create((set, get) => ({
 
     try {
       const result = await dashboardService.getTrend(filters);
-      
+
       if (result.success) {
         set({ trend: result.data, isLoadingTrend: false });
       } else {
         throw new Error(result.error);
       }
     } catch (error) {
-      logger.error('Failed to fetch trend', { error: error.message });
+      logger.error("Failed to fetch trend", { error: error.message });
       set({ isLoadingTrend: false, error: error.message });
     }
   },
@@ -140,14 +125,14 @@ export const dashboardStore = create((set, get) => ({
 
     try {
       const result = await dashboardService.getBreakdownByShift(filters);
-      
+
       if (result.success) {
         set({ byShift: result.data, isLoadingByShift: false });
       } else {
         throw new Error(result.error);
       }
     } catch (error) {
-      logger.error('Failed to fetch by shift', { error: error.message });
+      logger.error("Failed to fetch by shift", { error: error.message });
       set({ isLoadingByShift: false, error: error.message });
     }
   },
@@ -158,14 +143,14 @@ export const dashboardStore = create((set, get) => ({
 
     try {
       const result = await dashboardService.getBreakdownByLocation(filters);
-      
+
       if (result.success) {
         set({ byLocation: result.data, isLoadingByLocation: false });
       } else {
         throw new Error(result.error);
       }
     } catch (error) {
-      logger.error('Failed to fetch by location', { error: error.message });
+      logger.error("Failed to fetch by location", { error: error.message });
       set({ isLoadingByLocation: false, error: error.message });
     }
   },
@@ -176,14 +161,14 @@ export const dashboardStore = create((set, get) => ({
 
     try {
       const result = await dashboardService.getLeaderboard(filters);
-      
+
       if (result.success) {
         set({ leaderboard: result.data, isLoadingLeaderboard: false });
       } else {
         throw new Error(result.error);
       }
     } catch (error) {
-      logger.error('Failed to fetch leaderboard', { error: error.message });
+      logger.error("Failed to fetch leaderboard", { error: error.message });
       set({ isLoadingLeaderboard: false, error: error.message });
     }
   },
@@ -196,40 +181,35 @@ export const dashboardStore = create((set, get) => ({
       const result = await dashboardService.getQueue({
         weighBridge: filters.weighBridge,
       });
-      
+
       if (result.success) {
         set({ queue: result.data, isLoadingQueue: false });
       } else {
         throw new Error(result.error);
       }
     } catch (error) {
-      logger.error('Failed to fetch queue', { error: error.message });
+      logger.error("Failed to fetch queue", { error: error.message });
       set({ isLoadingQueue: false, error: error.message });
     }
   },
 
-  // ============================================
-  // FETCH ALL (Parallel)
-  // ============================================
   fetchAll: async () => {
     const state = get();
 
-    // Prevent double fetch
     if (state.fetchInProgress) {
-      logger.warn('⚠️ Fetch already in progress, skipping...');
+      logger.warn("⚠️ Fetch already in progress, skipping...");
       return;
     }
 
-    set({ 
-      isLoading: true, 
+    set({
+      isLoading: true,
       fetchInProgress: true,
-      error: null 
+      error: null,
     });
 
-    logger.info('🔄 Fetching all dashboard widgets...');
+    logger.info("🔄 Fetching all dashboard widgets...");
 
     try {
-      // Fetch all widgets in parallel
       await Promise.all([
         get().fetchSummary(),
         get().fetchTrend(),
@@ -239,34 +219,30 @@ export const dashboardStore = create((set, get) => ({
         get().fetchQueue(),
       ]);
 
-      set({ 
+      set({
         isLoading: false,
         fetchInProgress: false,
         lastFetch: new Date().toISOString(),
       });
 
-      logger.info('✅ All dashboard widgets fetched successfully');
+      logger.info("✅ All dashboard widgets fetched successfully");
     } catch (error) {
-      logger.error('❌ Failed to fetch dashboard data', {
+      logger.error("❌ Failed to fetch dashboard data", {
         error: error.message,
       });
-      
-      set({ 
+
+      set({
         isLoading: false,
         fetchInProgress: false,
-        error: error.message 
+        error: error.message,
       });
     }
   },
 
-  // Debounced version (300ms)
   debouncedFetchAll: debounce(async () => {
     await get().fetchAll();
   }, 300),
 
-  // ============================================
-  // UTILITIES
-  // ============================================
   clearError: () => set({ error: null }),
 
   refresh: () => {

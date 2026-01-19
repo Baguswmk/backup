@@ -45,7 +45,7 @@ const QueueTable = ({ data, isLoading }) => {
     (item) =>
       item.unit_dump_truck?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.loading_location?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.dumping_location?.toLowerCase().includes(searchTerm.toLowerCase())
+      item.dumping_location?.toLowerCase().includes(searchTerm.toLowerCase()),
   );
 
   const getWaitingTime = (createdAt) => {

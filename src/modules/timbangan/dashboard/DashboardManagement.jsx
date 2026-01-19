@@ -48,10 +48,13 @@ const DashboardManagement = () => {
   useEffect(() => {
     if (!autoRefresh) return;
 
-    const interval = setInterval(() => {
-      refresh();
-      showToast.info("Dashboard diperbarui otomatis");
-    }, 5 * 60 * 1000);
+    const interval = setInterval(
+      () => {
+        refresh();
+        showToast.info("Dashboard diperbarui otomatis");
+      },
+      5 * 60 * 1000,
+    );
 
     return () => clearInterval(interval);
   }, [autoRefresh, refresh]);
