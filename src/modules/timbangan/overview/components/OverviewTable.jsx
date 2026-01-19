@@ -1,5 +1,10 @@
 import React from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/shared/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/shared/components/ui/card";
 import { Button } from "@/shared/components/ui/button";
 import { Badge } from "@/shared/components/ui/badge";
 import {
@@ -8,7 +13,7 @@ import {
   FileText,
   MoreVertical,
   Calendar,
-  RefreshCw
+  RefreshCw,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -72,8 +77,10 @@ const OverviewTable = ({
             )}
           </div>
           <div className="flex items-center gap-3">
-          
-            <Badge variant="secondary" className="dark:bg-gray-700 dark:text-gray-200">
+            <Badge
+              variant="secondary"
+              className="dark:bg-gray-700 dark:text-gray-200"
+            >
               Page {currentPage} of {totalPages}
             </Badge>
           </div>
@@ -133,7 +140,7 @@ const OverviewTable = ({
                     key={hour}
                     className="px-3 py-3 text-center font-semibold text-xs min-w-17.5 border-r border-gray-200 dark:border-gray-700"
                   >
-                    {hour.toString().padStart(2, '0')}:00
+                    {hour.toString().padStart(2, "0")}:00
                   </th>
                 ))}
 
@@ -243,41 +250,41 @@ const OverviewTable = ({
                     </td>
 
                     {/* Hourly Data */}
-                    {Array.from({ length: 18 }, (_, i) => i + 6).map(
-                      (hour) => {
-                        // ✅ Format jam menjadi 2 digit (08:00, bukan 8:00)
-                        const hourKey = `${hour.toString().padStart(2, '0')}:00`;
-                        const value = row.hourlyData?.[hourKey] || 0;
-                        const hasData = value > 0;
-                        const isBelowThreshold = hasData && value < 250;
+                    {Array.from({ length: 18 }, (_, i) => i + 6).map((hour) => {
+                      const hourKey = `${hour.toString().padStart(2, "0")}:00`;
+                      const value = row.hourlyData?.[hourKey] || 0;
+                      const hasData = value > 0;
+                      const isBelowThreshold = hasData && value < 250;
 
-                        return (
-                          <td key={hour} className="px-2 py-3 text-center border-r border-gray-200 dark:border-gray-700">
-                            {hasData ? (
-                              <button
-                                onClick={() => onViewHourDetail(row, hour)}
-                                className={`inline-block px-2 py-1 rounded text-xs font-medium cursor-pointer hover:opacity-80 transition-all hover:scale-105 ${
-                                  isBelowThreshold
-                                    ? "bg-red-100 dark:bg-red-900/40 text-red-800 dark:text-red-300 border border-red-300 dark:border-red-700 hover:bg-red-200 dark:hover:bg-red-900/60"
-                                    : "bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-300 border border-green-300 dark:border-green-700 hover:bg-green-200 dark:hover:bg-green-900/60"
-                                }`}
-                                title={`${value.toFixed(1)} ton - ${
-                                  isBelowThreshold
-                                    ? "Di bawah target 250 ton"
-                                    : "Mencapai target"
-                                } - Klik untuk detail`}
-                              >
-                                {formatWeight(value, 1)}
-                              </button>
-                            ) : (
-                              <span className="text-gray-300 dark:text-gray-600 font-medium">
-                                -
-                              </span>
-                            )}
-                          </td>
-                        );
-                      }
-                    )}
+                      return (
+                        <td
+                          key={hour}
+                          className="px-2 py-3 text-center border-r border-gray-200 dark:border-gray-700"
+                        >
+                          {hasData ? (
+                            <button
+                              onClick={() => onViewHourDetail(row, hour)}
+                              className={`inline-block px-2 py-1 rounded text-xs font-medium cursor-pointer hover:opacity-80 transition-all hover:scale-105 ${
+                                isBelowThreshold
+                                  ? "bg-red-100 dark:bg-red-900/40 text-red-800 dark:text-red-300 border border-red-300 dark:border-red-700 hover:bg-red-200 dark:hover:bg-red-900/60"
+                                  : "bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-300 border border-green-300 dark:border-green-700 hover:bg-green-200 dark:hover:bg-green-900/60"
+                              }`}
+                              title={`${value.toFixed(1)} ton - ${
+                                isBelowThreshold
+                                  ? "Di bawah target 250 ton"
+                                  : "Mencapai target"
+                              } - Klik untuk detail`}
+                            >
+                              {formatWeight(value, 1)}
+                            </button>
+                          ) : (
+                            <span className="text-gray-300 dark:text-gray-600 font-medium">
+                              -
+                            </span>
+                          )}
+                        </td>
+                      );
+                    })}
 
                     {/* Total Tonnage */}
                     <td className="px-3 py-3 text-center bg-blue-50 dark:bg-blue-900/30 border-r border-gray-200 dark:border-gray-700">
@@ -306,7 +313,10 @@ const OverviewTable = ({
                             <MoreVertical className="h-4 w-4" />
                           </Button>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-48 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100">
+                        <DropdownMenuContent
+                          align="end"
+                          className="w-48 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100"
+                        >
                           <DropdownMenuItem
                             onClick={() => onViewDetail(row)}
                             className="cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700"

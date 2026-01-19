@@ -1,61 +1,63 @@
-import React, { useState, useMemo, useCallback, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/shared/components/ui/card';
-import { Truck, Hammer, Weight, RefreshCw } from 'lucide-react';
-import OverviewTable from '@/modules/timbangan/overview/components/OverviewTable';
-import OverviewDetailModal from '@/modules/timbangan/overview/components/OverviewDetailModal';
-import HourDetailModal from '@/modules/timbangan/overview/components/HourDetailModal';
-import { exportToPDF } from '@/shared/utils/pdf';
-import { showToast } from '@/shared/utils/toast';
+import React, { useState, useMemo, useCallback, useEffect } from "react";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/shared/components/ui/card";
+import { Truck, Hammer, Weight, RefreshCw } from "lucide-react";
+import OverviewTable from "@/modules/timbangan/overview/components/OverviewTable";
+import OverviewDetailModal from "@/modules/timbangan/overview/components/OverviewDetailModal";
+import HourDetailModal from "@/modules/timbangan/overview/components/HourDetailModal";
+import { exportToPDF } from "@/shared/utils/pdf";
+import { showToast } from "@/shared/utils/toast";
 import { useDashboardDaily } from "@/modules/timbangan/dashboard/hooks/useDashboardDaily";
 
 const OverviewManagement = () => {
   const [dateRange, setDateRange] = useState(() => {
-    const today = new Date().toISOString().split('T')[0];
+    const today = new Date().toISOString().split("T")[0];
     return {
       from: today,
-      to: today
+      to: today,
     };
   });
 
-  const [shift, setShift] = useState('All');
-  
+  const [shift, setShift] = useState("All");
+
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [cachedData, setCachedData] = useState(null);
 
-  // Filter States
-  const [selectedMitra, setSelectedMitra] = useState('All');
-  const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
+  const [selectedMitra, setSelectedMitra] = useState("All");
+  const [sortConfig, setSortConfig] = useState({ key: null, direction: "asc" });
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
-  // Search State
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState("");
 
-  // Advanced Filter State
   const [isFilterExpanded, setIsFilterExpanded] = useState(false);
   const [selectedExcavators, setSelectedExcavators] = useState([]);
   const [selectedLocations, setSelectedLocations] = useState([]);
   const [selectedDumpPoints, setSelectedDumpPoints] = useState([]);
 
-  // Detail Modal State
   const [detailModal, setDetailModal] = useState({
     isOpen: false,
-    data: null
+    data: null,
   });
 
-  // Hour Detail Modal State
   const [hourDetailModal, setHourDetailModal] = useState({
     isOpen: false,
     data: null,
-    hour: null
+    hour: null,
   });
 
-  // ✅ Use hook dengan memoized params
-  const hookParams = useMemo(() => ({
-    startDate: dateRange.from,
-    endDate: dateRange.to,
-    shift: shift
-  }), [dateRange.from, dateRange.to, shift]);
+  const hookParams = useMemo(
+    () => ({
+      startDate: dateRange.from,
+      endDate: dateRange.to,
+      shift: shift,
+    }),
+    [dateRange.from, dateRange.to, shift],
+  );
 
   const {
     data: dashboardData,
@@ -63,34 +65,28 @@ const OverviewManagement = () => {
     error,
     refresh,
     summaryData: hookSummaryData,
-    tableData: hookTableData
+    tableData: hookTableData,
   } = useDashboardDaily(hookParams, true);
 
-  // ✅ Update loading states berdasarkan kondisi
   useEffect(() => {
     if (isLoading) {
-      // Jika belum pernah ada data, ini initial load
       if (!cachedData) {
         setIsRefreshing(false);
       } else {
-        // Jika sudah ada data, ini refresh
         setIsRefreshing(true);
       }
     } else {
-      // Selesai loading
       setIsRefreshing(false);
-      
-      // Cache data baru
+
       if (dashboardData) {
         setCachedData(dashboardData);
       }
     }
   }, [isLoading, dashboardData, cachedData]);
 
-  // ✅ Handle body scroll when any modal is open
   useEffect(() => {
     const isAnyModalOpen = detailModal.isOpen || hourDetailModal.isOpen;
-    
+
     if (isAnyModalOpen) {
       document.body.style.overflow = "hidden";
     } else {
@@ -102,111 +98,128 @@ const OverviewManagement = () => {
     };
   }, [detailModal.isOpen, hourDetailModal.isOpen]);
 
-  // ✅ Memoized table data - gunakan cached data saat refreshing
   const tableData = useMemo(() => {
-    // Saat refreshing, gunakan cached data
     if (isRefreshing && cachedData) {
-      const sourceData = hookTableData?.length > 0 ? hookTableData : cachedData.data?.tableData;
+      const sourceData =
+        hookTableData?.length > 0 ? hookTableData : cachedData.data?.tableData;
       if (!sourceData) return [];
-      
-      return sourceData.map(item => ({
+
+      return sourceData.map((item) => ({
         ...item,
-        ritases: item.ritases?.map(ritase => ({
-          ...ritase,
-          createdAt: ritase.created_at
-        })) || []
+        ritases:
+          item.ritases?.map((ritase) => ({
+            ...ritase,
+            createdAt: ritase.created_at,
+          })) || [],
       }));
     }
 
-    // Initial load atau error
     if (isLoading && !cachedData) return [];
     if (error) return [];
-    
-    // Data tersedia
+
     if (hookTableData && hookTableData.length > 0) {
-      return hookTableData.map(item => ({
+      return hookTableData.map((item) => ({
         ...item,
-        ritases: item.ritases?.map(ritase => ({
-          ...ritase,
-          createdAt: ritase.created_at
-        })) || []
+        ritases:
+          item.ritases?.map((ritase) => ({
+            ...ritase,
+            createdAt: ritase.created_at,
+          })) || [],
       }));
     }
 
     if (!dashboardData?.data?.tableData) return [];
-    
-    return dashboardData.data.tableData.map(item => ({
-      ...item,
-      ritases: item.ritases?.map(ritase => ({
-        ...ritase,
-        createdAt: ritase.created_at
-      })) || []
-    }));
-  }, [hookTableData, dashboardData, isLoading, isRefreshing, cachedData, error]);
 
-  // Extract unique values
+    return dashboardData.data.tableData.map((item) => ({
+      ...item,
+      ritases:
+        item.ritases?.map((ritase) => ({
+          ...ritase,
+          createdAt: ritase.created_at,
+        })) || [],
+    }));
+  }, [
+    hookTableData,
+    dashboardData,
+    isLoading,
+    isRefreshing,
+    cachedData,
+    error,
+  ]);
+
   const uniqueExcavators = useMemo(() => {
-    return [...new Set(tableData.map(r => r.unit_exca))]
+    return [...new Set(tableData.map((r) => r.unit_exca))]
       .filter(Boolean)
-      .map(v => ({ value: v, label: v }));
+      .map((v) => ({ value: v, label: v }));
   }, [tableData]);
 
   const uniqueLoadings = useMemo(() => {
-    return [...new Set(tableData.map(r => r.loading_location))]
+    return [...new Set(tableData.map((r) => r.loading_location))]
       .filter(Boolean)
-      .map(v => ({ value: v, label: v }));
+      .map((v) => ({ value: v, label: v }));
   }, [tableData]);
 
   const uniqueDumpings = useMemo(() => {
-    return [...new Set(tableData.map(r => r.dumping_location))]
+    return [...new Set(tableData.map((r) => r.dumping_location))]
       .filter(Boolean)
-      .map(v => ({ value: v, label: v }));
+      .map((v) => ({ value: v, label: v }));
   }, [tableData]);
 
-  // Filter data with search
   const filteredTableData = useMemo(() => {
-    return tableData.filter(item => {
+    return tableData.filter((item) => {
       if (searchQuery) {
         const search = searchQuery.toLowerCase();
-        const matchSearch = 
+        const matchSearch =
           item.unit_exca?.toLowerCase().includes(search) ||
           item.loading_location?.toLowerCase().includes(search) ||
           item.dumping_location?.toLowerCase().includes(search) ||
           item.company?.toLowerCase().includes(search);
-        
+
         if (!matchSearch) return false;
       }
 
-      const matchMitra = selectedMitra === 'All' || item.company === selectedMitra;
-      const matchExca = selectedExcavators.length === 0 || selectedExcavators.includes(item.unit_exca);
-      const matchLoading = selectedLocations.length === 0 || selectedLocations.includes(item.loading_location);
-      const matchDumping = selectedDumpPoints.length === 0 || selectedDumpPoints.includes(item.dumping_location);
-      
+      const matchMitra =
+        selectedMitra === "All" || item.company === selectedMitra;
+      const matchExca =
+        selectedExcavators.length === 0 ||
+        selectedExcavators.includes(item.unit_exca);
+      const matchLoading =
+        selectedLocations.length === 0 ||
+        selectedLocations.includes(item.loading_location);
+      const matchDumping =
+        selectedDumpPoints.length === 0 ||
+        selectedDumpPoints.includes(item.dumping_location);
+
       return matchMitra && matchExca && matchLoading && matchDumping;
     });
-  }, [tableData, searchQuery, selectedMitra, selectedExcavators, selectedLocations, selectedDumpPoints]);
+  }, [
+    tableData,
+    searchQuery,
+    selectedMitra,
+    selectedExcavators,
+    selectedLocations,
+    selectedDumpPoints,
+  ]);
 
-  // Summary data dengan default 0
   const summaryData = useMemo(() => {
     const defaultSummary = {
       activeDumptrucks: 0,
       activeExcavators: 0,
-      totalTonnage: '0.00',
-      shift1Tonnage: '0.00',
-      shift2Tonnage: '0.00',
-      companyBreakdown: []
+      totalTonnage: "0.00",
+      shift1Tonnage: "0.00",
+      shift2Tonnage: "0.00",
+      companyBreakdown: [],
     };
 
-    // Gunakan cached summary saat refreshing
     if (isRefreshing && cachedData?.data?.summaryData) {
       const cached = cachedData.data.summaryData;
       const companyBreakdown = {};
-      tableData.forEach(item => {
+      tableData.forEach((item) => {
         if (item.company) {
           if (!companyBreakdown[item.company]) {
             companyBreakdown[item.company] = new Set();
           }
-          item.ritases?.forEach(r => {
+          item.ritases?.forEach((r) => {
             if (r.unit_dump_truck) {
               companyBreakdown[item.company].add(r.unit_dump_truck);
             }
@@ -220,10 +233,12 @@ const OverviewManagement = () => {
         totalTonnage: (cached.totalTonnage || 0).toFixed(2),
         shift1Tonnage: (cached.shift1Tonnage || 0).toFixed(2),
         shift2Tonnage: (cached.shift2Tonnage || 0).toFixed(2),
-        companyBreakdown: Object.entries(companyBreakdown).map(([company, trucks]) => ({
-          company,
-          count: trucks.size
-        }))
+        companyBreakdown: Object.entries(companyBreakdown).map(
+          ([company, trucks]) => ({
+            company,
+            count: trucks.size,
+          }),
+        ),
       };
     }
 
@@ -232,12 +247,12 @@ const OverviewManagement = () => {
     }
 
     const companyBreakdown = {};
-    tableData.forEach(item => {
+    tableData.forEach((item) => {
       if (item.company) {
         if (!companyBreakdown[item.company]) {
           companyBreakdown[item.company] = new Set();
         }
-        item.ritases?.forEach(r => {
+        item.ritases?.forEach((r) => {
           if (r.unit_dump_truck) {
             companyBreakdown[item.company].add(r.unit_dump_truck);
           }
@@ -251,33 +266,33 @@ const OverviewManagement = () => {
       totalTonnage: (hookSummaryData.totalTonnage || 0).toFixed(2),
       shift1Tonnage: (hookSummaryData.shift1Tonnage || 0).toFixed(2),
       shift2Tonnage: (hookSummaryData.shift2Tonnage || 0).toFixed(2),
-      companyBreakdown: Object.entries(companyBreakdown).map(([company, trucks]) => ({
-        company,
-        count: trucks.size
-      }))
+      companyBreakdown: Object.entries(companyBreakdown).map(
+        ([company, trucks]) => ({
+          company,
+          count: trucks.size,
+        }),
+      ),
     };
   }, [hookSummaryData, tableData, error, isRefreshing, cachedData]);
 
-  // Sort table data
   const sortedTableData = useMemo(() => {
     if (!sortConfig.key) return filteredTableData;
-    
+
     return [...filteredTableData].sort((a, b) => {
       let aVal = a[sortConfig.key];
       let bVal = b[sortConfig.key];
-      
-      if (sortConfig.key === 'totalTonase') {
+
+      if (sortConfig.key === "totalTonase") {
         aVal = parseFloat(aVal) || 0;
         bVal = parseFloat(bVal) || 0;
       }
-      
-      if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
-      if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
+
+      if (aVal < bVal) return sortConfig.direction === "asc" ? -1 : 1;
+      if (aVal > bVal) return sortConfig.direction === "asc" ? 1 : -1;
       return 0;
     });
   }, [filteredTableData, sortConfig]);
 
-  // Pagination
   const totalPages = Math.ceil(sortedTableData.length / itemsPerPage);
   const paginatedData = useMemo(() => {
     const start = (currentPage - 1) * itemsPerPage;
@@ -285,9 +300,9 @@ const OverviewManagement = () => {
   }, [sortedTableData, currentPage, itemsPerPage]);
 
   const handleSort = useCallback((key) => {
-    setSortConfig(prev => ({
+    setSortConfig((prev) => ({
       key,
-      direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc'
+      direction: prev.key === key && prev.direction === "asc" ? "desc" : "asc",
     }));
   }, []);
 
@@ -296,16 +311,16 @@ const OverviewManagement = () => {
   }, []);
 
   const handleResetFilters = useCallback(() => {
-    setSearchQuery('');
+    setSearchQuery("");
     setSelectedExcavators([]);
     setSelectedLocations([]);
     setSelectedDumpPoints([]);
-    setSelectedMitra('All');
+    setSelectedMitra("All");
     setCurrentPage(1);
-    
-    const today = new Date().toISOString().split('T')[0];
+
+    const today = new Date().toISOString().split("T")[0];
     setDateRange({ from: today, to: today });
-    setShift('All');
+    setShift("All");
   }, []);
 
   const handleRefresh = useCallback(() => {
@@ -322,22 +337,23 @@ const OverviewManagement = () => {
     setCurrentPage(1);
   }, []);
 
-  const hasActiveFilters = searchQuery || 
-                           selectedExcavators.length > 0 || 
-                           selectedLocations.length > 0 || 
-                           selectedDumpPoints.length > 0;
+  const hasActiveFilters =
+    searchQuery ||
+    selectedExcavators.length > 0 ||
+    selectedLocations.length > 0 ||
+    selectedDumpPoints.length > 0;
 
   const openDetailModal = useCallback((rowData) => {
     setDetailModal({
       isOpen: true,
-      data: rowData
+      data: rowData,
     });
   }, []);
 
   const closeDetailModal = useCallback(() => {
     setDetailModal({
       isOpen: false,
-      data: null
+      data: null,
     });
   }, []);
 
@@ -345,7 +361,7 @@ const OverviewManagement = () => {
     setHourDetailModal({
       isOpen: true,
       data: rowData,
-      hour: hour
+      hour: hour,
     });
   }, []);
 
@@ -353,7 +369,7 @@ const OverviewManagement = () => {
     setHourDetailModal({
       isOpen: false,
       data: null,
-      hour: null
+      hour: null,
     });
   }, []);
 
@@ -361,51 +377,63 @@ const OverviewManagement = () => {
     try {
       const success = exportToPDF(rowData);
       if (success) {
-        showToast.success('PDF berhasil dibuat. Silakan cek tab baru.');
+        showToast.success("PDF berhasil dibuat. Silakan cek tab baru.");
       } else {
-        showToast.error('Gagal membuat PDF. Silakan coba lagi atau aktifkan popup pada browser Anda.');
+        showToast.error(
+          "Gagal membuat PDF. Silakan coba lagi atau aktifkan popup pada browser Anda.",
+        );
       }
     } catch (error) {
-      console.error('PDF Export Error:', error);
-      showToast.error('Terjadi kesalahan saat membuat PDF');
+      console.error("PDF Export Error:", error);
+      showToast.error("Terjadi kesalahan saat membuat PDF");
     }
   }, []);
 
-  const filterGroups = useMemo(() => [
-    {
-      id: 'excavator',
-      label: 'Excavator',
-      options: uniqueExcavators,
-      value: selectedExcavators,
-      onChange: (newValue) => {
-        setSelectedExcavators(newValue);
-        setCurrentPage(1);
+  const filterGroups = useMemo(
+    () => [
+      {
+        id: "excavator",
+        label: "Excavator",
+        options: uniqueExcavators,
+        value: selectedExcavators,
+        onChange: (newValue) => {
+          setSelectedExcavators(newValue);
+          setCurrentPage(1);
+        },
+        placeholder: "Pilih Excavator",
       },
-      placeholder: 'Pilih Excavator'
-    },
-    {
-      id: 'loading',
-      label: 'Loading Point',
-      options: uniqueLoadings,
-      value: selectedLocations,
-      onChange: (newValue) => {
-        setSelectedLocations(newValue);
-        setCurrentPage(1);
+      {
+        id: "loading",
+        label: "Loading Point",
+        options: uniqueLoadings,
+        value: selectedLocations,
+        onChange: (newValue) => {
+          setSelectedLocations(newValue);
+          setCurrentPage(1);
+        },
+        placeholder: "Pilih Loading Point",
       },
-      placeholder: 'Pilih Loading Point'
-    },
-    {
-      id: 'dumping',
-      label: 'Dumping Point',
-      options: uniqueDumpings,
-      value: selectedDumpPoints,
-      onChange: (newValue) => {
-        setSelectedDumpPoints(newValue);
-        setCurrentPage(1);
+      {
+        id: "dumping",
+        label: "Dumping Point",
+        options: uniqueDumpings,
+        value: selectedDumpPoints,
+        onChange: (newValue) => {
+          setSelectedDumpPoints(newValue);
+          setCurrentPage(1);
+        },
+        placeholder: "Pilih Dumping Point",
       },
-      placeholder: 'Pilih Dumping Point'
-    }
-  ], [uniqueExcavators, uniqueLoadings, uniqueDumpings, selectedExcavators, selectedLocations, selectedDumpPoints]);
+    ],
+    [
+      uniqueExcavators,
+      uniqueLoadings,
+      uniqueDumpings,
+      selectedExcavators,
+      selectedLocations,
+      selectedDumpPoints,
+    ],
+  );
 
   return (
     <div className="space-y-6 p-4 md:p-6 min-h-screen">
@@ -428,16 +456,19 @@ const OverviewManagement = () => {
             {summaryData.companyBreakdown.length > 0 ? (
               <div className="space-y-1">
                 {summaryData.companyBreakdown.map(({ company, count }) => (
-                  <div key={company} className="flex items-center justify-between text-xs">
-                    <span className="text-gray-600 dark:text-gray-400">{company}:</span>
+                  <div
+                    key={company}
+                    className="flex items-center justify-between text-xs"
+                  >
+                    <span className="text-gray-600 dark:text-gray-400">
+                      {company}:
+                    </span>
                     <span className="font-medium">{count} unit</span>
                   </div>
                 ))}
               </div>
             ) : (
-              <div className="text-xs text-gray-400">
-                Tidak ada data
-              </div>
+              <div className="text-xs text-gray-400">Tidak ada data</div>
             )}
           </CardContent>
         </Card>
@@ -457,7 +488,9 @@ const OverviewManagement = () => {
               {summaryData.activeExcavators}
             </div>
             <div className="text-xs text-gray-500 dark:text-gray-400">
-              {summaryData.activeExcavators === 0 ? 'Tidak ada data' : 'Total unit beroperasi'}
+              {summaryData.activeExcavators === 0
+                ? "Tidak ada data"
+                : "Total unit beroperasi"}
             </div>
           </CardContent>
         </Card>
@@ -478,12 +511,20 @@ const OverviewManagement = () => {
             </div>
             <div className="space-y-1">
               <div className="flex items-center justify-between text-xs">
-                <span className="text-gray-600 dark:text-gray-400">Shift 1:</span>
-                <span className="font-medium">{summaryData.shift1Tonnage} Ton</span>
+                <span className="text-gray-600 dark:text-gray-400">
+                  Shift 1:
+                </span>
+                <span className="font-medium">
+                  {summaryData.shift1Tonnage} Ton
+                </span>
               </div>
               <div className="flex items-center justify-between text-xs">
-                <span className="text-gray-600 dark:text-gray-400">Shift 2:</span>
-                <span className="font-medium">{summaryData.shift2Tonnage} Ton</span>
+                <span className="text-gray-600 dark:text-gray-400">
+                  Shift 2:
+                </span>
+                <span className="font-medium">
+                  {summaryData.shift2Tonnage} Ton
+                </span>
               </div>
             </div>
           </CardContent>

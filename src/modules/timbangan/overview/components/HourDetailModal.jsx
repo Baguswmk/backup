@@ -2,15 +2,22 @@ import React, { useState } from "react";
 import { Card, CardContent } from "@/shared/components/ui/card";
 import { Button } from "@/shared/components/ui/button";
 import { Badge } from "@/shared/components/ui/badge";
-import { 
-  Clock, MapPin, Weight, Plus, Edit, Eye, Trash2, 
-  AlertTriangle, FileText, MoreVertical, Calendar 
+import {
+  Clock,
+  MapPin,
+  Weight,
+  Plus,
+  Edit,
+  Eye,
+  Trash2,
+  AlertTriangle,
+  FileText,
+  MoreVertical,
+  Calendar,
 } from "lucide-react";
 
-// ✅ IMPORTED SHARED COMPONENTS
 import ModalHeader from "@/shared/components/ModalHeader";
 import ConfirmDialog from "@/shared/components/ConfirmDialog";
-import DeleteConfirmDialog from "@/shared/components/DeleteConfirmDialog";
 
 const parseMySQLDateTime = (dateString) => {
   if (!dateString) return new Date();
@@ -20,7 +27,6 @@ const parseMySQLDateTime = (dateString) => {
   return new Date(year, month - 1, day, hour, minute, second);
 };
 
-// ✅ REFACTORED: Using ConfirmDialog instead of custom modal
 const KendalaModal = ({ isOpen, hour, currentKendala, onClose, onSave }) => {
   const [kendala, setKendala] = useState(currentKendala || "");
   const [kategori, setKategori] = useState("operasional");
@@ -82,7 +88,6 @@ const KendalaModal = ({ isOpen, hour, currentKendala, onClose, onSave }) => {
   );
 };
 
-// ✅ REFACTORED: Using ModalHeader
 const RitaseFormModal = ({ isOpen, mode, ritase, onClose, onSave }) => {
   const [formData, setFormData] = useState(
     ritase || {
@@ -93,7 +98,7 @@ const RitaseFormModal = ({ isOpen, mode, ritase, onClose, onSave }) => {
       shift: "Shift 1",
       date: new Date().toISOString().split("T")[0],
       time: new Date().toTimeString().slice(0, 5),
-    }
+    },
   );
 
   const handleChange = (field, value) => {
@@ -128,7 +133,9 @@ const RitaseFormModal = ({ isOpen, mode, ritase, onClose, onSave }) => {
                 <input
                   type="text"
                   value={formData.unit_dump_truck}
-                  onChange={(e) => handleChange("unit_dump_truck", e.target.value)}
+                  onChange={(e) =>
+                    handleChange("unit_dump_truck", e.target.value)
+                  }
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 dark:text-gray-200"
                   placeholder="Contoh: DT-001"
                   required
@@ -244,7 +251,6 @@ const RitaseFormModal = ({ isOpen, mode, ritase, onClose, onSave }) => {
   );
 };
 
-// ✅ REFACTORED: Using ModalHeader
 const RitaseDetailModal = ({ isOpen, ritase, onClose, onEdit }) => {
   if (!isOpen || !ritase) return null;
 
@@ -264,11 +270,7 @@ const RitaseDetailModal = ({ isOpen, ritase, onClose, onEdit }) => {
     <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-black/50">
       <Card className="w-full max-w-2xl bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100">
         {/* ✅ USING ModalHeader */}
-        <ModalHeader
-          title="Detail Ritase"
-          icon={Eye}
-          onClose={onClose}
-        />
+        <ModalHeader title="Detail Ritase" icon={Eye} onClose={onClose} />
 
         <CardContent className="p-6">
           <div className="space-y-4">
@@ -277,13 +279,17 @@ const RitaseDetailModal = ({ isOpen, ritase, onClose, onEdit }) => {
                 <label className="text-sm text-gray-500 dark:text-gray-400">
                   Unit Dump Truck
                 </label>
-                <p className="font-semibold text-lg dark:text-gray-200">{ritase.unit_dump_truck}</p>
+                <p className="font-semibold text-lg dark:text-gray-200">
+                  {ritase.unit_dump_truck}
+                </p>
               </div>
               <div>
                 <label className="text-sm text-gray-500 dark:text-gray-400">
                   Driver
                 </label>
-                <p className="font-semibold text-lg dark:text-gray-200">{ritase.driver || "-"}</p>
+                <p className="font-semibold text-lg dark:text-gray-200">
+                  {ritase.driver || "-"}
+                </p>
               </div>
               <div>
                 <label className="text-sm text-gray-500 dark:text-gray-400">
@@ -299,8 +305,14 @@ const RitaseDetailModal = ({ isOpen, ritase, onClose, onEdit }) => {
                 </label>
                 <div className="mt-1">
                   <Badge
-                    variant={ritase.shift.includes("1") ? "default" : "secondary"}
-                    className={ritase.shift.includes("1") ? "dark:bg-blue-600" : "dark:bg-gray-700"}
+                    variant={
+                      ritase.shift.includes("1") ? "default" : "secondary"
+                    }
+                    className={
+                      ritase.shift.includes("1")
+                        ? "dark:bg-blue-600"
+                        : "dark:bg-gray-700"
+                    }
                   >
                     {ritase.shift.split("(")[0].trim()}
                   </Badge>
@@ -321,7 +333,9 @@ const RitaseDetailModal = ({ isOpen, ritase, onClose, onEdit }) => {
                   Tanggal & Waktu
                 </label>
                 <p className="font-medium dark:text-gray-200">{displayDate}</p>
-                <p className="text-sm text-gray-600 dark:text-gray-400">{displayTime}</p>
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  {displayTime}
+                </p>
               </div>
             </div>
 
@@ -351,7 +365,6 @@ const RitaseDetailModal = ({ isOpen, ritase, onClose, onEdit }) => {
   );
 };
 
-// ✅ REFACTORED: Using ConfirmDialog
 const DeleteConfirmModal = ({ isOpen, ritase, onClose, onConfirm }) => {
   if (!isOpen || !ritase) return null;
 
@@ -390,7 +403,6 @@ const DeleteConfirmModal = ({ isOpen, ritase, onClose, onConfirm }) => {
   );
 };
 
-// ✅ MAIN COMPONENT - REFACTORED: Using ModalHeader
 const HourDetailModal = ({ isOpen, data, hour, onClose }) => {
   const [showKendalaModal, setShowKendalaModal] = useState(false);
   const [showFormModal, setShowFormModal] = useState(false);
@@ -443,17 +455,12 @@ const HourDetailModal = ({ isOpen, data, hour, onClose }) => {
     setActionMenuOpen(null);
   };
 
-  const handleSaveRitase = (formData) => {
-    // Implementasi save ke backend
-  };
+  const handleSaveRitase = (formData) => {};
 
-  const handleConfirmDelete = (id) => {
-    // Implementasi delete ke backend
-  };
+  const handleConfirmDelete = (id) => {};
 
   const handleSaveKendala = (kendalaInfo) => {
     setKendalaData(kendalaInfo);
-    // Implementasi save kendala ke backend
   };
 
   return (
@@ -468,18 +475,30 @@ const HourDetailModal = ({ isOpen, data, hour, onClose }) => {
                 <div className="flex flex-wrap gap-4 text-sm">
                   <div className="flex items-center gap-2">
                     <MapPin className="w-4 h-4 text-gray-500 dark:text-gray-400" />
-                    <span className="text-gray-600 dark:text-gray-400">Loading:</span>
-                    <span className="font-medium dark:text-gray-200">{data.loading_location}</span>
+                    <span className="text-gray-600 dark:text-gray-400">
+                      Loading:
+                    </span>
+                    <span className="font-medium dark:text-gray-200">
+                      {data.loading_location}
+                    </span>
                   </div>
                   <div className="flex items-center gap-2">
                     <MapPin className="w-4 h-4 text-gray-500 dark:text-gray-400" />
-                    <span className="text-gray-600 dark:text-gray-400">Dumping:</span>
-                    <span className="font-medium dark:text-gray-200">{data.dumping_location}</span>
+                    <span className="text-gray-600 dark:text-gray-400">
+                      Dumping:
+                    </span>
+                    <span className="font-medium dark:text-gray-200">
+                      {data.dumping_location}
+                    </span>
                   </div>
                   <div className="flex items-center gap-2">
                     <Weight className="w-4 h-4 text-gray-500 dark:text-gray-400" />
-                    <span className="text-gray-600 dark:text-gray-400">Total Jam Ini:</span>
-                    <span className={`font-bold ${isBelowThreshold ? "text-red-600 dark:text-red-400" : "text-green-600 dark:text-green-400"}`}>
+                    <span className="text-gray-600 dark:text-gray-400">
+                      Total Jam Ini:
+                    </span>
+                    <span
+                      className={`font-bold ${isBelowThreshold ? "text-red-600 dark:text-red-400" : "text-green-600 dark:text-green-400"}`}
+                    >
                       {totalTonnage.toFixed(2)} Ton
                     </span>
                     {isBelowThreshold && (
@@ -493,7 +512,9 @@ const HourDetailModal = ({ isOpen, data, hour, onClose }) => {
 
                 {data.pic_work_unit && (
                   <div className="flex items-center gap-2 text-sm">
-                    <span className="text-gray-600 dark:text-gray-400">PIC Work Unit:</span>
+                    <span className="text-gray-600 dark:text-gray-400">
+                      PIC Work Unit:
+                    </span>
                     <Badge variant="outline" className="dark:border-gray-600">
                       {data.pic_work_unit}
                     </Badge>
@@ -546,33 +567,53 @@ const HourDetailModal = ({ isOpen, data, hour, onClose }) => {
                 <thead className="bg-gray-50 dark:bg-gray-800 sticky top-0">
                   <tr>
                     <th className="px-3 py-2 text-left font-semibold">No</th>
-                    <th className="px-3 py-2 text-left font-semibold">Tanggal & Waktu</th>
-                    <th className="px-3 py-2 text-left font-semibold">Dump Truck</th>
-                    <th className="px-3 py-2 text-left font-semibold">Driver</th>
+                    <th className="px-3 py-2 text-left font-semibold">
+                      Tanggal & Waktu
+                    </th>
+                    <th className="px-3 py-2 text-left font-semibold">
+                      Dump Truck
+                    </th>
+                    <th className="px-3 py-2 text-left font-semibold">
+                      Driver
+                    </th>
                     <th className="px-3 py-2 text-left font-semibold">Mitra</th>
-                    <th className="px-3 py-2 text-right font-semibold">Berat (Ton)</th>
-                    <th className="px-3 py-2 text-center font-semibold">Shift</th>
-                    <th className="px-3 py-2 text-center font-semibold">Aksi</th>
+                    <th className="px-3 py-2 text-right font-semibold">
+                      Berat (Ton)
+                    </th>
+                    <th className="px-3 py-2 text-center font-semibold">
+                      Shift
+                    </th>
+                    <th className="px-3 py-2 text-center font-semibold">
+                      Aksi
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                   {sortedRitases.length === 0 ? (
                     <tr>
-                      <td colSpan="8" className="px-3 py-8 text-center text-gray-500 dark:text-gray-400">
+                      <td
+                        colSpan="8"
+                        className="px-3 py-8 text-center text-gray-500 dark:text-gray-400"
+                      >
                         Tidak ada data ritase pada jam ini
                       </td>
                     </tr>
                   ) : (
                     sortedRitases.map((ritase, idx) => {
                       const ritaseDate = parseMySQLDateTime(ritase.created_at);
-                      const displayDate = ritase.date || ritaseDate.toLocaleDateString("id-ID", {
-                        day: "2-digit",
-                        month: "short",
-                        year: "numeric",
-                      });
+                      const displayDate =
+                        ritase.date ||
+                        ritaseDate.toLocaleDateString("id-ID", {
+                          day: "2-digit",
+                          month: "short",
+                          year: "numeric",
+                        });
 
                       return (
-                        <tr key={ritase.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50">
+                        <tr
+                          key={ritase.id}
+                          className="hover:bg-gray-50 dark:hover:bg-gray-800/50"
+                        >
                           <td className="px-3 py-2">{idx + 1}</td>
                           <td className="px-3 py-2">
                             <div className="flex flex-col gap-1">
@@ -589,12 +630,17 @@ const HourDetailModal = ({ isOpen, data, hour, onClose }) => {
                               </div>
                             </div>
                           </td>
-                          <td className="px-3 py-2 font-medium dark:text-gray-200">{ritase.unit_dump_truck}</td>
+                          <td className="px-3 py-2 font-medium dark:text-gray-200">
+                            {ritase.unit_dump_truck}
+                          </td>
                           <td className="px-3 py-2 text-gray-700 dark:text-gray-300">
                             {ritase.driver || "-"}
                           </td>
                           <td className="px-3 py-2">
-                            <Badge variant="secondary" className="text-xs dark:bg-gray-700">
+                            <Badge
+                              variant="secondary"
+                              className="text-xs dark:bg-gray-700"
+                            >
                               {ritase.company}
                             </Badge>
                           </td>
@@ -603,8 +649,16 @@ const HourDetailModal = ({ isOpen, data, hour, onClose }) => {
                           </td>
                           <td className="px-3 py-2 text-center">
                             <Badge
-                              variant={ritase.shift.includes("1") ? "default" : "secondary"}
-                              className={ritase.shift.includes("1") ? "dark:bg-blue-600" : "dark:bg-gray-700"}
+                              variant={
+                                ritase.shift.includes("1")
+                                  ? "default"
+                                  : "secondary"
+                              }
+                              className={
+                                ritase.shift.includes("1")
+                                  ? "dark:bg-blue-600"
+                                  : "dark:bg-gray-700"
+                              }
                             >
                               {ritase.shift.split("(")[0].trim()}
                             </Badge>
@@ -613,12 +667,18 @@ const HourDetailModal = ({ isOpen, data, hour, onClose }) => {
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => setActionMenuOpen(actionMenuOpen === ritase.id ? null : ritase.id)}
+                              onClick={() =>
+                                setActionMenuOpen(
+                                  actionMenuOpen === ritase.id
+                                    ? null
+                                    : ritase.id,
+                                )
+                              }
                               className="h-8 w-8 p-0 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800"
                             >
                               <MoreVertical className="w-4 h-4" />
                             </Button>
-                            
+
                             {actionMenuOpen === ritase.id && (
                               <div className="absolute right-0  mt-2 w-48 bg-white dark:bg-gray-800 rounded-md shadow-lg border border-gray-200 dark:border-gray-700 z-10">
                                 <Button
@@ -657,7 +717,13 @@ const HourDetailModal = ({ isOpen, data, hour, onClose }) => {
                         Total Tonase Jam {hour}:00:
                       </td>
                       <td className="px-3 py-2 text-right">
-                        <span className={isBelowThreshold ? "text-red-600 dark:text-red-400" : "text-green-600 dark:text-green-400"}>
+                        <span
+                          className={
+                            isBelowThreshold
+                              ? "text-red-600 dark:text-red-400"
+                              : "text-green-600 dark:text-green-400"
+                          }
+                        >
                           {totalTonnage.toFixed(2)}
                         </span>
                       </td>
