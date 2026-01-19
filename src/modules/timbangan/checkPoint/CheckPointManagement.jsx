@@ -36,7 +36,7 @@ import {
   TIMBANGAN_TYPES,
 } from "@/modules/timbangan/checkpoint/constant/checkpointConstants";
 
-const CheckPointManagement = ({Type}) => {
+const CheckPointManagement = ({ Type }) => {
   const selectedItems = useTimbanganStore((state) => state.selectedItems);
   const error = useTimbanganStore((state) => state.error);
   const selectedFleetIds = useTimbanganStore((state) => state.selectedFleetIds);
@@ -44,13 +44,17 @@ const CheckPointManagement = ({Type}) => {
   const clearError = useTimbanganStore((state) => state.clearError);
   const toggleSelectItem = useTimbanganStore((state) => state.toggleSelectItem);
   const toggleSelectAll = useTimbanganStore((state) => state.toggleSelectAll);
-  const loadFleetConfigsFromAPI = useTimbanganStore((state) => state.loadFleetConfigsFromAPI);
-  const setSelectedFleets = useTimbanganStore((state) => state.setSelectedFleets);
+  const loadFleetConfigsFromAPI = useTimbanganStore(
+    (state) => state.loadFleetConfigsFromAPI,
+  );
+  const setSelectedFleets = useTimbanganStore(
+    (state) => state.setSelectedFleets,
+  );
 
   const { user } = useAuthStore();
   const userRole = user?.role;
 
-  const [isInitialLoading, setIsInitialLoading] = useState(false);
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isActionLoading, setIsActionLoading] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -72,7 +76,6 @@ const CheckPointManagement = ({Type}) => {
 
   const autoPrintButtonRef = useRef(null);
   const initialLoadDone = useRef(false);
-  const firstDateRangeSet = useRef(false);
 
   const allSelectedFleets = useMemo(() => {
     if (fleetConfigs.length === 0) return [];
@@ -81,11 +84,12 @@ const CheckPointManagement = ({Type}) => {
 
   const dataFleet = allSelectedFleets.filter((f) => {
     const measurementType = f.measurementType || f.measurement_type;
-    return measurementType === "Timbangan";
+    return measurementType === "Bypass";
   });
 
-    const setSelectedFleetsByType = useTimbanganStore((state) => state.setSelectedFleetsByType);
-  
+  const setSelectedFleetsByType = useTimbanganStore(
+    (state) => state.setSelectedFleetsByType,
+  );
 
   const fleetCounts = useMemo(() => {
     return {
@@ -97,16 +101,38 @@ const CheckPointManagement = ({Type}) => {
     let filtered = localTimbanganData;
 
     if (dateRange.from || dateRange.to) {
+      const beforeFilter = filtered.length;
+
       filtered = filtered.filter((item) => {
-        const itemDate = new Date(item.tanggal || item.createdAt || item.timestamp);
-        if (isNaN(itemDate.getTime())) return false;
-        if (dateRange.from && itemDate < dateRange.from) return false;
-        if (dateRange.to && itemDate > dateRange.to) return false;
-        return true;
+        const itemDate = new Date(
+          item.tanggal || item.createdAt || item.timestamp,
+        );
+
+        if (isNaN(itemDate.getTime())) {
+          console.warn("⚠️ Invalid date for item:", item.id);
+          return false;
+        }
+
+        const itemDateNormalized = new Date(itemDate);
+        itemDateNormalized.setHours(0, 0, 0, 0);
+
+        const fromNormalized = dateRange.from ? new Date(dateRange.from) : null;
+        const toNormalized = dateRange.to ? new Date(dateRange.to) : null;
+
+        if (fromNormalized) fromNormalized.setHours(0, 0, 0, 0);
+        if (toNormalized) toNormalized.setHours(0, 0, 0, 0);
+
+        const passFrom =
+          !fromNormalized || itemDateNormalized >= fromNormalized;
+        const passTo = !toNormalized || itemDateNormalized <= toNormalized;
+
+        return passFrom && passTo;
       });
     }
 
     if (dateRange.shift && dateRange.shift !== "All") {
+      const beforeFilter = filtered.length;
+
       filtered = filtered.filter((item) => {
         const itemShift = item.shift || item.fleet_shift || "";
         return itemShift === dateRange.shift;
@@ -122,7 +148,6 @@ const CheckPointManagement = ({Type}) => {
       selectedItems.length === filteredTimbanganData.length
     );
   }, [filteredTimbanganData.length, selectedItems.length]);
-
 
   const handleOpenInputForm = useCallback(async () => {
     const now = Date.now();
@@ -143,20 +168,7 @@ const CheckPointManagement = ({Type}) => {
     }
   };
 
-  const handleDateRangeChange = useCallback((range) => {
-    const normalized = {
-      from: range.from || range.startDate ? new Date(range.from || range.startDate) : null,
-      to: range.to || range.endDate ? new Date(range.to || range.endDate) : null,
-      shift: range.shift || "All",
-    };
-
-    if (normalized.from) normalized.from.setHours(0, 0, 0, 0);
-    if (normalized.to) normalized.to.setHours(23, 59, 59, 999);
-
-    setDateRange(normalized);
-  }, []);
-
-  const loadTimbanganData = async (dateRange, forceRefresh = true) => {
+  const loadTimbanganData = async (dateRange, forceRefresh = false) => {
     setIsRefreshing(true);
     try {
       const result = await checkpointService.fetchCheckpointData({
@@ -168,21 +180,59 @@ const CheckPointManagement = ({Type}) => {
 
       if (result.success) {
         setLocalTimbanganData(result.data);
+        return result.data;
       } else {
         throw new Error(result.error);
       }
     } catch (error) {
-      console.error("❌ loadTimbanganData error:", error);
       showToast.error(TOAST_MESSAGES.ERROR.LOAD_FAILED);
+      return [];
     } finally {
       setIsRefreshing(false);
     }
   };
 
+  const handleDateRangeChange = useCallback(
+    (range) => {
+      const fromDate =
+        range.from || range.startDate
+          ? new Date(range.from || range.startDate)
+          : null;
+      const toDate =
+        range.to || range.endDate ? new Date(range.to || range.endDate) : null;
+
+      if (fromDate) fromDate.setHours(0, 0, 0, 0);
+      if (toDate) toDate.setHours(23, 59, 59, 999);
+
+      const normalized = {
+        from: fromDate,
+        to: toDate,
+        shift: range.shift || "All",
+      };
+
+      setDateRange(normalized);
+
+      if (!isInitialLoading && initialLoadDone.current) {
+        loadTimbanganData(
+          {
+            from: normalized.from,
+            to: normalized.to,
+          },
+          true,
+        );
+      }
+    },
+    [isInitialLoading, loadTimbanganData],
+  );
+
   const handleRefresh = useCallback(async () => {
     await Promise.all([
       loadTimbanganData({ from: dateRange.from, to: dateRange.to }, true),
-      loadFleetConfigsFromAPI(true, { from: dateRange.from, to: dateRange.to }, "Timbangan"),
+      loadFleetConfigsFromAPI(
+        true,
+        { from: dateRange.from, to: dateRange.to },
+        "Bypass",
+      ),
     ]);
     showToast.success(TOAST_MESSAGES.SUCCESS.REFRESH);
   }, [dateRange]);
@@ -203,42 +253,98 @@ const CheckPointManagement = ({Type}) => {
 
   const handleAddShipment = useCallback(
     async (result) => {
+      console.log("🔥 [CheckPoint] handleAddShipment called with:", result);
+
       try {
         setIsActionLoading(true);
 
         if (result.cancelled) {
+          console.log("❌ [CheckPoint] User cancelled");
           setShowInputForm(false);
           return;
         }
 
-        if (result.success && result.data) {
-          setShowInputForm(false);
+        const isQueued = result?.queued === true;
+        const shouldClose = result?.shouldClose === true;
 
-          await loadTimbanganData({ from: dateRange.from, to: dateRange.to }, true);
+        console.log("🔍 [CheckPoint] Detection:", {
+          isQueued,
+          shouldClose,
+          hasData: !!result?.data,
+          success: result?.success,
+        });
 
-          setAutoPrintData(result.data);
-          setTimeout(() => {
-            if (autoPrintButtonRef.current) {
-              autoPrintButtonRef.current.click();
+        if (result.success) {
+          if (isQueued || (shouldClose && !result.data)) {
+            console.log(
+              "📦 [CheckPoint] Data queued - CLOSING MODAL IMMEDIATELY",
+            );
+
+            setShowInputForm(false);
+
+            console.log("✅ [CheckPoint] Modal closed, showInputForm =", false);
+
+            showToast.info(
+              "📦 Data disimpan di queue dan akan otomatis tersinkron saat online",
+              { duration: 4000 },
+            );
+
+            if (userRole === USER_ROLES.OPERATOR_JT) {
+              console.log(
+                "⏱️ [CheckPoint] Scheduling reopen in",
+                REOPEN_FORM_DELAY,
+                "ms",
+              );
+              setTimeout(() => {
+                console.log("🔄 [CheckPoint] Reopening form...");
+                handleOpenInputForm();
+              }, REOPEN_FORM_DELAY);
             }
-          }, AUTO_PRINT_DELAY);
 
-          if (userRole === USER_ROLES.OPERATOR_JT) {
+            return;
+          }
+
+          if (result.data) {
+            console.log("✅ [CheckPoint] Success with data");
+
+            if (shouldClose) {
+              console.log("🚪 [CheckPoint] Closing modal (success with data)");
+              setShowInputForm(false);
+            }
+
+            await loadTimbanganData(
+              { from: dateRange.from, to: dateRange.to },
+              true,
+            );
+
+            setAutoPrintData(result.data);
             setTimeout(() => {
-              handleOpenInputForm();
-            }, REOPEN_FORM_DELAY);
+              if (autoPrintButtonRef.current) {
+                autoPrintButtonRef.current.click();
+              }
+            }, AUTO_PRINT_DELAY);
+
+            if (userRole === USER_ROLES.OPERATOR_JT) {
+              setTimeout(() => {
+                handleOpenInputForm();
+              }, REOPEN_FORM_DELAY);
+            }
+
+            showToast.success("Data berhasil disimpan");
           }
         } else {
+          console.error("❌ [CheckPoint] Submit failed:", result.error);
           showToast.error(result.error || TOAST_MESSAGES.ERROR.SAVE_FAILED);
         }
       } catch (error) {
-        console.error("❌ Error in handleAddShipment:", error);
+        console.error("❌ [CheckPoint] Exception:", error);
         showToast.error(TOAST_MESSAGES.ERROR.SAVE_FAILED);
       } finally {
         setIsActionLoading(false);
+        console.log("🏁 [CheckPoint] handleAddShipment finished");
       }
     },
-    [dateRange, userRole, handleOpenInputForm]
+    [dateRange, userRole, handleOpenInputForm],
   );
 
   const handleEditItem = useCallback((item, mode = FORM_MODES.EDIT) => {
@@ -266,7 +372,10 @@ const CheckPointManagement = ({Type}) => {
         if (result.success) {
           showToast.success(result.message || TOAST_MESSAGES.SUCCESS.UPDATE);
           handleCloseForm();
-          await loadTimbanganData({ from: dateRange.from, to: dateRange.to }, true);
+          await loadTimbanganData(
+            { from: dateRange.from, to: dateRange.to },
+            true,
+          );
         } else {
           showToast.error(result.error || TOAST_MESSAGES.ERROR.UPDATE_FAILED);
         }
@@ -276,7 +385,7 @@ const CheckPointManagement = ({Type}) => {
         setIsActionLoading(false);
       }
     },
-    [editingItem, handleCloseForm, dateRange]
+    [editingItem, handleCloseForm, dateRange],
   );
 
   const handleDeleteItem = useCallback((item) => {
@@ -294,17 +403,27 @@ const CheckPointManagement = ({Type}) => {
         showToast.success(`${itemToDelete.count} data berhasil dihapus`);
         setShowDeleteDialog(false);
         setItemToDelete(null);
-        await loadTimbanganData({ from: dateRange.from, to: dateRange.to }, true);
+        await loadTimbanganData(
+          { from: dateRange.from, to: dateRange.to },
+          true,
+        );
         return;
       }
 
-      const result = await checkpointService.deleteEntry(itemToDelete.id);
+      const result = await checkpointService.deleteCheckpointEntry(
+        itemToDelete.id,
+      );
 
       if (result.success) {
-        showToast.success(result.message || TOAST_MESSAGES.SUCCESS.DELETE_SINGLE);
+        showToast.success(
+          result.message || TOAST_MESSAGES.SUCCESS.DELETE_SINGLE,
+        );
         setShowDeleteDialog(false);
         setItemToDelete(null);
-        await loadTimbanganData({ from: dateRange.from, to: dateRange.to }, true);
+        await loadTimbanganData(
+          { from: dateRange.from, to: dateRange.to },
+          true,
+        );
       } else {
         throw new Error(result.error || TOAST_MESSAGES.ERROR.DELETE_FAILED);
       }
@@ -320,59 +439,76 @@ const CheckPointManagement = ({Type}) => {
     setItemToDelete(null);
   }, []);
 
-const handleSaveFleetSelection = useCallback(
+  const handleSaveFleetSelection = useCallback(
     (selectedConfigs) => {
-      // ✅ PERBAIKAN: Simpan full configs, bukan IDs
-      setSelectedFleetsByType(selectedConfigs, 'Timbangan');
-      
-      // Legacy support: juga simpan di selectedFleetIds
-      const ids = selectedConfigs.map(c => c.id);
+      setSelectedFleetsByType(selectedConfigs, "Bypass");
+
+      const ids = selectedConfigs.map((c) => c.id);
       setSelectedFleets(ids);
-      
-      showToast.success(TOAST_MESSAGES.SUCCESS.FLEET_SELECTION(selectedConfigs.length));
-      
-      // ✅ PENTING: Verify index setelah save
+
+      showToast.success(
+        TOAST_MESSAGES.SUCCESS.FLEET_SELECTION(selectedConfigs.length),
+      );
+
       setTimeout(() => {
         const state = useTimbanganStore.getState();
-        const idx = state.dtIndexByType.Timbangan || {};
-       
-        // ✅ Jika index kosong, rebuild manual
+        const idx = state.dtIndexByType.Bypass || {};
+
         if (Object.keys(idx).length === 0) {
-          console.warn('⚠️ Index kosong setelah save, rebuild manual...');
-          const configs = state.fleetConfigsByType.Timbangan || [];
-          const selectedIds = state.selectedFleetIdsByType.Timbangan || [];
-          
+          console.warn("⚠️ Index kosong setelah save, rebuild manual...");
+          const configs = state.fleetConfigsByType.Bypass || [];
+          const selectedIds = state.selectedFleetIdsByType.Bypass || [];
+
           if (configs.length > 0 && selectedIds.length > 0) {
-            state._executeIndexRebuild(configs, 'Timbangan');
+            state._executeIndexRebuild(configs, "Bypass");
           }
         }
       }, 300);
     },
-    [setSelectedFleets]
+    [setSelectedFleets, setSelectedFleetsByType],
   );
 
   useEffect(() => {
     if (initialLoadDone.current) return;
     initialLoadDone.current = true;
-    setIsInitialLoading(true);
 
     const initializeData = async () => {
+      setIsInitialLoading(true);
+
       try {
-        const currentState = useTimbanganStore.getState();
-        const hasExistingFleets = currentState.fleetConfigs.length > 0;
-        const hasSelectedFleets = currentState.selectedFleetIds.length > 0;
+        const today = new Date();
+        const startOfDay = new Date(today);
+        startOfDay.setHours(0, 0, 0, 0);
 
-        if (!hasExistingFleets && !hasSelectedFleets) {
-          const today = new Date();
-          const todayStr = today.toISOString().split("T")[0];
+        const endOfDay = new Date(today);
+        endOfDay.setHours(23, 59, 59, 999);
 
-          await loadFleetConfigsFromAPI(false, { from: todayStr, to: todayStr }, "Timbangan");
-          await new Promise((resolve) => setTimeout(resolve, FLEET_REFRESH_DELAY));
-        }
+        const initialDateRange = {
+          from: startOfDay,
+          to: endOfDay,
+          shift: "All",
+        };
 
-        await loadTimbanganData({ from: dateRange.from, to: dateRange.to });
+        setDateRange(initialDateRange);
 
-        firstDateRangeSet.current = true;
+        await loadFleetConfigsFromAPI(
+          false,
+          {
+            from: initialDateRange.from,
+            to: initialDateRange.to,
+          },
+          "Bypass",
+        );
+
+        await new Promise((resolve) => setTimeout(resolve, 300));
+
+        const data = await loadTimbanganData(
+          {
+            from: initialDateRange.from,
+            to: initialDateRange.to,
+          },
+          true,
+        );
       } catch (error) {
         console.error("❌ Initial load error:", error);
         showToast.error(TOAST_MESSAGES.ERROR.LOAD_FAILED);
@@ -383,16 +519,6 @@ const handleSaveFleetSelection = useCallback(
 
     initializeData();
   }, []);
-
-  useEffect(() => {
-    if (!isInitialLoading && initialLoadDone.current && firstDateRangeSet.current) {
-      const timeoutId = setTimeout(() => {
-        loadTimbanganData({ from: dateRange.from, to: dateRange.to }, true);
-      }, DATE_FILTER_DEBOUNCE);
-
-      return () => clearTimeout(timeoutId);
-    }
-  }, [dateRange.from, dateRange.to, dateRange.shift]);
 
   useEffect(() => {
     if (showInputForm || isFormOpen || showFleetDialog) {
@@ -445,7 +571,12 @@ const handleSaveFleetSelection = useCallback(
           <Alert variant="destructive">
             <AlertDescription className="flex items-center justify-between">
               <span>{error.message || error}</span>
-              <Button variant="ghost" size="sm" onClick={clearError} className="cursor-pointer">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={clearError}
+                className="cursor-pointer"
+              >
                 <X className="h-4 w-4" />
               </Button>
             </AlertDescription>
@@ -464,7 +595,10 @@ const handleSaveFleetSelection = useCallback(
                   {[1, 2, 3, 4, 5].map((row) => (
                     <div key={row} className="grid grid-cols-7 gap-4 py-3">
                       {[1, 2, 3, 4, 5, 6, 7].map((col) => (
-                        <div key={col} className="h-4 bg-gray-200 rounded animate-pulse"></div>
+                        <div
+                          key={col}
+                          className="h-4 bg-gray-200 rounded animate-pulse"
+                        ></div>
                       ))}
                     </div>
                   ))}
@@ -525,7 +659,7 @@ const handleSaveFleetSelection = useCallback(
         showFleetDialog={showFleetDialog}
         onCloseFleetDialog={() => setShowFleetDialog(false)}
         onSaveFleetSelection={handleSaveFleetSelection}
-        measurementType="Timbangan"
+        measurementType="Bypass"
         timbanganType={TIMBANGAN_TYPES.CHECKPOINT}
       />
 

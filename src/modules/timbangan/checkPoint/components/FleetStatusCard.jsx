@@ -148,7 +148,7 @@ const FleetStatusCard = ({
                                 <div className="text-gray-500 text-xs">
                                   •{" "}
                                   {new Date(fleet.date).toLocaleDateString(
-                                    "id-ID"
+                                    "id-ID",
                                   )}
                                 </div>
                               </div>

@@ -238,6 +238,7 @@ export const authService = {
       operator_jt: "operator_jt",
       evaluator: "evaluator",
       mitra: "mitra",
+      ccr:"ccr",
 
       // Timbangan FOB/FOT roles
       operator_timbangan_fob: "operator_timbangan_fob",

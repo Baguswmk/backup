@@ -65,7 +65,6 @@ export const CheckpointTable = ({
     userRole,
     userSatker,
   } = useTimbanganPermissions();
-
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedItem, setSelectedItem] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -97,19 +96,19 @@ export const CheckpointTable = ({
         item,
         "fleet_excavator",
         "unit_exca",
-        "excavator"
+        "excavator",
       );
       const loading = getFirstTruthyValue(
         item,
         "fleet_loading",
         "loading_location",
-        "source"
+        "source",
       );
       const dumping = getFirstTruthyValue(
         item,
         "fleet_dumping",
         "dumping_location",
-        "destination"
+        "destination",
       );
 
       if (shift !== "-") shiftsSet.add(shift);
@@ -181,7 +180,7 @@ export const CheckpointTable = ({
         placeholder: "Pilih Dumping",
       },
     ],
-    [filterOptions, shifts, excavators, loadingLocations, dumpingLocations]
+    [filterOptions, shifts, excavators, loadingLocations, dumpingLocations],
   );
 
   const hasActiveFilters = useMemo(() => {
@@ -213,37 +212,37 @@ export const CheckpointTable = ({
           item,
           "hull_no",
           "dumptruck",
-          "unit_dump_truck"
+          "unit_dump_truck",
         ).toLowerCase();
         const operator = getFirstTruthyValue(
           item,
           "operator",
           "operator_name",
-          "operatorId"
+          "operatorId",
         ).toLowerCase();
         const excavator = getFirstTruthyValue(
           item,
           "fleet_excavator",
           "unit_exca",
-          "excavator"
+          "excavator",
         ).toLowerCase();
         const dumpTruck = getFirstTruthyValue(
           item,
           "dumptruck",
           "unit_dump_truck",
-          "hull_no"
+          "hull_no",
         ).toLowerCase();
         const loading = getFirstTruthyValue(
           item,
           "fleet_loading",
           "loading_location",
-          "source"
+          "source",
         ).toLowerCase();
         const dumping = getFirstTruthyValue(
           item,
           "fleet_dumping",
           "dumping_location",
-          "destination"
+          "destination",
         ).toLowerCase();
 
         return (
@@ -270,7 +269,7 @@ export const CheckpointTable = ({
           item,
           "fleet_excavator",
           "unit_exca",
-          "excavator"
+          "excavator",
         );
         return excavators.includes(excavator);
       });
@@ -282,7 +281,7 @@ export const CheckpointTable = ({
           item,
           "fleet_loading",
           "loading_location",
-          "source"
+          "source",
         );
         return loadingLocations.includes(loading);
       });
@@ -294,7 +293,7 @@ export const CheckpointTable = ({
           item,
           "fleet_dumping",
           "dumping_location",
-          "destination"
+          "destination",
         );
         return dumpingLocations.includes(dumping);
       });
@@ -420,47 +419,47 @@ export const CheckpointTable = ({
           item,
           "hull_no",
           "dumptruck",
-          "unit_dump_truck"
+          "unit_dump_truck",
         ),
         Excavator: getFirstTruthyValue(
           item,
           "fleet_excavator",
           "unit_exca",
-          "excavator"
+          "excavator",
         ),
         "Dump Truck": getFirstTruthyValue(
           item,
           "dumptruck",
           "unit_dump_truck",
-          "hull_no"
+          "hull_no",
         ),
         Operator: getFirstTruthyValue(
           item,
           "operator",
           "operator_name",
-          "operatorId"
+          "operatorId",
         ),
         "Loading Location": getFirstTruthyValue(
           item,
           "fleet_loading",
           "loading_location",
-          "source"
+          "source",
         ),
         "Dumping Location": getFirstTruthyValue(
           item,
           "fleet_dumping",
           "dumping_location",
-          "destination"
+          "destination",
         ),
         "Net Weight (ton)": parseFloat(
-          item.net_weight || item.tonnage || 0
+          item.net_weight || item.tonnage || 0,
         ).toFixed(2),
         "Gross Weight (ton)": parseFloat(item.gross_weight),
         "Tare Weight (ton)": parseFloat(item.tare_weight),
         "Measurement Type": getFirstTruthyValue(
           item,
           "measurement_type",
-          "type_measurement"
+          "type_measurement",
         ),
         "Weigh Bridge": item.weigh_bridge || "-",
       }));
@@ -476,7 +475,7 @@ export const CheckpointTable = ({
           ...exportData.map((row) => {
             const value = row[header];
             return value ? String(value).length : 0;
-          })
+          }),
         );
         columnWidths.push({ wch: Math.min(maxLength + 2, 50) });
       });
@@ -606,26 +605,26 @@ export const CheckpointTable = ({
                   allTimbanganData.length === 0
                     ? "Mulai input data timbangan pertama Anda"
                     : allSelectedFleets.length === 0
-                    ? `Total data: ${allTimbanganData.length}, tapi belum ada fleet yang dipilih. Pilih fleet di atas untuk menampilkan data.`
-                    : `Total data: ${
-                        allTimbanganData.length
-                      } fleet, tapi tidak ada yang sesuai filter tanggal${
-                        dateRange?.shift !== "All" ? " dan shift" : ""
-                      }`
+                      ? `Total data: ${allTimbanganData.length}, tapi belum ada fleet yang dipilih. Pilih fleet di atas untuk menampilkan data.`
+                      : `Total data: ${
+                          allTimbanganData.length
+                        } fleet, tapi tidak ada yang sesuai filter tanggal${
+                          dateRange?.shift !== "All" ? " dan shift" : ""
+                        }`
                 }
                 actionLabel={
                   allTimbanganData.length === 0
                     ? "Input Timbangan"
                     : allSelectedFleets.length === 0
-                    ? "Pilih Fleet"
-                    : "Reset Filter"
+                      ? "Pilih Fleet"
+                      : "Reset Filter"
                 }
                 onAction={
                   allTimbanganData.length === 0
                     ? onOpenInputForm
                     : allSelectedFleets.length === 0
-                    ? onOpenFleetDialog
-                    : onResetDateFilter
+                      ? onOpenFleetDialog
+                      : onResetDateFilter
                 }
                 className="border-0"
               />
@@ -690,47 +689,47 @@ export const CheckpointTable = ({
                           item,
                           "hull_no",
                           "dumptruck",
-                          "unit_dump_truck"
+                          "unit_dump_truck",
                         );
                         const excavator = getFirstTruthyValue(
                           item,
                           "fleet_excavator",
                           "unit_exca",
-                          "excavator"
+                          "excavator",
                         );
                         const dumpTruck = getFirstTruthyValue(
                           item,
                           "dumptruck",
                           "unit_dump_truck",
-                          "hull_no"
+                          "hull_no",
                         );
                         const operator = getFirstTruthyValue(
                           item,
                           "operator",
                           "operator_name",
-                          "operatorId"
+                          "operatorId",
                         );
                         const loadingLocation = getFirstTruthyValue(
                           item,
                           "fleet_loading",
                           "loading_location",
-                          "source"
+                          "source",
                         );
                         const dumpingLocation = getFirstTruthyValue(
                           item,
                           "fleet_dumping",
                           "dumping_location",
-                          "destination"
+                          "destination",
                         );
                         const shift = getFirstTruthyValue(
                           item,
                           "fleet_shift",
-                          "shift"
+                          "shift",
                         );
                         const measurementType = getFirstTruthyValue(
                           item,
                           "measurement_type",
-                          "type_measurement"
+                          "type_measurement",
                         );
                         const netWeight = item.net_weight || item.tonnage || 0;
                         const hasAccess = canAccessItem(item);
@@ -739,7 +738,9 @@ export const CheckpointTable = ({
                           <tr
                             key={item.id}
                             className={` hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors ${
-                              isItemSelected(item.id) ? "bg-blue-50 dark:bg-gray-800" : ""
+                              isItemSelected(item.id)
+                                ? "bg-blue-50 dark:bg-gray-800"
+                                : ""
                             } ${!hasAccess ? "opacity-50" : ""}`}
                           >
                             {showSelection && canUpdate && (
@@ -759,7 +760,7 @@ export const CheckpointTable = ({
                                   {formatDate(
                                     item.tanggal ||
                                       item.createdAt ||
-                                      item.timestamp
+                                      item.timestamp,
                                   )}
                                 </span>
                                 <span className="text-xs text-gray-500">
@@ -922,7 +923,7 @@ export const CheckpointTable = ({
                       <span className="font-medium">
                         {Math.min(
                           currentPage * pageSize,
-                          filteredShipments.length
+                          filteredShipments.length,
                         )}
                       </span>{" "}
                       dari{" "}
@@ -942,9 +943,9 @@ export const CheckpointTable = ({
                               (sum, item) =>
                                 sum +
                                 parseFloat(
-                                  item.net_weight || item.tonnage || 0
+                                  item.net_weight || item.tonnage || 0,
                                 ),
-                              0
+                              0,
                             )
                             .toFixed(2)}{" "}
                           ton
@@ -960,7 +961,7 @@ export const CheckpointTable = ({
                             (sum, item) =>
                               sum +
                               parseFloat(item.net_weight || item.tonnage || 0),
-                            0
+                            0,
                           ) / (filteredShipments.length || 1)
                         ).toFixed(2)}{" "}
                         ton/trip

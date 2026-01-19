@@ -1,5 +1,8 @@
 import React, { useMemo, useState, useEffect } from "react";
-import { useTimbanganStore, normalizeHull } from "@/modules/timbangan/timbangan/store/timbanganStore";
+import {
+  useTimbanganStore,
+  normalizeHull,
+} from "@/modules/timbangan/timbangan/store/timbanganStore";
 import { checkpointService } from "@/modules/timbangan/checkpoint/services/checkpointService";
 import {
   Card,
@@ -37,7 +40,7 @@ const CheckpointForm = ({
   isSubmitting = false,
 }) => {
   const { user } = useAuthStore();
-  
+
   const dtIndex = useTimbanganStore((state) => state.dtIndex);
   const hiddenDumptrucks = useTimbanganStore((state) => state.hiddenDumptrucks);
 
@@ -55,7 +58,6 @@ const CheckpointForm = ({
 
   const isDeleteMode = mode === "delete";
 
-  // Generate hull number options from dtIndex
   const hullNoOptions = useMemo(() => {
     const options = Object.entries(dtIndex)
       .map(([key, data]) => {
@@ -64,7 +66,7 @@ const CheckpointForm = ({
         return {
           value: data.hull_no,
           label: data.hull_no,
-              hint: `${data.excavator} | ${data.operator_name || "No Operator"}`,
+          hint: `${data.excavator} | ${data.operator_name || "No Operator"}`,
           isHidden,
           __data: data,
         };
@@ -74,7 +76,6 @@ const CheckpointForm = ({
     return options.sort((a, b) => a.label.localeCompare(b.label));
   }, [dtIndex, hiddenDumptrucks]);
 
-  // Handle hull number change
   const handleHullNoChange = (hullNoValue) => {
     setFormData((prev) => ({
       ...prev,
@@ -93,9 +94,8 @@ const CheckpointForm = ({
       return;
     }
 
-    // Find in dtIndex
-     const normalizedKey = normalizeHull(hullNoValue);
-   const hit = dtIndex[normalizedKey];
+    const normalizedKey = normalizeHull(hullNoValue);
+    const hit = dtIndex[normalizedKey];
 
     if (hit && hit.dumptruckId && hit.setting_fleet_id) {
       setFormData((prev) => ({
@@ -145,17 +145,19 @@ const CheckpointForm = ({
         dumptruck: "",
         operator: "",
       }));
-      setErrors({ hull_no: "Nomor lambung tidak ditemukan di fleet yang dipilih" });
+      setErrors({
+        hull_no: "Nomor lambung tidak ditemukan di fleet yang dipilih",
+      });
     }
   };
 
-  // Handle form submit
   const handleFormSubmit = async (e) => {
     if (e && e.preventDefault) {
       e.preventDefault();
     }
 
-    // Validation
+    console.log("🚀 [CheckpointForm] handleFormSubmit started");
+
     if (!formData.hull_no || !formData.hull_no.trim()) {
       setErrors({ hull_no: "Nomor lambung wajib diisi" });
       showToast.error("Nomor lambung wajib diisi");
@@ -163,7 +165,9 @@ const CheckpointForm = ({
     }
 
     if (!formData.setting_fleet_id) {
-      setErrors({ hull_no: "Nomor lambung tidak ditemukan di fleet yang dipilih" });
+      setErrors({
+        hull_no: "Nomor lambung tidak ditemukan di fleet yang dipilih",
+      });
       showToast.error("Nomor lambung tidak ditemukan di fleet yang dipilih");
       return;
     }
@@ -194,12 +198,50 @@ const CheckpointForm = ({
         operator_name: currentFleet.operator,
       };
 
+      console.log("📤 [CheckpointForm] Submitting:", submissionData);
+
       const result = await checkpointService.submitCheckpoint(submissionData);
 
-      if (result.success && onSubmit) {
-        onSubmit(result);
-        
-        // Reset form after successful submit
+      console.log("📊 [CheckpointForm] Submit result:", result);
+
+      const isQueued = result?.queued === true;
+      const shouldClose = result?.shouldClose === true;
+
+      console.log("🔍 [CheckpointForm] Flags:", {
+        isQueued,
+        shouldClose,
+        result,
+      });
+
+      if (isQueued || (result?.success && !result?.data)) {
+        console.log("📦 [CheckpointForm] Data queued, calling onSubmit...");
+
+        showToast.info(
+          "📦 Data disimpan di queue dan akan otomatis tersinkron saat online",
+          { duration: 4000 },
+        );
+
+        if (onSubmit) {
+          onSubmit({
+            success: true,
+            queued: true,
+            data: null,
+            shouldClose: true,
+          });
+        }
+
+        return;
+      }
+
+      if (result?.success && result?.data) {
+        console.log(
+          "✅ [CheckpointForm] Success with data, calling onSubmit...",
+        );
+
+        if (onSubmit) {
+          onSubmit(result);
+        }
+
         setFormData({
           hull_no: "",
           setting_fleet_id: "",
@@ -209,16 +251,47 @@ const CheckpointForm = ({
         });
         setCurrentFleet(null);
         setErrors({});
-      } else {
-        showToast.error(result.error || "Gagal menyimpan data");
       }
-    } catch (error) {
-      console.error("❌ Error in handleFormSubmit:", error);
-      showToast.error("Gagal menyimpan data checkpoint");
+    } catch (err) {
+      console.error("❌ [CheckpointForm] Error:", err);
+
+      const isQueuedError =
+        err?.queued || err?.message?.includes("queued for offline sync");
+
+      if (isQueuedError) {
+        console.log(
+          "📦 [CheckpointForm] Error was queued, treating as success",
+        );
+
+        showToast.info(
+          "📦 Data disimpan di queue dan akan otomatis tersinkron saat online",
+          { duration: 4000 },
+        );
+
+        if (onSubmit) {
+          onSubmit({
+            success: true,
+            queued: true,
+            data: null,
+            shouldClose: true,
+          });
+        }
+
+        return;
+      }
+
+      const isValidation =
+        err?.validationError ||
+        (err?.response?.status >= 400 && err?.response?.status < 500);
+
+      if (isValidation) {
+        showToast.error(err?.message || "Validasi gagal. Periksa input Anda.");
+      } else {
+        showToast.error(err?.message || "Gagal menyimpan data checkpoint");
+      }
     }
   };
 
-  // Handle reset
   const handleReset = () => {
     setFormData({
       hull_no: "",
@@ -232,12 +305,10 @@ const CheckpointForm = ({
     showToast.info("Form direset ke nilai default");
   };
 
-  // Keyboard shortcuts
   useEffect(() => {
     if (mode !== "create") return;
 
     const handleShortcut = (e) => {
-      // Alt + D: Focus to hull number select
       if (e.altKey && e.key.toLowerCase() === "d") {
         e.preventDefault();
         const wrapper = document.getElementById("hull-no-select-wrapper");
@@ -250,14 +321,15 @@ const CheckpointForm = ({
               if (commandInput) {
                 commandInput.focus();
                 commandInput.value = "";
-                commandInput.dispatchEvent(new Event("input", { bubbles: true }));
+                commandInput.dispatchEvent(
+                  new Event("input", { bubbles: true }),
+                );
               }
             }, 100);
           }
         }
       }
 
-      // Alt + S: Submit form
       if (e.altKey && e.key.toLowerCase() === "s") {
         e.preventDefault();
         if (formData.hull_no && currentFleet && !isSubmitting) {
@@ -265,19 +337,16 @@ const CheckpointForm = ({
         }
       }
 
-      // Alt + R: Reset form
       if (e.altKey && e.key.toLowerCase() === "r") {
         e.preventDefault();
         handleReset();
       }
 
-      // Alt + H: Toggle shortcuts help
       if (e.altKey && e.key.toLowerCase() === "h") {
         e.preventDefault();
         setShowShortcutHelp(!showShortcutHelp);
       }
 
-      // Esc: Cancel
       if (e.key === "Escape") {
         e.preventDefault();
         if (showShortcutHelp) {
@@ -292,7 +361,6 @@ const CheckpointForm = ({
     return () => window.removeEventListener("keydown", handleShortcut);
   }, [mode, formData, currentFleet, isSubmitting, showShortcutHelp, onSubmit]);
 
-  // Delete mode
   if (isDeleteMode) {
     return (
       <ConfirmDialog
@@ -300,7 +368,9 @@ const CheckpointForm = ({
         onClose={() => onSubmit?.({ cancelled: true })}
         onConfirm={async () => {
           try {
-            const result = await checkpointService.deleteCheckpointEntry(editingItem.id);
+            const result = await checkpointService.deleteCheckpointEntry(
+              editingItem.id,
+            );
             if (result.success && onSubmit) {
               onSubmit(result);
             }
@@ -320,13 +390,19 @@ const CheckpointForm = ({
             <div className="flex justify-between text-sm">
               <span className="text-gray-600 dark:text-gray-400">Waktu:</span>
               <span className="font-medium dark:text-gray-200">
-                {format(new Date(editingItem.createdAt), "dd MMM yyyy HH:mm:ss", {
-                  locale: localeId,
-                })}
+                {format(
+                  new Date(editingItem.createdAt),
+                  "dd MMM yyyy HH:mm:ss",
+                  {
+                    locale: localeId,
+                  },
+                )}
               </span>
             </div>
             <div className="flex justify-between text-sm">
-              <span className="text-gray-600 dark:text-gray-400">No Lambung:</span>
+              <span className="text-gray-600 dark:text-gray-400">
+                No Lambung:
+              </span>
               <span className="font-medium dark:text-gray-200">
                 {editingItem.hull_no}
               </span>
@@ -364,23 +440,33 @@ const CheckpointForm = ({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
                 <div className="flex items-center justify-between p-2 bg-gray-50 rounded">
                   <span className="text-gray-700">Fokus ke Nomor DT</span>
-                  <Badge variant="outline" className="font-mono">Alt + D</Badge>
+                  <Badge variant="outline" className="font-mono">
+                    Alt + D
+                  </Badge>
                 </div>
                 <div className="flex items-center justify-between p-2 bg-gray-50 rounded">
                   <span className="text-gray-700">Simpan Form</span>
-                  <Badge variant="outline" className="font-mono">Alt + S</Badge>
+                  <Badge variant="outline" className="font-mono">
+                    Alt + S
+                  </Badge>
                 </div>
                 <div className="flex items-center justify-between p-2 bg-gray-50 rounded">
                   <span className="text-gray-700">Reset Form</span>
-                  <Badge variant="outline" className="font-mono">Alt + R</Badge>
+                  <Badge variant="outline" className="font-mono">
+                    Alt + R
+                  </Badge>
                 </div>
                 <div className="flex items-center justify-between p-2 bg-gray-50 rounded">
                   <span className="text-gray-700">Bantuan Shortcuts</span>
-                  <Badge variant="outline" className="font-mono">Alt + H</Badge>
+                  <Badge variant="outline" className="font-mono">
+                    Alt + H
+                  </Badge>
                 </div>
                 <div className="flex items-center justify-between p-2 bg-gray-50 rounded">
                   <span className="text-gray-700">Batal/Tutup</span>
-                  <Badge variant="outline" className="font-mono">Esc</Badge>
+                  <Badge variant="outline" className="font-mono">
+                    Esc
+                  </Badge>
                 </div>
               </div>
             </div>
@@ -394,7 +480,9 @@ const CheckpointForm = ({
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Clock className="w-4 h-4 text-blue-600" />
-              <span className="text-xs font-medium text-blue-900">Waktu Input</span>
+              <span className="text-xs font-medium text-blue-900">
+                Waktu Input
+              </span>
             </div>
             <div className="font-mono text-sm font-semibold text-gray-800 dark:text-gray-200">
               {formData.createdAt
@@ -427,10 +515,15 @@ const CheckpointForm = ({
         </CardHeader>
         <CardContent className="space-y-4">
           <div>
-            <Label htmlFor="hull_no_select" className="flex items-center gap-2 mb-2">
+            <Label
+              htmlFor="hull_no_select"
+              className="flex items-center gap-2 mb-2"
+            >
               <Search className="w-4 h-4" />
               Nomor Lambung / Nomor DT *
-              <Badge variant="outline" className="text-xs font-mono">Alt+D</Badge>
+              <Badge variant="outline" className="text-xs font-mono">
+                Alt+D
+              </Badge>
             </Label>
 
             <div id="hull-no-select-wrapper">
@@ -439,7 +532,7 @@ const CheckpointForm = ({
                 items={hullNoOptions}
                 value={formData.hull_no}
                 onChange={handleHullNoChange}
-                placeholder="Cari nomor lambung..."
+                placeholder="Input nomor lambung..."
                 emptyText="Nomor lambung tidak ditemukan"
                 disabled={hullNoOptions.length === 0}
                 error={!!errors.hull_no}
@@ -452,8 +545,9 @@ const CheckpointForm = ({
             )}
 
             <p className="text-xs text-gray-500 mt-1">
-              Pilih dari daftar atau ketik untuk mencari. Gunakan <strong>↑↓</strong> untuk
-              navigasi, <strong>Enter</strong> untuk memilih.
+              Pilih dari daftar atau ketik untuk mencari. Gunakan{" "}
+              <strong>↑↓</strong> untuk navigasi, <strong>Enter</strong> untuk
+              memilih.
             </p>
           </div>
         </CardContent>
@@ -465,9 +559,7 @@ const CheckpointForm = ({
           <CardContent className="py-3">
             <div className="flex items-center gap-2 mb-3">
               <CheckCircle2 className="w-4 h-4 text-green-600" />
-              <span className="text-sm font-medium text-green-800">
-                Fleet: 
-              </span>
+              <span className="text-sm font-medium text-green-800">Fleet:</span>
               <Badge className="bg-green-600 text-xs">{formData.hull_no}</Badge>
             </div>
 
@@ -475,11 +567,15 @@ const CheckpointForm = ({
               <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-xs">
                 <div className="space-y-1">
                   <div className="text-gray-500">Excavator</div>
-                  <div className="font-semibold text-gray-900">{currentFleet.excavator}</div>
+                  <div className="font-semibold text-gray-900">
+                    {currentFleet.excavator}
+                  </div>
                   {currentFleet.operator && (
                     <>
                       <div className="text-gray-500 mt-2">Operator</div>
-                      <div className="font-medium text-blue-600">{currentFleet.operator}</div>
+                      <div className="font-medium text-blue-600">
+                        {currentFleet.operator}
+                      </div>
                     </>
                   )}
                 </div>
@@ -512,10 +608,13 @@ const CheckpointForm = ({
         <Alert variant="destructive">
           <AlertCircle className="w-4 h-4" />
           <AlertDescription>
-            <p className="font-medium mb-1">⚠️ Nomor lambung tidak ditemukan di fleet yang dipilih</p>
+            <p className="font-medium mb-1">
+              ⚠️ Nomor lambung tidak ditemukan di fleet yang dipilih
+            </p>
             <p className="text-sm">
-              Pastikan Anda sudah memilih fleet yang benar di Fleet Management dan nomor lambung{" "}
-              <strong>{formData.hull_no}</strong> terdaftar dalam fleet tersebut.
+              Pastikan Anda sudah memilih fleet yang benar di Fleet Management
+              dan nomor lambung <strong>{formData.hull_no}</strong> terdaftar
+              dalam fleet tersebut.
             </p>
           </AlertDescription>
         </Alert>
@@ -535,7 +634,9 @@ const CheckpointForm = ({
             >
               <RotateCcw className="w-4 h-4" />
               Reset
-              <Badge variant="outline" className="text-xs font-mono ml-1">Alt+R</Badge>
+              <Badge variant="outline" className="text-xs font-mono ml-1">
+                Alt+R
+              </Badge>
             </Button>
 
             <div className="flex items-center gap-2">
@@ -549,7 +650,9 @@ const CheckpointForm = ({
                   className="cursor-pointer dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700"
                 >
                   Batal
-                  <Badge variant="outline" className="text-xs font-mono ml-1">Esc</Badge>
+                  <Badge variant="outline" className="text-xs font-mono ml-1">
+                    Esc
+                  </Badge>
                 </Button>
               )}
 
@@ -566,7 +669,10 @@ const CheckpointForm = ({
                   <>
                     <Save className="w-4 h-4" />
                     Simpan
-                    <Badge variant="secondary" className="text-xs font-mono ml-1">
+                    <Badge
+                      variant="secondary"
+                      className="text-xs font-mono ml-1"
+                    >
                       Alt+S
                     </Badge>
                   </>
@@ -578,7 +684,9 @@ const CheckpointForm = ({
           {!isValid && formData.hull_no && (
             <div className="mt-2 flex items-center gap-2 text-sm text-orange-600">
               <AlertCircle className="w-4 h-4" />
-              <span>Nomor lambung belum ditemukan - cek fleet yang dipilih</span>
+              <span>
+                Nomor lambung belum ditemukan - cek fleet yang dipilih
+              </span>
             </div>
           )}
         </div>

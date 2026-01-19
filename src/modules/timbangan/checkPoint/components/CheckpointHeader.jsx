@@ -9,7 +9,7 @@ const CheckpointHeader = ({
   onOpenInputForm,
   isInitialLoading = false,
   isCheckingConnection = false,
-  type
+  type,
 }) => {
   return (
     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -37,10 +37,7 @@ const CheckpointHeader = ({
             <>
               <Plus className="w-4 h-4" />
               Input Timbangan
-              <Badge
-                variant="outline"
-                className="font-mono dark:text-gray-200"
-              >
+              <Badge variant="outline" className="font-mono dark:text-gray-200">
                 {KEYBOARD_SHORTCUTS.INPUT_FORM.description}
               </Badge>
             </>
