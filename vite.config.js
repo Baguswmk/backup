@@ -36,8 +36,8 @@ export default defineConfig({
         background_color: '#ffffff',
         display: 'standalone',
         orientation: 'portrait',
-        scope: '/',
-        start_url: '/',
+        scope: '/timbangan-internal/',
+        start_url: '/timbangan-internal/',
         icons: [
           {
             src: 'pwa-192x192.png',
@@ -59,7 +59,7 @@ export default defineConfig({
       }
     })
   ],
-  base: '/',
+  base: '/timbangan-internal/',
   build: {
     outDir: 'dist',
     assetsDir: 'assets',
@@ -78,7 +78,7 @@ export default defineConfig({
     },
   },
   server: {
-    port: 5173,
+    port: 5959,
     host: true,
     https: false,
   },

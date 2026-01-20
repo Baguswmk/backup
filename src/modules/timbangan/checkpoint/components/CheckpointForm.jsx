@@ -436,7 +436,7 @@ const CheckpointForm = ({
             </div>
           </CardHeader>
           <CardContent>
-            <div className="bg-neutral-50 rounded-lg p-4 space-y-3">
+            <div className="bg-white rounded-lg p-4 space-y-3">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
                 <div className="flex items-center justify-between p-2 bg-gray-50 rounded">
                   <span className="text-gray-700">Fokus ke Nomor DT</span>
@@ -563,7 +563,7 @@ const CheckpointForm = ({
               <Badge className="bg-green-600 text-xs">{formData.hull_no}</Badge>
             </div>
 
-            <div className="bg-neutral-50 rounded-lg p-3 border border-green-200">
+            <div className="bg-white rounded-lg p-3 border border-green-200">
               <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-xs">
                 <div className="space-y-1">
                   <div className="text-gray-500">Excavator</div>
