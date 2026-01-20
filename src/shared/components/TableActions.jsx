@@ -21,7 +21,7 @@ const TableActions = ({ actions, disabled = false }) => {
           <MoreVertical className="h-4 w-4" />
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="dark:bg-gray-800 dark:border-gray-700 bg-white border-none">
+      <DropdownMenuContent align="end" className="dark:bg-gray-800 dark:border-gray-700 bg-neutral-50 border-none">
         {actions.map((action, idx) => (
           <DropdownMenuItem
             key={idx}

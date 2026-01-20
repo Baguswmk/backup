@@ -25,7 +25,7 @@ const ConfirmDialog = ({
     )}>
       <Card className={cn(
         "max-w-md w-full shadow-lg transition-all duration-200",
-        "bg-white dark:bg-slate-900",
+        "bg-neutral-50 dark:bg-slate-900",
         "border border-gray-200 dark:border-slate-700",
         "animate-fade-in"
       )}>

@@ -194,7 +194,7 @@ const FleetTable = ({
                         </DropdownMenuTrigger>
                         <DropdownMenuContent
                           align="start"
-                          className="w-72 border-none bg-white dark:bg-gray-800 dark:text-gray-200"
+                          className="w-72 border-none bg-neutral-50 dark:bg-gray-800 dark:text-gray-200"
                         >
                           {dtList.length > 0 ? (
                             <>

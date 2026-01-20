@@ -63,7 +63,7 @@ const OverviewTable = ({
   };
 
   return (
-    <Card className="shadow-sm border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100">
+    <Card className="shadow-sm border-gray-200 dark:border-gray-700 bg-neutral-50 dark:bg-gray-800 text-gray-900 dark:text-gray-100">
       <CardHeader className="border-b border-gray-200 dark:border-gray-700">
         <CardTitle className="flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -234,13 +234,13 @@ const OverviewTable = ({
                     key={idx}
                     className="hover:bg-gray-50 dark:hover:bg-gray-900/50 transition-colors"
                   >
-                    <td className="px-3 py-3 text-gray-600 dark:text-gray-300 sticky left-0 bg-white dark:bg-gray-800 z-10 border-r border-gray-200 dark:border-gray-700">
+                    <td className="px-3 py-3 text-gray-600 dark:text-gray-300 sticky left-0 bg-neutral-50 dark:bg-gray-800 z-10 border-r border-gray-200 dark:border-gray-700">
                       {(currentPage - 1) * itemsPerPage + idx + 1}
                     </td>
-                    <td className="px-3 py-3 font-medium text-blue-600 dark:text-blue-400 sticky left-10.5 bg-white dark:bg-gray-800 z-10 border-r border-gray-200 dark:border-gray-700">
+                    <td className="px-3 py-3 font-medium text-blue-600 dark:text-blue-400 sticky left-10.5 bg-neutral-50 dark:bg-gray-800 z-10 border-r border-gray-200 dark:border-gray-700">
                       {row.unit_exca}
                     </td>
-                    <td className="px-3 py-3 sticky left-28 bg-white dark:bg-gray-800 z-10 text-gray-700 dark:text-gray-300 border-r border-gray-200 dark:border-gray-700">
+                    <td className="px-3 py-3 sticky left-28 bg-neutral-50 dark:bg-gray-800 z-10 text-gray-700 dark:text-gray-300 border-r border-gray-200 dark:border-gray-700">
                       <div className="flex items-center gap-1">
                         <Calendar className="w-3 h-3 text-gray-400 dark:text-gray-500" />
                         <span className="text-xs">
@@ -315,7 +315,7 @@ const OverviewTable = ({
                         </DropdownMenuTrigger>
                         <DropdownMenuContent
                           align="end"
-                          className="w-48 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100"
+                          className="w-48 bg-neutral-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100"
                         >
                           <DropdownMenuItem
                             onClick={() => onViewDetail(row)}

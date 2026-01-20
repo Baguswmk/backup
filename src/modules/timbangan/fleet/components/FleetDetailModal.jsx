@@ -33,7 +33,7 @@ const FleetDetailModal = ({ isOpen, config, onClose, onEdit, dumptruck }) => {
 
   return (
     <div className="detail-modal fixed inset-0 .detail-modal dark:bg-opacity-70 z-50 flex items-center justify-center p-4">
-      <div className="bg-white dark:bg-gray-800 rounded-lg max-w-3xl w-full max-h-[90vh] overflow-auto">
+      <div className="bg-neutral-50 dark:bg-gray-800 rounded-lg max-w-3xl w-full max-h-[90vh] overflow-auto">
         <ModalHeader
           title="Detail Fleet Configuration"
           icon={Settings}
@@ -104,7 +104,7 @@ const FleetDetailModal = ({ isOpen, config, onClose, onEdit, dumptruck }) => {
               </div>
 
               {dumptruckCount > 0 ? (
-                <div className="bg-white dark:bg-gray-900 rounded-lg border border-blue-200 dark:border-blue-800 overflow-hidden">
+                <div className="bg-neutral-50 dark:bg-gray-900 rounded-lg border border-blue-200 dark:border-blue-800 overflow-hidden">
                   <div className="max-h-64 overflow-y-auto">
                     <table className="w-full">
                       <thead className="bg-blue-100 dark:bg-blue-900 sticky top-0">
@@ -151,7 +151,7 @@ const FleetDetailModal = ({ isOpen, config, onClose, onEdit, dumptruck }) => {
                   </div>
                 </div>
               ) : (
-                <div className="bg-white dark:bg-gray-900 rounded-lg p-4 border border-blue-200 dark:border-blue-800 text-center">
+                <div className="bg-neutral-50 dark:bg-gray-900 rounded-lg p-4 border border-blue-200 dark:border-blue-800 text-center">
                   <Truck className="w-12 h-12 text-gray-300 dark:text-gray-600 mx-auto mb-2" />
                   <p className="text-sm text-gray-500 dark:text-gray-400">
                     Belum ada dump truck yang di-assign ke fleet ini

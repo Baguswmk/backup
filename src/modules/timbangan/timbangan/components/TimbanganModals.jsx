@@ -68,8 +68,8 @@ export const InputFormModal = ({
 
   return (
     <div className="detail-modal fixed inset-0 bg-black/50 dark:bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 transition-all">
-      <div className="bg-white dark:bg-gray-900 rounded-lg max-w-4xl w-full max-h-[90vh] overflow-auto shadow-2xl dark:shadow-gray-900/50 border border-gray-200 dark:border-gray-700">
-        <div className="sticky top-0 bg-white dark:bg-gray-900 px-6 py-4 z-10 border-b border-gray-200 dark:border-gray-700">
+      <div className="bg-neutral-50 dark:bg-gray-900 rounded-lg max-w-4xl w-full max-h-[90vh] overflow-auto shadow-2xl dark:shadow-gray-900/50 border border-gray-200 dark:border-gray-700">
+        <div className="sticky top-0 bg-neutral-50 dark:bg-gray-900 px-6 py-4 z-10 border-b border-gray-200 dark:border-gray-700">
           <ModalHeader
             title={getModalTitle()}
             icon={Scale}
@@ -138,8 +138,8 @@ export const EditFormModal = ({
 
   return (
     <div className="detail-modal fixed inset-0 bg-black/50 dark:bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 transition-all">
-      <div className="bg-white dark:bg-gray-900 rounded-lg max-w-4xl w-full max-h-[90vh] overflow-auto shadow-2xl dark:shadow-gray-900/50 border border-gray-200 dark:border-gray-700">
-        <div className="sticky top-0 bg-white dark:bg-gray-900 px-6 py-4 z-10 border-b border-gray-200 dark:border-gray-700">
+      <div className="bg-neutral-50 dark:bg-gray-900 rounded-lg max-w-4xl w-full max-h-[90vh] overflow-auto shadow-2xl dark:shadow-gray-900/50 border border-gray-200 dark:border-gray-700">
+        <div className="sticky top-0 bg-neutral-50 dark:bg-gray-900 px-6 py-4 z-10 border-b border-gray-200 dark:border-gray-700">
           <ModalHeader
             title={getModalTitle()}
             icon={Edit}

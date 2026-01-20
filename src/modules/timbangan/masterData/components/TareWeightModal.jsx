@@ -264,7 +264,7 @@ const TareWeightModal = ({
 
   return (
     <div className="detail-modal fixed inset-0 bg-black/50 z-50  flex items-center justify-center p-4">
-      <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto bg-white dark:bg-gray-800 border-none">
+      <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto bg-neutral-50 dark:bg-gray-800 border-none">
         <ModalHeader
           title={
             isSelectionMode
@@ -440,7 +440,7 @@ const TareWeightModal = ({
             {/* Live Weight Display */}
             {isConnected && currentWeight !== null && !manualMode && (
               <div
-                className={`bg-white rounded-lg p-3 border ${
+                className={`bg-neutral-50 rounded-lg p-3 border ${
                   insertedWeight !== null
                     ? "border-green-200"
                     : "border-blue-200"

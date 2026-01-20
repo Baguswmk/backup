@@ -7,7 +7,7 @@ const DataGridInfo = ({
   return (
     <div className={cn(
       "flex items-center justify-between rounded-lg border p-4 shadow-sm transition-all duration-200",
-      "bg-white dark:bg-slate-800/50",
+      "bg-neutral-50 dark:bg-slate-800/50",
       "border-gray-200 dark:border-slate-700",
       className
     )}>

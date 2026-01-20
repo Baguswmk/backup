@@ -150,7 +150,7 @@ const handleSave = useCallback(() => {
 
   return (
     <div className="detail-modal fixed inset-0 bg-black bg-opacity-50 dark:bg-opacity-70 z-50 flex items-center justify-center p-4">
-      <div className="bg-white dark:bg-gray-900 rounded-lg max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col dark:border dark:border-gray-700">
+      <div className="bg-neutral-50 dark:bg-gray-900 rounded-lg max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col dark:border dark:border-gray-700">
         <ModalHeader
           title={getTitle()}
           subtitle={`Pilih fleet yang ingin ditampilkan (Filter: Satker & ${measurementType})`}
@@ -309,7 +309,7 @@ const handleSave = useCallback(() => {
           )}
         </div>
 
-        <div className="sticky bottom-0 bg-white dark:bg-gray-900 px-6 py-4 flex items-center justify-between border-t dark:border-gray-700">
+        <div className="sticky bottom-0 bg-neutral-50 dark:bg-gray-900 px-6 py-4 flex items-center justify-between border-t dark:border-gray-700">
           <div className="text-sm text-gray-600 dark:text-gray-400">
             {counts.selected > 0 ? (
               <span className="font-medium text-blue-600 dark:text-blue-400">

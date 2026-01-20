@@ -200,7 +200,7 @@ export const Sidebar = ({
   return (
     <>
       {/* Top Bar */}
-      <header className="bg-white dark:bg-slate-900 shadow-sm z-50 transition-colors duration-200 fixed top-0 left-0 right-0">
+      <header className="bg-neutral-50 dark:bg-slate-900 shadow-sm z-50 transition-colors duration-200 fixed top-0 left-0 right-0">
         <div className="max-w-full mx-auto px-4">
           <div className="flex justify-between items-center h-16">
             {/* Left: Toggle + Extra Content */}
@@ -241,7 +241,7 @@ export const Sidebar = ({
       <aside
         id="sidebar"
         className={cn(
-          "fixed left-0 top-16 h-[calc(100vh-4rem)] w-96 bg-white dark:bg-slate-900 shadow-lg z-50",
+          "fixed left-0 top-16 h-[calc(100vh-4rem)] w-96 bg-neutral-50 dark:bg-slate-900 shadow-lg z-50",
           "transform transition-transform duration-300 ease-in-out",
           "overflow-y-auto",
           isSidebarOpen ? "translate-x-0" : "-translate-x-full"

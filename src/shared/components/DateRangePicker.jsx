@@ -152,13 +152,13 @@ export const DateRangePicker = ({
           </Button>
         </PopoverTrigger>
         <PopoverContent 
-          className="w-auto p-0 bg-white border-none dark:bg-gray-800 dark:border-gray-700" 
+          className="w-auto p-0 bg-neutral-50 border-none dark:bg-gray-800 dark:border-gray-700" 
           align="start"
           side="bottom"
           sideOffset={4}
         >
           <div className="max-h-[min(85vh,600px)] overflow-y-auto overflow-x-hidden">
-            <div className="p-3 sticky top-0 bg-white dark:bg-gray-800 dark:border-gray-700 z-10">
+            <div className="p-3 sticky top-0 bg-neutral-50 dark:bg-gray-800 dark:border-gray-700 z-10">
               <p className="text-sm font-medium dark:text-gray-200">Filter Tanggal & Shift</p>
             </div>
 
@@ -176,7 +176,7 @@ export const DateRangePicker = ({
               />
             </div>
 
-            <div className="p-3 bg-white dark:bg-gray-800 dark:border-gray-700 sticky bottom-0">
+            <div className="p-3 bg-neutral-50 dark:bg-gray-800 dark:border-gray-700 sticky bottom-0">
               <div className="space-y-3">
                 <div>
                   <label className="text-sm font-medium mb-2 block dark:text-gray-200">

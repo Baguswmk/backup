@@ -92,7 +92,7 @@ const MobileList = ({
     {data.map((row, idx) => (
       <div
         key={row.id ?? `row-${rowStart + idx}`}
-        className="rounded-xl bg-white dark:bg-gray-700 dark:text-gray-200 p-4 shadow-sm hover:shadow-md transition-shadow"
+        className="rounded-xl bg-neutral-50 dark:bg-gray-700 dark:text-gray-200 p-4 shadow-sm hover:shadow-md transition-shadow"
       >
         {/* Header with Actions */}
         <div className="flex items-start justify-between gap-2">
@@ -229,7 +229,7 @@ const DesktopTable = ({
           )}
         </tr>
       </thead>
-      <tbody className="bg-white dark:bg-gray-800 ">
+      <tbody className="bg-neutral-50 dark:bg-gray-800 ">
         {data.map((row, idx) => (
           <tr
             key={row.id ?? `row-${rowStart + idx}`}

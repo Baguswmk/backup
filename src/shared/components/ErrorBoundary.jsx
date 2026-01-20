@@ -84,7 +84,7 @@ class ErrorBoundary extends React.Component {
               variant="destructive" 
               className={cn(
                 "border-l-4 border-red-500 dark:border-red-600 shadow-lg transition-all duration-300",
-                "bg-white dark:bg-red-900/20 dark:border-red-800"
+                "bg-neutral-50 dark:bg-red-900/20 dark:border-red-800"
               )}
             >
               <div className="flex items-start gap-3">

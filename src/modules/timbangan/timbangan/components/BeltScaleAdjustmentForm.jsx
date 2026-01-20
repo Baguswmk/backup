@@ -261,7 +261,7 @@ const BeltScaleAdjustmentForm = ({ onSubmit, isSubmitting = false }) => {
   return (
     <div className="max-w-6xl mx-auto space-y-6">
       {/* Input Form */}
-      <Card className="border border-gray-200 dark:border-gray-700 shadow-sm dark:shadow-lg dark:shadow-gray-900/50 bg-white dark:bg-gray-800">
+      <Card className="border border-gray-200 dark:border-gray-700 shadow-sm dark:shadow-lg dark:shadow-gray-900/50 bg-neutral-50 dark:bg-gray-800">
         <CardHeader className="border-b border-gray-200 dark:border-gray-700">
           <CardTitle className="flex items-center gap-2 text-gray-900 dark:text-white">
             <CalendarIcon className="w-5 h-5 text-blue-600 dark:text-blue-400" />
@@ -293,7 +293,7 @@ const BeltScaleAdjustmentForm = ({ onSubmit, isSubmitting = false }) => {
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent
-                  className="w-auto p-0 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-lg dark:shadow-xl"
+                  className="w-auto p-0 bg-neutral-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-lg dark:shadow-xl"
                   align="start"
                 >
                   <Calendar
@@ -394,7 +394,7 @@ const BeltScaleAdjustmentForm = ({ onSubmit, isSubmitting = false }) => {
 
       {/* Preview Section - Fleet List */}
       {showPreview && fleetList.length > 0 && (
-        <Card className="border border-gray-200 dark:border-gray-700 shadow-sm dark:shadow-lg dark:shadow-gray-900/50 bg-white dark:bg-gray-800">
+        <Card className="border border-gray-200 dark:border-gray-700 shadow-sm dark:shadow-lg dark:shadow-gray-900/50 bg-neutral-50 dark:bg-gray-800">
           <CardHeader className="flex flex-row items-center justify-between border-b border-gray-200 dark:border-gray-700">
             <CardTitle className="text-base text-gray-900 dark:text-white">
               Data Setting Fleet ({selectedFleetIds.length} / {fleetList.length}{" "}
@@ -556,8 +556,8 @@ const BeltScaleAdjustmentForm = ({ onSubmit, isSubmitting = false }) => {
       {/* Modal: Input Net Weight Beltscale */}
       {showAdjustModal && (
         <div className="fixed inset-0 bg-black/50 dark:bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 transition-all">
-          <Card className="max-w-2xl w-full max-h-[90vh] overflow-auto shadow-2xl dark:shadow-gray-900/50 border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
-            <CardHeader className="sticky top-0 bg-white dark:bg-gray-800 z-10 border-b border-gray-200 dark:border-gray-700">
+          <Card className="max-w-2xl w-full max-h-[90vh] overflow-auto shadow-2xl dark:shadow-gray-900/50 border border-gray-200 dark:border-gray-700 bg-neutral-50 dark:bg-gray-800">
+            <CardHeader className="sticky top-0 bg-neutral-50 dark:bg-gray-800 z-10 border-b border-gray-200 dark:border-gray-700">
               <div className="flex items-center justify-between">
                 <CardTitle className="flex items-center gap-2 text-gray-900 dark:text-white">
                   <TrendingUp className="w-5 h-5 text-green-600 dark:text-green-400" />
@@ -647,7 +647,7 @@ const BeltScaleAdjustmentForm = ({ onSubmit, isSubmitting = false }) => {
                     }
                   }}
                   placeholder="0.00"
-                  className="text-lg font-semibold bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100 focus:border-blue-500 dark:focus:border-blue-400"
+                  className="text-lg font-semibold bg-neutral-50 dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100 focus:border-blue-500 dark:focus:border-blue-400"
                 />
                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                   Masukkan total berat aktual dari Beltscale

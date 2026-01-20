@@ -246,7 +246,7 @@ useEffect(() => {
                       Beltscale Adjustment Summary
                     </h3>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
-                      <div className="bg-white dark:bg-green-900/20 p-2 rounded border border-green-100 dark:border-green-800/30">
+                      <div className="bg-neutral-50 dark:bg-green-900/20 p-2 rounded border border-green-100 dark:border-green-800/30">
                         <p className="text-green-700 dark:text-green-400 mb-1">
                           Total Sebelum:
                         </p>
@@ -254,7 +254,7 @@ useEffect(() => {
                           {adjustmentSummary.total_before?.toFixed(2)} Ton
                         </p>
                       </div>
-                      <div className="bg-white dark:bg-green-900/20 p-2 rounded border border-green-100 dark:border-green-800/30">
+                      <div className="bg-neutral-50 dark:bg-green-900/20 p-2 rounded border border-green-100 dark:border-green-800/30">
                         <p className="text-green-700 dark:text-green-400 mb-1">
                           Total Setelah:
                         </p>
@@ -262,7 +262,7 @@ useEffect(() => {
                           {adjustmentSummary.total_after?.toFixed(2)} Ton
                         </p>
                       </div>
-                      <div className="bg-white dark:bg-green-900/20 p-2 rounded border border-green-100 dark:border-green-800/30">
+                      <div className="bg-neutral-50 dark:bg-green-900/20 p-2 rounded border border-green-100 dark:border-green-800/30">
                         <p className="text-green-700 dark:text-green-400 mb-1">
                           Target Beltscale:
                         </p>
@@ -270,7 +270,7 @@ useEffect(() => {
                           {adjustmentSummary.beltscale?.toFixed(2)} Ton
                         </p>
                       </div>
-                      <div className="bg-white dark:bg-green-900/20 p-2 rounded border border-green-100 dark:border-green-800/30">
+                      <div className="bg-neutral-50 dark:bg-green-900/20 p-2 rounded border border-green-100 dark:border-green-800/30">
                         <p className="text-green-700 dark:text-green-400 mb-1">
                           Ritase Updated:
                         </p>
@@ -316,7 +316,7 @@ useEffect(() => {
 
         {/* Data Table */}
         {isInitialLoading ? (
-          <Card className="border-none shadow-sm dark:shadow-lg dark:shadow-gray-900/50 bg-white dark:bg-gray-800">
+          <Card className="border-none shadow-sm dark:shadow-lg dark:shadow-gray-900/50 bg-neutral-50 dark:bg-gray-800">
             <CardContent className="p-6">
               <div className="space-y-4">
                 <div className="flex items-center justify-between mb-4">
@@ -363,8 +363,8 @@ useEffect(() => {
       {/* Form Modal */}
       {showForm && (
         <div className="detail-modal fixed inset-0 bg-black/50 dark:bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 transition-all duration-200">
-          <div className="bg-white dark:bg-gray-800 rounded-lg max-w-4xl w-full max-h-[90vh] overflow-auto shadow-2xl dark:shadow-gray-900/50 border border-gray-200 dark:border-gray-700">
-            <div className="sticky top-0 bg-white dark:bg-gray-800 px-6 py-4 flex items-center justify-between z-10 shadow-sm border-b border-gray-200 dark:border-gray-700">
+          <div className="bg-neutral-50 dark:bg-gray-800 rounded-lg max-w-4xl w-full max-h-[90vh] overflow-auto shadow-2xl dark:shadow-gray-900/50 border border-gray-200 dark:border-gray-700">
+            <div className="sticky top-0 bg-neutral-50 dark:bg-gray-800 px-6 py-4 flex items-center justify-between z-10 shadow-sm border-b border-gray-200 dark:border-gray-700">
               <div>
                 <h2 className="text-xl font-bold flex items-center gap-2 text-gray-900 dark:text-white">
                   <TrendingUp className="w-5 h-5 text-blue-600 dark:text-blue-400" />

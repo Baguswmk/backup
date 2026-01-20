@@ -12,7 +12,7 @@ const ModalHeader = ({
 }) => {
   return (
     <div
-      className={`sticky top-0 bg-white dark:bg-gray-900 shadow-sm dark:border-gray-700 px-6 py-4 flex items-center justify-between z-10 ${className}`}
+      className={`sticky top-0 bg-neutral-50 dark:bg-gray-900 shadow-sm dark:border-gray-700 px-6 py-4 flex items-center justify-between z-10 ${className}`}
     >
       <div>
         <h2 className="text-xl font-bold flex items-center gap-2 dark:text-gray-200">

@@ -98,7 +98,7 @@ const FleetStatusCard = ({
                 {allSelectedFleets.slice(0, 3).map((fleet) => (
                   <div
                     key={fleet.id}
-                    className="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-md border bg-white text-gray-700 border-blue-200"
+                    className="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-md border bg-neutral-50 text-gray-700 border-blue-200"
                   >
                     <span>{fleet.excavator}</span>
                     <span className="text-gray-400">•</span>

@@ -122,7 +122,7 @@ const DeleteConfirmDialog = ({
       aria-modal="true"
     >
       <div
-        className="w-full sm:max-w-lg rounded-t-2xl sm:rounded-2xl overflow-hidden shadow-lg transition-all duration-200 bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700"
+        className="w-full sm:max-w-lg rounded-t-2xl sm:rounded-2xl overflow-hidden shadow-lg transition-all duration-200 bg-neutral-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-700"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}

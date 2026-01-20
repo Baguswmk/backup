@@ -837,7 +837,7 @@ export const TimbanganTable = ({
                                   </DropdownMenuTrigger>
                                   <DropdownMenuContent
                                     align="end"
-                                    className="bg-white dark:bg-gray-800 dark:text-gray-200 border-none"
+                                    className="bg-neutral-50 dark:bg-gray-800 dark:text-gray-200 border-none"
                                   >
                                     {canRead && (
                                       <DropdownMenuItem

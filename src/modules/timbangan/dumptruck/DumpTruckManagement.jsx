@@ -860,7 +860,7 @@ const DumpTruckManagement = () => {
         getDisabledMessage={getDisabledMessage}
       />
 
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm">
+      <div className="bg-neutral-50 dark:bg-gray-800 rounded-lg shadow-sm">
         <div className="p-4 sm:p-6">
           <div className="space-y-4">
             <DumpTruckFilters

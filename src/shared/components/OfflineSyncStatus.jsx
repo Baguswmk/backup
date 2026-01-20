@@ -71,7 +71,7 @@ export const OfflineSyncStatus = () => {
     <div className="fixed bottom-4 right-4 z-50 max-w-sm">
       <div
         className={`
-        bg-white dark:bg-gray-800 rounded-lg shadow-lg border-2 transition-all
+        bg-neutral-50 dark:bg-gray-800 rounded-lg shadow-lg border-2 transition-all
         ${isOnline ? "border-green-500 dark:border-green-600" : "border-orange-500 dark:border-orange-600"}
       `}
       >

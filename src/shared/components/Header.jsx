@@ -103,7 +103,7 @@ export const Header = ({
   }, [isMobileMenuOpen]);
 
   return (
-    <header className="bg-white dark:bg-slate-900 shadow-sm z-50 transition-colors duration-200">
+    <header className="bg-neutral-50 dark:bg-slate-900 shadow-sm z-50 transition-colors duration-200">
       <div className="max-w-7xl mx-auto sm:pr-1 sm:pl-6">
         <div className="flex justify-between items-center h-16">
           {/* Logo and Extra Content */}
@@ -149,7 +149,7 @@ export const Header = ({
                     </DropdownMenuTrigger>
                     <DropdownMenuContent 
                       align="start" 
-                      className="w-56 bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700"
+                      className="w-56 bg-neutral-50 dark:bg-slate-800 border-gray-200 dark:border-slate-700"
                     >
                       {item.children.map((child) => {
                         if (!child) return null;
@@ -178,7 +178,7 @@ export const Header = ({
                                 {ChildIcon && <ChildIcon className="w-4 h-4 mr-2" />}
                                 <span>{child.name}</span>
                               </DropdownMenuSubTrigger>
-                              <DropdownMenuSubContent className="w-56 bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700">
+                              <DropdownMenuSubContent className="w-56 bg-neutral-50 dark:bg-slate-800 border-gray-200 dark:border-slate-700">
                                 {child.children.map((grandchild) => {
                                   if (!grandchild) return null;
                                   
@@ -276,7 +276,7 @@ export const Header = ({
       {/* Mobile Navigation */}
       {isMobileMenuOpen && (
         <div 
-          className="lg:hidden bg-white dark:bg-slate-900 transition-colors duration-200 max-h-[calc(100vh-4rem)] overflow-y-auto"
+          className="lg:hidden bg-neutral-50 dark:bg-slate-900 transition-colors duration-200 max-h-[calc(100vh-4rem)] overflow-y-auto"
           role="navigation"
           aria-label="Mobile navigation"
         >

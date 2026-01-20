@@ -15,7 +15,7 @@ const EmptyState = ({
   return (
     <Card className={cn(
       "text-center py-12 transition-all duration-200 shadow-none border-none",
-      "bg-white dark:bg-slate-800/50",
+      "bg-neutral-50 dark:bg-slate-800/50",
       " dark:border-slate-700",
       className
     )}>

@@ -17,7 +17,7 @@ const CustomTooltip = ({ active, payload, label }) => {
     const total = payload.reduce((sum, entry) => sum + entry.value, 0);
 
     return (
-      <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
+      <div className="bg-neutral-50 p-3 border border-gray-200 rounded-lg shadow-lg">
         <p className="font-semibold text-gray-900 mb-2">{label}</p>
         {payload.map((entry, index) => (
           <p key={index} className="text-sm" style={{ color: entry.fill }}>

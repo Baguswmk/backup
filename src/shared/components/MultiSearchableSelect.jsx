@@ -70,7 +70,7 @@ const MultiSearchableSelect = ({
         className="border-none w-[--radix-popover-trigger-width] p-0 dark:bg-gray-800 dark:border-gray-700"
         align="start"
       >
-        <Command className="bg-white dark:bg-gray-800 dark:text-gray-200">
+        <Command className="bg-neutral-50 dark:bg-gray-800 dark:text-gray-200">
           <CommandInput 
             placeholder={`Cari ${placeholder.toLowerCase()}`}
             className="dark:text-gray-200"

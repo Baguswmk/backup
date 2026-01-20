@@ -497,7 +497,7 @@ const DumpTruckHistory = () => {
         </div>
       </div>
 
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm dark:border-gray-700">
+      <div className="bg-neutral-50 dark:bg-gray-800 rounded-lg shadow-sm dark:border-gray-700">
         <div className="p-4 sm:p-6">
           <div className="space-y-4">
             <TableToolbar

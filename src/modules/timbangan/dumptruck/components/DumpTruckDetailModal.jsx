@@ -220,7 +220,7 @@ const DumpTruckDetailModal = ({
   return (
     <>
       <div className="detail-modal fixed inset-0 bg-black/50 dark:bg-black/70 z-50 flex items-center justify-center p-4">
-        <div className="bg-white dark:bg-gray-800 rounded-lg max-w-4xl w-full max-h-[90vh] overflow-auto">
+        <div className="bg-neutral-50 dark:bg-gray-800 rounded-lg max-w-4xl w-full max-h-[90vh] overflow-auto">
           <ModalHeader
             title={`Unit Dump Truck • ${setting.fleet?.name || "–"}`}
             subtitle={`Fleet: ${setting.fleet?.excavator || "-"} • ${setting.fleet?.workUnit || "-"}`}
@@ -315,7 +315,7 @@ const DumpTruckDetailModal = ({
                         </DropdownMenuTrigger>
                         <DropdownMenuContent
                           align="end"
-                          className="w-80 bg-white border-none dark:bg-gray-800 dark:border-gray-700"
+                          className="w-80 bg-neutral-50 border-none dark:bg-gray-800 dark:border-gray-700"
                         >
                           <div className="px-3 py-1.5 text-xs text-gray-500 dark:text-gray-400">
                             Pilih Fleet Tujuan
@@ -436,7 +436,7 @@ const DumpTruckDetailModal = ({
                                 <DropdownMenuContent
                                   align="end"
                                   className={cn(
-                                    "w-80 bg-white border-none",
+                                    "w-80 bg-neutral-50 border-none",
                                     "dark:bg-gray-800 dark:border-gray-700",
                                   )}
                                 >

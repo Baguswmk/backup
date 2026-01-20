@@ -224,7 +224,7 @@ const TimbanganInternalPage = () => {
         <Alert
           className={cn(
             "max-w-md shadow-lg border-l-4 border-red-500 dark:border-red-600",
-            "bg-white dark:bg-red-900/20 dark:border-red-800",
+            "bg-neutral-50 dark:bg-red-900/20 dark:border-red-800",
             "transition-all duration-300",
           )}
         >
@@ -307,7 +307,7 @@ const TimbanganInternalPage = () => {
             <div
               className={cn(
                 "min-h-[calc(100vh-200px)]",
-                "bg-white dark:bg-slate-800/50",
+                "bg-neutral-50 dark:bg-slate-800/50",
                 "rounded-lg shadow-sm",
                 "p-4 md:p-6",
                 "transition-all duration-200",
@@ -387,7 +387,7 @@ const TimbanganInternalPage = () => {
           position="top-right"
           toastOptions={{
             className: cn(
-              "bg-white dark:bg-slate-800",
+              "bg-neutral-50 dark:bg-slate-800",
               "text-gray-900 dark:text-gray-100",
             ),
           }}

@@ -42,7 +42,7 @@ const LaporanManagement = () => {
   };
 
   return (
-    <div className="p-4 md:p-6 space-y-6 min-h-screen bg-gray-50 dark:bg-gray-900">
+    <div className="p-4 md:p-6 space-y-6 min-h-screen bg-neutral-50 dark:bg-gray-900">
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
@@ -86,7 +86,7 @@ const LaporanManagement = () => {
 
       {/* Info Box - Empty State */}
       {LAPORAN_CONFIG.length === 0 && (
-        <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-lg shadow">
+        <div className="text-center py-12 bg-neutral-50 dark:bg-gray-800 rounded-lg shadow">
           <p className="text-gray-500 dark:text-gray-400">
             Tidak ada laporan yang tersedia
           </p>

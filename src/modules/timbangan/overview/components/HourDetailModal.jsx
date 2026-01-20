@@ -56,7 +56,7 @@ const KendalaModal = ({ isOpen, hour, currentKendala, onClose, onSave }) => {
           <select
             value={kategori}
             onChange={(e) => setKategori(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 dark:text-gray-200"
+            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-neutral-50 dark:bg-gray-800 dark:text-gray-200"
             required
           >
             <option value="operasional">Operasional</option>
@@ -75,7 +75,7 @@ const KendalaModal = ({ isOpen, hour, currentKendala, onClose, onSave }) => {
           <textarea
             value={kendala}
             onChange={(e) => setKendala(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 dark:text-gray-200 min-h-30"
+            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-neutral-50 dark:bg-gray-800 dark:text-gray-200 min-h-30"
             placeholder="Jelaskan kendala yang menyebabkan produksi tidak mencapai 250 ton..."
             required
           />
@@ -115,7 +115,7 @@ const RitaseFormModal = ({ isOpen, mode, ritase, onClose, onSave }) => {
 
   return (
     <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-black/50">
-      <Card className="w-full max-w-2xl bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100">
+      <Card className="w-full max-w-2xl bg-neutral-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
         {/* ✅ USING ModalHeader */}
         <ModalHeader
           title={mode === "create" ? "Tambah Ritase Baru" : "Edit Ritase"}
@@ -136,7 +136,7 @@ const RitaseFormModal = ({ isOpen, mode, ritase, onClose, onSave }) => {
                   onChange={(e) =>
                     handleChange("unit_dump_truck", e.target.value)
                   }
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 dark:text-gray-200"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-neutral-50 dark:bg-gray-800 dark:text-gray-200"
                   placeholder="Contoh: DT-001"
                   required
                 />
@@ -150,7 +150,7 @@ const RitaseFormModal = ({ isOpen, mode, ritase, onClose, onSave }) => {
                   type="text"
                   value={formData.driver}
                   onChange={(e) => handleChange("driver", e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 dark:text-gray-200"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-neutral-50 dark:bg-gray-800 dark:text-gray-200"
                   placeholder="Nama driver"
                   required
                 />
@@ -164,7 +164,7 @@ const RitaseFormModal = ({ isOpen, mode, ritase, onClose, onSave }) => {
                   type="text"
                   value={formData.company}
                   onChange={(e) => handleChange("company", e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 dark:text-gray-200"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-neutral-50 dark:bg-gray-800 dark:text-gray-200"
                   placeholder="Nama perusahaan"
                   required
                 />
@@ -179,7 +179,7 @@ const RitaseFormModal = ({ isOpen, mode, ritase, onClose, onSave }) => {
                   step="0.01"
                   value={formData.net_weight}
                   onChange={(e) => handleChange("net_weight", e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 dark:text-gray-200"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-neutral-50 dark:bg-gray-800 dark:text-gray-200"
                   placeholder="0.00"
                   required
                 />
@@ -192,7 +192,7 @@ const RitaseFormModal = ({ isOpen, mode, ritase, onClose, onSave }) => {
                 <select
                   value={formData.shift}
                   onChange={(e) => handleChange("shift", e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 dark:text-gray-200"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-neutral-50 dark:bg-gray-800 dark:text-gray-200"
                   required
                 >
                   <option value="Shift 1">Shift 1</option>
@@ -209,7 +209,7 @@ const RitaseFormModal = ({ isOpen, mode, ritase, onClose, onSave }) => {
                   type="date"
                   value={formData.date}
                   onChange={(e) => handleChange("date", e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 dark:text-gray-200"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-neutral-50 dark:bg-gray-800 dark:text-gray-200"
                   required
                 />
               </div>
@@ -222,7 +222,7 @@ const RitaseFormModal = ({ isOpen, mode, ritase, onClose, onSave }) => {
                   type="time"
                   value={formData.time}
                   onChange={(e) => handleChange("time", e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 dark:text-gray-200"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-neutral-50 dark:bg-gray-800 dark:text-gray-200"
                   required
                 />
               </div>
@@ -268,7 +268,7 @@ const RitaseDetailModal = ({ isOpen, ritase, onClose, onEdit }) => {
 
   return (
     <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-black/50">
-      <Card className="w-full max-w-2xl bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100">
+      <Card className="w-full max-w-2xl bg-neutral-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
         {/* ✅ USING ModalHeader */}
         <ModalHeader title="Detail Ritase" icon={Eye} onClose={onClose} />
 
@@ -466,7 +466,7 @@ const HourDetailModal = ({ isOpen, data, hour, onClose }) => {
   return (
     <>
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
-        <Card className="w-full max-w-6xl max-h-[90vh] overflow-hidden flex flex-col bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100">
+        <Card className="w-full max-w-6xl max-h-[90vh] overflow-hidden flex flex-col bg-neutral-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
           {/* ✅ USING ModalHeader */}
           <ModalHeader
             title={`Detail Jam ${hour}:00 - ${data.unit_exca}`}
@@ -680,7 +680,7 @@ const HourDetailModal = ({ isOpen, data, hour, onClose }) => {
                             </Button>
 
                             {actionMenuOpen === ritase.id && (
-                              <div className="absolute right-0  mt-2 w-48 bg-white dark:bg-gray-800 rounded-md shadow-lg border border-gray-200 dark:border-gray-700 z-10">
+                              <div className="absolute right-0  mt-2 w-48 bg-neutral-50 dark:bg-gray-800 rounded-md shadow-lg border border-gray-200 dark:border-gray-700 z-10">
                                 <Button
                                   onClick={() => handleDetail(ritase)}
                                   className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2 cursor-pointer dark:text-gray-200"

@@ -112,7 +112,7 @@ const QueueTable = ({ data, isLoading }) => {
           filteredData.map((item) => (
             <div
               key={item.id}
-              className="p-4 border border-gray-200 rounded-lg hover:shadow-md transition-shadow bg-white"
+              className="p-4 border border-gray-200 rounded-lg hover:shadow-md transition-shadow bg-neutral-50"
             >
               <div className="flex items-start justify-between mb-3">
                 <div className="flex items-center gap-2">

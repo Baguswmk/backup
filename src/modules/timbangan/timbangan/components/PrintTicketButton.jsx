@@ -103,7 +103,7 @@ const PrintTicketButton = forwardRef(({
             .p-4 { padding: 1rem; }
             .p-6 { padding: 1.5rem; }
             
-            .bg-white { background-color: #ffffff; }
+            .bg-neutral-50 { background-color: #ffffff; }
             .bg-linear-to-r { background-image: linear-gradient(to right, var(--tw-gradient-stops)); }
             .from-green-50 { --tw-gradient-from: #f0fdf4; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to, rgba(240, 253, 244, 0)); }
             .to-blue-50 { --tw-gradient-to: #eff6ff; }

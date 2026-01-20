@@ -771,7 +771,7 @@ const TimbanganForm = ({
           <CardContent className="py-4">
             <div className="flex items-center justify-between gap-4">
               <div className="flex items-center gap-3 flex-1">
-                <div className="bg-white p-2 rounded-lg shadow-sm">
+                <div className="bg-neutral-50 p-2 rounded-lg shadow-sm">
                   <Loader2 className="w-5 h-5 text-blue-600 animate-spin" />
                 </div>
                 <div className="flex-1">
@@ -795,7 +795,7 @@ const TimbanganForm = ({
           <CardContent className="py-4">
             <div className="flex items-center justify-between gap-4">
               <div className="flex items-center gap-3 flex-1">
-                <div className="bg-white p-2 rounded-lg shadow-sm">
+                <div className="bg-neutral-50 p-2 rounded-lg shadow-sm">
                   <AlertCircle className="w-5 h-5 text-orange-600" />
                 </div>
                 <div className="flex-1">
@@ -829,7 +829,7 @@ const TimbanganForm = ({
             <CardContent className="py-4">
               <div className="flex items-center justify-between gap-4">
                 <div className="flex items-center gap-3 flex-1">
-                  <div className="bg-white p-2 rounded-lg shadow-sm">
+                  <div className="bg-neutral-50 p-2 rounded-lg shadow-sm">
                     <Loader2 className="w-5 h-5 text-blue-600 animate-spin" />
                   </div>
                   <div className="flex-1">
@@ -861,7 +861,7 @@ const TimbanganForm = ({
           <CardContent className="py-3">
             <div className="flex items-center justify-between gap-4">
               <div className="flex items-center gap-3 flex-1">
-                <div className="bg-white dark:bg-gray-800 p-2 rounded-lg shadow-sm">
+                <div className="bg-neutral-50 dark:bg-gray-800 p-2 rounded-lg shadow-sm">
                   <Wifi className="w-5 h-5 text-green-600 dark:text-green-400 animate-pulse" />
                 </div>
                 <div className="flex-1">
@@ -906,7 +906,7 @@ const TimbanganForm = ({
         <CardContent className="py-4">
           <div className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-3 flex-1">
-              <div className="bg-white p-2 rounded-lg shadow-sm">
+              <div className="bg-neutral-50 p-2 rounded-lg shadow-sm">
                 <WifiOff className="w-5 h-5 text-blue-600" />
               </div>
               <div className="flex-1">
@@ -1016,7 +1016,7 @@ const TimbanganForm = ({
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="bg-white rounded-lg p-4 border border-blue-200">
+            <div className="bg-neutral-50 rounded-lg p-4 border border-blue-200">
               <div className="grid grid-cols-2 gap-3 text-sm">
                 <div>
                   <span className="text-gray-600">Dibuat:</span>
@@ -1230,7 +1230,7 @@ const TimbanganForm = ({
                     </PopoverTrigger>
 
                     <PopoverContent
-                      className="w-auto p-0 bg-white border-none dark:bg-gray-800 dark:border-gray-700"
+                      className="w-auto p-0 bg-neutral-50 border-none dark:bg-gray-800 dark:border-gray-700"
                       align="start"
                     >
                       <Calendar
@@ -1389,7 +1389,7 @@ const TimbanganForm = ({
             </div>
           </CardHeader>
           <CardContent>
-            <div className="bg-white rounded-lg p-4 space-y-3">
+            <div className="bg-neutral-50 rounded-lg p-4 space-y-3">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
                 <div className="flex items-center justify-between p-2 bg-gray-50 rounded">
                   <span className="text-gray-700">Fokus ke Nomor DT</span>
@@ -1783,7 +1783,7 @@ const TimbanganForm = ({
               </Badge>
             </div>
 
-            <div className="bg-white rounded-lg p-3 border border-green-200">
+            <div className="bg-neutral-50 rounded-lg p-3 border border-green-200">
               <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-xs">
                 <div className="space-y-1">
                   <div className="text-gray-500">Excavator</div>

@@ -123,7 +123,7 @@ const ThemeToggle = () => {
         align="end"
         className={cn(
           "w-40 shadow-lg transition-colors duration-200",
-          "bg-white dark:bg-slate-900 border-gray-200 dark:border-slate-700"
+          "bg-neutral-50 dark:bg-slate-900 border-gray-200 dark:border-slate-700"
         )}
       >
         <DropdownMenuItem

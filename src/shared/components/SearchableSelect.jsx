@@ -70,7 +70,7 @@ const SearchableSelect = ({
       </PopoverTrigger>
 
       <PopoverContent
-        className="w-[--radix-popover-trigger-width] p-0 bg-white border-none dark:bg-gray-800 dark:border-gray-700"
+        className="w-[--radix-popover-trigger-width] p-0 bg-neutral-50 border-none dark:bg-gray-800 dark:border-gray-700"
         align="start"
       >
         <Command loop shouldFilter className="dark:bg-gray-800 dark:text-gray-200">

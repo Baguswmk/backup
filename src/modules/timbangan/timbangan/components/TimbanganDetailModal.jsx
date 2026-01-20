@@ -198,9 +198,9 @@ const TimbanganDetailModal = ({
 
   return (
     <div className="detail-modal fixed inset-0 bg-black bg-opacity-50 dark:bg-black/70 z-50 flex items-center justify-center p-4">
-      <div className="bg-white dark:bg-gray-800 rounded-lg max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+      <div className="bg-neutral-50 dark:bg-gray-800 rounded-lg max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
         {/* Header */}
-        <div className="sticky top-0 bg-white dark:bg-gray-800  px-6 py-4 flex items-center justify-between z-10 shadow-sm">
+        <div className="sticky top-0 bg-neutral-50 dark:bg-gray-800  px-6 py-4 flex items-center justify-between z-10 shadow-sm">
           <div>
             <h2 className="text-xl font-bold flex items-center gap-2 dark:text-white">
               <Weight className="w-5 h-5" />
@@ -609,7 +609,7 @@ const TimbanganDetailModal = ({
         </div>
 
         {/* Footer Actions */}
-        <div className="sticky bottom-0 bg-white dark:bg-gray-800 px-6 py-4 flex items-center justify-between">
+        <div className="sticky bottom-0 bg-neutral-50 dark:bg-gray-800 px-6 py-4 flex items-center justify-between">
           {mode === "view" && (
             <>
               <Button

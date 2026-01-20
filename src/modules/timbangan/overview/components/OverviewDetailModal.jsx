@@ -22,7 +22,7 @@ const OverviewDetailModal = ({ isOpen, data, onClose }) => {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
-      <Card className="w-full max-w-5xl max-h-[90vh] overflow-hidden flex flex-col bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 border-gray-200 dark:border-gray-700">
+      <Card className="w-full max-w-5xl max-h-[90vh] overflow-hidden flex flex-col bg-neutral-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 border-gray-200 dark:border-gray-700">
         {/* ✅ USING ModalHeader instead of custom header */}
         <ModalHeader
           title={`Detail Ritase - ${data.unit_exca}`}
