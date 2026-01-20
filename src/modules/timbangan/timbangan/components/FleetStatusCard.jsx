@@ -16,6 +16,7 @@ import {
   RefreshCw,
   ChevronRight,
 } from "lucide-react";
+
 const FleetStatusCard = ({
   isInitialLoading,
   fleetCounts,

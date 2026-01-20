@@ -166,7 +166,7 @@ const TimbanganInternalPage = () => {
         icon: MapPinCheckInside,
 
         roles: ["admin", "super_admin", "ccr"],
-        locationId: "checkPoint",
+        locationId: "checkpoint",
       },
       {
         name: "Dashboard",

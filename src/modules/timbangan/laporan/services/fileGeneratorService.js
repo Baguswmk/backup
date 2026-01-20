@@ -92,12 +92,6 @@ export const generateExcel = (data, params) => {
   const { startDate, endDate, shift } = params;
 
   const worksheetData = [
-    ["LAPORAN TONASE RITASE"],
-    [
-      `Periode: ${format(new Date(startDate), "dd MMM yyyy", { locale: localeId })} - ${format(new Date(endDate), "dd MMM yyyy", { locale: localeId })}`,
-    ],
-    [`Shift: ${shift}`],
-    [],
     [
       "No",
       "Dump Truck",
@@ -124,11 +118,6 @@ export const generateExcel = (data, params) => {
       item.operator || "-",
       item.checker || "-",
     ]),
-    [],
-    [`Total Data: ${data.length}`],
-    [
-      `Dicetak: ${format(new Date(), "dd/MM/yyyy HH:mm", { locale: localeId })}`,
-    ],
   ];
 
   const ws = XLSX.utils.aoa_to_sheet(worksheetData);

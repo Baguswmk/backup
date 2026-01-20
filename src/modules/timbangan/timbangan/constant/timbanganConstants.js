@@ -71,8 +71,9 @@ export const KEYBOARD_SHORTCUTS = {
 
 // NEW: Timbangan Types
 export const TIMBANGAN_TYPES = {
-  INTERNAL: "internal",
-  MANUAL: "manual",
+  INTERNAL: "INTERNAL",
+  MANUAL: "MANUAL",
+  BYPASS:"BYPASS",
   CHECKPOINT: "checkpoint",
 };
 

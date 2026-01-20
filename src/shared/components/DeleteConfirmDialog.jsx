@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Button } from '@/shared/components/ui/Button';
+import { Button } from '@/shared/components/ui/button';
 import { Checkbox } from '@/shared/components/ui/checkbox';
 import { AlertTriangle, Loader2, X, CheckCircle2, ChevronRight, ChevronLeft } from 'lucide-react';
 

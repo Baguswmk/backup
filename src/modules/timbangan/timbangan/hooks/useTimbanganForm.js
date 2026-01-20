@@ -43,12 +43,12 @@ const CREATE_VALIDATION_RULES = {
 const EDIT_VALIDATION_RULES = {
   gross_weight: {
     required: true,
-    message: "Net weight wajib diisi",
+    message: "Gross weight wajib diisi",
     validate: (value) => {
       const num = parseFloat(value);
       return !isNaN(num) && num > 0 && num <= 9999.99;
     },
-    errorMessage: "Net weight harus antara 0-9999.99 ton (max 4 digit)",
+    errorMessage: "Gross weight harus antara 0-9999.99 ton (max 4 digit)",
   },
   unit_dump_truck: {
     required: true,
@@ -380,6 +380,8 @@ export const useTimbanganForm = (
     const newErrors = {};
     let isValid = true;
 
+    console.log(formData)
+
     if (mode === "create") {
       if (!formData.hull_no?.trim()) {
         newErrors.hull_no = "Nomor lambung wajib diisi";
@@ -387,7 +389,7 @@ export const useTimbanganForm = (
       }
 
       if (!formData.gross_weight) {
-        newErrors.gross_weight = "Net weight wajib diisi";
+        newErrors.gross_weight = "Gross weight wajib diisi";
         isValid = false;
       }
 
@@ -398,7 +400,7 @@ export const useTimbanganForm = (
       }
     } else if (mode === "edit") {
       if (!formData.gross_weight) {
-        newErrors.gross_weight = "Net weight wajib diisi";
+        newErrors.gross_weight = "Gross weight wajib diisi";
         isValid = false;
       }
     }

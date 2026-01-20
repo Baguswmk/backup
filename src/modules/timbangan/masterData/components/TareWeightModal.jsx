@@ -264,7 +264,7 @@ const TareWeightModal = ({
 
   return (
     <div className="detail-modal fixed inset-0 bg-black/50 z-50  flex items-center justify-center p-4">
-      <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto dark:bg-gray-800 border-none">
+      <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto bg-white dark:bg-gray-800 border-none">
         <ModalHeader
           title={
             isSelectionMode
@@ -333,7 +333,7 @@ const TareWeightModal = ({
                               ? "destructive"
                               : "secondary"
                           }
-                          className="text-xs"
+                          className="text-xs text-blue-800"
                         >
                           {currentStatus.message}
                         </Badge>
@@ -371,7 +371,7 @@ const TareWeightModal = ({
                         )}
                       </p>
                     </div>
-                    <Badge variant="destructive">Perlu Timbang Ulang</Badge>
+                    <Badge variant="destructive" className="text-red-700">Perlu Timbang Ulang</Badge>
                   </div>
                 </AlertDescription>
               </Alert>
@@ -428,7 +428,7 @@ const TareWeightModal = ({
               <div className="mt-3">
                 <Button
                   onClick={connect}
-                  className="w-full bg-blue-600 hover:bg-blue-700"
+                  className="w-full bg-blue-600 hover:bg-blue-700 text-white"
                   variant="default"
                 >
                   <Wifi className="w-4 h-4 mr-2" />
