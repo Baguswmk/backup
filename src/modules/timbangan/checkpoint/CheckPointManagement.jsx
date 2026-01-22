@@ -15,9 +15,9 @@ import FleetStatusCard from "@/modules/timbangan/checkpoint/components/FleetStat
 import CheckpointModals from "@/modules/timbangan/checkpoint/components/CheckpointModals";
 import { CheckpointTable } from "@/modules/timbangan/checkpoint/components/CheckpointTable";
 import LoadingOverlay from "@/shared/components/LoadingOverlay";
-import PrintTicketButton from "@/modules/timbangan/timbangan/components/PrintTicketButton";
+import PrintTicketButton from "@/modules/timbangan/ritase/components/PrintTicketButton";
 
-import { useTimbanganStore } from "@/modules/timbangan/timbangan/store/timbanganStore";
+import { useRitaseStore } from "@/modules/timbangan/ritase/store/ritaseStore";
 import { checkpointService } from "@/modules/timbangan/checkpoint/services/checkpointService";
 import { showToast } from "@/shared/utils/toast";
 import useAuthStore from "@/modules/auth/store/authStore";
@@ -37,17 +37,17 @@ import {
 } from "@/modules/timbangan/checkpoint/constant/checkpointConstants";
 
 const CheckPointManagement = ({ Type }) => {
-  const selectedItems = useTimbanganStore((state) => state.selectedItems);
-  const error = useTimbanganStore((state) => state.error);
-  const selectedFleetIds = useTimbanganStore((state) => state.selectedFleetIds);
-  const fleetConfigs = useTimbanganStore((state) => state.fleetConfigs);
-  const clearError = useTimbanganStore((state) => state.clearError);
-  const toggleSelectItem = useTimbanganStore((state) => state.toggleSelectItem);
-  const toggleSelectAll = useTimbanganStore((state) => state.toggleSelectAll);
-  const loadFleetConfigsFromAPI = useTimbanganStore(
+  const selectedItems = useRitaseStore((state) => state.selectedItems);
+  const error = useRitaseStore((state) => state.error);
+  const selectedFleetIds = useRitaseStore((state) => state.selectedFleetIds);
+  const fleetConfigs = useRitaseStore((state) => state.fleetConfigs);
+  const clearError = useRitaseStore((state) => state.clearError);
+  const toggleSelectItem = useRitaseStore((state) => state.toggleSelectItem);
+  const toggleSelectAll = useRitaseStore((state) => state.toggleSelectAll);
+  const loadFleetConfigsFromAPI = useRitaseStore(
     (state) => state.loadFleetConfigsFromAPI,
   );
-  const setSelectedFleets = useTimbanganStore(
+  const setSelectedFleets = useRitaseStore(
     (state) => state.setSelectedFleets,
   );
 
@@ -87,7 +87,7 @@ const CheckPointManagement = ({ Type }) => {
     return measurementType === "Bypass";
   });
 
-  const setSelectedFleetsByType = useTimbanganStore(
+  const setSelectedFleetsByType = useRitaseStore(
     (state) => state.setSelectedFleetsByType,
   );
 
@@ -253,13 +253,11 @@ const CheckPointManagement = ({ Type }) => {
 
   const handleAddShipment = useCallback(
     async (result) => {
-      console.log("🔥 [CheckPoint] handleAddShipment called with:", result);
 
       try {
         setIsActionLoading(true);
 
         if (result.cancelled) {
-          console.log("❌ [CheckPoint] User cancelled");
           setShowInputForm(false);
           return;
         }
@@ -267,22 +265,10 @@ const CheckPointManagement = ({ Type }) => {
         const isQueued = result?.queued === true;
         const shouldClose = result?.shouldClose === true;
 
-        console.log("🔍 [CheckPoint] Detection:", {
-          isQueued,
-          shouldClose,
-          hasData: !!result?.data,
-          success: result?.success,
-        });
-
         if (result.success) {
           if (isQueued || (shouldClose && !result.data)) {
-            console.log(
-              "📦 [CheckPoint] Data queued - CLOSING MODAL IMMEDIATELY",
-            );
 
             setShowInputForm(false);
-
-            console.log("✅ [CheckPoint] Modal closed, showInputForm =", false);
 
             showToast.info(
               "📦 Data disimpan di queue dan akan otomatis tersinkron saat online",
@@ -290,13 +276,8 @@ const CheckPointManagement = ({ Type }) => {
             );
 
             if (userRole === USER_ROLES.OPERATOR_JT) {
-              console.log(
-                "⏱️ [CheckPoint] Scheduling reopen in",
-                REOPEN_FORM_DELAY,
-                "ms",
-              );
+
               setTimeout(() => {
-                console.log("🔄 [CheckPoint] Reopening form...");
                 handleOpenInputForm();
               }, REOPEN_FORM_DELAY);
             }
@@ -305,10 +286,8 @@ const CheckPointManagement = ({ Type }) => {
           }
 
           if (result.data) {
-            console.log("✅ [CheckPoint] Success with data");
 
             if (shouldClose) {
-              console.log("🚪 [CheckPoint] Closing modal (success with data)");
               setShowInputForm(false);
             }
 
@@ -341,7 +320,6 @@ const CheckPointManagement = ({ Type }) => {
         showToast.error(TOAST_MESSAGES.ERROR.SAVE_FAILED);
       } finally {
         setIsActionLoading(false);
-        console.log("🏁 [CheckPoint] handleAddShipment finished");
       }
     },
     [dateRange, userRole, handleOpenInputForm],
@@ -451,7 +429,7 @@ const CheckPointManagement = ({ Type }) => {
       );
 
       setTimeout(() => {
-        const state = useTimbanganStore.getState();
+        const state = useRitaseStore.getState();
         const idx = state.dtIndexByType.Bypass || {};
 
         if (Object.keys(idx).length === 0) {

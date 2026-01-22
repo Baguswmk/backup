@@ -1,8 +1,8 @@
 import React, { useMemo, useState, useEffect } from "react";
 import {
-  useTimbanganStore,
+  useRitaseStore,
   normalizeHull,
-} from "@/modules/timbangan/timbangan/store/timbanganStore";
+} from "@/modules/timbangan/ritase/store/ritaseStore";
 import { checkpointService } from "@/modules/timbangan/checkpoint/services/checkpointService";
 import {
   Card,
@@ -41,8 +41,8 @@ const CheckpointForm = ({
 }) => {
   const { user } = useAuthStore();
 
-  const dtIndex = useTimbanganStore((state) => state.dtIndex);
-  const hiddenDumptrucks = useTimbanganStore((state) => state.hiddenDumptrucks);
+  const dtIndex = useRitaseStore((state) => state.dtIndex);
+  const hiddenDumptrucks = useRitaseStore((state) => state.hiddenDumptrucks);
 
   const [formData, setFormData] = useState({
     hull_no: "",
@@ -156,7 +156,6 @@ const CheckpointForm = ({
       e.preventDefault();
     }
 
-    console.log("🚀 [CheckpointForm] handleFormSubmit started");
 
     if (!formData.hull_no || !formData.hull_no.trim()) {
       setErrors({ hull_no: "Nomor lambung wajib diisi" });
@@ -198,23 +197,15 @@ const CheckpointForm = ({
         operator_name: currentFleet.operator,
       };
 
-      console.log("📤 [CheckpointForm] Submitting:", submissionData);
 
       const result = await checkpointService.submitCheckpoint(submissionData);
 
-      console.log("📊 [CheckpointForm] Submit result:", result);
 
       const isQueued = result?.queued === true;
       const shouldClose = result?.shouldClose === true;
 
-      console.log("🔍 [CheckpointForm] Flags:", {
-        isQueued,
-        shouldClose,
-        result,
-      });
 
       if (isQueued || (result?.success && !result?.data)) {
-        console.log("📦 [CheckpointForm] Data queued, calling onSubmit...");
 
         showToast.info(
           "📦 Data disimpan di queue dan akan otomatis tersinkron saat online",
@@ -234,9 +225,7 @@ const CheckpointForm = ({
       }
 
       if (result?.success && result?.data) {
-        console.log(
-          "✅ [CheckpointForm] Success with data, calling onSubmit...",
-        );
+
 
         if (onSubmit) {
           onSubmit(result);
@@ -259,9 +248,7 @@ const CheckpointForm = ({
         err?.queued || err?.message?.includes("queued for offline sync");
 
       if (isQueuedError) {
-        console.log(
-          "📦 [CheckpointForm] Error was queued, treating as success",
-        );
+
 
         showToast.info(
           "📦 Data disimpan di queue dan akan otomatis tersinkron saat online",

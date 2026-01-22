@@ -2,7 +2,7 @@ import React from "react";
 import { Button } from "@/shared/components/ui/button";
 import { Badge } from "@/shared/components/ui/badge";
 import { Plus, Loader2 } from "lucide-react";
-import { KEYBOARD_SHORTCUTS } from "@/modules/timbangan/timbangan/constant/timbanganConstants";
+import { KEYBOARD_SHORTCUTS } from "@/modules/timbangan/ritase/constant/ritaseConstants";
 
 const CheckpointHeader = ({
   username,
