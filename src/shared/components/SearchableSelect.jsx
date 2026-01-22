@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { Button } from "@/shared/components/ui/button";
 import { ChevronsUpDown, Check } from "lucide-react";
 import {
@@ -28,6 +28,7 @@ const SearchableSelect = ({
   allowClear = false,
 }) => {
   const [open, setOpen] = useState(false);
+  const commandListRef = useRef(null); // TAMBAH ini
 
   const selected = useMemo(
     () => items.find((it) => String(it.value) === String(value)) || null,
@@ -43,6 +44,22 @@ const SearchableSelect = ({
         }
       }, 0);
       return () => clearTimeout(timer);
+    }
+  }, [open]);
+
+  // TAMBAH: Handle scroll wheel
+  useEffect(() => {
+    const handleWheel = (e) => {
+      // Allow scroll di dalam list
+      e.stopPropagation();
+    };
+
+    const listElement = commandListRef.current;
+    if (listElement && open) {
+      listElement.addEventListener('wheel', handleWheel, { passive: true });
+      return () => {
+        listElement.removeEventListener('wheel', handleWheel);
+      };
     }
   }, [open]);
 
@@ -72,13 +89,17 @@ const SearchableSelect = ({
       <PopoverContent
         className="w-[--radix-popover-trigger-width] p-0 bg-neutral-50 border-none dark:bg-gray-800 dark:border-gray-700"
         align="start"
+        onWheel={(e) => e.stopPropagation()} // TAMBAH ini
       >
         <Command loop shouldFilter className="dark:bg-gray-800 dark:text-gray-200">
           <CommandInput
             placeholder={`${placeholder.toLowerCase()}`}
             className="h-9 dark:text-gray-200"
           />
-          <CommandList>
+          <CommandList 
+            ref={commandListRef} // TAMBAH ini
+            className="max-h-[300px] overflow-y-auto" // TAMBAH ini untuk ensure scrollable
+          >
             <CommandEmpty className="dark:text-gray-400">{emptyText}</CommandEmpty>
             <CommandGroup>
               {allowClear && (

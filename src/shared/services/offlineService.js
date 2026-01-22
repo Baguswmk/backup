@@ -670,7 +670,7 @@ async function syncQueueItem(item) {
     if (item.data) {
       config.data = {
         ...item.data,
-        clientCreatedAt: item.createdAtClient,
+        // clientCreatedAt: item.createdAtClient,
       };
     }
     if (item.options?.params) config.params = item.options.params;

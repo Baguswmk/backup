@@ -6,7 +6,6 @@ export const PERMISSIONS = {
   APPROVE: "approve",
   EXPORT: "export",
   MANAGE_FLEET: "manage_fleet",
-  MANAGE_DUMPTRUCK: "manage_dumptruck",
   MANAGE_MASTER_DATA: "manage_master_data",
   VIEW_ALL_SATKER: "view_all_satker",
   MANAGE_USERS: "manage_users",
@@ -16,7 +15,6 @@ export const PERMISSIONS = {
 export const FLEET_TYPE_ACCESS = {
   super_admin: {
     allowedTypes: ["Jembatan", "FOB", "Bypass", "Beltscale"],
-    filterBy: null,
     readOnly: false,
     autoWeighBridge: false,
     canSelectWeighBridge: true,
@@ -28,7 +26,6 @@ export const FLEET_TYPE_ACCESS = {
   },
   operator_jt: {
     allowedTypes: ["Jembatan"], 
-    filterBy: "subsatker",
     autoWeighBridge: true,
     autoMeasurementType: "Timbangan",
     canSelectWeighBridge: false,
@@ -38,7 +35,6 @@ export const FLEET_TYPE_ACCESS = {
   },
   ccr: {
     allowedTypes: ["Jembatan", "FOB", "Bypass", "Beltscale"],
-    filterBy: "subsatker",
     autoWeighBridge: false,
     autoMeasurementType: null,
     canSelectWeighBridge: true,
@@ -50,7 +46,6 @@ export const FLEET_TYPE_ACCESS = {
   },
   pengawas: {
     allowedTypes: ["Jembatan", "FOB", "Bypass", "Beltscale"],
-    filterBy: "subsatker",
     readOnly: true,
     autoWeighBridge: false,
     canSelectWeighBridge: false,
@@ -62,7 +57,6 @@ export const FLEET_TYPE_ACCESS = {
   },
   evaluator: {
     allowedTypes: ["Jembatan", "FOB", "Bypass", "Beltscale"],
-    filterBy: "subsatker",
     readOnly: true,
     autoWeighBridge: false,
     canSelectWeighBridge: false,
@@ -74,7 +68,6 @@ export const FLEET_TYPE_ACCESS = {
   },
   checker: {
     allowedTypes: ["Jembatan", "FOB", "Bypass", "Beltscale"],
-    filterBy: "company",
     readOnly: true,
     autoWeighBridge: false,
     canSelectWeighBridge: false,
@@ -86,7 +79,6 @@ export const FLEET_TYPE_ACCESS = {
   },
   admin: {
     allowedTypes: ["Jembatan", "FOB", "Bypass", "Beltscale"],
-    filterBy: "company",
     readOnly: true,
     autoWeighBridge: false,
     canSelectWeighBridge: false,
@@ -98,7 +90,6 @@ export const FLEET_TYPE_ACCESS = {
   },
   pic: {
     allowedTypes: ["Jembatan", "FOB", "Bypass", "Beltscale"],
-    filterBy: "subsatker",
     readOnly: true,
     autoWeighBridge: false,
     canSelectWeighBridge: false,
@@ -110,7 +101,6 @@ export const FLEET_TYPE_ACCESS = {
   },
   mitra: {
     allowedTypes: ["Jembatan", "FOB", "Bypass", "Beltscale"],
-    filterBy: "company",
     readOnly: true,
     autoWeighBridge: false,
     canSelectWeighBridge: false,
@@ -131,11 +121,9 @@ export const ROLE_PERMISSIONS = {
       PERMISSIONS.EXPORT,
     ],
     fleet: [PERMISSIONS.READ, PERMISSIONS.CREATE, PERMISSIONS.UPDATE],
-    dumptruck: [PERMISSIONS.READ, PERMISSIONS.CREATE, PERMISSIONS.UPDATE],
     masterData: [PERMISSIONS.READ, PERMISSIONS.CREATE, PERMISSIONS.UPDATE],
     masterDataCategories: ["units"],
-    // filterBy: "subsatker",
-    fleetTypes: ["Timbangan"],
+    fleetTypes: ["Setting Fleet"],
     autoWeighBridge: true,
     autoMeasurementType: "Timbangan",
     canSelectWeighBridge: false,
@@ -156,20 +144,13 @@ export const ROLE_PERMISSIONS = {
       PERMISSIONS.UPDATE,
       PERMISSIONS.DELETE,
     ],
-    dumptruck: [
-      PERMISSIONS.READ,
-      PERMISSIONS.CREATE,
-      PERMISSIONS.UPDATE,
-      PERMISSIONS.DELETE,
-    ],
     masterData: [
       PERMISSIONS.READ,
       PERMISSIONS.CREATE,
       PERMISSIONS.UPDATE,
       PERMISSIONS.DELETE,
     ],
-    filterBy: "company",
-    fleetTypes: ["Timbangan", "Beltscale", "Bypass"],
+    fleetTypes: ["Setting Fleet"],
     canSelectWeighBridge: true,
     canDeleteWithRitase: true, 
     description: "CRUD untuk Timbangan/Beltscale/Bypass, filter by company",
@@ -182,12 +163,10 @@ export const ROLE_PERMISSIONS = {
       PERMISSIONS.UPDATE,
       PERMISSIONS.EXPORT,
     ],
-    fleet: [PERMISSIONS.READ, PERMISSIONS.CREATE, PERMISSIONS.UPDATE],
-    dumptruck: [PERMISSIONS.READ, PERMISSIONS.CREATE, PERMISSIONS.UPDATE],
+    fleet: [PERMISSIONS.READ, PERMISSIONS.CREATE, PERMISSIONS.UPDATE, PERMISSIONS.DELETE],
     masterData: [PERMISSIONS.READ, PERMISSIONS.CREATE, PERMISSIONS.UPDATE],
     masterDataCategories: ["units"],
-    // filterBy: "subsatker",
-    fleetTypes: ["Timbangan", "Beltscale", "Bypass"],
+    fleetTypes: ["Setting Fleet"],
     autoWeighBridge: true,
     autoMeasurementType: "Timbangan",
     canSelectWeighBridge: true,
@@ -197,41 +176,33 @@ export const ROLE_PERMISSIONS = {
   pengawas: {
     timbangan: [PERMISSIONS.READ, PERMISSIONS.EXPORT],
     fleet: [PERMISSIONS.READ],
-    dumptruck: [PERMISSIONS.READ],
     masterData: [],
-    filterBy: "company",
-    fleetTypes: ["Timbangan", "Beltscale", "Bypass"],
+    fleetTypes: ["Setting Fleet"],
     description: "Read only, filter by company",
   },
 
   evaluator: {
     timbangan: [PERMISSIONS.READ, PERMISSIONS.EXPORT],
     fleet: [PERMISSIONS.READ],
-    dumptruck: [PERMISSIONS.READ],
     masterData: [],
-    filterBy: "subsatker",
-    fleetTypes: ["Timbangan", "Beltscale", "Bypass"],
+    fleetTypes: ["Setting Fleet"],
     description: "Read only, filter by subsatker",
   },
 
   admin: {
     timbangan: [PERMISSIONS.READ, PERMISSIONS.EXPORT],
     fleet: [PERMISSIONS.READ],
-    dumptruck: [PERMISSIONS.READ],
     masterData: [PERMISSIONS.READ, PERMISSIONS.CREATE, PERMISSIONS.UPDATE],
     masterDataCategories: ["units","alatLoader","operators"], 
-    filterBy: "company",
-    fleetTypes: ["Timbangan", "Beltscale", "Bypass"],
+    fleetTypes: ["Setting Fleet"],
     description: "Read only, filter by company",
   },
 
   mitra: {
     timbangan: [PERMISSIONS.READ],
     fleet: [PERMISSIONS.READ],
-    dumptruck: [PERMISSIONS.READ],
     masterData: [],
-    filterBy: "company",
-    fleetTypes: ["Timbangan", "Beltscale", "Bypass"],
+    fleetTypes: ["Setting Fleet"],
     description: "Read only, filter by company",
   },
 
@@ -244,12 +215,6 @@ export const ROLE_PERMISSIONS = {
       PERMISSIONS.EXPORT,
     ],
     fleet: [
-      PERMISSIONS.READ,
-      PERMISSIONS.CREATE,
-      PERMISSIONS.UPDATE,
-      PERMISSIONS.DELETE,
-    ],
-    dumptruck: [
       PERMISSIONS.READ,
       PERMISSIONS.CREATE,
       PERMISSIONS.UPDATE,
@@ -269,8 +234,7 @@ export const ROLE_PERMISSIONS = {
       PERMISSIONS.DELETE,
       PERMISSIONS.MANAGE_USERS,
     ],
-    filterBy: null,
-    fleetTypes: ["Timbangan", "Beltscale", "Bypass"],
+    fleetTypes: ["Setting Fleet"],
     canSelectWeighBridge: true,
     description: "Full access, no filter",
   },
@@ -389,26 +353,6 @@ export const filterDataByRole = (data, userRole, user) => {
   }
 
   switch (filterType) {
-    case "weigh_bridge": {
-      // ✅ For operator_jt - filter by weigh_bridge name (string)
-      const userWeighBridgeName = user?.weigh_bridge?.name;
-      if (!userWeighBridgeName) {
-        console.warn("⚠️ operator_jt: User weigh bridge name not found");
-        console.warn("⚠️ User object:", user);
-        return data; // Show all if not configured
-      }
-
-      const filtered = data.filter((item) => {
-        // weigh_bridge is a string field in ritases table
-        const itemWeighBridge = item.weigh_bridge || item.fleet_weigh_bridge;
-        const match = itemWeighBridge === userWeighBridgeName;
-        
-        return match;
-      });
-
-      return filtered;
-    }
-
     case "subsatker": {
       // ✅ For ccr, pengawas, evaluator, pic - filter by subsatker (string)
       const userSubsatker = user?.work_unit?.subsatker || user?.subsatker;

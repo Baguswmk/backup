@@ -243,8 +243,7 @@ export const useFleetPermissions = () => {
   };
 };
 
-export const useTimbanganPermissions = () => usePermissions("timbangan");
-export const useDumptruckPermissions = () => usePermissions("dumptruck");
+export const useRitasePermissions = () => usePermissions("ritase");
 export const useMasterDataPermissions = () => usePermissions("masterData");
 
 export default usePermissions;

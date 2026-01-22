@@ -7,7 +7,7 @@ import { RefreshCw, Settings, CheckCircle2, Search, Loader2, Calendar, Truck, Ma
 import EmptyState from "@/shared/components/EmptyState";
 import ModalHeader from "@/shared/components/ModalHeader";
 import { Card, CardContent } from "@/shared/components/ui/card";
-import { useTimbanganStore } from "@/modules/timbangan/timbangan/store/timbanganStore";
+import { useRitaseStore } from "@/modules/timbangan/ritase/store/ritaseStore";
 import { showToast } from "@/shared/utils/toast";
 import { useFleetPermissions } from "@/shared/permissions/usePermissions";
 import { useDebouncedValue } from "@/shared/hooks/useDebouncedValue";
@@ -18,9 +18,9 @@ const FleetSelectionDialog = ({
   onSave,
   measurementType = "Timbangan"
 }) => {
-  const fleetConfigs = useTimbanganStore((state) => state.fleetConfigs);
-  const selectedFleetIds = useTimbanganStore((state) => state.selectedFleetIds);
-  const loadFleetConfigsFromAPI = useTimbanganStore((state) => state.loadFleetConfigsFromAPI);
+  const fleetConfigs = useRitaseStore((state) => state.fleetConfigs);
+  const selectedFleetIds = useRitaseStore((state) => state.selectedFleetIds);
+  const loadFleetConfigsFromAPI = useRitaseStore((state) => state.loadFleetConfigsFromAPI);
   const [tempSelectedIds, setTempSelectedIds] = useState([...selectedFleetIds]);
   const [searchQuery, setSearchQuery] = useState("");
   const [isRefreshingFleet, setIsRefreshingFleet] = useState(false);

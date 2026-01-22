@@ -10,185 +10,75 @@ import { cn } from "@/lib/utils";
 import {
   ShieldX,
   ArrowLeft,
-  TruckIcon,
   Scale,
   Database,
   BarChart3,
-  ClipboardList,
   Cog,
   Construction,
-  Anvil,
-  EggFried,
-  Flame,
-  MapPinCheckInside,
-  HardDrive,
-  Car,
+  History,
 } from "lucide-react";
 import FleetManagement from "@/modules/timbangan/fleet/FleetManagement";
 import MasterDataManagement from "@/modules/timbangan/masterData/MasterDataManagement";
-import DumptruckManagement from "@/modules/timbangan/dumptruck/DumpTruckManagement";
-import TimbanganManagement from "@/modules/timbangan/timbangan/TimbanganManagement";
-import TimbanganBeltScaleManagement from "@/modules/timbangan/timbangan/TimbanganBeltScaleManagement";
+import RitaseManagement from "@/modules/timbangan/ritase/RitaseManagement";
 import LaporanManagement from "@/modules/timbangan/laporan/LaporanManagement";
-import CheckPointManagement from "@/modules/timbangan/checkpoint/CheckPointManagement";
-import FleetHistory from "@/modules/timbangan/fleet/components/FleetHistory";
-import DumpTruckHistory from "@/modules/timbangan/dumptruck/components/DumpTruckHistory";
 import OverviewPage from "@/modules/timbangan/overview/OverviewManagement";
 import LoginPage from "@/pages/LoginPage";
 import { OfflineProvider } from "@/shared/components/OfflineProvider";
 import { OfflineSyncStatus } from "@/shared/components/OfflineSyncStatus";
 import { queryClient } from "@/shared/config/queryClient";
-import TimbanganManual from "@/modules/timbangan/timbangan/TimbanganManual";
-import TimbanganBypass from "@/modules/timbangan/timbangan/TimbanganBypass";
+import RitaseHistory from "@/modules/timbangan/ritase/RitaseHistory";
+import BeltscaleManagement from "@/modules/timbangan/ritase/BeltScaleManagement";
 const TimbanganInternalPage = () => {
   const { isAuthenticated } = useAuth();
   const { user } = useAuthStore();
   const userRole = user?.role;
-  const [activeMenu, setActiveMenu] = useState("Setting Fleet Timbangan");
+  const getDefaultMenu = () => {
+    if (userRole === 'operator_jt') {
+      return 'Ritase';
+    }
+    return 'Setting Fleet';
+  };
+  
+  const [activeMenu, setActiveMenu] = useState(getDefaultMenu());
 
-  const menuItems = useMemo(
-    () => [
-      {
-        name: "Setting Fleet",
-        icon: Cog,
-        roles: [
-          "checker",
-          "pic",
-          "pengawas",
-          "operator_jt",
-          "evaluator",
-          "mitra",
-          "admin",
-          "super_admin",
-          "ccr",
-        ],
-        children: [
-          {
-            name: "Setting Fleet Timbangan",
-            icon: Anvil,
-            roles: [
-              "checker",
-              "pic",
-              "pengawas",
-              "operator_jt",
-              "evaluator",
-              "mitra",
-              "ccr",
-              "admin",
-              "super_admin",
-            ],
-            locationId: "setting-fleet-timbangan",
-          },
-          {
-            name: "Setting Fleet Bypass",
-            icon: Flame,
-            roles: ["pic", "evaluator", "admin", "super_admin", "ccr"],
-            locationId: "setting-fleet-bypass",
-          },
-          {
-            name: "Setting Fleet Belt Scale",
-            icon: EggFried,
-            roles: ["pic", "evaluator", "admin", "super_admin", "ccr"],
-            locationId: "setting-fleet-beltscale",
-          },
-        ],
-      },
-      {
-        name: "Setting Dump Truck",
-        icon: TruckIcon,
-        roles: [
-          "checker",
-          "pic",
-          "pengawas",
-          "operator_jt",
-          "evaluator",
-          "mitra",
-          "ccr",
-          "admin",
-          "super_admin",
-        ],
-        locationId: "setting-dumpt-truck",
-      },
-      {
-        name: "Timbangan",
-        icon: Scale,
-        roles: [
-          "checker",
-          "pic",
-          "pengawas",
-          "operator_jt",
-          "evaluator",
-          "mitra",
-          "super_admin",
-          "admin",
-          "ccr",
-        ],
-        children: [
-          {
-            name: "Timbangan Internal",
-            icon: Anvil,
-            roles: [
-              "checker",
-              "pic",
-              "pengawas",
-              "operator_jt",
-              "evaluator",
-              "mitra",
-              "admin",
-              "super_admin",
-              "ccr",
-            ],
-            locationId: "timbangan-internal",
-          },
-          {
-            name: "Timbangan Manual",
-            icon: HardDrive,
-            roles: ["pic", "evaluator", "admin", "super_admin"],
-            locationId: "timbangan-manual",
-          },
-          {
-            name: "Timbangan Bypass",
-            icon: Car,
-            roles: ["pic", "evaluator", "admin", "super_admin", "ccr"],
-            locationId: "timbangan-bypass",
-          },
-          {
-            name: "Timbangan Belt Scale",
-            icon: EggFried,
-            roles: ["pic", "evaluator", "admin", "super_admin", "ccr"],
-            locationId: "timbangan-beltscale",
-          },
-        ],
-      },
-
-      {
-        name: "Check Point",
-        icon: MapPinCheckInside,
-
-        roles: ["admin", "super_admin", "ccr"],
-        locationId: "checkpoint",
-      },
-      {
-        name: "Dashboard",
-        icon: BarChart3,
-        roles: ["admin", "super_admin"],
-        locationId: "Dashboard",
-      },
-      {
-        name: "Laporan",
-        icon: ClipboardList,
-        roles: ["admin", "pic", "evaluator", "super_admin", "ccr"],
-        locationId: "laporan",
-      },
-      {
-        name: "Master Data",
-        icon: Database,
-        roles: ["super_admin", "operator_jt", "ccr", "admin"],
-        locationId: "master-data",
-      },
-    ],
-    [],
-  );
+const menuItems = useMemo(() => [
+  {
+    name: "Setting Fleet",
+    icon: Cog,
+    roles: ["checker", "pic", "pengawas", "evaluator", "admin", "super_admin", "ccr"],
+    locationId: "Setting Fleet",
+  },
+  {
+    name: "Ritase",
+    icon: Scale,
+    roles: ["checker", "pic", "pengawas", "operator_jt", "evaluator", "admin", "super_admin", "ccr"],
+    locationId: "ritase",
+  },
+  {
+    name: "Ritase History",
+    icon: History,
+    roles: ["checker", "pic", "pengawas", "operator_jt", "evaluator", "admin", "super_admin", "ccr"],
+    locationId: "ritase-history",
+  },
+  {
+    name: "Beltscale",
+    icon: Scale,
+    roles: ["checker", "pic", "pengawas", "operator_jt", "evaluator", "admin", "super_admin", "ccr"],
+    locationId: "beltscale",
+  },
+  {
+    name: "Overview",
+    icon: BarChart3,
+    roles: ["admin", "super_admin"],
+    locationId: "overview",
+  },
+  {
+    name: "Master Data",
+    icon: Database,
+    roles: ["super_admin", "operator_jt", "ccr", "admin"],
+    locationId: "master-data",
+  },
+], []);
 
   const isMenuAccessible = useCallback(
     (menuItem) => {
@@ -314,41 +204,16 @@ const TimbanganInternalPage = () => {
               )}
             >
               {/* ===== ROUTING SECTION ===== */}
-
-              {/* Fleet FOB */}
-              {activeMenu === "Setting Fleet FOB" ? (
-                <FleetManagement Type="FOB" />
-              ) : activeMenu === "Riwayat Fleet FOB" ? (
-                <FleetHistory Type="FOB" />
-              ) : activeMenu === "Setting Fleet Timbangan" ? (
-                <FleetManagement Type="Timbangan" />
-              ) : activeMenu === "Riwayat Fleet Timbangan" ? (
-                <FleetHistory Type="Timbangan" />
-              ) : activeMenu === "Setting Fleet Bypass" ? (
-                <FleetManagement Type="Bypass" />
-              ) : activeMenu === "Riwayat Fleet Bypass" ? (
-                <FleetHistory Type="Bypass" />
-              ) : activeMenu === "Setting Fleet Belt Scale" ? (
-                <FleetManagement Type="Beltscale" />
-              ) : activeMenu === "Riwayat Fleet Belt Scale" ? (
-                <FleetHistory Type="Beltscale" />
-              ) : activeMenu === "Setting Dump Truck" ? (
-                <DumptruckManagement />
-              ) : activeMenu === "Riwayat Dump Truck" ? (
-                <DumpTruckHistory />
-              ) : activeMenu === "Timbangan Internal" ? (
-                <TimbanganManagement Type="Timbangan Internal" />
-              ) : activeMenu === "Timbangan Manual" ? (
-                <TimbanganManual Type="Timbangan Manual" />
-              ) : activeMenu === "Timbangan Belt Scale" ? (
-                <TimbanganBeltScaleManagement Type="Timbangan Belt Scale" />
-              ) : activeMenu === "Timbangan Bypass" ? (
-                <TimbanganBypass Type="Timbangan Bypass" />
-              ) : activeMenu === "Timbangan FOB" ? (
-                <TimbanganManagement Type="Timbangan FOB" />
-              ) : activeMenu === "Check Point" ? (
-                <CheckPointManagement Type="Check Point" />
-              ) : activeMenu === "Dashboard" ? (
+              {/* Fleet */}
+              {activeMenu === "Setting Fleet" ? (
+                <FleetManagement Type="Setting Fleet" />
+              ) : activeMenu === "Ritase" ? (
+                <RitaseManagement Type="Ritase" />
+              ): activeMenu === "Ritase History" ? (
+                <RitaseHistory Type="Ritase History"  />
+              ) : activeMenu === "Beltscale" ? (
+                <BeltscaleManagement Type="Beltscale"  />
+              ) : activeMenu === "Overview" ? (
                 <OverviewPage />
               ) : activeMenu === "Master Data" ? (
                 <MasterDataManagement />
