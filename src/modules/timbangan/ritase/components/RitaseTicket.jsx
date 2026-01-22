@@ -4,7 +4,7 @@ import { formatDate, formatTime } from "@/shared/utils/date";
 import { getFirstTruthyValue } from "@/shared/utils/object";
 import { formatWeight } from "@/shared/utils/number";
 
-const TimbanganTicket = forwardRef(({ data }, ref) => {
+const RitaseTicket = forwardRef(({ data }, ref) => {
   if (!data) {
     return (
       <div
@@ -174,5 +174,5 @@ const TimbanganTicket = forwardRef(({ data }, ref) => {
   );
 });
 
-TimbanganTicket.displayName = "TimbanganTicket";
-export default TimbanganTicket;
+RitaseTicket.displayName = "RitaseTicket";
+export default RitaseTicket;

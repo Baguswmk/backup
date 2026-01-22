@@ -1,7 +1,10 @@
 import { offlineService } from "@/shared/services/offlineService";
+import { masterDataService } from "@/modules/timbangan/masterData/services/masterDataService";
 import { logger } from "@/shared/services/log";
 import { buildDateRangeCacheKey } from "@/shared/utils/cache";
 import { formatWeight } from "@/shared/utils/number";
+import { getTodayDateRange } from "@/shared/utils/date";
+import { getCurrentShift } from "@/shared/utils/shift";
 
 const validateDateRange = (filters) => {
   if (!filters.startDate || !filters.endDate) return { valid: true };
@@ -25,9 +28,6 @@ const validateDateRange = (filters) => {
   return { valid: true, days: diffDays };
 };
 
-/**
- * BUILD FILTERS - Support Role-Based Access + Measurement Type
- */
 const buildFilters = (options = {}) => {
   const { user, dateRange, measurementType } = options;
   const filters = {};
@@ -38,7 +38,7 @@ const buildFilters = (options = {}) => {
     return filters;
   }
 
-  logger.info("🔑 Building timbangan filters", {
+  logger.info("🔒 Building ritase filters", {
     role,
     userId: user.id,
     measurementType,
@@ -129,190 +129,179 @@ const buildFilters = (options = {}) => {
       $lte: dateRange.to,
     };
 
-    logger.info("📅 Date range filter applied to timbangan", {
+    logger.info("📅 Date range filter applied to ritase", {
       from: dateRange.from,
       to: dateRange.to,
     });
   }
 
-  logger.info("🔍 Final timbangan filters", JSON.stringify(filters, null, 2));
+  logger.info("🔍 Final ritase filters", JSON.stringify(filters, null, 2));
 
   return filters;
 };
 
-export const timbanganServices = {
-  async fetchMasters() {
+export const ritaseServices = {
+  async fetchSummaryFleetByRitases(options = {}) {
     try {
-      const cacheKey = "timbangan_masters";
+      const { user, dateRange, shift, forceRefresh = false } = options;
 
-      const cached = await offlineService.getCache(cacheKey);
-      if (cached) {
-        logger.info("✅ Masters loaded from cache");
-        return { success: true, data: cached, fromCache: true };
-      }
+      const effectiveDateRange = dateRange || getTodayDateRange();
+      const effectiveShift = shift || getCurrentShift();
 
-      const results = await Promise.allSettled([
-        offlineService.get("/units", {
-          params: {
-            filters: { type: { $eq: "EXCAVATOR" } },
-            populate: ["company", "work_unit"],
-            pagination: { pageSize: 100 },
-            sort: ["id:asc"],
-          },
-          cacheKey: "units_excavator",
-          ttl: offlineService.CACHE_CONFIG.MASTERS,
-        }),
-        offlineService.get("/units", {
-          params: {
-            filters: { type: { $eq: "DUMP_TRUCK" } },
-            populate: ["company", "work_unit", "setting_dump_truck"],
-            pagination: { pageSize: 500 },
-            sort: ["id:asc"],
-          },
-          cacheKey: "units_dumptruck",
-          ttl: offlineService.CACHE_CONFIG.MASTERS,
-        }),
-        offlineService.get("/locations", {
-          params: {
-            filters: { type: { $eq: "LOADING" } },
-            pagination: { pageSize: 50 },
-            sort: ["id:asc"],
-          },
-          cacheKey: "locations_loading",
-          ttl: offlineService.CACHE_CONFIG.MASTERS,
-        }),
-        offlineService.get("/locations", {
-          params: {
-            filters: { type: { $eq: "DUMPING" } },
-            pagination: { pageSize: 50 },
-            sort: ["id:asc"],
-          },
-          cacheKey: "locations_dumping",
-          ttl: offlineService.CACHE_CONFIG.MASTERS,
-        }),
-        offlineService.get("/operators", {
-          params: {
-            populate: ["company"],
-            pagination: { pageSize: 200 },
-            sort: ["id:asc"],
-          },
-          cacheKey: "operators",
-          ttl: offlineService.CACHE_CONFIG.MASTERS,
-        }),
-        offlineService.get("/companies", {
-          params: {
-            pagination: { pageSize: 50 },
-            sort: ["id:asc"],
-          },
-          cacheKey: "companies",
-          ttl: offlineService.CACHE_CONFIG.MASTERS,
-        }),
-        offlineService.get("/work-units", {
-          params: {
-            pagination: { pageSize: 50 },
-            sort: ["id:asc"],
-          },
-          cacheKey: "work_units",
-          ttl: offlineService.CACHE_CONFIG.MASTERS,
-        }),
-        offlineService.get("/coal-types", {
-          params: {
-            pagination: { pageSize: 10 },
-            sort: ["id:asc"],
-          },
-          cacheKey: "coal_types",
-          ttl: offlineService.CACHE_CONFIG.MASTERS,
-        }),
-      ]);
+      const queryParams = {
+        startDate: effectiveDateRange.from,
+        endDate: effectiveDateRange.to,
+        shift: effectiveShift,
+      };
 
-      const extractValue = (result) =>
-        result.status === "fulfilled" ? result.value : { data: [] };
-      const excavatorsRes = extractValue(results[0]);
-      const dumptrucksRes = extractValue(results[1]);
-      const loadingLocationsRes = extractValue(results[2]);
-      const dumpingLocationsRes = extractValue(results[3]);
-      const operatorsRes = extractValue(results[4]);
-      const companiesRes = extractValue(results[5]);
-      const workUnitsRes = extractValue(results[6]);
-      const coalTypesRes = extractValue(results[7]);
+      const cacheKey = `summary_fleet_${queryParams.startDate}_${queryParams.endDate}_${queryParams.shift}_${user?.id || 'guest'}`;
+      
+      const isToday = effectiveDateRange.from === getTodayDateRange().from;
+      const ttl = isToday 
+        ? offlineService.CACHE_CONFIG.SHORT
+        : offlineService.CACHE_CONFIG.MEDIUM;
 
-      results.forEach((result, index) => {
-        if (result.status === "rejected") {
-          const requestNames = [
-            "excavators",
-            "dumptrucks",
-            "loadingLocations",
-            "dumpingLocations",
-            "operators",
-            "companies",
-            "workUnits",
-            "coalTypes",
-          ];
-          logger.warn(
-            `⚠️ Failed to fetch ${requestNames[index]}:`,
-            result.reason.message,
-          );
-        }
+      logger.info("📊 Fetching summary fleet by ritases", {
+        queryParams,
+        cacheKey,
+        ttl: `${ttl / 1000}s`,
+        forceRefresh,
+        isToday,
       });
 
-      const masters = {
-        excavators: excavatorsRes.data.map((item) => ({
-          id: item.id.toString(),
-          name: item.attributes.hull_no,
-          hull_no: item.attributes.hull_no,
-          company: item.attributes.company?.data?.attributes?.name || "-",
-          companyId: item.attributes.company?.data?.id,
-          work_unit:
-            item.attributes.work_unit?.data?.attributes?.subsatker || "-",
-          workUnitId: item.attributes.work_unit?.data?.id,
+      if (!forceRefresh) {
+        const cached = await offlineService.getCache(cacheKey);
+        if (cached) {
+          logger.info("✅ Summary fleet loaded from cache", {
+            summariesCount: cached.summaries?.length || 0,
+            ritasesCount: cached.ritases?.length || 0,
+          });
+          return { 
+            success: true, 
+            data: cached,
+            fromCache: true 
+          };
+        }
+      }
+
+      const response = await offlineService.get("/v1/custom/ritase/summaries", {
+        params: queryParams,
+        cacheKey,
+        ttl,
+        forceRefresh,
+      });
+
+      const data = {
+        summaries: response.data?.summaries || [],
+        ritases: response.data?.ritases || [],
+      };
+
+      logger.info("✅ Summary fleet fetched from API", {
+        summariesCount: data.summaries.length,
+        ritasesCount: data.ritases.length,
+        dateRange: effectiveDateRange,
+        shift: effectiveShift,
+      });
+
+      return { 
+        success: true, 
+        data,
+        fromCache: false 
+      };
+    } catch (error) {
+      logger.error("❌ Failed to fetch summary fleet", {
+        error: error.message,
+        details: error.response?.data,
+      });
+
+      const cacheKey = `summary_fleet_${options.dateRange?.from || getTodayDateRange().from}_${options.dateRange?.to || getTodayDateRange().to}_${options.shift || getCurrentShift()}_${options.user?.id || 'guest'}`;
+      const stale = await offlineService.getCache(cacheKey, true);
+      
+      if (stale) {
+        logger.warn("⚠️ Returning stale cache due to API error");
+        return { 
+          success: true, 
+          data: stale, 
+          fromCache: true, 
+          offline: true 
+        };
+      }
+
+      return {
+        success: false,
+        data: { summaries: [], ritases: [] },
+        error: error.response?.data?.message || error.message,
+      };
+    }
+  },
+
+  // ✅ OPTIMIZED: Use centralized masterDataService
+  async fetchMasters(options = {}) {
+    try {
+      const { forceRefresh = false, userRole, userCompanyId } = options;
+
+      logger.info('📦 Fetching masters via masterDataService', { 
+        forceRefresh, 
+        userRole 
+      });
+
+      // Use centralized master data service
+      const masters = await masterDataService.fetchAllMasters({ 
+        forceRefresh,
+        userRole,
+        userCompanyId
+      });
+
+      // Transform to ritase format
+      const ritaseMasters = {
+        excavators: masters.excavators.map(e => ({
+          id: e.id,
+          name: e.hull_no,
+          hull_no: e.hull_no,
+          company: e.company,
+          companyId: e.companyId,
+          work_unit: e.workUnit,
+          workUnitId: e.workUnitId,
         })),
 
-        dumptrucks: dumptrucksRes.data.map((item) => ({
-          id: item.id.toString(),
-          hullNo: item.attributes.hull_no,
-          hull_no: item.attributes.hull_no,
-          label: item.attributes.hull_no,
-          company: item.attributes.company?.data?.attributes?.name || "-",
-          companyId: item.attributes.company?.data?.id,
-          contractor: item.attributes.company?.data?.attributes?.name || "-",
+        dumptrucks: masters.dumptrucks.map(d => ({
+          id: d.id,
+          hullNo: d.hull_no,
+          hull_no: d.hull_no,
+          label: d.hull_no,
+          company: d.company,
+          companyId: d.companyId,
+          contractor: d.company,
           capacity: 20,
-          settingDumpTruckId: item.attributes.setting_dump_truck?.data?.id,
+          settingDumpTruckId: d.settingDumpTruckId,
         })),
 
         locations: {
-          loading: loadingLocationsRes.data.map((item) => ({
-            id: item.id.toString(),
-            name: item.attributes.name,
-            type: item.attributes.type,
-          })),
-          dumping: dumpingLocationsRes.data.map((item) => ({
-            id: item.id.toString(),
-            name: item.attributes.name,
-            type: item.attributes.type,
-          })),
+          loading: masters.locations.filter(l => l.type === 'LOADING'),
+          dumping: masters.locations.filter(l => l.type === 'DUMPING'),
         },
 
-        operators: operatorsRes.data.map((item) => ({
-          id: item.id.toString(),
-          name: item.attributes.name,
-          company: item.attributes.company?.data?.attributes?.name || "-",
-          companyId: item.attributes.company?.data?.id,
+        operators: masters.operators.map(o => ({
+          id: o.id,
+          name: o.name,
+          company: o.company,
+          companyId: o.companyId,
         })),
 
-        companies: companiesRes.data.map((item) => ({
-          id: item.id.toString(),
-          name: item.attributes.name,
+        companies: masters.companies.map(c => ({
+          id: c.id,
+          name: c.name,
         })),
 
-        workUnits: workUnitsRes.data.map((item) => ({
-          id: item.id.toString(),
-          satker: item.attributes.satker,
-          subsatker: item.attributes.subsatker,
+        workUnits: masters.workUnits.map(w => ({
+          id: w.id,
+          satker: w.satker,
+          subsatker: w.subsatker,
         })),
 
-        coalTypes: coalTypesRes.data.map((item) => ({
-          id: item.id.toString(),
-          name: item.attributes.name,
+        coalTypes: masters.coalTypes.map(ct => ({
+          id: ct.id,
+          name: ct.name,
         })),
 
         shifts: [
@@ -321,59 +310,86 @@ export const timbanganServices = {
         ],
       };
 
-      await offlineService.setCache(
-        cacheKey,
-        masters,
-        offlineService.CACHE_CONFIG.MASTERS,
-      );
-
-      logger.info("✅ Masters fetched from API", {
-        excavators: masters.excavators.length,
-        dumptrucks: masters.dumptrucks.length,
-        operators: masters.operators.length,
+      logger.info("✅ Masters fetched via centralized service", {
+        excavators: ritaseMasters.excavators.length,
+        dumptrucks: ritaseMasters.dumptrucks.length,
+        operators: ritaseMasters.operators.length,
+        fromCache: !forceRefresh,
       });
 
-      return { success: true, data: masters, fromCache: false };
+      return { success: true, data: ritaseMasters, fromCache: !forceRefresh };
     } catch (error) {
       logger.error("❌ Failed to fetch masters", {
-        error: error.response.data.message,
+        error: error.message,
       });
 
-      const stale = await offlineService.getCache("timbangan_masters", true);
-      if (stale) {
+      // Try to get stale cache
+      const stale = masterDataService.getStaleCache();
+      if (stale && Object.keys(stale).length > 0) {
         logger.warn("⚠️ Returning stale cache due to API error");
-        return { success: true, data: stale, fromCache: true, offline: true };
+        
+        // Transform stale data
+        const ritaseMasters = {
+          excavators: (stale.excavators || []).map(e => ({
+            id: e.id,
+            name: e.hull_no,
+            hull_no: e.hull_no,
+            company: e.company,
+            companyId: e.companyId,
+          })),
+          dumptrucks: (stale.dumptrucks || []).map(d => ({
+            id: d.id,
+            hullNo: d.hull_no,
+            label: d.hull_no,
+            company: d.company,
+          })),
+          locations: {
+            loading: (stale.locations || []).filter(l => l.type === 'LOADING'),
+            dumping: (stale.locations || []).filter(l => l.type === 'DUMPING'),
+          },
+          operators: stale.operators || [],
+          companies: stale.companies || [],
+          workUnits: stale.workUnits || [],
+          coalTypes: stale.coalTypes || [],
+          shifts: [
+            { id: "PAGI", name: "Shift Pagi" },
+            { id: "MALAM", name: "Shift Malam" },
+          ],
+        };
+        
+        return { success: true, data: ritaseMasters, fromCache: true, offline: true };
       }
 
       throw error;
     }
   },
 
-  async fetchOperators() {
+  // ✅ OPTIMIZED: Use centralized masterDataService
+  async fetchOperators(options = {}) {
     try {
-      const response = await offlineService.get("/operators", {
-        params: {
-          populate: ["company"],
-          pagination: { pageSize: 200 },
-          sort: ["id:asc"],
-        },
-        cacheKey: "operators",
-        ttl: offlineService.CACHE_CONFIG.MASTERS,
+      const { forceRefresh = false, userRole, userCompanyId } = options;
+
+      logger.info('👷 Fetching operators via masterDataService');
+
+      const operators = await masterDataService.fetchOperators({ 
+        forceRefresh,
+        userRole,
+        userCompanyId 
       });
 
-      const operators = response.data.map((item) => ({
-        id: item.id.toString(),
-        name: item.attributes.name,
-        company: item.attributes.company?.data?.attributes?.name || "-",
-        companyId: item.attributes.company?.data?.id,
+      const transformed = operators.map((item) => ({
+        id: item.id,
+        name: item.name,
+        company: item.company,
+        companyId: item.companyId,
       }));
 
-      return { success: true, data: operators };
+      return { success: true, data: transformed };
     } catch (error) {
       logger.error("❌ Failed to fetch operators", {
-        error: error.response.data.message,
+        error: error.message,
       });
-      return { success: false, data: [], error: error.response.data.message };
+      return { success: false, data: [], error: error.message };
     }
   },
 
@@ -519,9 +535,9 @@ export const timbanganServices = {
       return { success: true, data: configs };
     } catch (error) {
       logger.error("❌ Failed to fetch fleet configs", {
-        error: error.response.data.message,
+        error: error.message,
       });
-      return { success: false, data: [], error: error.response.data.message };
+      return { success: false, data: [], error: error.message };
     }
   },
 
@@ -614,9 +630,9 @@ export const timbanganServices = {
         shift: filters.shift,
       });
 
-      const ttl = offlineService.getTTLForDate(dateRange, "timbangan");
+      const ttl = offlineService.getTTLForDate(dateRange, "ritase");
 
-      logger.info("🔍 Fetching timbangan data", {
+      logger.info("🔍 Fetching ritase data", {
         filters: apiFilters,
         cacheKey,
         ttl: `${ttl / 1000}s`,
@@ -710,7 +726,7 @@ export const timbanganServices = {
 
       return { success: true, data };
     } catch (error) {
-      logger.error("❌ Failed to fetch timbangan data", {
+      logger.error("❌ Failed to fetch ritase data", {
         error: error.message,
         details: error.response?.data,
       });
@@ -722,36 +738,71 @@ export const timbanganServices = {
     }
   },
 
-  async submitTimbanganForm(formData, type) {
-    try {
-      const grossWeight = formatWeight(formData.gross_weight);
-      const now = new Date().toISOString();
+async submitTimbanganForm(formData, type) {
+  try {
+    const now = new Date().toISOString();
 
-      const payload = {
-        setting_fleet: formData.setting_fleet
-          ? parseInt(formData.setting_fleet)
-          : null,
-        unit_dump_truck: formData.unit_dump_truck
-          ? parseInt(formData.unit_dump_truck)
-          : null,
-        operator: formData.operator ? parseInt(formData.operator) : null,
-        gross_weight: parseFloat(grossWeight),
-        created_at: formData.clientCreatedAt || now,
-      };
+    const payload = {
+      setting_fleet: formData.setting_fleet
+        ? parseInt(formData.setting_fleet)
+        : null,
+      unit_dump_truck: formData.unit_dump_truck
+        ? parseInt(formData.unit_dump_truck)
+        : null,
+      operator: formData.operator ? parseInt(formData.operator) : null,
+      created_at: formData.clientCreatedAt || now,
+    };
 
-      if (formData.created_by_user) {
-        payload.created_by_user = parseInt(formData.created_by_user);
+    // MODIFIKASI: Logic berdasarkan weigh_bridge dan measurement_type
+    const measurementType = formData.measurement_type || "Timbangan";
+    const hasWeighBridge = formData.has_weigh_bridge; // Dari user
+
+    if (measurementType === "Timbangan") {
+      if (hasWeighBridge) {
+        // User dengan weigh_bridge → kirim gross_weight
+        if (formData.gross_weight !== undefined && formData.gross_weight !== null) {
+          const grossWeight = formatWeight(formData.gross_weight);
+          payload.gross_weight = parseFloat(grossWeight);
+        }
+      } else {
+        // User tanpa weigh_bridge → kirim net_weight
+        if (formData.net_weight !== undefined && formData.net_weight !== null) {
+          const netWeight = formatWeight(formData.net_weight);
+          payload.net_weight = parseFloat(netWeight);
+        }
       }
+    }
+    // Untuk Bypass, Manual, Checkpoint → tidak kirim weight
 
-      if (!payload.setting_fleet)
-        throw new Error("Setting fleet wajib dipilih");
-      if (!payload.unit_dump_truck) throw new Error("Dump truck wajib dipilih");
-      if (payload.gross_weight <= 0)
-        throw new Error("Gross weight harus lebih dari 0");
+    if (formData.created_by_user) {
+      payload.created_by_user = parseInt(formData.created_by_user);
+    }
 
-      logger.info("📤 CREATE Ritase Payload:", payload);
+    if (!payload.setting_fleet)
+      throw new Error("Setting fleet wajib dipilih");
+    if (!payload.unit_dump_truck) 
+      throw new Error("Dump truck wajib dipilih");
 
-      const response = await offlineService.post("/v1/custom/ritase", payload);
+    // Validasi weight hanya untuk measurement_type Timbangan
+    if (measurementType === "Timbangan") {
+      if (hasWeighBridge) {
+        if (!payload.gross_weight || payload.gross_weight <= 0)
+          throw new Error("Gross weight harus lebih dari 0");
+      } else {
+        if (!payload.net_weight || payload.net_weight <= 0)
+          throw new Error("Net weight harus lebih dari 0");
+      }
+    }
+
+    logger.info("📤 CREATE Ritase Payload:", {
+      ...payload,
+      measurementType,
+      hasWeighBridge,
+      hasGrossWeight: !!payload.gross_weight,
+      hasNetWeight: !!payload.net_weight,
+    });
+
+    const response = await offlineService.post("/v1/custom/ritase", payload);
 
       const serverData = response.data || {};
 
@@ -763,9 +814,9 @@ export const timbanganServices = {
         operatorId: payload.operator,
         setting_fleet_id: payload.setting_fleet,
 
-        net_weight: serverData.net_weight,
+        net_weight: serverData.net_weight || formData.net_weight || 0,
         tare_weight: serverData.tare_weight || 0,
-        gross_weight: serverData.gross_weight,
+        gross_weight: serverData.gross_weight || formData.gross_weight || 0,
 
         hull_no: serverData.unit_dump_truck || formData.hull_no || null,
         unit_dump_truck: serverData.unit_dump_truck || formData.hull_no || null,
@@ -836,6 +887,7 @@ export const timbanganServices = {
         hull_no: result.hull_no,
         excavator: result.excavator,
         shift: result.shift,
+        gross_weight: result.gross_weight,
         net_weight: result.net_weight,
         measurement_type: result.measurement_type,
         hasAllRequiredFields: !!(
@@ -1002,6 +1054,7 @@ export const timbanganServices = {
       throw enhancedError;
     }
   },
+  
   async deleteTimbanganEntry(id) {
     try {
       await offlineService.delete(`/v1/custom/ritase/${id}`);
@@ -1037,7 +1090,7 @@ export const timbanganServices = {
   },
 
   async refreshMasters() {
-    await offlineService.clearCache("timbangan_masters");
+    await offlineService.clearCache("ritase_masters");
     await offlineService.clearCache("units_");
     await offlineService.clearCache("locations_");
     await offlineService.clearCache("operators");

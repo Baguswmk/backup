@@ -1,6 +1,6 @@
 ﻿import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { timbanganServices } from "@/modules/timbangan/timbangan/services/timbanganServices";
+import { ritaseServices } from "@/modules/timbangan/ritase/services/ritaseServices";
 import { showToast } from "@/shared/utils/toast";
 import { fleetService } from "@/modules/timbangan/fleet/services/fleetService";
 import useAuthStore from "@/modules/auth/store/authStore";
@@ -107,35 +107,19 @@ const initialState = {
     dumptrucks: createEmptyDumptruckSetup(),
   },
 
+  // ✅ SIMPLIFIED: Single source of truth
   fleetConfigs: [],
   activeFleetConfigId: null,
   selectedFleetIds: [],
 
-  fleetConfigsByType: {
-    Timbangan: [],
-    Bypass: [],
-    Beltscale: [],
-    FOB: [],
-  },
-  selectedFleetIdsByType: {
-    Timbangan: [],
-    Bypass: [],
-    Beltscale: [],
-    FOB: [],
-  },
-
+  // ✅ SIMPLIFIED: Single index for all types
   dtIndex: {},
-  dtIndexByType: {
-    Timbangan: {},
-    Bypass: {},
-    Beltscale: {},
-    FOB: {},
-  },
   hiddenDumptrucks: {},
+  
   masters: createEmptyMasters(),
   mastersMeta: createMastersMeta(),
 
-  timbanganData: [],
+  ritaseData: [],
   selectedItems: [],
 
   rfidEnabled: false,
@@ -197,7 +181,7 @@ const encryptedStorage = {
   },
 };
 
-export const useTimbanganStore = create(
+export const useRitaseStore = create(
   persist(
     (set, get) => ({
       ...initialState,
@@ -264,208 +248,144 @@ export const useTimbanganStore = create(
         set({ hiddenDumptrucks: cleaned });
       },
 
-      _scheduleIndexRebuild: (measurementType = null) => {
-        const key = measurementType ? `rebuild-${measurementType}` : "main";
+      _scheduleIndexRebuild: () => {
         debounceIndexRebuild(
-          key,
+          'rebuild-main',
           () => {
             const state = get();
-            const configs = measurementType
-              ? state.fleetConfigsByType[measurementType] || []
-              : state.fleetConfigs;
-
             queueIndexRebuild(() => {
-              return get()._executeIndexRebuild(configs, measurementType);
+              return get()._executeIndexRebuild(state.fleetConfigs);
             });
           },
           150
         );
       },
 
+      // ✅ SIMPLIFIED: Single rebuild function
+      _executeIndexRebuild: (configs) => {
+        if (!Array.isArray(configs)) {
+          console.warn("⚠️ _executeIndexRebuild: configs must be array");
+          return;
+        }
 
-_executeIndexRebuild: (configs, measurementType = null) => {
-  if (!Array.isArray(configs)) {
-    console.warn("⚠️ _executeIndexRebuild: configs must be array");
-    return;
-  }
+        const state = get();
+        const rebuildId = Date.now();
+        
+        const idx = {};
+        let totalUnits = 0;
 
-  const state = get();
-  const rebuildId = Date.now();
-  
-  const idx = {};
-  let totalUnits = 0;
+        configs.forEach((cfg) => {
+          const fleetId = String(cfg.id || "");
+          const units = Array.isArray(cfg.units) ? cfg.units : [];
 
-  configs.forEach((cfg) => {
-    const fleetId = String(cfg.id || "");
-    const units = Array.isArray(cfg.units) ? cfg.units : [];
+          units.forEach((unit) => {
+            const dumpTruckId = String(unit.dumpTruckId || "");
+            const hull_no = unit.hull_no || "";
 
-    units.forEach((unit) => {
-      const dumpTruckId = String(unit.dumpTruckId || "");
-      const hull_no = unit.hull_no || "";
+            if (!dumpTruckId || !hull_no) {
+              console.warn(`⚠️ [${rebuildId}] Skip invalid unit`, unit);
+              return;
+            }
 
-      if (!dumpTruckId || !hull_no) {
-        console.warn(`⚠️ [${rebuildId}] Skip invalid unit`, unit);
-        return;
-      }
+            const key = normalizeHull(hull_no);
+            if (!key) return;
 
-      const key = normalizeHull(hull_no);
-      if (!key) return;
-
-      idx[key] = {
-        dumptruckId: dumpTruckId,
-        hull_no,
-        operator_id: unit.operatorId || null,
-        operator_name: unit.operator || null,
-        setting_fleet_id: fleetId,
-        measurement_type: cfg.measurementType,
-        excavator: cfg.excavator,
-        excavatorId: cfg.excavatorId,
-        loading_location: cfg.loadingLocation,
-        loadingLocationId: cfg.loadingLocationId,
-        dumping_location: cfg.dumpingLocation,
-        dumpingLocationId: cfg.dumpingLocationId,
-        coal_type: cfg.coalType,
-        coalTypeId: cfg.coalTypeId,
-        distance: cfg.distance,
-        work_unit: cfg.workUnit,
-        workUnitId: cfg.workUnitId,
-        checker_name: cfg.checker,
-        checkerId: cfg.checkerId,
-        inspector_name: cfg.inspector,
-        inspectorId: cfg.inspectorId,
-        company: unit.company,
-        companyId: unit.companyId,
-        tareWeight: unit.tareWeight ?? null,
-        isHidden: !!state.hiddenDumptrucks[key],
-      };
-      
-      totalUnits++;
-    });
-  });
+            idx[key] = {
+              dumptruckId: dumpTruckId,
+              hull_no,
+              operator_id: unit.operatorId || null,
+              operator_name: unit.operator || null,
+              setting_fleet_id: fleetId,
+              measurement_type: cfg.measurementType,
+              excavator: cfg.excavator,
+              excavatorId: cfg.excavatorId,
+              loading_location: cfg.loadingLocation,
+              loadingLocationId: cfg.loadingLocationId,
+              dumping_location: cfg.dumpingLocation,
+              dumpingLocationId: cfg.dumpingLocationId,
+              coal_type: cfg.coalType,
+              coalTypeId: cfg.coalTypeId,
+              distance: cfg.distance,
+              work_unit: cfg.workUnit,
+              workUnitId: cfg.workUnitId,
+              checker_name: cfg.checker,
+              checkerId: cfg.checkerId,
+              inspector_name: cfg.inspector,
+              inspectorId: cfg.inspectorId,
+              company: unit.company,
+              companyId: unit.companyId,
+              tareWeight: unit.tareWeight ?? null,
+              isHidden: !!state.hiddenDumptrucks[key],
+            };
+            
+            totalUnits++;
+          });
+        });
 
 
-  if (measurementType) {
-    set((state) => ({
-      dtIndexByType: {
-        ...state.dtIndexByType,
-        [measurementType]: idx,
-      },
-      indexRebuildTimestamp: new Date().toISOString(),
-      indexRebuildCount: state.indexRebuildCount + 1,
-    }));
-  } else {
-    set({
-      dtIndex: idx,
-      indexRebuildTimestamp: new Date().toISOString(),
-      indexRebuildCount: state.indexRebuildCount + 1,
-    });
-  }
-},
-
-setDumptruckIndexFromConfigs: (configs, measurementType = null) => {
-  if (!Array.isArray(configs)) {
-    console.warn(
-      "⚠️ setDumptruckIndexFromConfigs: configs must be array"
-    );
-    return;
-  }
-
-  const byType = {
-    Timbangan: [],
-    FOB: [],
-    Bypass: [],
-    Beltscale: [],
-  };
-
-  configs.forEach((config) => {
-    const type = config.measurementType;
-
-    if (type === "Timbangan") {
-      byType["Timbangan"].push(config);
-    } else if (type === "FOB") {
-      byType["FOB"].push(config);
-    } else if (type === "Bypass") {
-      byType["Bypass"].push(config);
-    } else if (type === "Beltscale") {
-      byType["Beltscale"].push(config);
-    }
-  });
-
-  set({
-    fleetConfigs: configs,
-    fleetConfigsByType: byType,
-  });
-
-  const state = get();
-  const selectedIds = measurementType
-    ? state.selectedFleetIdsByType[measurementType] || []
-    : state.selectedFleetIds || [];
-
-  // ✅ FIX: Filter configs berdasarkan selectedIds
-  if (selectedIds.length > 0) {
-    const selectedConfigs = configs.filter(c => selectedIds.includes(c.id));
-    get()._executeIndexRebuild(selectedConfigs, measurementType);
-  } else {
-    // Clear index jika tidak ada yang dipilih
-    if (measurementType) {
-      set((state) => ({
-        dtIndexByType: {
-          ...state.dtIndexByType,
-          [measurementType]: {},
-        },
-      }));
-    } else {
-      set({ dtIndex: {} });
-    }
-  }
-},
-
-setSelectedFleetsByType: (fleetConfigs, measurementType) => {
-  const configs = Array.isArray(fleetConfigs) ? fleetConfigs : [];
-  const ids = configs.map(c => c.id);
-  
-
-  set((state) => ({
-    selectedFleetIdsByType: {
-      ...state.selectedFleetIdsByType,
-      [measurementType]: ids,
-    },
-  }));
-
-  // ✅ FIX: Langsung gunakan configs yang diterima untuk rebuild
-  if (configs.length > 0) {
-    get()._executeIndexRebuild(configs, measurementType);
-    
-    // Verify hasil rebuild
-    setTimeout(() => {
-      const idx = get().dtIndexByType[measurementType] || {};
-
-    }, 100);
-  } else {
-    console.warn(`⚠️ No configs to rebuild index for ${measurementType}`);
-    // Clear index jika tidak ada yang dipilih
-    set((state) => ({
-      dtIndexByType: {
-        ...state.dtIndexByType,
-        [measurementType]: {},
-      },
-    }));
-  }
-},
-
-      getSelectedFleetsByType: (measurementType) => {
-        return get().selectedFleetIdsByType[measurementType] || [];
+        set({
+          dtIndex: idx,
+          indexRebuildTimestamp: new Date().toISOString(),
+          indexRebuildCount: state.indexRebuildCount + 1,
+        });
       },
 
+      // ✅ SIMPLIFIED: Single function for setting configs
+      setDumptruckIndexFromConfigs: (configs) => {
+        if (!Array.isArray(configs)) {
+          console.warn("⚠️ setDumptruckIndexFromConfigs: configs must be array");
+          return;
+        }
+
+        const state = get();
+        
+        // ✅ Compare IDs only
+        const currentIds = (state.fleetConfigs || []).map(c => c.id).sort().join(',');
+        const newIds = configs.map(c => c.id).sort().join(',');
+        
+        // Only update if there's actual change
+        if (currentIds !== newIds) {
+          set({ fleetConfigs: configs });
+        }
+
+        const selectedIds = state.selectedFleetIds || [];
+
+        // ✅ Only rebuild if there are selected items AND configs exist
+        if (selectedIds.length > 0 && configs.length > 0) {
+          const selectedConfigs = configs.filter(c => selectedIds.includes(c.id));
+          
+          if (selectedConfigs.length > 0) {
+            // Check if index actually needs update
+            const currentIndex = state.dtIndex || {};
+            
+            const needsRebuild = selectedConfigs.some(cfg => {
+              const units = Array.isArray(cfg.units) ? cfg.units : [];
+              return units.length > 0;
+            });
+            
+            if (needsRebuild || Object.keys(currentIndex).length === 0) {
+              get()._executeIndexRebuild(selectedConfigs);
+            }
+          }
+        } else if (selectedIds.length === 0) {
+          // Clear index if no selection
+          if (Object.keys(state.dtIndex || {}).length > 0) {
+            set({ dtIndex: {} });
+          }
+        }
+      },
+
+      // ✅ SIMPLIFIED: Remove by-type methods
       setSelectedFleets: (fleetIds) => {
         const ids = Array.isArray(fleetIds) ? fleetIds : [];
         set({ selectedFleetIds: ids });
 
         const state = get();
         if (ids.length > 0) {
-          get()._executeIndexRebuild(state.fleetConfigs);
+          const selectedConfigs = state.fleetConfigs.filter(c => ids.includes(c.id));
+          get()._executeIndexRebuild(selectedConfigs);
         } else {
-          get()._scheduleIndexRebuild();
+          set({ dtIndex: {} });
         }
       },
 
@@ -497,8 +417,7 @@ setSelectedFleetsByType: (fleetConfigs, measurementType) => {
       },
 
       clearSelectedFleets: () => {
-        set({ selectedFleetIds: [] });
-        get()._scheduleIndexRebuild();
+        set({ selectedFleetIds: [], dtIndex: {} });
       },
 
       getSelectedFleets: () => {
@@ -508,12 +427,10 @@ setSelectedFleetsByType: (fleetConfigs, measurementType) => {
         );
       },
 
-      findByHullNo: (hullNo, includeHidden = false, measurementType = null) => {
+      // ✅ SIMPLIFIED: Single index lookup
+      findByHullNo: (hullNo, includeHidden = false) => {
         const state = get();
-
-        const index = measurementType
-          ? state.dtIndexByType[measurementType] || {}
-          : state.dtIndex;
+        const index = state.dtIndex;
 
         if (Object.keys(index).length === 0) {
           return null;
@@ -534,6 +451,14 @@ setSelectedFleetsByType: (fleetConfigs, measurementType) => {
         return result;
       },
 
+      // ✅ Helper untuk filter by type (computed, bukan stored)
+      getFleetConfigsByType: (measurementType) => {
+        const state = get();
+        return state.fleetConfigs.filter(
+          (config) => config.measurementType === measurementType
+        );
+      },
+
       addFleetConfig: (config) =>
         set((state) => {
           const newConfig = {
@@ -543,120 +468,29 @@ setSelectedFleetsByType: (fleetConfigs, measurementType) => {
             updatedAt: new Date().toISOString(),
           };
 
-          const measurementType = newConfig.measurementType;
-
-          if (measurementType && state.fleetConfigsByType[measurementType]) {
-            const updatedConfigs = [
-              ...state.fleetConfigsByType[measurementType],
-              newConfig,
-            ];
-
-            get().setDumptruckIndexFromConfigs(updatedConfigs, measurementType);
-
-            return {
-              fleetConfigsByType: {
-                ...state.fleetConfigsByType,
-                [measurementType]: updatedConfigs,
-              },
-            };
-          }
-
           const newConfigs = [...state.fleetConfigs, newConfig];
-        
+          
           get().setDumptruckIndexFromConfigs(newConfigs);
           return { fleetConfigs: newConfigs };
         }),
 
       updateFleetConfig: (configId, updates) =>
         set((state) => {
-          let foundType = null;
-          for (const [type, configs] of Object.entries(
-            state.fleetConfigsByType
-          )) {
-            if (configs.some((c) => c.id === configId)) {
-              foundType = type;
-              break;
-            }
-          }
-
-          if (foundType) {
-            const updatedConfigs = state.fleetConfigsByType[foundType].map(
-              (config) =>
-                config.id === configId
-                  ? {
-                      ...config,
-                      ...updates,
-                      updatedAt: new Date().toISOString(),
-                    }
-                  : config
-            );
-
-            const newSelectedIds = [...state.selectedFleetIdsByType[foundType]];
-
-            get().setDumptruckIndexFromConfigs(updatedConfigs, foundType);
-
-            return {
-              fleetConfigsByType: {
-                ...state.fleetConfigsByType,
-                [foundType]: updatedConfigs,
-              },
-              selectedFleetIdsByType: {
-                ...state.selectedFleetIdsByType,
-                [foundType]: newSelectedIds,
-              },
-            };
-          }
-
           const newConfigs = state.fleetConfigs.map((config) =>
             config.id === configId
               ? { ...config, ...updates, updatedAt: new Date().toISOString() }
               : config
           );
 
-          const newSelectedIds = [...state.selectedFleetIds];
-
           get().setDumptruckIndexFromConfigs(newConfigs);
 
           return {
             fleetConfigs: newConfigs,
-            selectedFleetIds: newSelectedIds,
           };
         }),
 
       deleteFleetConfig: (configId) =>
         set((state) => {
-          let foundType = null;
-          for (const [type, configs] of Object.entries(
-            state.fleetConfigsByType
-          )) {
-            if (configs.some((c) => c.id === configId)) {
-              foundType = type;
-              break;
-            }
-          }
-
-          if (foundType) {
-            const newConfigs = state.fleetConfigsByType[foundType].filter(
-              (c) => c.id !== configId
-            );
-            const newSelectedFleetIds = state.selectedFleetIdsByType[
-              foundType
-            ].filter((id) => id !== configId);
-
-            get().setDumptruckIndexFromConfigs(newConfigs, foundType);
-
-            return {
-              fleetConfigsByType: {
-                ...state.fleetConfigsByType,
-                [foundType]: newConfigs,
-              },
-              selectedFleetIdsByType: {
-                ...state.selectedFleetIdsByType,
-                [foundType]: newSelectedFleetIds,
-              },
-            };
-          }
-
           const isActive = state.activeFleetConfigId === configId;
           const newConfigs = state.fleetConfigs.filter(
             (c) => c.id !== configId
@@ -713,46 +547,33 @@ setSelectedFleetsByType: (fleetConfigs, measurementType) => {
           });
 
           if (result.success) {
-            if (measurementType) {
-              set((state) => ({
-                fleetConfigsByType: {
-                  ...state.fleetConfigsByType,
-                  [measurementType]: result.data,
-                },
-                isLoading: false,
-                error: null,
-                lastFetchTimestamp: new Date().toISOString(),
-              }));
+            const state = get();
+            const existingSelectedIds = state.selectedFleetIds || [];
 
-              get().setDumptruckIndexFromConfigs(result.data, measurementType);
+            // ✅ SIMPLIFIED: Merge all configs
+            const existingSelectedFleets = state.fleetConfigs.filter((f) =>
+              existingSelectedIds.includes(f.id)
+            );
+
+            const mergedConfigs = [...existingSelectedFleets, ...result.data];
+            const uniqueConfigs = Array.from(
+              new Map(mergedConfigs.map((c) => [c.id, c])).values()
+            );
+
+            set({
+              fleetConfigs: uniqueConfigs,
+              isLoading: false,
+              error: null,
+              lastFetchTimestamp: new Date().toISOString(),
+            });
+
+            if (existingSelectedIds.length > 0) {
+              const selectedConfigs = uniqueConfigs.filter(c => 
+                existingSelectedIds.includes(c.id)
+              );
+              get()._executeIndexRebuild(selectedConfigs);
             } else {
-              const state = get();
-              const existingSelectedIds = state.selectedFleetIds || [];
-              const existingSelectedFleets = state.fleetConfigs.filter((f) =>
-                existingSelectedIds.includes(f.id)
-              );
-
-              const mergedConfigs = [...existingSelectedFleets, ...result.data];
-              const uniqueConfigs = Array.from(
-                new Map(mergedConfigs.map((c) => [c.id, c])).values()
-              );
-
-              set({
-                fleetConfigs: uniqueConfigs,
-                isLoading: false,
-                error: null,
-                lastFetchTimestamp: new Date().toISOString(),
-              });
-
-              if (existingSelectedIds.length > 0) {
-    const selectedConfigs = uniqueConfigs.filter(c => 
-      existingSelectedIds.includes(c.id)
-    );
-    get()._executeIndexRebuild(selectedConfigs); // Gunakan selectedConfigs, bukan uniqueConfigs
-  } else {
-    // Clear index jika tidak ada yang dipilih
-    set({ dtIndex: {} });
-  }
+              set({ dtIndex: {} });
             }
 
             get().cleanupOldHiddenDumptrucks();
@@ -773,7 +594,7 @@ setSelectedFleetsByType: (fleetConfigs, measurementType) => {
         if (!config) return { success: false, error: "Config not found" };
 
         try {
-          const result = await timbanganServices.updateFleetConfig(
+          const result = await ritaseServices.updateFleetConfig(
             configId,
             config
           );
@@ -786,61 +607,58 @@ setSelectedFleetsByType: (fleetConfigs, measurementType) => {
         }
       },
 
-loadTimbanganDataFromAPI: async (
-  dateRange = null,
-  forceRefresh = true,
-  measurementType = null  
-) => {
-  set({ isLoading: true });
+      loadRitaseDataFromAPI: async (
+        dateRange = null,
+        forceRefresh = true,
+        measurementType = null  
+      ) => {
+        set({ isLoading: true });
 
-  try {
-    const { user } = useAuthStore.getState();
-    
-    const filters = { 
-      forceRefresh,
-      user,  
-      measurementType  
-    };
+        try {
+          const { user } = useAuthStore.getState();
+          
+          const filters = { 
+            forceRefresh,
+            user,  
+            measurementType  
+          };
 
-    // ✅ FIX: Handle both {from, to} AND {startDate, endDate}
-    if (dateRange) {
-      // Cek apakah dateRange punya startDate/endDate (dari component)
-      // atau from/to (dari internal)
-      const fromDate = dateRange.from || dateRange.startDate;
-      const toDate = dateRange.to || dateRange.endDate;
-      
-      if (fromDate) {
-        filters.startDate = fromDate instanceof Date 
-          ? fromDate.toISOString().split('T')[0]
-          : (typeof fromDate === 'string' ? fromDate : null);
-      }
-      
-      if (toDate) {
-        filters.endDate = toDate instanceof Date 
-          ? toDate.toISOString().split('T')[0]
-          : (typeof toDate === 'string' ? toDate : null);
-      }
-    }
+          if (dateRange) {
+            const fromDate = dateRange.from || dateRange.startDate;
+            const toDate = dateRange.to || dateRange.endDate;
+            
+            if (fromDate) {
+              filters.startDate = fromDate instanceof Date 
+                ? fromDate.toISOString().split('T')[0]
+                : (typeof fromDate === 'string' ? fromDate : null);
+            }
+            
+            if (toDate) {
+              filters.endDate = toDate instanceof Date 
+                ? toDate.toISOString().split('T')[0]
+                : (typeof toDate === 'string' ? toDate : null);
+            }
+          }
 
-    const result = await timbanganServices.fetchTimbanganData(filters);
-    
-    if (result.success) {
-      set({
-        timbanganData: result.data,
-        isLoading: false,
-        lastFetchTimestamp: new Date().toISOString(),
-      });
+          const result = await ritaseServices.fetchTimbanganData(filters);
+          
+          if (result.success) {
+            set({
+              ritaseData: result.data,
+              isLoading: false,
+              lastFetchTimestamp: new Date().toISOString(),
+            });
 
-      return { success: true };
-    }
+            return { success: true };
+          }
 
-    throw new Error(result.error);
-  } catch (error) {
-    console.error("❌ loadTimbanganDataFromAPI error:", error);
-    set({ isLoading: false, error: error.message });
-    return { success: false, error: error.message };
-  }
-},
+          throw new Error(result.error);
+        } catch (error) {
+          console.error("❌ loadRitaseDataFromAPI error:", error);
+          set({ isLoading: false, error: error.message });
+          return { success: false, error: error.message };
+        }
+      },
 
       autoFetchTimbanganData: async (dateRange = null) => {
         const state = get();
@@ -849,7 +667,7 @@ loadTimbanganDataFromAPI: async (
           return { success: false, reason: "disabled" };
         }
 
-        const result = await get().loadTimbanganDataFromAPI(dateRange, true);
+        const result = await get().loadRitaseDataFromAPI(dateRange, true);
         return result;
       },
 
@@ -1033,8 +851,8 @@ loadTimbanganDataFromAPI: async (
 
       addTimbanganEntry: (entry) =>
         set((state) => ({
-          timbanganData: [
-            ...state.timbanganData,
+          ritaseData: [
+            ...state.ritaseData,
             {
               id: entry.id || uid(),
               ...entry,
@@ -1046,7 +864,7 @@ loadTimbanganDataFromAPI: async (
 
       updateTimbanganEntry: (id, updatedData) =>
         set((state) => ({
-          timbanganData: state.timbanganData.map((item) =>
+          ritaseData: state.ritaseData.map((item) =>
             item.id === id
               ? { ...item, ...updatedData, updatedAt: new Date().toISOString() }
               : item
@@ -1055,12 +873,12 @@ loadTimbanganDataFromAPI: async (
 
       deleteTimbanganEntry: (id) =>
         set((state) => ({
-          timbanganData: state.timbanganData.filter((item) => item.id !== id),
+          ritaseData: state.ritaseData.filter((item) => item.id !== id),
         })),
 
       deleteMultipleTimbanganEntries: (ids) =>
         set((state) => ({
-          timbanganData: state.timbanganData.filter(
+          ritaseData: state.ritaseData.filter(
             (item) => !ids.includes(item.id)
           ),
           selectedItems: [],
@@ -1076,13 +894,13 @@ loadTimbanganDataFromAPI: async (
       toggleSelectAll: () =>
         set((state) => ({
           selectedItems:
-            state.selectedItems.length === state.timbanganData.length
+            state.selectedItems.length === state.ritaseData.length
               ? []
-              : state.timbanganData.map((item) => item.id),
+              : state.ritaseData.map((item) => item.id),
         })),
 
       getTimbanganData: (dateRange = null) => {
-        const data = get().timbanganData;
+        const data = get().ritaseData;
 
         const normalizedRange = normalizeDateRange(dateRange);
         if (!normalizedRange) {
@@ -1166,7 +984,6 @@ loadTimbanganDataFromAPI: async (
         masters: state.masters,
         mastersMeta: state.mastersMeta,
         fleetConfigs: state.fleetConfigs,
-        fleetConfigsByType: state.fleetConfigsByType,
         selectedFleetIdsByType: state.selectedFleetIdsByType,
         hiddenDumptrucks: state.hiddenDumptrucks,
         setupComplete: state.setupComplete,

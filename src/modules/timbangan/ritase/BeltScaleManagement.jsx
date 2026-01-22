@@ -4,24 +4,24 @@ import { Button } from "@/shared/components/ui/button";
 import { Alert, AlertDescription } from "@/shared/components/ui/alert";
 import { X, Plus, TrendingUp, AlertCircle } from "lucide-react";
 
-import BeltScaleAdjustmentForm from "@/modules/timbangan/timbangan/components/BeltScaleAdjustmentForm";
-import { TimbanganTable } from "@/modules/timbangan/timbangan/components/TimbanganTable";
+import BeltScaleAdjustmentForm from "@/modules/timbangan/ritase/components/BeltScaleAdjustmentForm";
+import { RitaseTable } from "@/modules/timbangan/ritase/components/RitaseTable";
 import LoadingOverlay from "@/shared/components/LoadingOverlay";
 
-import { useTimbanganStore } from "@/modules/timbangan/timbangan/store/timbanganStore";
+import { useRitaseStore } from "@/modules/timbangan/ritase/store/ritaseStore";
 import { showToast } from "@/shared/utils/toast";
 import useAuthStore from "@/modules/auth/store/authStore";
 
-import { getInitialDateRange } from "@/modules/timbangan/timbangan/constant/timbanganConstants";
+import { getInitialDateRange } from "@/modules/timbangan/ritase/constant/ritaseConstants";
 
-const TimbanganBeltScaleManagement = ({Type}) => {
+const BeltscaleManagement = ({Type}) => {
   const { user } = useAuthStore();
-  const timbanganData = useTimbanganStore((state) => state.timbanganData);
-  const loadTimbanganDataFromAPI = useTimbanganStore(
-    (state) => state.loadTimbanganDataFromAPI
+  const ritaseData = useRitaseStore((state) => state.ritaseData);
+  const loadRitaseDataFromAPI = useRitaseStore(
+    (state) => state.loadRitaseDataFromAPI
   );
-  const error = useTimbanganStore((state) => state.error);
-  const clearError = useTimbanganStore((state) => state.clearError);
+  const error = useRitaseStore((state) => state.error);
+  const clearError = useRitaseStore((state) => state.clearError);
 
   const [showForm, setShowForm] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -29,8 +29,8 @@ const TimbanganBeltScaleManagement = ({Type}) => {
   const [dateRange, setDateRange] = useState(getInitialDateRange);
   const [adjustmentSummary, setAdjustmentSummary] = useState(null);
 
-  const filteredTimbanganData = useMemo(() => {
-    let filtered = timbanganData;
+  const filteredRitaseData = useMemo(() => {
+    let filtered = ritaseData;
 
     filtered = filtered.filter((item) => item.measurement_type === "Beltscale");
 
@@ -54,7 +54,7 @@ const TimbanganBeltScaleManagement = ({Type}) => {
     }
 
     return filtered;
-  }, [timbanganData, dateRange]);
+  }, [ritaseData, dateRange]);
 
  const handleDateRangeChange = useCallback((range) => {
     const normalized = {
@@ -75,11 +75,11 @@ const TimbanganBeltScaleManagement = ({Type}) => {
     setDateRange(normalized);
 
     // ✅ Load data using getState() to avoid infinite loop
-    const { loadTimbanganDataFromAPI } = useTimbanganStore.getState();
+    const { loadRitaseDataFromAPI } = useRitaseStore.getState();
     
     setIsLoading(true);
     
-    loadTimbanganDataFromAPI(
+    loadRitaseDataFromAPI(
       { from: normalized.from, to: normalized.to },
       true, 
       "Beltscale"
@@ -99,7 +99,7 @@ const TimbanganBeltScaleManagement = ({Type}) => {
   const handleRefresh = useCallback(async () => {
     setIsLoading(true);
     try {
-      await loadTimbanganDataFromAPI(
+      await loadRitaseDataFromAPI(
         { from: dateRange.from, to: dateRange.to },
         true,
         "Beltscale"
@@ -110,7 +110,7 @@ const TimbanganBeltScaleManagement = ({Type}) => {
     } finally {
       setIsLoading(false);
     }
-  }, [dateRange, loadTimbanganDataFromAPI]);
+  }, [dateRange, loadRitaseDataFromAPI]);
 
   const handleFormSubmit = useCallback(
     async (result) => {
@@ -121,7 +121,7 @@ const TimbanganBeltScaleManagement = ({Type}) => {
           setAdjustmentSummary(result.data.summary);
         }
 
-        await loadTimbanganDataFromAPI(
+        await loadRitaseDataFromAPI(
           { from: dateRange.from, to: dateRange.to },
           true,
           "Beltscale"
@@ -132,7 +132,7 @@ const TimbanganBeltScaleManagement = ({Type}) => {
         );
       }
     },
-    [dateRange, loadTimbanganDataFromAPI]
+    [dateRange, loadRitaseDataFromAPI]
   );
 
   const handleOpenForm = useCallback(() => {
@@ -151,7 +151,7 @@ useEffect(() => {
   const loadInitialData = async () => {
     setIsInitialLoading(true);
     try {
-      await loadTimbanganDataFromAPI(
+      await loadRitaseDataFromAPI(
         { from: dateRange.from, to: dateRange.to },
         false,
         "Beltscale"
@@ -187,7 +187,7 @@ useEffect(() => {
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
             <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-              Timbangan Beltscale - Adjustment
+              Beltscale - Adjustment
             </h1>
             <p className="text-sm md:text-base text-gray-600 dark:text-gray-400 mt-1">
               Welcome back,{" "}
@@ -231,68 +231,6 @@ useEffect(() => {
             </div>
           </CardContent>
         </Card>
-
-        {/* Summary Card - After Adjustment */}
-        {adjustmentSummary && (
-          <Card className="border-green-200 bg-green-50 dark:bg-green-950/50 dark:border-green-800/50 shadow-sm dark:shadow-lg dark:shadow-green-900/20 transition-all duration-200">
-            <CardContent className="py-4">
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex items-start gap-3 flex-1">
-                  <div className="w-10 h-10 rounded-full bg-green-100 dark:bg-green-900/50 flex items-center justify-center shrink-0 shadow-sm dark:shadow-green-800/50">
-                    <AlertCircle className="w-5 h-5 text-green-600 dark:text-green-400" />
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="text-sm font-semibold text-green-900 dark:text-green-100 mb-2">
-                      Beltscale Adjustment Summary
-                    </h3>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
-                      <div className="bg-neutral-50 dark:bg-green-900/20 p-2 rounded border border-green-100 dark:border-green-800/30">
-                        <p className="text-green-700 dark:text-green-400 mb-1">
-                          Total Sebelum:
-                        </p>
-                        <p className="font-semibold text-green-900 dark:text-green-100 text-sm">
-                          {adjustmentSummary.total_before?.toFixed(2)} Ton
-                        </p>
-                      </div>
-                      <div className="bg-neutral-50 dark:bg-green-900/20 p-2 rounded border border-green-100 dark:border-green-800/30">
-                        <p className="text-green-700 dark:text-green-400 mb-1">
-                          Total Setelah:
-                        </p>
-                        <p className="font-semibold text-green-900 dark:text-green-100 text-sm">
-                          {adjustmentSummary.total_after?.toFixed(2)} Ton
-                        </p>
-                      </div>
-                      <div className="bg-neutral-50 dark:bg-green-900/20 p-2 rounded border border-green-100 dark:border-green-800/30">
-                        <p className="text-green-700 dark:text-green-400 mb-1">
-                          Target Beltscale:
-                        </p>
-                        <p className="font-semibold text-green-900 dark:text-green-100 text-sm">
-                          {adjustmentSummary.beltscale?.toFixed(2)} Ton
-                        </p>
-                      </div>
-                      <div className="bg-neutral-50 dark:bg-green-900/20 p-2 rounded border border-green-100 dark:border-green-800/30">
-                        <p className="text-green-700 dark:text-green-400 mb-1">
-                          Ritase Updated:
-                        </p>
-                        <p className="font-semibold text-green-900 dark:text-green-100 text-sm">
-                          {adjustmentSummary.updated_count} ritase
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleClearSummary}
-                  className="h-8 w-8 p-0 text-green-600 hover:text-green-700 hover:bg-green-100 dark:text-green-400 dark:hover:text-green-300 dark:hover:bg-green-900/30 cursor-pointer transition-colors"
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        )}
 
         {/* Error Alert */}
         {error && (
@@ -339,9 +277,9 @@ useEffect(() => {
             </CardContent>
           </Card>
         ) : (
-          <TimbanganTable
+          <RitaseTable
             title="Data Ritase Beltscale"
-            shipments={filteredTimbanganData}
+            shipments={filteredRitaseData}
             allSelected={false}
             isLoading={isLoading}
             isDeleting={false}
@@ -350,7 +288,7 @@ useEffect(() => {
             dateRange={dateRange}
             onDateRangeChange={handleDateRangeChange}
             onRefresh={handleRefresh}
-            allTimbanganData={timbanganData}
+            allTimbanganData={ritaseData}
             onResetDateFilter={() => {
               const today = new Date();
               today.setHours(23, 59, 59, 999);
@@ -401,4 +339,4 @@ useEffect(() => {
   );
 };
 
-export default TimbanganBeltScaleManagement;
+export default BeltscaleManagement;

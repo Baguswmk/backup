@@ -31,13 +31,13 @@ import {
   PopoverTrigger,
 } from "@/shared/components/ui/popover";
 import { Calendar } from "@/shared/components/ui/calendar";
-import { beltScaleServices } from "@/modules/timbangan/timbangan/services/beltscaleServices";
+import { beltScaleServices } from "@/modules/timbangan/ritase/services/beltscaleServices";
 import { useFleet } from "@/modules/timbangan/fleet/hooks/useFleet";
 import useAuthStore from "@/modules/auth/store/authStore";
 import { formatWeight } from "@/shared/utils/number";
 import { showToast } from "@/shared/utils/toast";
 
-const BeltScaleAdjustmentForm = ({ onSubmit, isSubmitting = false }) => {
+const BeltScaleAdjustmentForm = ({ onSubmit }) => {
   const { user } = useAuthStore();
   const { masters } = useFleet(user ? { user } : null);
   const [formData, setFormData] = useState({

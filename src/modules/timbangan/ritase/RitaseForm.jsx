@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useEffect, useRef } from "react";
-import { useTimbanganManualForm } from "@/modules/timbangan/timbangan/hooks/useTimbanganManualForm";
-import { useTimbanganStore } from "@/modules/timbangan/timbangan/store/timbanganStore";
+import { useRitaseForm } from "@/modules/timbangan/ritase/hooks/useRitaseForm";
+import { useRitaseStore } from "@/modules/timbangan/ritase/store/ritaseStore";
 import { useWebSerialScale } from "@/shared/hooks/useWebSerialScale";
 import {
   Card,
@@ -48,7 +48,7 @@ import { formatWeight } from "@/shared/utils/number";
 import { Calendar } from "@/shared/components/ui/calendar";
 import ConfirmDialog from "@/shared/components/ConfirmDialog";
 import { showToast } from "@/shared/utils/toast";
-const TimbanganManualForm = ({
+const RitaseForm = ({
   onSubmit,
   editingItem,
   mode = "create",
@@ -69,7 +69,7 @@ const TimbanganManualForm = ({
     validateField,
     handleSubmit,
     formSummary,
-  } = useTimbanganManualForm(editingItem, mode, masters);
+  } = useRitaseForm(editingItem, mode, masters);
 
   const {
     isConnected: wsConnected,
@@ -82,8 +82,8 @@ const TimbanganManualForm = ({
     error: scaleError,
   } = useWebSerialScale();
 
-  const dtIndex = useTimbanganStore((state) => state.dtIndex);
-  const hiddenDumptrucks = useTimbanganStore((state) => state.hiddenDumptrucks);
+  const dtIndex = useRitaseStore((state) => state.dtIndex);
+  const hiddenDumptrucks = useRitaseStore((state) => state.hiddenDumptrucks);
 
   const [insertedWeight, setInsertedWeight] = useState(null);
   const [insertedTime, setInsertedTime] = useState(null);
@@ -183,8 +183,8 @@ const TimbanganManualForm = ({
 
   useEffect(() => {
     if (isEditMode && editingItem) {
-      if (editingItem.net_weight) {
-        setDisplayWeight(editingItem.net_weight.toString());
+      if (editingItem.gross_weight) {
+        setDisplayWeight(editingItem.gross_weight.toString());
       }
       setManualEditMode(true);
     }
@@ -205,7 +205,7 @@ const TimbanganManualForm = ({
       setWaitingForFirstData(true);
       stableWeightValueRef.current = null;
       stableWeightStartTimeRef.current = null;
-      updateFieldRef.current("net_weight", "");
+      updateFieldRef.current("gross_weight", "");
     }
 
     return () => {
@@ -262,7 +262,7 @@ const TimbanganManualForm = ({
     setInsertedTime(now);
     setDisplayWeight(formattedWeight);
     setIsWeightStable(true);
-    updateFieldRef.current("net_weight", formattedWeight);
+    updateFieldRef.current("gross_weight", formattedWeight);
 
     if (stableWeightTimerRef.current) {
       clearTimeout(stableWeightTimerRef.current);
@@ -430,7 +430,6 @@ const TimbanganManualForm = ({
         };
       })
       .filter((option) => !option.isHidden || option.isCurrent);
-
     return options.sort((a, b) => a.label.localeCompare(b.label));
   }, [dtIndex, hiddenDumptrucks, isEditMode, editingItem]);
 
@@ -442,7 +441,7 @@ const TimbanganManualForm = ({
         const newWeight = parseFloat(currentWeight);
         if (!isNaN(newWeight) && newWeight >= 0) {
           setDisplayWeight(newWeight.toFixed(2));
-          updateFieldRef.current("net_weight", newWeight.toFixed(2));
+          updateFieldRef.current("gross_weight", newWeight.toFixed(2));
         }
       }
     }, 100);
@@ -462,7 +461,7 @@ const TimbanganManualForm = ({
     setInsertedTime(now);
     setDisplayWeight(formattedWeight);
     setIsWeightStable(true);
-    updateFieldRef.current("net_weight", formattedWeight);
+    updateFieldRef.current("gross_weight", formattedWeight);
 
     if (stableWeightTimerRef.current) {
       clearTimeout(stableWeightTimerRef.current);
@@ -487,7 +486,7 @@ const TimbanganManualForm = ({
       const weight = parseFloat(currentWeight);
       const formattedWeight = weight.toFixed(2);
       setDisplayWeight(formattedWeight);
-      updateFieldRef.current("net_weight", formattedWeight);
+      updateFieldRef.current("gross_weight", formattedWeight);
     }
   };
 
@@ -497,7 +496,7 @@ const TimbanganManualForm = ({
     if (canEdit) {
       if (value === "" || parseFloat(value) <= 999.99) {
         setDisplayWeight(value);
-        updateFieldRef.current("net_weight", value);
+        updateFieldRef.current("gross_weight", value);
 
         if (insertedWeight !== null) {
           setInsertedWeight(null);
@@ -513,7 +512,6 @@ const TimbanganManualForm = ({
       e.preventDefault();
     }
 
-    console.log("🚀 [TimbanganManualForm] handleFormSubmit started");
 
     if (
       !isEditMode &&
@@ -530,21 +528,12 @@ const TimbanganManualForm = ({
 
     try {
       const result = await handleSubmit();
-      console.log("📊 [TimbanganManualForm] handleSubmit result:", result);
 
       const isQueued = result?.queued === true;
       const shouldClose = result?.shouldClose === true;
 
-      console.log("🔍 [TimbanganManualForm] Flags:", {
-        isQueued,
-        shouldClose,
-        result,
-      });
 
       if (isQueued || (result?.success && !result?.data)) {
-        console.log(
-          "📤 [TimbanganManualForm] Data queued, calling onSubmit...",
-        );
 
         showToast.info(
           "📤 Data disimpan di queue dan akan otomatis tersinkron saat online",
@@ -564,9 +553,7 @@ const TimbanganManualForm = ({
       }
 
       if (result?.success && result?.data) {
-        console.log(
-          "✅ [TimbanganManualForm] Success with data, calling onSubmit...",
-        );
+
 
         if (onSubmit) {
           onSubmit(result);
@@ -590,15 +577,12 @@ const TimbanganManualForm = ({
         }
       }
     } catch (err) {
-      console.error("❌ [TimbanganManualForm] Error:", err);
+      console.error("❌ [RitaseForm] Error:", err);
 
       const isQueuedError =
         err?.queued || err?.message?.includes("queued for offline sync");
 
       if (isQueuedError) {
-        console.log(
-          "📤 [TimbanganManualForm] Error was queued, treating as success",
-        );
 
         showToast.info(
           "📤 Data disimpan di queue dan akan otomatis tersinkron saat online",
@@ -677,7 +661,7 @@ const TimbanganManualForm = ({
 
       if (e.altKey && e.key.toLowerCase() === "w") {
         e.preventDefault();
-        const weightInput = document.getElementById("net_weight");
+        const weightInput = document.getElementById("gross_weight");
         if (weightInput && !weightInput.readOnly) {
           weightInput.focus();
         }
@@ -999,7 +983,7 @@ const TimbanganManualForm = ({
                 Net Weight:
               </span>
               <span className="font-medium dark:text-gray-200">
-                {editingItem.net_weight || "-"} ton
+                {editingItem.gross_weight || "-"} ton
               </span>
             </div>
           </div>
@@ -1064,12 +1048,12 @@ const TimbanganManualForm = ({
                     id="gross_weight_edit"
                     type="text"
                     inputMode="decimal"
-                    value={formData.net_weight}
+                    value={formData.gross_weight}
                     onChange={(e) => {
                       const value = e.target.value;
 
                       if (value === "") {
-                        updateField("net_weight", value);
+                        updateField("gross_weight", value);
                         return;
                       }
 
@@ -1083,14 +1067,14 @@ const TimbanganManualForm = ({
                         return;
                       }
 
-                      updateField("net_weight", value);
+                      updateField("gross_weight", value);
                     }}
-                    className={errors.net_weight ? "border-red-500" : ""}
+                    className={errors.gross_weight ? "border-red-500" : ""}
                     placeholder="0.00"
                   />
-                  {errors.net_weight && (
+                  {errors.gross_weight && (
                     <p className="text-sm text-red-500 mt-1">
-                      {errors.net_weight}
+                      {errors.gross_weight}
                     </p>
                   )}
                   <p className="text-xs text-gray-500 mt-1">
@@ -1593,13 +1577,13 @@ const TimbanganManualForm = ({
           {/* Net Weight Input */}
           <div>
             <Label
-              htmlFor="net_weight"
+              htmlFor="gross_weight"
               className="flex items-center gap-2 mb-2"
             >
               <Weight className="w-4 h-4" />
-              Net Weight (ton) *
+              Gross Weight (ton) *
               <span className="text-xs text-gray-500 font-normal">
-                (Berat Bersih)
+                (Berat Kotor)
               </span>
             </Label>
 
@@ -1607,13 +1591,13 @@ const TimbanganManualForm = ({
               {/* Weight Input */}
               <div className="relative flex-1">
                 <Input
-                  id="net_weight"
+                  id="gross_weight"
                   type="text"
                   inputMode="decimal"
                   value={displayWeight}
                   onChange={(e) => handleManualWeightChange(e.target.value)}
-                  onBlur={() => validateField("net_weight")}
-                  className={`${errors.net_weight ? "border-red-500" : ""} ${
+                  onBlur={() => validateField("gross_weight")}
+                  className={`${errors.gross_weight ? "border-red-500" : ""} ${
                     manualEditMode
                       ? "bg-yellow-50 border-yellow-400 font-bold dark:text-gray-800"
                       : insertedWeight !== null
@@ -1695,8 +1679,8 @@ const TimbanganManualForm = ({
               )}
             </div>
 
-            {errors.net_weight && (
-              <p className="text-sm text-red-500 mt-1">{errors.net_weight}</p>
+            {errors.gross_weight && (
+              <p className="text-sm text-red-500 mt-1">{errors.gross_weight}</p>
             )}
 
             {/* Status Info */}
@@ -1977,4 +1961,4 @@ const TimbanganManualForm = ({
   );
 };
 
-export default TimbanganManualForm;
+export default RitaseForm;

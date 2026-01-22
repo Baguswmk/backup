@@ -26,9 +26,9 @@ import {
 } from "@/shared/utils/date";
 import { getFirstTruthyValue } from "@/shared/utils/object";
 import { formatWeight } from "@/shared/utils/number";
-import PrintTicketButton from "@/modules/timbangan/timbangan/components/PrintTicketButton";
+import PrintTicketButton from "@/modules/timbangan/ritase/components/PrintTicketButton";
 
-const TimbanganDetailModal = ({
+const RitaseDetailModal = ({
   item,
   isOpen,
   onClose,
@@ -204,9 +204,9 @@ const TimbanganDetailModal = ({
           <div>
             <h2 className="text-xl font-bold flex items-center gap-2 dark:text-white">
               <Weight className="w-5 h-5" />
-              {mode === "view" && "Detail Data Timbangan"}
-              {mode === "edit" && "Edit Data Timbangan"}
-              {mode === "delete" && "Hapus Data Timbangan"}
+              {mode === "view" && "Detail Data Ritase"}
+              {mode === "edit" && "Edit Data Ritase"}
+              {mode === "delete" && "Hapus Data Ritase"}
             </h2>
             <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
               {mode === "view" && "Informasi lengkap data ritase"}
@@ -695,4 +695,4 @@ const TimbanganDetailModal = ({
   );
 };
 
-export default TimbanganDetailModal;
+export default RitaseDetailModal;

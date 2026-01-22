@@ -1,11 +1,11 @@
 import React from "react";
 import { Plus, Edit, Scale } from "lucide-react";
-import TimbanganManualForm from "@/modules/timbangan/timbangan/TimbanganManualForm";
-import TimbanganForm from "@/modules/timbangan/timbangan/TimbanganForm";
+import RitaseManualForm from "@/modules/timbangan/ritase/RitaseForm";
+import RitaseForm from "@/modules/timbangan/ritase/RitaseForm";
 import DeleteConfirmDialog from "@/shared/components/DeleteConfirmDialog";
 import FleetSelectionDialog from "@/shared/components/FleetSelectionDialog";
 import ModalHeader from "@/shared/components/ModalHeader";
-import { TIMBANGAN_TYPES } from "@/modules/timbangan/timbangan/constant/timbanganConstants";
+import { TIMBANGAN_TYPES } from "@/modules/timbangan/ritase/constant/ritaseConstants";
 
 export const InputFormModal = ({
   isOpen,
@@ -18,12 +18,11 @@ export const InputFormModal = ({
 }) => {
   if (!isOpen) return null;
 
-  // Determine which form component to render based on timbangan type
   const renderFormComponent = () => {
     switch (timbanganType) {
       case TIMBANGAN_TYPES.MANUAL:
         return (
-          <TimbanganManualForm
+          <RitaseManualForm
             onSubmit={onSubmit}
             onCancel={onClose}
             mode="create"
@@ -32,7 +31,7 @@ export const InputFormModal = ({
 
       case TIMBANGAN_TYPES.INTERNAL:
         return (
-          <TimbanganForm
+          <RitaseForm
             onSubmit={onSubmit}
             isSubmitting={isActionLoading}
             shouldAutoConnect={shouldAutoConnect}
@@ -43,7 +42,7 @@ export const InputFormModal = ({
 
       default:
         return (
-          <TimbanganForm
+          <RitaseForm
             onSubmit={onSubmit}
             isSubmitting={isActionLoading}
             shouldAutoConnect={shouldAutoConnect}
@@ -57,12 +56,12 @@ export const InputFormModal = ({
   const getModalTitle = () => {
     switch (timbanganType) {
       case TIMBANGAN_TYPES.MANUAL:
-        return "Input Timbangan Manual";
+        return "Input Ritase Manual";
       case TIMBANGAN_TYPES.CHECKPOINT:
-        return "Input Timbangan Checkpoint";
+        return "Input Ritase Checkpoint";
       case TIMBANGAN_TYPES.INTERNAL:
       default:
-        return "Input Data Timbangan";
+        return "Input Data Ritase";
     }
   };
 
@@ -101,7 +100,7 @@ export const EditFormModal = ({
     switch (timbanganType) {
       case TIMBANGAN_TYPES.MANUAL:
         return (
-          <TimbanganManualForm
+          <RitaseManualForm
             onSubmit={onSubmit}
             onCancel={onClose}
             editingItem={editingItem}
@@ -113,7 +112,7 @@ export const EditFormModal = ({
       case TIMBANGAN_TYPES.CHECKPOINT:
       default:
         return (
-          <TimbanganForm
+          <RitaseForm
             onSubmit={onSubmit}
             editingItem={editingItem}
             isSubmitting={isActionLoading}
@@ -127,12 +126,12 @@ export const EditFormModal = ({
   const getModalTitle = () => {
     switch (timbanganType) {
       case TIMBANGAN_TYPES.MANUAL:
-        return "Edit Timbangan Manual";
+        return "Edit Ritase Manual";
       case TIMBANGAN_TYPES.CHECKPOINT:
-        return "Edit Timbangan Checkpoint";
+        return "Edit Ritase Checkpoint";
       case TIMBANGAN_TYPES.INTERNAL:
       default:
-        return "Edit Data Timbangan";
+        return "Edit Data Ritase";
     }
   };
 
@@ -194,7 +193,7 @@ export const FleetModal = ({ isOpen, onClose, onSave, measurementType }) => {
   );
 };
 
-const TimbanganModals = ({
+const RitaseModals = ({
   showInputForm,
   onCloseInputForm,
   onSubmitInputForm,
@@ -217,7 +216,7 @@ const TimbanganModals = ({
   showFleetDialog,
   onCloseFleetDialog,
   onSaveFleetSelection,
-  measurementType = "Timbangan",
+  measurementType = "Ritase",
   timbanganType = TIMBANGAN_TYPES.INTERNAL,
 }) => {
   return (
@@ -260,4 +259,4 @@ const TimbanganModals = ({
   );
 };
 
-export default TimbanganModals;
+export default RitaseModals;

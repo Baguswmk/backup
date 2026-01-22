@@ -2,7 +2,7 @@
 import React, { useRef, forwardRef, useImperativeHandle } from "react";
 import { Button } from "@/shared/components/ui/button";
 import { Printer } from "lucide-react";
-import TimbanganTicket from "@/modules/timbangan/timbangan/components/TimbanganTicket";
+import RitaseTicket from "@/modules/timbangan/ritase/components/RitaseTicket";
 
 const PrintTicketButton = forwardRef(({
   data,
@@ -51,7 +51,7 @@ const PrintTicketButton = forwardRef(({
         <!DOCTYPE html>
         <html>
           <head>
-            <title>Karcis Timbangan - ${data.id || "XXXXX"}</title>
+            <title>Karcis Ritase - ${data.id || "XXXXX"}</title>
             <meta charset="UTF-8">
             <style>
               @page {
@@ -215,7 +215,7 @@ const PrintTicketButton = forwardRef(({
         {children || "Cetak Karcis"}
       </Button>
       <div style={{ display: "none" }}>
-        <TimbanganTicket ref={componentRef} data={data} />
+        <RitaseTicket ref={componentRef} data={data} />
       </div>
     </>
   );

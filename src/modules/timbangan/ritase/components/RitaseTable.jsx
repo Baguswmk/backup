@@ -24,15 +24,15 @@ import Pagination from "@/shared/components/Pagination";
 import LoadingContent from "@/shared/components/LoadingContent";
 import AdvancedFilter from "@/shared/components/AdvancedFilter";
 import EmptyState from "@/shared/components/EmptyState";
-import TimbanganDetailModal from "@/modules/timbangan/timbangan/components/TimbanganDetailModal";
-import { useTimbanganPermissions } from "@/shared/permissions/usePermissions";
+import RitaseDetailModal from "@/modules/timbangan/ritase/components/RitaseDetailModal";
+import { useRitasePermissions } from "@/shared/permissions/usePermissions";
 import { showToast } from "@/shared/utils/toast";
 import { formatDate, formatTime } from "@/shared/utils/date";
 import { getFirstTruthyValue } from "@/shared/utils/object";
 import TableToolbar from "@/shared/components/TableToolbar";
 
-export const TimbanganTable = ({
-  title = "Data Timbangan",
+export const RitaseTable = ({
+  title = "Data Ritase",
   shipments = [],
   onEdit,
   onDelete,
@@ -47,7 +47,7 @@ export const TimbanganTable = ({
   onDateRangeChange,
   onRefresh,
   dateRange,
-  allTimbanganData = [],
+  allRitaseData = [],
   allSelectedFleets = [],
   onOpenInputForm,
   onOpenFleetDialog,
@@ -64,7 +64,7 @@ export const TimbanganTable = ({
     getDisabledMessage,
     userRole,
     userSatker,
-  } = useTimbanganPermissions();
+  } = useRitasePermissions();
 
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedItem, setSelectedItem] = useState(null);
@@ -484,11 +484,11 @@ export const TimbanganTable = ({
       ws["!cols"] = columnWidths;
 
       const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, "Data Timbangan");
+      XLSX.utils.book_append_sheet(wb, ws, "Data Ritase");
 
       const date = new Date();
       const dateStr = date.toISOString().split("T")[0];
-      const filename = `Timbangan_${dateStr}.xlsx`;
+      const filename = `Ritase_${dateStr}.xlsx`;
 
       XLSX.writeFile(wb, filename);
 
@@ -598,30 +598,30 @@ export const TimbanganTable = ({
               <EmptyState
                 icon={Calendar}
                 title={
-                  allTimbanganData.length === 0
+                  allRitaseData.length === 0
                     ? "Belum ada data timbangan"
                     : "Tidak ada data untuk filter yang dipilih"
                 }
                 description={
-                  allTimbanganData.length === 0
+                  allRitaseData.length === 0
                     ? "Mulai input data timbangan pertama Anda"
                     : allSelectedFleets.length === 0
-                    ? `Total data: ${allTimbanganData.length}, tapi belum ada fleet yang dipilih. Pilih fleet di atas untuk menampilkan data.`
+                    ? `Total data: ${allRitaseData.length}, tapi belum ada fleet yang dipilih. Pilih fleet di atas untuk menampilkan data.`
                     : `Total data: ${
-                        allTimbanganData.length
+                        allRitaseData.length
                       } fleet, tapi tidak ada yang sesuai filter tanggal${
                         dateRange?.shift !== "All" ? " dan shift" : ""
                       }`
                 }
                 actionLabel={
-                  allTimbanganData.length === 0
-                    ? "Input Timbangan"
+                  allRitaseData.length === 0
+                    ? "Input Ritase"
                     : allSelectedFleets.length === 0
                     ? "Pilih Fleet"
                     : "Reset Filter"
                 }
                 onAction={
-                  allTimbanganData.length === 0
+                  allRitaseData.length === 0
                     ? onOpenInputForm
                     : allSelectedFleets.length === 0
                     ? onOpenFleetDialog
@@ -975,7 +975,7 @@ export const TimbanganTable = ({
       </Card>
 
       {isModalOpen && selectedItem && (
-        <TimbanganDetailModal
+        <RitaseDetailModal
           item={selectedItem}
           isOpen={isModalOpen}
           onClose={handleCloseModal}
@@ -990,4 +990,4 @@ export const TimbanganTable = ({
   );
 };
 
-export default TimbanganTable;
+export default RitaseTable;
