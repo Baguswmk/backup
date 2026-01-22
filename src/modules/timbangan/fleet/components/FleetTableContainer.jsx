@@ -1,8 +1,7 @@
-import React, { useState, useMemo, useCallback } from "react";
+import React, { useState, useMemo, useCallback, useEffect } from "react";
 import { Button } from "@/shared/components/ui/button";
 import { Download, Upload, RefreshCw } from "lucide-react";
 import FleetTable from "@/modules/timbangan/fleet/components/FleetTable";
-
 import FleetBulkOperations from "@/modules/timbangan/fleet/components/FleetBulkOperations";
 import {
   PAGE_SIZE,
@@ -34,8 +33,12 @@ const FleetTableContainer = ({
   getDumptruckCount,
   getDumptruckList,
 
-  currentPage = PAGE_SIZE.DEFAULT_PAGE,
+  currentPage = 1, // ✅ Change from PAGE_SIZE.DEFAULT_PAGE to 1
   onPageChange,
+  
+  // ✅✅✅ ADD THESE TWO PROPS
+  totalPages: providedTotalPages, // Rename to avoid conflict
+  pageSize: providedPageSize = 10, // Default to 10
 
   updatingStatusId = null,
 
@@ -49,9 +52,20 @@ const FleetTableContainer = ({
 }) => {
   const [selectedIds, setSelectedIds] = useState([]);
 
+  // ✅ Use provided totalPages if available, otherwise calculate
   const totalPages = useMemo(() => {
-    return Math.ceil(filteredConfigs.length / PAGE_SIZE.PAGE_SIZE);
-  }, [filteredConfigs.length]);
+    if (providedTotalPages !== undefined) {
+      return providedTotalPages;
+    }
+    
+    // Fallback calculation
+    const calculated = Math.ceil(filteredConfigs.length / providedPageSize);
+    return calculated || 1;
+  }, [providedTotalPages, filteredConfigs.length, providedPageSize]);
+
+  // ✅ Use provided pageSize
+  const pageSize = providedPageSize;
+
 
   const hasData = useMemo(() => {
     return filteredConfigs.length > 0;
@@ -62,14 +76,11 @@ const FleetTableContainer = ({
       return { start: 0, end: 0, total: 0 };
     }
 
-    const start = (currentPage - 1) * PAGE_SIZE.PAGE_SIZE + 1;
-    const end = Math.min(
-      currentPage * PAGE_SIZE.PAGE_SIZE,
-      filteredConfigs.length,
-    );
+    const start = (currentPage - 1) * pageSize + 1;
+    const end = Math.min(currentPage * pageSize, filteredConfigs.length);
 
     return { start, end, total: filteredConfigs.length };
-  }, [hasData, currentPage, filteredConfigs.length]);
+  }, [hasData, currentPage, filteredConfigs.length, pageSize]);
 
   const handlePageChange = useCallback(
     (newPage) => {
@@ -226,8 +237,8 @@ const FleetTableContainer = ({
         getDumptruckCount={getDumptruckCount}
         getDumptruckList={getDumptruckList}
         currentPage={currentPage}
-        pageSize={PAGE_SIZE.PAGE_SIZE}
-        totalPages={totalPages}
+        pageSize={pageSize} // ✅ Use calculated/provided pageSize
+        totalPages={totalPages} // ✅ Use calculated/provided totalPages
         onPageChange={handlePageChange}
         updatingStatusId={updatingStatusId}
         isHistoryMode={false}
@@ -256,11 +267,14 @@ const FleetTableContainer = ({
         }}
       />
 
-      {/* Bottom Page Info & Navigation Hint */}
+      {/* Bottom Page Info */}
       {hasData && totalPages > 1 && (
         <div className="flex flex-col sm:flex-row items-center justify-between px-2 pt-4 border-t dark:border-gray-700 gap-2">
-          <p className="text-xs text-gray-500 dark:text-gray-400">
-            Halaman {currentPage} dari {totalPages}
+          <p className="text-sm text-gray-600 dark:text-gray-400">
+            Showing {pageInfo.start}-{pageInfo.end} of {pageInfo.total} entries
+          </p>
+          <p className="text-sm text-gray-600 dark:text-gray-400">
+            Page {currentPage} of {totalPages}
           </p>
 
           {selectedIds.length > 0 && (

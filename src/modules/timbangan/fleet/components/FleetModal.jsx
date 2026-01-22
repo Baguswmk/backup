@@ -2,17 +2,24 @@ import React, { useState, useCallback, useEffect, useMemo } from "react";
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
 import { Label } from "@/shared/components/ui/label";
-import { RadioGroup, RadioGroupItem } from "@/shared/components/ui/radio-group";
-import { Settings, Users, Calendar as CalendarIcon } from "lucide-react";
+import { Checkbox } from "@/shared/components/ui/checkbox";
+import { Settings, Truck, User, Loader2, AlertCircle } from "lucide-react";
+import { Alert, AlertDescription } from "@/shared/components/ui/alert";
 import { showToast } from "@/shared/utils/toast";
 import { useFleet } from "@/modules/timbangan/fleet/hooks/useFleet";
 import useAuthStore from "@/modules/auth/store/authStore";
 import { useFleetPermissions } from "@/shared/permissions/usePermissions";
+import { useMasterData } from "@/modules/timbangan/masterData/hooks/useMasterData";
 import SearchableSelect from "@/shared/components/SearchableSelect";
 import ModalHeader from "@/shared/components/ModalHeader";
 import LoadingOverlay from "@/shared/components/LoadingOverlay";
 import { InfoCard } from "@/shared/components/InfoCard";
-
+import {
+  SEARCH_PLACEHOLDERS,
+  CARD_TITLES,
+  VALIDATION_MESSAGES,
+} from "@/modules/timbangan/fleet/constant/fleetConstants";
+import { logger } from "@/shared/services/log";
 const MEASUREMENT_TYPE_OPTIONS = [
   { value: "Timbangan", label: "Timbangan" },
   { value: "Bypass", label: "Bypass" },
@@ -25,11 +32,15 @@ const FleetModal = ({
   editingConfig = null,
   onSave,
   fleetType = "Timbangan",
+  availableDumptruckSettings = [],
 }) => {
   const { user } = useAuthStore();
   const isEdit = !!editingConfig;
 
   const { masters, mastersLoading } = useFleet(user ? { user } : null, null);
+  const { data: masterUnits, isLoading: masterUnitsLoading } =
+    useMasterData("units");
+
   const permissions = useFleetPermissions();
 
   const [fleetData, setFleetData] = useState({
@@ -39,9 +50,7 @@ const FleetModal = ({
     coalType: "",
     distance: 0,
     workUnit: "",
-    status: "INACTIVE",
     measurementType: "",
-    weightBridgeId: "",
   });
 
   const [errors, setErrors] = useState({});
@@ -50,21 +59,12 @@ const FleetModal = ({
   const [inspectorId, setInspectorId] = useState("");
   const [checkerId, setCheckerId] = useState("");
 
-  const formConfig = useMemo(() => {
-    const currentMeasurementType = fleetData.measurementType || fleetType;
-    const baseConfig = permissions.getFleetFormConfig(currentMeasurementType);
-
-    if (isEdit) {
-      return {
-        ...baseConfig,
-        showWeighBridgeSelect: currentMeasurementType === "Timbangan",
-        showMeasurementTypeSelect: true,
-        measurementTypeDisabled: false,
-      };
-    }
-
-    return baseConfig;
-  }, [permissions, fleetType, fleetData.measurementType, isEdit]);
+  const [selectedUnits, setSelectedUnits] = useState([]);
+  const [unitOperators, setUnitOperators] = useState({});
+  const [searchQuery, setSearchQuery] = useState("");
+  const [showAllUnits, setShowAllUnits] = useState(false);
+  const [fleetFilteredUnits, setFleetFilteredUnits] = useState([]);
+  const [isLoadingFilteredUnits, setIsLoadingFilteredUnits] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -78,57 +78,257 @@ const FleetModal = ({
     };
   }, [isOpen]);
 
+  const filterUnitsByExcavator = useCallback(
+    async (excavatorId) => {
+      try {
+        const excavator = masters?.excavators?.find(
+          (e) => String(e.id) === String(excavatorId),
+        );
+
+        if (!excavator || !excavator.companyId) {
+          return [];
+        }
+
+        const filtered = masterUnits.filter(
+          (unit) =>
+            unit.type === "DUMP_TRUCK" &&
+            String(unit.companyId) === String(excavator.companyId),
+        );
+
+        return filtered;
+      } catch (error) {
+        console.error("Failed to filter units:", error);
+        return [];
+      }
+    },
+    [masters?.excavators, masterUnits],
+  );
   useEffect(() => {
     if (!isOpen) return;
-    if (editingConfig) {
-      const initialData = {
-        excavator: editingConfig.excavatorId || "",
-        loadingLocation: editingConfig.loadingLocationId || "",
-        dumpingLocation: editingConfig.dumpingLocationId || "",
-        coalType: editingConfig.coalTypeId || "",
-        distance: editingConfig.distance ?? 0,
-        workUnit: editingConfig.workUnitId || "",
-        status: editingConfig.status || "INACTIVE",
-        measurementType: editingConfig.measurementType || fleetType,
-        weightBridgeId: editingConfig.weightBridgeId || "",
-      };
 
-      setFleetData(initialData);
-      setDistanceText(
-        editingConfig.distance != null && editingConfig.distance !== ""
-          ? String(editingConfig.distance)
-          : "",
-      );
-      setInspectorId(editingConfig.inspectorId || "");
-      setCheckerId(editingConfig.checkerId || "");
+    const initializeModalData = async () => {
+      if (editingConfig) {
+        const initialData = {
+          excavator: editingConfig.excavatorId || "",
+          loadingLocation: editingConfig.loadingLocationId || "",
+          dumpingLocation: editingConfig.dumpingLocationId || "",
+          coalType: editingConfig.coalTypeId || "",
+          distance: editingConfig.distance ?? 0,
+          workUnit: editingConfig.workUnitId || "",
+          measurementType: editingConfig.measurementType || fleetType,
+        };
+
+        setFleetData(initialData);
+        setDistanceText(
+          editingConfig.distance != null && editingConfig.distance !== ""
+            ? String(editingConfig.distance)
+            : "",
+        );
+        setInspectorId(editingConfig.inspectorId || "");
+        setCheckerId(editingConfig.checkerId || "");
+
+        if (editingConfig.units) {
+          const existingUnits = editingConfig.units.map((unit) => ({
+            id: String(unit.id || unit.dumpTruckId),
+            hull_no: unit.hull_no || "-",
+            company: unit.company || "-",
+            workUnit: unit.workUnit || "-",
+            type: "DUMP_TRUCK",
+            companyId: unit.companyId,
+            workUnitId: unit.workUnitId,
+          }));
+
+          setSelectedUnits(existingUnits);
+
+          const initialOperators = {};
+          editingConfig.units.forEach((unit) => {
+            const unitId = String(unit.id || unit.dumpTruckId);
+            if (unit.operatorId) {
+              initialOperators[unitId] = String(unit.operatorId);
+            }
+          });
+          setUnitOperators(initialOperators);
+        }
+
+        if (editingConfig.excavatorId) {
+          setIsLoadingFilteredUnits(true);
+          try {
+            const filtered = await filterUnitsByExcavator(
+              String(editingConfig.excavatorId),
+            );
+            setFleetFilteredUnits(filtered);
+          } catch (error) {
+            console.error("❌ Failed to load filtered units:", error);
+            setFleetFilteredUnits([]);
+          } finally {
+            setIsLoadingFilteredUnits(false);
+          }
+        }
+      } else {
+        const measurementTypeMap = {
+          Timbangan: "Timbangan",
+          Bypass: "Bypass",
+          Beltscale: "Beltscale",
+        };
+
+        const defaultMeasurementType =
+          measurementTypeMap[fleetType] || "Timbangan";
+
+        const newData = {
+          excavator: "",
+          loadingLocation: "",
+          dumpingLocation: "",
+          coalType: "",
+          distance: 0,
+          workUnit: "",
+          measurementType: defaultMeasurementType,
+        };
+
+        setFleetData(newData);
+        setDistanceText("");
+        setInspectorId("");
+        setCheckerId("");
+        setSelectedUnits([]);
+        setUnitOperators({});
+        setFleetFilteredUnits([]);
+      }
+
+      setSearchQuery("");
+      setShowAllUnits(false);
+      setErrors({});
+    };
+
+    initializeModalData();
+  }, [isOpen, editingConfig, fleetType, filterUnitsByExcavator]);
+
+  const selectedOperatorIds = useMemo(() => {
+    return Object.values(unitOperators).filter(Boolean);
+  }, [unitOperators]);
+  
+  const handleExcavatorChange = useCallback(
+    async (excavatorId) => {
+      setFleetData((p) => ({ ...p, excavator: excavatorId || "" }));
+
+      if (!isEdit || (isEdit && excavatorId !== editingConfig?.excavatorId)) {
+        setSelectedUnits([]);
+        setUnitOperators({});
+      }
+
+      setShowAllUnits(false);
+      setErrors((prev) => {
+        const e = { ...prev };
+        delete e.excavator;
+        return e;
+      });
+
+      if (excavatorId) {
+        setIsLoadingFilteredUnits(true);
+        try {
+          const filtered = await filterUnitsByExcavator(String(excavatorId));
+          setFleetFilteredUnits(filtered);
+
+          if (filtered.length === 0) {
+            setErrors((prev) => ({
+              ...prev,
+              units: "Tidak ada dump truck tersedia untuk excavator ini",
+            }));
+          }
+        } catch (error) {
+          console.error("Failed to load filtered units:", error);
+          setErrors((prev) => ({
+            ...prev,
+            units: "Gagal memuat dump truck",
+          }));
+          setFleetFilteredUnits([]);
+        } finally {
+          setIsLoadingFilteredUnits(false);
+        }
+      } else {
+        setFleetFilteredUnits([]);
+      }
+    },
+    [filterUnitsByExcavator, isEdit, editingConfig],
+  );
+
+  const filteredUnits = useMemo(() => {
+    let units = [];
+
+    if (showAllUnits) {
+      units = masterUnits.filter((u) => u.type === "DUMP_TRUCK");
     } else {
-      const measurementTypeMap = {
-        Timbangan: "Timbangan",
-        Bypass: "Bypass",
-        Beltscale: "Beltscale",
-      };
-
-      const defaultMeasurementType =
-        measurementTypeMap[fleetType] || "Timbangan";
-
-      const newData = {
-        excavator: "",
-        loadingLocation: "",
-        dumpingLocation: "",
-        coalType: "",
-        distance: 0,
-        workUnit: "",
-        measurementType: defaultMeasurementType,
-        weightBridgeId: formConfig.weighBridgeValue || "",
-      };
-
-      setFleetData(newData);
-      setDistanceText("");
-      setInspectorId("");
-      setCheckerId("");
+      units = [...fleetFilteredUnits];
     }
-    setErrors({});
-  }, [isOpen, editingConfig, fleetType, formConfig.weighBridgeValue]);
+
+    if (isEdit && editingConfig?.units) {
+      editingConfig.units.forEach((existingUnit) => {
+        const unitId = String(existingUnit.id || existingUnit.dumpTruckId);
+        const alreadyInList = units.some((u) => String(u.id) === unitId);
+
+        if (!alreadyInList) {
+          units.push({
+            id: unitId,
+            hull_no: existingUnit.hull_no,
+            company: existingUnit.company,
+            workUnit: existingUnit.workUnit,
+            type: "DUMP_TRUCK",
+            companyId: existingUnit.companyId,
+            workUnitId: existingUnit.workUnitId,
+          });
+        }
+      });
+    }
+
+    units = units.filter((unit) => {
+      if (isEdit && editingConfig) {
+        const isCurrentSettingUnit = (editingConfig.units || []).some(
+          (u) => String(u.id || u.dumpTruckId) === String(unit.id),
+        );
+        if (isCurrentSettingUnit) {
+          ("✅ Keeping current fleet unit:", unit.hull_no);
+          return true;
+        }
+      }
+
+      const isAssignedToOtherFleet = (availableDumptruckSettings || []).some(
+        (setting) => {
+          if (isEdit && editingConfig && setting.id === editingConfig.id) {
+            return false;
+          }
+
+          return (setting.units || []).some(
+            (u) => String(u.id) === String(unit.id),
+          );
+        },
+      );
+
+      return !isAssignedToOtherFleet;
+    });
+
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      units = units.filter(
+        (u) =>
+          u.hull_no?.toLowerCase().includes(q) ||
+          u.company?.toLowerCase().includes(q) ||
+          u.workUnit?.toLowerCase().includes(q),
+      );
+    }
+
+    return units;
+  }, [
+    fleetFilteredUnits,
+    masterUnits,
+    searchQuery,
+    availableDumptruckSettings,
+    editingConfig,
+    isEdit,
+    showAllUnits,
+  ]);
+
+  const allUnitsHaveOperators = useMemo(() => {
+    if (selectedUnits.length === 0) return false;
+    return selectedUnits.every((unit) => unitOperators[unit.id]);
+  }, [selectedUnits, unitOperators]);
 
   const validate = useCallback(() => {
     const e = {};
@@ -141,18 +341,6 @@ const FleetModal = ({
     if (!fleetData.measurementType)
       e.measurementType = "Pilih measurement type";
 
-    if (fleetData.measurementType === "Timbangan") {
-      if (formConfig.autoWeighBridge) {
-        if (!formConfig.weighBridgeValue) {
-          e.weightBridgeId = "Jembatan timbang tidak ditemukan untuk akun Anda";
-        }
-      } else if (formConfig.showWeighBridgeSelect) {
-        if (!fleetData.weightBridgeId) {
-          e.weightBridgeId = "Pilih jembatan timbang";
-        }
-      }
-    }
-
     const cleaned = (distanceText || "").trim().replace(",", ".");
     const distNum =
       cleaned === ""
@@ -164,28 +352,29 @@ const FleetModal = ({
       e.distance = "Distance harus angka valid (≥ 0)";
     }
 
-    if (!inspectorId) {
-      e.inspector = "Pilih inspector";
-    }
-    if (!checkerId) {
-      e.checker = "Pilih checker";
+    if (!inspectorId) e.inspector = "Pilih inspector";
+    if (!checkerId) e.checker = "Pilih checker";
+
+    if (selectedUnits.length === 0) {
+      e.units = VALIDATION_MESSAGES.REQUIRED_UNITS;
     }
 
-    if (isEdit) {
-      if (!fleetData.status) e.status = "Pilih status";
-    }
+    selectedUnits.forEach((unit) => {
+      if (!unitOperators[unit.id]) {
+        e[`operator_${unit.id}`] = VALIDATION_MESSAGES.REQUIRED_OPERATOR;
+        e.operators = VALIDATION_MESSAGES.ALL_OPERATORS_REQUIRED;
+      }
+    });
 
     setErrors(e);
     return Object.keys(e).length === 0;
   }, [
-    isEdit,
     fleetData,
     distanceText,
     inspectorId,
     checkerId,
-    formConfig.showWeighBridgeSelect,
-    formConfig.autoWeighBridge,
-    formConfig.weighBridgeValue,
+    selectedUnits,
+    unitOperators,
   ]);
 
   const handleSave = useCallback(async () => {
@@ -213,55 +402,36 @@ const FleetModal = ({
         measurement_type: fleetData.measurementType,
       };
 
-      if (fleetData.measurementType === "Timbangan") {
-        if (formConfig.autoWeighBridge) {
-          if (!formConfig.weighBridgeValue) {
-            showToast.error("Jembatan timbang tidak ditemukan pada akun Anda");
-            setErrors((prev) => ({
-              ...prev,
-              weightBridgeId: "Jembatan timbang tidak ditemukan",
-            }));
-            return;
-          }
-          basePayload.weightBridgeId = formConfig.weighBridgeValue;
-        } else if (formConfig.showWeighBridgeSelect || isEdit) {
-          if (!fleetData.weightBridgeId) {
-            showToast.error("Jembatan timbang wajib dipilih");
-            setErrors((prev) => ({
-              ...prev,
-              weightBridgeId: "Jembatan timbang wajib dipilih",
-            }));
-            return;
-          }
-          basePayload.weightBridgeId = fleetData.weightBridgeId;
-        }
-      }
+      const pairDtOp = selectedUnits.map((unit) => ({
+        truckId: parseInt(unit.id),
+        operatorId: parseInt(unitOperators[unit.id]),
+      }));
 
-      if (!inspectorId || inspectorId === "") {
-        showToast.error("Inspector wajib dipilih");
-        setErrors((prev) => ({
-          ...prev,
-          inspector: "Inspector wajib dipilih",
-        }));
-        return;
-      }
+      basePayload.pairDtOp = pairDtOp;
 
-      if (!checkerId || checkerId === "") {
-        showToast.error("Checker wajib dipilih");
-        setErrors((prev) => ({ ...prev, checker: "Checker wajib dipilih" }));
-        return;
-      }
+      logger.info(
+        isEdit ? "📝 Updating fleet config" : "➕ Creating fleet config",
+        {
+          configId: editingConfig?.id,
+          hasUnits: pairDtOp.length > 0,
+          unitsCount: pairDtOp.length,
+          payload: {
+            ...basePayload,
+            pairDtOp: pairDtOp.map(
+              (p) => `Truck:${p.truckId}-Op:${p.operatorId}`,
+            ),
+          },
+        },
+      );
 
-      const payload = isEdit ? { ...basePayload } : basePayload;
-
-      const result = await onSave(payload);
+      const result = await onSave(basePayload);
 
       if (result?.success) {
         setFleetData((p) => ({ ...p, distance: dist }));
         onClose();
       }
     } catch (err) {
-      console.error("❌ Fleet save error:", err);
+      console.error("Fleet save error:", err);
 
       const isQueued =
         err?.queued || err?.message?.includes("queued for offline sync");
@@ -271,29 +441,20 @@ const FleetModal = ({
 
       if (isQueued) {
         setErrors((p) => ({ ...p, submit: null }));
-
         showToast.info(
           "📤 Data disimpan di queue dan akan otomatis tersinkron saat online",
           { duration: 4000 },
         );
-
-        setTimeout(() => {
-          onClose();
-        }, 1000);
+        setTimeout(() => onClose(), 1000);
       } else if (isValidation) {
         setErrors((p) => ({
           ...p,
           submit: err?.message || "Validasi gagal. Periksa input Anda.",
         }));
-
         showToast.error(err?.message || "Validasi gagal");
       } else {
         const errorMsg = err?.message || "Gagal menyimpan data";
-        setErrors((p) => ({
-          ...p,
-          submit: errorMsg,
-        }));
-
+        setErrors((p) => ({ ...p, submit: errorMsg }));
         showToast.error(errorMsg);
       }
     } finally {
@@ -306,13 +467,12 @@ const FleetModal = ({
     fleetData,
     inspectorId,
     checkerId,
+    selectedUnits,
+    unitOperators,
     onSave,
     onClose,
-    formConfig.autoWeighBridge,
-    formConfig.showWeighBridgeSelect,
-    formConfig.weighBridgeValue,
+    editingConfig,
   ]);
-
   const excaItems = useMemo(
     () =>
       (masters?.excavators || []).map((e) => ({
@@ -321,15 +481,6 @@ const FleetModal = ({
         hint: [e.company, e.workUnit].filter(Boolean).join(" • "),
       })),
     [masters?.excavators],
-  );
-
-  const shiftItems = useMemo(
-    () =>
-      (masters?.shifts || []).map((s) => ({
-        value: s.name || String(s.id),
-        label: s.name ?? s.id,
-      })),
-    [masters?.shifts],
   );
 
   const loadLocItems = useMemo(
@@ -369,15 +520,6 @@ const FleetModal = ({
     [masters?.workUnits],
   );
 
-  const weighBridgeItems = useMemo(
-    () =>
-      (masters?.weighBridges || masters?.weigh_bridges || []).map((wb) => ({
-        value: String(wb.id),
-        label: wb.name ?? `Jembatan #${wb.id}`,
-      })),
-    [masters],
-  );
-
   const userItems = useMemo(
     () =>
       (masters?.users || []).map((u) => ({
@@ -389,14 +531,34 @@ const FleetModal = ({
     [masters?.users],
   );
 
-  const checkerItems = useMemo(
+  const operatorOptions = useMemo(
     () =>
-      userItems.filter(
+      (masters?.operators || []).map((op) => ({
+        value: String(op.id),
+        label: op.name,
+        hint: op.company || "-",
+      })),
+    [masters?.operators],
+  );
+
+  const checkerItems = useMemo(() => {
+    const measurementType = fleetData.measurementType || fleetType;
+    if (measurementType === "Timbangan") {
+      return userItems.filter(
+        (u) =>
+          u.role === "Checker" ||
+          u.role === "Operator_JT" ||
+          u.label?.toLowerCase()?.includes("checker") ||
+          u.label?.toLowerCase()?.includes("operator jt"),
+      );
+    } else {
+      return userItems.filter(
         (u) =>
           u.role === "Checker" || u.label?.toLowerCase()?.includes("checker"),
-      ),
-    [userItems],
-  );
+      );
+    }
+  }, [userItems, fleetData.measurementType, fleetType]);
+
   const inspectorItems = useMemo(
     () =>
       userItems.filter(
@@ -406,10 +568,91 @@ const FleetModal = ({
     [userItems],
   );
 
+  const getOperatorOptionsForUnit = useCallback(
+    (unit) => {
+      if (!unit?.companyId) {
+        return operatorOptions;
+      }
+
+      const currentOperatorId = unitOperators[unit.id];
+
+      return operatorOptions.filter((op) => {
+        const operatorDetail = masters?.operators?.find(
+          (o) => String(o.id) === String(op.value),
+        );
+
+        const companyMatch =
+          operatorDetail &&
+          String(operatorDetail.companyId) === String(unit.companyId);
+
+        const isSelectedByOther =
+          selectedOperatorIds.includes(op.value) &&
+          op.value !== currentOperatorId;
+
+        return companyMatch && !isSelectedByOther;
+      });
+    },
+    [operatorOptions, masters?.operators, unitOperators, selectedOperatorIds],
+  );
+
+  const getAvailableOperatorCount = useCallback(
+    (unit) => {
+      return getOperatorOptionsForUnit(unit).length;
+    },
+    [getOperatorOptionsForUnit],
+  );
+
+  const handleUnitToggle = useCallback((unit) => {
+    setSelectedUnits((prev) => {
+      const exists = prev.find((u) => String(u.id) === String(unit.id));
+
+      if (exists) {
+        setUnitOperators((prevOps) => {
+          const newOps = { ...prevOps };
+          delete newOps[unit.id];
+          console.log("🗑️ Unit removed, operator cleared:", unit.hull_no);
+          return newOps;
+        });
+        return prev.filter((u) => String(u.id) !== String(unit.id));
+      } else {
+        console.log("➕ Unit added:", unit.hull_no);
+        return [...prev, unit];
+      }
+    });
+  }, []);
+
+  const handleOperatorChange = useCallback((unitId, operatorId) => {
+    setUnitOperators((prev) => {
+      const newOps = { ...prev };
+
+      if (operatorId) {
+        newOps[unitId] = operatorId;
+        console.log("✅ Operator selected:", {
+          unitId,
+          operatorId,
+          totalSelected: Object.keys(newOps).length,
+        });
+      } else {
+        delete newOps[unitId];
+        console.log("❌ Operator cleared:", { unitId });
+      }
+
+      return newOps;
+    });
+
+    if (operatorId) {
+      setErrors((prev) => {
+        const newErrors = { ...prev };
+        delete newErrors[`operator_${unitId}`];
+        return newErrors;
+      });
+    }
+  }, []);
+
   if (!isOpen) return null;
 
   return (
-    <div className="detail-modal fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+    <div className="detail-modal fixed inset-0 bg-black/50 dark:bg-black/70 z-50 flex items-center justify-center p-4">
       <div className="bg-neutral-50 dark:bg-gray-800 rounded-lg max-w-4xl w-full max-h-[90vh] overflow-auto">
         <ModalHeader
           title={
@@ -419,9 +662,7 @@ const FleetModal = ({
           }
           subtitle={
             isEdit
-              ? `Update konfigurasi fleet ${
-                  fleetData.measurementType || fleetType
-                }`
+              ? `Update konfigurasi fleet ${fleetData.measurementType || fleetType}`
               : `Isi data untuk membuat fleet ${fleetType}`
           }
           icon={Settings}
@@ -429,13 +670,12 @@ const FleetModal = ({
           disabled={isSaving}
         />
 
-        {mastersLoading && (
+        {(mastersLoading || masterUnitsLoading) && (
           <LoadingOverlay isVisible={true} message="Loading master data..." />
         )}
 
-        {!mastersLoading && (
+        {!mastersLoading && !masterUnitsLoading && (
           <div className="p-6 space-y-6">
-            {/* Work Unit & Measurement Type */}
             <InfoCard
               title="Work Unit & Measurement Type"
               variant="default"
@@ -455,80 +695,36 @@ const FleetModal = ({
                   disabled={isSaving}
                 />
                 {errors.workUnit && (
-                  <p className="text-sm text-red-500">{errors.workUnit}</p>
+                  <p className="text-sm text-red-500 dark:text-red-400">
+                    {errors.workUnit}
+                  </p>
                 )}
               </div>
 
               <div className="md:col-span-1 space-y-2">
                 <Label className="dark:text-gray-300">Measurement Type *</Label>
-                {formConfig.showMeasurementTypeSelect ? (
-                  <>
-                    <SearchableSelect
-                      items={MEASUREMENT_TYPE_OPTIONS}
-                      value={fleetData.measurementType}
-                      onChange={(val) =>
-                        setFleetData((p) => ({
-                          ...p,
-                          measurementType: val || "",
-                        }))
-                      }
-                      placeholder="Pilih measurement type"
-                      emptyText="Measurement type tidak ditemukan"
-                      error={!!errors.measurementType}
-                      disabled={true}
-                    />
-                    {errors.measurementType && (
-                      <p className="text-sm text-red-500">
-                        {errors.measurementType}
-                      </p>
-                    )}
-                  </>
-                ) : (
-                  <Input
-                    value={fleetData.measurementType}
-                    disabled={true}
-                    className="bg-gray-100 dark:bg-gray-700 dark:text-white cursor-not-allowed"
-                  />
+                <SearchableSelect
+                  items={MEASUREMENT_TYPE_OPTIONS}
+                  value={fleetData.measurementType}
+                  onChange={(val) => {
+                    setFleetData((p) => ({ ...p, measurementType: val || "" }));
+                    if (!isEdit) {
+                      setCheckerId("");
+                    }
+                  }}
+                  placeholder="Pilih measurement type"
+                  emptyText="Measurement type tidak ditemukan"
+                  error={!!errors.measurementType}
+                  disabled={isSaving}
+                />
+                {errors.measurementType && (
+                  <p className="text-sm text-red-500 dark:text-red-400">
+                    {errors.measurementType}
+                  </p>
                 )}
               </div>
             </InfoCard>
 
-            {/* Weigh Bridge Selection - Only show for Timbangan */}
-            {fleetData.measurementType === "Timbangan" &&
-              formConfig.showWeighBridgeSelect && (
-                <InfoCard
-                  title="Jembatan Timbang"
-                  variant="default"
-                  className="border-none"
-                >
-                  <div className="md:col-span-2 space-y-2">
-                    <Label className="dark:text-gray-300">
-                      Jembatan Timbang *
-                    </Label>
-                    <SearchableSelect
-                      items={weighBridgeItems}
-                      value={fleetData.weightBridgeId}
-                      onChange={(val) =>
-                        setFleetData((p) => ({
-                          ...p,
-                          weightBridgeId: val || "",
-                        }))
-                      }
-                      placeholder="Pilih jembatan timbang"
-                      emptyText="Jembatan timbang tidak ditemukan"
-                      error={!!errors.weightBridgeId}
-                      disabled={isSaving}
-                    />
-                    {errors.weightBridgeId && (
-                      <p className="text-sm text-red-500">
-                        {errors.weightBridgeId}
-                      </p>
-                    )}
-                  </div>
-                </InfoCard>
-              )}
-
-            {/* Excavator & Location */}
             <InfoCard
               title="Excavator & Lokasi"
               variant="default"
@@ -539,16 +735,16 @@ const FleetModal = ({
                 <SearchableSelect
                   items={excaItems}
                   value={fleetData.excavator}
-                  onChange={(val) =>
-                    setFleetData((p) => ({ ...p, excavator: val || "" }))
-                  }
+                  onChange={handleExcavatorChange}
                   placeholder="Pilih excavator"
                   emptyText="Excavator tidak ditemukan"
                   error={!!errors.excavator}
                   disabled={isSaving}
                 />
                 {errors.excavator && (
-                  <p className="text-sm text-red-500">{errors.excavator}</p>
+                  <p className="text-sm text-red-500 dark:text-red-400">
+                    {errors.excavator}
+                  </p>
                 )}
               </div>
 
@@ -558,10 +754,7 @@ const FleetModal = ({
                   items={loadLocItems}
                   value={fleetData.loadingLocation}
                   onChange={(val) =>
-                    setFleetData((p) => ({
-                      ...p,
-                      loadingLocation: val || "",
-                    }))
+                    setFleetData((p) => ({ ...p, loadingLocation: val || "" }))
                   }
                   placeholder="Pilih lokasi loading"
                   emptyText="Lokasi loading tidak ditemukan"
@@ -569,7 +762,7 @@ const FleetModal = ({
                   disabled={isSaving}
                 />
                 {errors.loadingLocation && (
-                  <p className="text-sm text-red-500">
+                  <p className="text-sm text-red-500 dark:text-red-400">
                     {errors.loadingLocation}
                   </p>
                 )}
@@ -581,10 +774,7 @@ const FleetModal = ({
                   items={dumpLocItems}
                   value={fleetData.dumpingLocation}
                   onChange={(val) =>
-                    setFleetData((p) => ({
-                      ...p,
-                      dumpingLocation: val || "",
-                    }))
+                    setFleetData((p) => ({ ...p, dumpingLocation: val || "" }))
                   }
                   placeholder="Pilih lokasi dumping"
                   emptyText="Lokasi dumping tidak ditemukan"
@@ -592,14 +782,13 @@ const FleetModal = ({
                   disabled={isSaving}
                 />
                 {errors.dumpingLocation && (
-                  <p className="text-sm text-red-500">
+                  <p className="text-sm text-red-500 dark:text-red-400">
                     {errors.dumpingLocation}
                   </p>
                 )}
               </div>
             </InfoCard>
 
-            {/* Coal Type & Distance */}
             <InfoCard
               title="Coal Type & Jarak"
               variant="default"
@@ -619,7 +808,9 @@ const FleetModal = ({
                   disabled={isSaving}
                 />
                 {errors.coalType && (
-                  <p className="text-sm text-red-500">{errors.coalType}</p>
+                  <p className="text-sm text-red-500 dark:text-red-400">
+                    {errors.coalType}
+                  </p>
                 )}
               </div>
 
@@ -649,13 +840,18 @@ const FleetModal = ({
                   className="border-none dark:text-gray-300"
                 />
                 {errors.distance && (
-                  <p className="text-sm text-red-500">{errors.distance}</p>
+                  <p className="text-sm text-red-500 dark:text-red-400">
+                    {errors.distance}
+                  </p>
                 )}
               </div>
             </InfoCard>
 
-            {/* Inspector & Checker */}
-            <InfoCard title="Inspector & Checker" icon={Users} variant="purple">
+            <InfoCard
+              title="Inspector & Checker"
+              variant="primary"
+              className="border-none"
+            >
               <div className="space-y-2">
                 <Label className="dark:text-gray-300">Inspector *</Label>
                 <SearchableSelect
@@ -668,7 +864,9 @@ const FleetModal = ({
                   error={!!errors.inspector}
                 />
                 {errors.inspector && (
-                  <p className="text-sm text-red-500">{errors.inspector}</p>
+                  <p className="text-sm text-red-500 dark:text-red-400">
+                    {errors.inspector}
+                  </p>
                 )}
               </div>
 
@@ -684,10 +882,200 @@ const FleetModal = ({
                   disabled={isSaving}
                 />
                 {errors.checker && (
-                  <p className="text-sm text-red-500">{errors.checker}</p>
+                  <p className="text-sm text-red-500 dark:text-red-400">
+                    {errors.checker}
+                  </p>
                 )}
               </div>
             </InfoCard>
+
+            {fleetData.excavator && (
+              <InfoCard
+                title={CARD_TITLES.UNITS}
+                icon={Truck}
+                variant="primary"
+                className="border-none"
+              >
+                <div className="md:col-span-2 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <Label className="dark:text-gray-300">
+                      Pilih Dump Truck *
+                    </Label>
+                    <Input
+                      placeholder={SEARCH_PLACEHOLDERS.UNIT}
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="max-w-xs border-none cursor-pointer hover:bg-gray-200 focus:bg-gray-200 dark:focus:bg-gray-700 dark:bg-gray-800 dark:text-gray-200"
+                      disabled={isSaving || isLoadingFilteredUnits}
+                    />
+                  </div>
+
+                  {errors.units && (
+                    <Alert
+                      variant="destructive"
+                      className="mb-2 dark:bg-red-900/20 dark:border-red-800"
+                    >
+                      <AlertCircle className="h-4 w-4 dark:text-red-400" />
+                      <AlertDescription className="dark:text-red-300">
+                        {errors.units}
+                      </AlertDescription>
+                    </Alert>
+                  )}
+
+                  {isLoadingFilteredUnits && (
+                    <Alert className="bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800">
+                      <Loader2 className="h-4 w-4 text-blue-600 dark:text-blue-400 animate-spin" />
+                      <AlertDescription className="text-sm dark:text-blue-300">
+                        Memuat dump truck...
+                      </AlertDescription>
+                    </Alert>
+                  )}
+
+                  {!isLoadingFilteredUnits && (
+                    <div className="flex items-center gap-3 p-3 rounded-lg bg-gray-50 dark:bg-gray-800">
+                      <Checkbox
+                        checked={showAllUnits}
+                        onCheckedChange={(checked) => {
+                          setShowAllUnits(checked);
+                          setSelectedUnits([]);
+                          setUnitOperators({});
+                        }}
+                        disabled={isSaving}
+                        className="dark:text-gray-200"
+                      />
+                      <Label className="text-sm font-medium cursor-pointer dark:text-gray-300">
+                        Tampilkan semua DT
+                      </Label>
+                    </div>
+                  )}
+
+                  {!isLoadingFilteredUnits && filteredUnits.length > 0 && (
+                    <div className="rounded-lg max-h-96 overflow-y-auto">
+                      {filteredUnits.map((unit) => {
+                        const isSelected = selectedUnits.some(
+                          (u) => String(u.id) === String(unit.id),
+                        );
+                        const hasOperatorError = errors[`operator_${unit.id}`];
+
+                        return (
+                          <div
+                            key={unit.id}
+                            className={`p-3 transition-colors ${
+                              isSelected
+                                ? "bg-blue-50 dark:bg-blue-900/20"
+                                : "hover:bg-gray-50 dark:hover:bg-gray-700"
+                            }`}
+                          >
+                            <div className="flex items-start gap-3">
+                              <div className="pt-1">
+                                <Checkbox
+                                  checked={isSelected}
+                                  onCheckedChange={() => handleUnitToggle(unit)}
+                                  disabled={isSaving}
+                                  className="dark:text-gray-200"
+                                />
+                              </div>
+                              <Truck className="w-4 h-4 text-gray-400 dark:text-gray-500 mt-1" />
+                              <div className="flex-1 space-y-2">
+                                <div className="flex items-start justify-between">
+                                  <div
+                                    className="cursor-pointer"
+                                    onClick={() => {
+                                      if (!isSaving) {
+                                        handleUnitToggle(unit);
+                                      }
+                                    }}
+                                  >
+                                    <p className="font-medium text-sm dark:text-gray-200">
+                                      {unit.hull_no}
+                                    </p>
+                                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                                      {unit.company} • {unit.workUnit}
+                                    </p>
+                                  </div>
+                                </div>
+
+                                {isSelected && (
+                                  <div className="space-y-1">
+                                    <Label className="text-xs flex items-center gap-1 dark:text-gray-300">
+                                      <User className="w-3 h-3" />
+                                      Operator *
+                                      {unit.company && (
+                                        <span className="text-gray-500">
+                                          ({unit.company})
+                                        </span>
+                                      )}
+                                    </Label>
+
+                                    <SearchableSelect
+                                      items={getOperatorOptionsForUnit(unit)}
+                                      value={unitOperators[unit.id] || ""}
+                                      onChange={(operatorId) =>
+                                        handleOperatorChange(
+                                          unit.id,
+                                          operatorId,
+                                        )
+                                      }
+                                      placeholder="Pilih operator"
+                                      emptyText={
+                                        getAvailableOperatorCount(unit) === 0
+                                          ? `Semua operator ${unit.company} sudah dipilih`
+                                          : `Tidak ada operator untuk ${unit.company || "company ini"}`
+                                      }
+                                      disabled={
+                                        isSaving ||
+                                        getAvailableOperatorCount(unit) === 0
+                                      }
+                                      error={!!hasOperatorError}
+                                    />
+
+                                    {/* Show available operator count */}
+                                    {getAvailableOperatorCount(unit) > 0 &&
+                                      !unitOperators[unit.id] && (
+                                        <p className="text-xs text-blue-600 dark:text-blue-400">
+                                          {getAvailableOperatorCount(unit)}{" "}
+                                          operator tersedia
+                                        </p>
+                                      )}
+
+                                    {/* Warning if no operators available */}
+                                    {getAvailableOperatorCount(unit) === 0 &&
+                                      !unitOperators[unit.id] && (
+                                        <p className="text-xs text-orange-600 dark:text-orange-400">
+                                          ⚠️ Semua operator sudah dipilih di DT
+                                          lain
+                                        </p>
+                                      )}
+
+                                    {hasOperatorError && (
+                                      <p className="text-xs text-red-500 dark:text-red-400">
+                                        {hasOperatorError}
+                                      </p>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </InfoCard>
+            )}
+
+            {errors.submit && (
+              <Alert
+                variant="destructive"
+                className="dark:bg-red-900/20 dark:border-red-800"
+              >
+                <AlertCircle className="h-4 w-4 dark:text-red-400" />
+                <AlertDescription className="dark:text-red-300">
+                  {errors.submit}
+                </AlertDescription>
+              </Alert>
+            )}
 
             {/* Footer Actions */}
             <div className="flex justify-end gap-2 pt-4">
@@ -701,10 +1089,23 @@ const FleetModal = ({
               </Button>
               <Button
                 onClick={handleSave}
-                disabled={isSaving}
-                className="cursor-pointer disabled:cursor-not-allowed hover:bg-gray-200 dark:text-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700"
+                disabled={
+                  isSaving ||
+                  !allUnitsHaveOperators ||
+                  selectedUnits.length === 0
+                }
+                className="cursor-pointer disabled:cursor-not-allowed bg-blue-600 hover:bg-blue-700 text-white dark:bg-blue-600 dark:text-gray-200 dark:hover:bg-blue-700"
               >
-                {isEdit ? "Update Konfigurasi" : "Simpan"}
+                {isSaving ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                    Menyimpan...
+                  </>
+                ) : isEdit ? (
+                  "Update Konfigurasi"
+                ) : (
+                  "Simpan"
+                )}
               </Button>
             </div>
           </div>

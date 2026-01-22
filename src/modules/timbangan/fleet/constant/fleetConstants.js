@@ -11,6 +11,23 @@ export const FLEET_STATUS = {
   CLOSED: "CLOSED",
 };
 
+
+export const CARD_TITLES = {
+  FLEET: "Fleet Configuration",
+  FLEET_SELECTED: "Fleet yang Dipilih",
+  UNITS: "Daftar Dump Truck",
+};
+
+
+export const VALIDATION_MESSAGES = {
+  INVALID_FLEET_ID: "Fleet ID tidak valid",
+  NO_UNITS_SELECTED: "Pilih minimal 1 unit dump truck",
+  REQUIRED_FLEET: "Pilih fleet terlebih dahulu",
+  REQUIRED_UNITS: "Pilih minimal 1 dump truck",
+  REQUIRED_OPERATOR: "Pilih operator",
+  ALL_OPERATORS_REQUIRED: "Semua unit harus memiliki operator",
+};
+
 export const TOAST_MESSAGES = {
   SUCCESS: {
     CREATE: "Fleet berhasil dibuat",
@@ -37,6 +54,7 @@ export const TOAST_MESSAGES = {
 
 export const SEARCH_PLACEHOLDERS = {
   FLEET: "Cari nama fleet, excavator, work unit...",
+  UNIT: "Cari hull_no, company, work unit...",
 };
 
 export const LOADING_MESSAGES = {

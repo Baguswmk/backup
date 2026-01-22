@@ -11,7 +11,6 @@ import {
 } from "lucide-react";
 import ModalHeader from "@/shared/components/ModalHeader";
 import { InfoCard, InfoItem } from "@/shared/components/InfoCard";
-import { formatDate, formatDateTime } from "@/shared/utils/date";
 
 const FleetDetailModal = ({ isOpen, config, onClose, onEdit, dumptruck }) => {
   useEffect(() => {
@@ -30,7 +29,6 @@ const FleetDetailModal = ({ isOpen, config, onClose, onEdit, dumptruck }) => {
 
   const dumptruckCount = dumptruck?.length || 0;
   const dumptruckList = dumptruck || [];
-
   return (
     <div className="detail-modal fixed inset-0 .detail-modal dark:bg-opacity-70 z-50 flex items-center justify-center p-4">
       <div className="bg-neutral-50 dark:bg-gray-800 rounded-lg max-w-3xl w-full max-h-[90vh] overflow-auto">

@@ -60,12 +60,12 @@ const FleetBulkOperations = ({
 
   if (selectedIds.length === 0) {
     return (
-      <div className="flex items-center gap-3 p-3 border rounded-lg bg-gray-50 dark:bg-gray-900">
+      <div className="flex items-center gap-3 p-3 rounded-lg bg-gray-300 dark:bg-gray-900">
         <Checkbox
           checked={allSelected}
           indeterminate={someSelected || undefined}
           onCheckedChange={handleSelectAll}
-          className="dark:border-gray-600"
+          className="dark:border-gray-600 cursor-pointer"
         />
         <span className="text-sm text-gray-600 dark:text-gray-400">
           Pilih fleet untuk operasi bulk (hapus)

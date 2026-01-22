@@ -92,7 +92,7 @@ const FleetTable = ({
 
       <div className="overflow-x-auto">
         <table className="w-full table-auto">
-          <thead className="bg-gray-50 dark:bg-gray-900 dark:border-gray-700">
+          <thead className="bg-gray-200 dark:bg-gray-900 dark:border-gray-700 ">
             <tr>
               {isPickingMode && (
                 <th className="px-4 py-3 text-left dark:text-gray-200">
@@ -107,6 +107,9 @@ const FleetTable = ({
               </th>
               <th className="px-4 py-3 text-left text-xs font-medium text-black dark:text-gray-200">
                 Excavator
+              </th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-black dark:text-gray-200">
+                Type
               </th>
               <th className="px-4 py-3 text-left text-xs font-medium text-black dark:text-gray-200">
                 Work Unit
@@ -137,7 +140,6 @@ const FleetTable = ({
                 ? getDumptruckCount(config.id)
                 : 0;
               const dtList = getDumptruckList ? getDumptruckList(config) : [];
-
               return (
                 <tr
                   key={config.id}
@@ -159,7 +161,11 @@ const FleetTable = ({
                     {index + 1 + (currentPage - 1) * pageSize}
                   </td>
                   <td className="px-4 py-3 text-sm font-medium dark:text-gray-200">
+              
                     {config.excavator}
+                  </td>
+                      <td className="px-4 py-3 text-sm font-medium dark:text-gray-200">
+                    {config.measurementType}
                   </td>
                   <td className="px-4 py-3 text-sm dark:text-gray-300">
                     {config.workUnit}
