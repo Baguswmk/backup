@@ -161,10 +161,9 @@ const FleetTable = ({
                     {index + 1 + (currentPage - 1) * pageSize}
                   </td>
                   <td className="px-4 py-3 text-sm font-medium dark:text-gray-200">
-              
                     {config.excavator}
                   </td>
-                      <td className="px-4 py-3 text-sm font-medium dark:text-gray-200">
+                  <td className="px-4 py-3 text-sm font-medium dark:text-gray-200">
                     {config.measurementType}
                   </td>
                   <td className="px-4 py-3 text-sm dark:text-gray-300">

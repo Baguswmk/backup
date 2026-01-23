@@ -33,12 +33,11 @@ const FleetTableContainer = ({
   getDumptruckCount,
   getDumptruckList,
 
-  currentPage = 1, // ✅ Change from PAGE_SIZE.DEFAULT_PAGE to 1
+  currentPage = 1,
   onPageChange,
-  
-  // ✅✅✅ ADD THESE TWO PROPS
-  totalPages: providedTotalPages, // Rename to avoid conflict
-  pageSize: providedPageSize = 10, // Default to 10
+
+  totalPages: providedTotalPages,
+  pageSize: providedPageSize = 10,
 
   updatingStatusId = null,
 
@@ -52,20 +51,16 @@ const FleetTableContainer = ({
 }) => {
   const [selectedIds, setSelectedIds] = useState([]);
 
-  // ✅ Use provided totalPages if available, otherwise calculate
   const totalPages = useMemo(() => {
     if (providedTotalPages !== undefined) {
       return providedTotalPages;
     }
-    
-    // Fallback calculation
+
     const calculated = Math.ceil(filteredConfigs.length / providedPageSize);
     return calculated || 1;
   }, [providedTotalPages, filteredConfigs.length, providedPageSize]);
 
-  // ✅ Use provided pageSize
   const pageSize = providedPageSize;
-
 
   const hasData = useMemo(() => {
     return filteredConfigs.length > 0;
@@ -237,8 +232,8 @@ const FleetTableContainer = ({
         getDumptruckCount={getDumptruckCount}
         getDumptruckList={getDumptruckList}
         currentPage={currentPage}
-        pageSize={pageSize} // ✅ Use calculated/provided pageSize
-        totalPages={totalPages} // ✅ Use calculated/provided totalPages
+        pageSize={pageSize}
+        totalPages={totalPages}
         onPageChange={handlePageChange}
         updatingStatusId={updatingStatusId}
         isHistoryMode={false}

@@ -11,6 +11,7 @@ import useAuthStore from "@/modules/auth/store/authStore";
 import { useFleetPermissions } from "@/shared/permissions/usePermissions";
 import { useMasterData } from "@/modules/timbangan/masterData/hooks/useMasterData";
 import SearchableSelect from "@/shared/components/SearchableSelect";
+import MultiSearchableSelect from "@/shared/components/MultiSearchableSelect";
 import ModalHeader from "@/shared/components/ModalHeader";
 import LoadingOverlay from "@/shared/components/LoadingOverlay";
 import { InfoCard } from "@/shared/components/InfoCard";
@@ -56,8 +57,8 @@ const FleetModal = ({
   const [errors, setErrors] = useState({});
   const [isSaving, setIsSaving] = useState(false);
   const [distanceText, setDistanceText] = useState("");
-  const [inspectorId, setInspectorId] = useState("");
-  const [checkerId, setCheckerId] = useState("");
+const [inspectorIds, setInspectorIds] = useState([]); // CHANGED: from inspectorId
+const [checkerIds, setCheckerIds] = useState([]); // CHANGED: from checkerId
 
   const [selectedUnits, setSelectedUnits] = useState([]);
   const [unitOperators, setUnitOperators] = useState({});
@@ -103,108 +104,146 @@ const FleetModal = ({
     },
     [masters?.excavators, masterUnits],
   );
-  useEffect(() => {
-    if (!isOpen) return;
+useEffect(() => {
+  if (!isOpen) return;
 
-    const initializeModalData = async () => {
-      if (editingConfig) {
-        const initialData = {
-          excavator: editingConfig.excavatorId || "",
-          loadingLocation: editingConfig.loadingLocationId || "",
-          dumpingLocation: editingConfig.dumpingLocationId || "",
-          coalType: editingConfig.coalTypeId || "",
-          distance: editingConfig.distance ?? 0,
-          workUnit: editingConfig.workUnitId || "",
-          measurementType: editingConfig.measurementType || fleetType,
-        };
+  const initializeModalData = async () => {
+    if (editingConfig) {
+      console.log("🔧 EDIT MODE - editingConfig:", editingConfig);
+      
+      const initialData = {
+        excavator: editingConfig.excavatorId || "",
+        loadingLocation: editingConfig.loadingLocationId || "",
+        dumpingLocation: editingConfig.dumpingLocationId || "",
+        coalType: editingConfig.coalTypeId || "",
+        distance: editingConfig.distance ?? 0,
+        workUnit: editingConfig.workUnitId || "",
+        measurementType: editingConfig.measurementType || fleetType,
+      };
 
-        setFleetData(initialData);
-        setDistanceText(
-          editingConfig.distance != null && editingConfig.distance !== ""
-            ? String(editingConfig.distance)
-            : "",
-        );
-        setInspectorId(editingConfig.inspectorId || "");
-        setCheckerId(editingConfig.checkerId || "");
+      setFleetData(initialData);
+      setDistanceText(
+        editingConfig.distance != null && editingConfig.distance !== ""
+          ? String(editingConfig.distance)
+          : "",
+      );
+      
+      // FIXED: Better handling untuk inspectors
+      let inspectorIdsToSet = [];
+      
+      if (Array.isArray(editingConfig.inspectorIds) && editingConfig.inspectorIds.length > 0) {
+        // Format baru: array of IDs
+        inspectorIdsToSet = editingConfig.inspectorIds.map(String);
+      } else if (Array.isArray(editingConfig.inspectors) && editingConfig.inspectors.length > 0) {
+        // Format baru: array of objects { id, name }
+        inspectorIdsToSet = editingConfig.inspectors.map(i => String(i.id)).filter(Boolean);
+      } else if (editingConfig.inspectorId) {
+        // Format lama: single ID
+        inspectorIdsToSet = [String(editingConfig.inspectorId)];
+      }
+      
+      console.log("👁️ Inspector IDs to set:", inspectorIdsToSet);
+      setInspectorIds(inspectorIdsToSet);
+      
+      // FIXED: Better handling untuk checkers
+      let checkerIdsToSet = [];
+      
+      if (Array.isArray(editingConfig.checkerIds) && editingConfig.checkerIds.length > 0) {
+        // Format baru: array of IDs
+        checkerIdsToSet = editingConfig.checkerIds.map(String);
+      } else if (Array.isArray(editingConfig.checkers) && editingConfig.checkers.length > 0) {
+        // Format baru: array of objects { id, name }
+        checkerIdsToSet = editingConfig.checkers.map(c => String(c.id)).filter(Boolean);
+      } else if (editingConfig.checkerId) {
+        // Format lama: single ID
+        checkerIdsToSet = [String(editingConfig.checkerId)];
+      }
+      
+      console.log("✅ Checker IDs to set:", checkerIdsToSet);
+      setCheckerIds(checkerIdsToSet);
 
-        if (editingConfig.units) {
-          const existingUnits = editingConfig.units.map((unit) => ({
-            id: String(unit.id || unit.dumpTruckId),
-            hull_no: unit.hull_no || "-",
-            company: unit.company || "-",
-            workUnit: unit.workUnit || "-",
-            type: "DUMP_TRUCK",
-            companyId: unit.companyId,
-            workUnitId: unit.workUnitId,
-          }));
+      if (editingConfig.units) {
+        const existingUnits = editingConfig.units.map((unit) => ({
+          id: String(unit.id || unit.dumpTruckId),
+          hull_no: unit.hull_no || "-",
+          company: unit.company || "-",
+          workUnit: unit.workUnit || "-",
+          type: "DUMP_TRUCK",
+          companyId: unit.companyId,
+          workUnitId: unit.workUnitId,
+        }));
 
-          setSelectedUnits(existingUnits);
+        setSelectedUnits(existingUnits);
 
-          const initialOperators = {};
-          editingConfig.units.forEach((unit) => {
-            const unitId = String(unit.id || unit.dumpTruckId);
-            if (unit.operatorId) {
-              initialOperators[unitId] = String(unit.operatorId);
-            }
-          });
-          setUnitOperators(initialOperators);
-        }
-
-        if (editingConfig.excavatorId) {
-          setIsLoadingFilteredUnits(true);
-          try {
-            const filtered = await filterUnitsByExcavator(
-              String(editingConfig.excavatorId),
-            );
-            setFleetFilteredUnits(filtered);
-          } catch (error) {
-            console.error("❌ Failed to load filtered units:", error);
-            setFleetFilteredUnits([]);
-          } finally {
-            setIsLoadingFilteredUnits(false);
+        const initialOperators = {};
+        editingConfig.units.forEach((unit) => {
+          const unitId = String(unit.id || unit.dumpTruckId);
+          if (unit.operatorId) {
+            initialOperators[unitId] = String(unit.operatorId);
           }
-        }
-      } else {
-        const measurementTypeMap = {
-          Timbangan: "Timbangan",
-          Bypass: "Bypass",
-          Beltscale: "Beltscale",
-        };
-
-        const defaultMeasurementType =
-          measurementTypeMap[fleetType] || "Timbangan";
-
-        const newData = {
-          excavator: "",
-          loadingLocation: "",
-          dumpingLocation: "",
-          coalType: "",
-          distance: 0,
-          workUnit: "",
-          measurementType: defaultMeasurementType,
-        };
-
-        setFleetData(newData);
-        setDistanceText("");
-        setInspectorId("");
-        setCheckerId("");
-        setSelectedUnits([]);
-        setUnitOperators({});
-        setFleetFilteredUnits([]);
+        });
+        setUnitOperators(initialOperators);
       }
 
-      setSearchQuery("");
-      setShowAllUnits(false);
-      setErrors({});
-    };
+      if (editingConfig.excavatorId) {
+        setIsLoadingFilteredUnits(true);
+        try {
+          const filtered = await filterUnitsByExcavator(
+            String(editingConfig.excavatorId),
+          );
+          setFleetFilteredUnits(filtered);
+        } catch (error) {
+          console.error("❌ Failed to load filtered units:", error);
+          setFleetFilteredUnits([]);
+        } finally {
+          setIsLoadingFilteredUnits(false);
+        }
+      }
+    } else {
+      // NEW MODE
+      console.log("➕ CREATE MODE");
+      
+      const measurementTypeMap = {
+        Timbangan: "Timbangan",
+        Bypass: "Bypass",
+        Beltscale: "Beltscale",
+      };
 
-    initializeModalData();
-  }, [isOpen, editingConfig, fleetType, filterUnitsByExcavator]);
+      const defaultMeasurementType =
+        measurementTypeMap[fleetType] || "Timbangan";
+
+      const newData = {
+        excavator: "",
+        loadingLocation: "",
+        dumpingLocation: "",
+        coalType: "",
+        distance: 0,
+        workUnit: "",
+        measurementType: defaultMeasurementType,
+      };
+
+      setFleetData(newData);
+      setDistanceText("");
+      setInspectorIds([]); 
+      setCheckerIds([]);
+      setSelectedUnits([]);
+      setUnitOperators({});
+      setFleetFilteredUnits([]);
+    }
+
+    setSearchQuery("");
+    setShowAllUnits(false);
+    setErrors({});
+  };
+
+  initializeModalData();
+}, [isOpen, editingConfig, fleetType, filterUnitsByExcavator]);
+
 
   const selectedOperatorIds = useMemo(() => {
     return Object.values(unitOperators).filter(Boolean);
   }, [unitOperators]);
-  
+
   const handleExcavatorChange = useCallback(
     async (excavatorId) => {
       setFleetData((p) => ({ ...p, excavator: excavatorId || "" }));
@@ -330,149 +369,166 @@ const FleetModal = ({
     return selectedUnits.every((unit) => unitOperators[unit.id]);
   }, [selectedUnits, unitOperators]);
 
-  const validate = useCallback(() => {
-    const e = {};
+const validate = useCallback(() => {
+  const e = {};
 
-    if (!fleetData.excavator) e.excavator = "Pilih excavator";
-    if (!fleetData.loadingLocation) e.loadingLocation = "Pilih lokasi loading";
-    if (!fleetData.dumpingLocation) e.dumpingLocation = "Pilih lokasi dumping";
-    if (!fleetData.coalType) e.coalType = "Pilih coal type";
-    if (!fleetData.workUnit) e.workUnit = "Pilih work unit";
-    if (!fleetData.measurementType)
-      e.measurementType = "Pilih measurement type";
+  if (!fleetData.excavator) e.excavator = "Pilih excavator";
+  if (!fleetData.loadingLocation) e.loadingLocation = "Pilih lokasi loading";
+  if (!fleetData.dumpingLocation) e.dumpingLocation = "Pilih lokasi dumping";
+  if (!fleetData.coalType) e.coalType = "Pilih coal type";
+  if (!fleetData.workUnit) e.workUnit = "Pilih work unit";
+  if (!fleetData.measurementType) e.measurementType = "Pilih measurement type";
 
+  const cleaned = (distanceText || "").trim().replace(",", ".");
+  const distNum =
+    cleaned === ""
+      ? 0
+      : Number.isFinite(parseFloat(cleaned))
+        ? parseFloat(cleaned)
+        : NaN;
+  if (!Number.isFinite(distNum) || distNum < 0) {
+    e.distance = "Distance harus angka valid (≥ 0)";
+  }
+
+  // FIXED: Validate with better logging
+  console.log("🔍 Validating inspectorIds:", inspectorIds);
+  if (!inspectorIds || inspectorIds.length === 0) {
+    e.inspector = "Pilih minimal 1 inspector";
+    console.log("❌ Inspector validation failed");
+  }
+  
+  console.log("🔍 Validating checkerIds:", checkerIds);
+  if (!checkerIds || checkerIds.length === 0) {
+    e.checker = "Pilih minimal 1 checker";
+    console.log("❌ Checker validation failed");
+  }
+
+  if (selectedUnits.length === 0) {
+    e.units = VALIDATION_MESSAGES.REQUIRED_UNITS;
+  }
+
+  selectedUnits.forEach((unit) => {
+    if (!unitOperators[unit.id]) {
+      e[`operator_${unit.id}`] = VALIDATION_MESSAGES.REQUIRED_OPERATOR;
+      e.operators = VALIDATION_MESSAGES.ALL_OPERATORS_REQUIRED;
+    }
+  });
+
+  console.log("📋 Validation errors:", e);
+  setErrors(e);
+  return Object.keys(e).length === 0;
+}, [
+  fleetData,
+  distanceText,
+  inspectorIds,
+  checkerIds,
+  selectedUnits,
+  unitOperators,
+]);
+
+const handleSave = useCallback(async () => {
+  console.log("💾 Attempting to save...");
+  console.log("📊 Current state:", {
+    fleetData,
+    inspectorIds,
+    checkerIds,
+    selectedUnits: selectedUnits.length,
+  });
+  
+  if (!validate()) {
+    console.log("❌ Validation failed, aborting save");
+    showToast.error("Mohon lengkapi semua field yang wajib diisi");
+    return;
+  }
+
+  setIsSaving(true);
+
+  try {
     const cleaned = (distanceText || "").trim().replace(",", ".");
-    const distNum =
-      cleaned === ""
-        ? 0
-        : Number.isFinite(parseFloat(cleaned))
-          ? parseFloat(cleaned)
-          : NaN;
-    if (!Number.isFinite(distNum) || distNum < 0) {
-      e.distance = "Distance harus angka valid (≥ 0)";
+    let dist = cleaned === "" ? 0 : parseFloat(cleaned);
+    if (!Number.isFinite(dist) || dist < 0) dist = 0;
+
+    const basePayload = {
+      excavatorId: fleetData.excavator,
+      loadingLocationId: fleetData.loadingLocation,
+      dumpingLocationId: fleetData.dumpingLocation,
+      coalTypeId: fleetData.coalType,
+      distance: dist,
+      workUnitId: fleetData.workUnit,
+      inspectorIds: inspectorIds.map(id => parseInt(id)),
+      checkerIds: checkerIds.map(id => parseInt(id)),
+      measurement_type: fleetData.measurementType,
+    };
+
+    const pairDtOp = selectedUnits.map((unit) => ({
+      truckId: parseInt(unit.id),
+      operatorId: parseInt(unitOperators[unit.id]),
+    }));
+
+    basePayload.pairDtOp = pairDtOp;
+
+    console.log(
+      isEdit ? "🔄 Updating fleet config" : "➕ Creating fleet config",
+      {
+        configId: editingConfig?.id,
+        hasUnits: pairDtOp.length > 0,
+        unitsCount: pairDtOp.length,
+        inspectorsCount: inspectorIds.length,
+        checkersCount: checkerIds.length,
+        payload: basePayload,
+      },
+    );
+
+    const result = await onSave(basePayload);
+
+    if (result?.success) {
+      console.log("✅ Save successful");
+      setFleetData((p) => ({ ...p, distance: dist }));
+      onClose();
     }
+  } catch (err) {
+    console.error("❌ Fleet save error:", err);
 
-    if (!inspectorId) e.inspector = "Pilih inspector";
-    if (!checkerId) e.checker = "Pilih checker";
+    const isQueued =
+      err?.queued || err?.message?.includes("queued for offline sync");
+    const isValidation =
+      err?.validationError ||
+      (err?.response?.status >= 400 && err?.response?.status < 500);
 
-    if (selectedUnits.length === 0) {
-      e.units = VALIDATION_MESSAGES.REQUIRED_UNITS;
-    }
-
-    selectedUnits.forEach((unit) => {
-      if (!unitOperators[unit.id]) {
-        e[`operator_${unit.id}`] = VALIDATION_MESSAGES.REQUIRED_OPERATOR;
-        e.operators = VALIDATION_MESSAGES.ALL_OPERATORS_REQUIRED;
-      }
-    });
-
-    setErrors(e);
-    return Object.keys(e).length === 0;
-  }, [
-    fleetData,
-    distanceText,
-    inspectorId,
-    checkerId,
-    selectedUnits,
-    unitOperators,
-  ]);
-
-  const handleSave = useCallback(async () => {
-    if (!validate()) {
-      showToast.error("Mohon lengkapi semua field yang wajib diisi");
-      return;
-    }
-
-    setIsSaving(true);
-
-    try {
-      const cleaned = (distanceText || "").trim().replace(",", ".");
-      let dist = cleaned === "" ? 0 : parseFloat(cleaned);
-      if (!Number.isFinite(dist) || dist < 0) dist = 0;
-
-      const basePayload = {
-        excavatorId: fleetData.excavator,
-        loadingLocationId: fleetData.loadingLocation,
-        dumpingLocationId: fleetData.dumpingLocation,
-        coalTypeId: fleetData.coalType,
-        distance: dist,
-        workUnitId: fleetData.workUnit,
-        inspectorId,
-        checkerId,
-        measurement_type: fleetData.measurementType,
-      };
-
-      const pairDtOp = selectedUnits.map((unit) => ({
-        truckId: parseInt(unit.id),
-        operatorId: parseInt(unitOperators[unit.id]),
-      }));
-
-      basePayload.pairDtOp = pairDtOp;
-
-      logger.info(
-        isEdit ? "📝 Updating fleet config" : "➕ Creating fleet config",
-        {
-          configId: editingConfig?.id,
-          hasUnits: pairDtOp.length > 0,
-          unitsCount: pairDtOp.length,
-          payload: {
-            ...basePayload,
-            pairDtOp: pairDtOp.map(
-              (p) => `Truck:${p.truckId}-Op:${p.operatorId}`,
-            ),
-          },
-        },
+    if (isQueued) {
+      setErrors((p) => ({ ...p, submit: null }));
+      showToast.info(
+        "📤 Data disimpan di queue dan akan otomatis tersinkron saat online",
+        { duration: 4000 },
       );
-
-      const result = await onSave(basePayload);
-
-      if (result?.success) {
-        setFleetData((p) => ({ ...p, distance: dist }));
-        onClose();
-      }
-    } catch (err) {
-      console.error("Fleet save error:", err);
-
-      const isQueued =
-        err?.queued || err?.message?.includes("queued for offline sync");
-      const isValidation =
-        err?.validationError ||
-        (err?.response?.status >= 400 && err?.response?.status < 500);
-
-      if (isQueued) {
-        setErrors((p) => ({ ...p, submit: null }));
-        showToast.info(
-          "📤 Data disimpan di queue dan akan otomatis tersinkron saat online",
-          { duration: 4000 },
-        );
-        setTimeout(() => onClose(), 1000);
-      } else if (isValidation) {
-        setErrors((p) => ({
-          ...p,
-          submit: err?.message || "Validasi gagal. Periksa input Anda.",
-        }));
-        showToast.error(err?.message || "Validasi gagal");
-      } else {
-        const errorMsg = err?.message || "Gagal menyimpan data";
-        setErrors((p) => ({ ...p, submit: errorMsg }));
-        showToast.error(errorMsg);
-      }
-    } finally {
-      setIsSaving(false);
+      setTimeout(() => onClose(), 1000);
+    } else if (isValidation) {
+      setErrors((p) => ({
+        ...p,
+        submit: err?.message || "Validasi gagal. Periksa input Anda.",
+      }));
+      showToast.error(err?.message || "Validasi gagal");
+    } else {
+      const errorMsg = err?.message || "Gagal menyimpan data";
+      setErrors((p) => ({ ...p, submit: errorMsg }));
+      showToast.error(errorMsg);
     }
-  }, [
-    isEdit,
-    validate,
-    distanceText,
-    fleetData,
-    inspectorId,
-    checkerId,
-    selectedUnits,
-    unitOperators,
-    onSave,
-    onClose,
-    editingConfig,
-  ]);
+  } finally {
+    setIsSaving(false);
+  }
+}, [
+  isEdit,
+  validate,
+  distanceText,
+  fleetData,
+  inspectorIds,
+  checkerIds,
+  selectedUnits,
+  unitOperators,
+  onSave,
+  onClose,
+  editingConfig,
+]);
   const excaItems = useMemo(
     () =>
       (masters?.excavators || []).map((e) => ({
@@ -610,12 +666,10 @@ const FleetModal = ({
         setUnitOperators((prevOps) => {
           const newOps = { ...prevOps };
           delete newOps[unit.id];
-          console.log("🗑️ Unit removed, operator cleared:", unit.hull_no);
           return newOps;
         });
         return prev.filter((u) => String(u.id) !== String(unit.id));
       } else {
-        console.log("➕ Unit added:", unit.hull_no);
         return [...prev, unit];
       }
     });
@@ -627,14 +681,8 @@ const FleetModal = ({
 
       if (operatorId) {
         newOps[unitId] = operatorId;
-        console.log("✅ Operator selected:", {
-          unitId,
-          operatorId,
-          totalSelected: Object.keys(newOps).length,
-        });
       } else {
         delete newOps[unitId];
-        console.log("❌ Operator cleared:", { unitId });
       }
 
       return newOps;
@@ -709,7 +757,7 @@ const FleetModal = ({
                   onChange={(val) => {
                     setFleetData((p) => ({ ...p, measurementType: val || "" }));
                     if (!isEdit) {
-                      setCheckerId("");
+                      setCheckerIds([]);
                     }
                   }}
                   placeholder="Pilih measurement type"
@@ -847,47 +895,57 @@ const FleetModal = ({
               </div>
             </InfoCard>
 
-            <InfoCard
-              title="Inspector & Checker"
-              variant="primary"
-              className="border-none"
-            >
-              <div className="space-y-2">
-                <Label className="dark:text-gray-300">Inspector *</Label>
-                <SearchableSelect
-                  items={inspectorItems}
-                  value={inspectorId}
-                  onChange={setInspectorId}
-                  placeholder="Pilih inspector"
-                  emptyText="Inspector tidak ditemukan"
-                  disabled={isSaving}
-                  error={!!errors.inspector}
-                />
-                {errors.inspector && (
-                  <p className="text-sm text-red-500 dark:text-red-400">
-                    {errors.inspector}
-                  </p>
-                )}
-              </div>
+<InfoCard
+  title="Inspector & Checker"
+  variant="primary"
+  className="border-none"
+>
+  <div className="space-y-2">
+    <Label className="dark:text-gray-300">Inspector *</Label>
+    <MultiSearchableSelect
+      items={inspectorItems}
+      values={inspectorIds}
+      onChange={setInspectorIds}
+      placeholder="Pilih inspector (bisa pilih banyak)"
+      emptyText="Inspector tidak ditemukan"
+      disabled={isSaving}
+      error={!!errors.inspector}
+    />
+    {errors.inspector && (
+      <p className="text-sm text-red-500 dark:text-red-400">
+        {errors.inspector}
+      </p>
+    )}
+    {inspectorIds.length > 0 && (
+      <p className="text-xs text-blue-600 dark:text-blue-400">
+        {inspectorIds.length} inspector dipilih
+      </p>
+    )}
+  </div>
 
-              <div className="space-y-2">
-                <Label className="dark:text-gray-300">Checker *</Label>
-                <SearchableSelect
-                  items={checkerItems}
-                  value={checkerId}
-                  onChange={(val) => setCheckerId(val || "")}
-                  placeholder="Pilih checker"
-                  emptyText="Checker tidak ditemukan"
-                  error={!!errors.checker}
-                  disabled={isSaving}
-                />
-                {errors.checker && (
-                  <p className="text-sm text-red-500 dark:text-red-400">
-                    {errors.checker}
-                  </p>
-                )}
-              </div>
-            </InfoCard>
+  <div className="space-y-2">
+    <Label className="dark:text-gray-300">Checker *</Label>
+    <MultiSearchableSelect
+      items={checkerItems}
+      values={checkerIds}
+      onChange={setCheckerIds}
+      placeholder="Pilih checker (bisa pilih banyak)"
+      emptyText="Checker tidak ditemukan"
+      error={!!errors.checker}
+      disabled={isSaving}
+    />
+    {errors.checker && (
+      <p className="text-sm text-red-500 dark:text-red-400">
+        {errors.checker}
+      </p>
+    )}
+    {checkerIds.length > 0 && (
+      <p className="text-xs text-blue-600 dark:text-blue-400">
+        {checkerIds.length} checker dipilih
+      </p>
+    )}
+  </div>
+</InfoCard>
 
             {fleetData.excavator && (
               <InfoCard

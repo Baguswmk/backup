@@ -1,6 +1,9 @@
-import { PAGINATION, DEBOUNCE, FILTER_FIELDS as SHARED_FILTER_FIELDS } from "@/shared/constants/appConstant";
+import {
+  PAGINATION,
+  DEBOUNCE,
+  FILTER_FIELDS as SHARED_FILTER_FIELDS,
+} from "@/shared/constants/appConstant";
 
-// FLEET-SPECIFIC CONSTANTS
 export const FLEET_TABS = {
   TIMBANGAN: "timbangan",
 };
@@ -11,13 +14,11 @@ export const FLEET_STATUS = {
   CLOSED: "CLOSED",
 };
 
-
 export const CARD_TITLES = {
   FLEET: "Fleet Configuration",
   FLEET_SELECTED: "Fleet yang Dipilih",
   UNITS: "Daftar Dump Truck",
 };
-
 
 export const VALIDATION_MESSAGES = {
   INVALID_FLEET_ID: "Fleet ID tidak valid",
@@ -35,8 +36,7 @@ export const TOAST_MESSAGES = {
     DELETE: "Fleet berhasil dihapus",
     REFRESH: "Data berhasil di-refresh",
     REACTIVATE: "Fleet berhasil direaktivasi",
-    FLEET_SELECTION: (timbangan) =>
-      `${timbangan} Timbangan berhasil dipilih`,
+    FLEET_SELECTION: (timbangan) => `${timbangan} Timbangan berhasil dipilih`,
   },
   ERROR: {
     CREATE_FAILED: "Gagal membuat fleet",
@@ -61,7 +61,6 @@ export const LOADING_MESSAGES = {
   PROCESSING: "Memproses...",
 };
 
-// Use shared constants
 export const PAGE_SIZE = PAGINATION.PAGE_SIZE;
 export const DEBOUNCE_TIME = DEBOUNCE.SEARCH;
 export const FILTER_FIELDS = SHARED_FILTER_FIELDS;

@@ -1,226 +1,156 @@
-  import { offlineService } from "@/shared/services/offlineService";
-  import { masterDataService } from "@/modules/timbangan/masterData/services/masterDataService";
-  import { logger } from "@/shared/services/log";
+import { offlineService } from "@/shared/services/offlineService";
+import { masterDataService } from "@/modules/timbangan/masterData/services/masterDataService";
+import { logger } from "@/shared/services/log";
 
-  const CACHE_TTL = {
-    FLEET_DATA: 5 * 60 * 1000,
-    MASTERS: 30 * 60 * 1000,
-  };
+const CACHE_TTL = {
+  FLEET_DATA: 5 * 60 * 1000,
+  MASTERS: 30 * 60 * 1000,
+};
 
-  const pendingRequests = new Map();
+const pendingRequests = new Map();
 
-  const extractErrorMessage = (error) => {
-    return (
-      error?.response?.data?.message ||
-      error?.response?.data?.error?.message ||
-      error?.response?.data?.error ||
-      error?.message ||
-      "Terjadi kesalahan"
-    );
-  };
+const extractErrorMessage = (error) => {
+  return (
+    error?.response?.data?.message ||
+    error?.response?.data?.error?.message ||
+    error?.response?.data?.error ||
+    error?.message ||
+    "Terjadi kesalahan"
+  );
+};
 
-  const buildFilters = (options = {}) => {
-    const { user, measurementType } = options;
-    const filters = {};
-    const role = user?.role?.toLowerCase();
+const buildFilters = (options = {}) => {
+  const { user, measurementType } = options;
+  const filters = {};
+  const role = user?.role?.toLowerCase();
 
-    if (role === "super_admin") {
-      logger.info("⭐️ Skipping measurement_type filter", {
-        role,
-        reason: "super_admin can see all types",
-      });
-    } else if (measurementType) {
-      filters.measurement_type = { $eq: measurementType };
-      logger.info("📊 Measurement type filter applied", {
-        measurementType,
-        role,
-      });
-    }
+  if (role === "super_admin") {
+    logger.info("⭐️ Skipping measurement_type filter", {
+      role,
+      reason: "super_admin can see all types",
+    });
+  } else if (measurementType) {
+    filters.measurement_type = { $eq: measurementType };
+    logger.info("📊 Measurement type filter applied", {
+      measurementType,
+      role,
+    });
+  }
 
-    switch (role) {
-      case "checker":
-      case "operator_jt":
-        if (user?.id) {
-          filters.$and = [
-            { measurement_type: { $eq: "Timbangan" } },
-            { checker : { id: { $eq: parseInt(user.id) } } }
-          ];
-
-          logger.info("📊 Operator JT Filter Applied (OR logic)", {
-            userId: user.id,
-            condition: "measurement_type=Timbangan OR created_by_user=userId"
-          });
-        }
-        break;
-
-      case "ccr":
-      case "pengawas":
-      case "evaluator":
-      case "pic":
-      case "admin":
-      case "mitra":
-      case "super_admin":
-        logger.info("👑 No role-specific filter");
-        break;
-
-      default:
-        logger.warn("⚠️ Unknown role, no role-specific filter", { role });
-        break;
-    }
-
-    logger.info("📋 Final buildFilters result", filters);
-    return filters;
-  };
-
-  export const fleetService = {
-    async fetchFleetConfigs(options = {}) {
-      try {
-        const { user, forceRefresh = false } = options;
-
-        const filterResult = buildFilters({ user });
-
-        if (filterResult.needsFeedback) {
-          return {
-            success: false,
-            data: [],
-            feedback: filterResult.message,
-          };
-        }
-
-        const filters = filterResult;
-        const cacheKey = `fleets_${user?.id || "nouser"}`;
-
-        const requestKey = `${cacheKey}_${JSON.stringify(filters)}`;
-
-        if (pendingRequests.has(requestKey)) {
-          logger.info("🔄 Reusing pending request", { requestKey });
-          return pendingRequests.get(requestKey);
-        }
-
-        const ttl = CACHE_TTL.FLEET_DATA;
-
-        logger.info("🔍 Fetching fleet configs", {
-          filters: JSON.stringify(filters),
-          cacheKey,
-          ttl: `${ttl / 1000}s`,
-          forceRefresh,
-        });
-
-        if (forceRefresh) {
-          await offlineService.clearCache(cacheKey);
-        }
-
-        const requestPromise = (async () => {
-          try {
-            const response = await offlineService.get("/setting-fleets", {
-              params: {
-                populate: [
-                  "unit_exca",
-                  "unit_exca.company",
-                  "loading_location",
-                  "dumping_location",
-                  "coal_type",
-                  "pic_work_unit",
-                  "weigh_bridge",
-                  "setting_dump_truck",
-                  "setting_dump_truck.pair_dt_op",
-                  "setting_dump_truck.pair_dt_op.dts.company",
-                  "setting_dump_truck.pair_dt_op.ops",
-                  "checker",
-                  "inspector",
-                ],
-                sort: ["id:desc"],
-                filters,
-                pagination: { pageSize: 500 },
+  switch (role) {
+    case "checker":
+      if (user?.id) {
+        filters.$and = [
+          {
+            $or: [
+              { measurement_type: { $eq: "Timbangan" } },
+              { measurement_type: { $eq: "Bypass" } },
+              { measurement_type: { $eq: "Beltscale" } },
+            ],
+          },
+          {
+            checkers: {
+              id: {
+                $in: [parseInt(user.id)], // Harus array
               },
-              cacheKey,
-              ttl,
-              forceRefresh,
-            });
+            },
+          },
+        ];
 
-            const configs = response.data.map((item) =>
-              this._transformFleetConfig(item),
-            );
-
-            logger.info(`✅ Fleet configs fetched: ${configs.length}`, {
-              cached: !forceRefresh,
-            });
-
-            return { success: true, data: configs };
-          } finally {
-            pendingRequests.delete(requestKey);
-          }
-        })();
-
-        pendingRequests.set(requestKey, requestPromise);
-        return requestPromise;
-      } catch (error) {
-        const errorMessage = extractErrorMessage(error);
-
-        logger.error("❌ Failed to fetch fleet configs", {
-          error: errorMessage,
-          details: error.response?.data,
+        logger.info("📊 Checker Filter Applied", {
+          userId: user.id,
+          condition: "measurement_type in [Timbangan, Bypass, Beltscale] AND user in checkers",
         });
-
-        return {
-          success: false,
-          data: [],
-          error: errorMessage,
-        };
       }
-    },
+      break;
 
-async createFleetConfig(configData) {
+    case "operator_jt":
+      if (user?.id) {
+        filters.$and = [
+          { measurement_type: { $eq: "Timbangan" } },
+          {
+            // Filter berdasarkan operator yang ada di dalam pair_dt_op
+            setting_dump_truck: {
+              pair_dt_op: {
+                ops: {
+                  id: {
+                    $in: [parseInt(user.id)], // Harus array
+                  },
+                },
+              },
+            },
+          },
+        ];
+
+        logger.info("📊 Operator JT Filter Applied", {
+          userId: user.id,
+          condition: "measurement_type=Timbangan AND user in pair_dt_op.ops",
+        });
+      }
+      break;
+
+    case "ccr":
+    case "pengawas":
+    case "evaluator":
+    case "pic":
+    case "admin":
+    case "mitra":
+    case "super_admin":
+      logger.info("👑 No role-specific filter");
+      break;
+
+    default:
+      logger.warn("⚠️ Unknown role, no role-specific filter", { role });
+      break;
+
+  }
+
+  logger.info("📋 Final buildFilters result", filters);
+  return filters;
+};
+
+
+export const fleetService = {
+async fetchFleetConfigs(options = {}) {
   try {
-    const now = new Date().toISOString();
-    const payload = {
-      unit_exca: configData.excavatorId ? parseInt(configData.excavatorId) : null,
-      loading_location: configData.loadingLocationId ? parseInt(configData.loadingLocationId) : null,
-      dumping_location: configData.dumpingLocationId ? parseInt(configData.dumpingLocationId) : null,
-      coal_type: configData.coalTypeId ? parseInt(configData.coalTypeId) : null,
-      distance: configData.distance || 0,
-      pic_work_unit: configData.workUnitId ? parseInt(configData.workUnitId) : null,
-      created_at: now,
-      measurement_type: configData.measurement_type,
-      pair_dt_op: configData.pairDtOp.map((pair) => ({
-        truckId: parseInt(pair.truckId),
-        operatorId: parseInt(pair.operatorId),
-      })),
-    };
+    const { user, forceRefresh = false } = options;
 
-    if (configData.inspectorId) {
-      payload.inspector = parseInt(configData.inspectorId);
-    } else {
-      throw new Error("Inspector is required");
+    const filterResult = buildFilters({ user });
+
+    if (filterResult.needsFeedback) {
+      return {
+        success: false,
+        data: [],
+        feedback: filterResult.message,
+      };
     }
 
-    if (configData.checkerId) {
-      payload.checker = parseInt(configData.checkerId);
-    } else {
-      throw new Error("Checker is required");
+    const filters = filterResult;
+    const cacheKey = `fleets_${user?.id || "nouser"}`;
+
+    const requestKey = `${cacheKey}_${JSON.stringify(filters)}`;
+
+    if (pendingRequests.has(requestKey)) {
+      logger.info("🔄 Reusing pending request", { requestKey });
+      return pendingRequests.get(requestKey);
     }
 
-    if (configData.createdByUserId) {
-      payload.created_by_user = parseInt(configData.createdByUserId);
+    const ttl = CACHE_TTL.FLEET_DATA;
+
+    logger.info("🔍 Fetching fleet configs", {
+      filters: JSON.stringify(filters),
+      cacheKey,
+      ttl: `${ttl / 1000}s`,
+      forceRefresh,
+    });
+
+    if (forceRefresh) {
+      await offlineService.clearCache(cacheKey);
     }
 
-    if (configData.measurement_type === "Timbangan" && configData.weightBridgeId) {
-      payload.weigh_bridge = parseInt(configData.weightBridgeId);
-    }
-
-    const response = await offlineService.post("/v1/custom/setting-fleet", payload);
-    
-    if (response.status === "success") {
-      const fleetId = response.data?.data?.id_setting_fleet || response.data?.id_setting_fleet;
-      
-      logger.info("✅ Fleet created, ID:", fleetId);
-      
-      // ⚠️ HANYA clear cache, JANGAN fetch ulang di sini
-      await offlineService.clearCache("fleets_");
-      
-      // Fetch detail data yang baru dibuat
+    const requestPromise = (async () => {
       try {
-        const detailResponse = await offlineService.get(`/setting-fleets/${fleetId}`, {
+        const response = await offlineService.get("/setting-fleets", {
           params: {
             populate: [
               "unit_exca",
@@ -232,15 +162,148 @@ async createFleetConfig(configData) {
               "weigh_bridge",
               "setting_dump_truck",
               "setting_dump_truck.pair_dt_op",
+              "setting_dump_truck.pair_dt_op.dts",
               "setting_dump_truck.pair_dt_op.dts.company",
               "setting_dump_truck.pair_dt_op.ops",
-              "checker",
-              "inspector",
+              "checkers",    // ✅ CRITICAL: Must populate
+              "inspectors",  // ✅ CRITICAL: Must populate
             ],
+            sort: ["id:desc"],
+            filters,
+            pagination: { pageSize: 500 },
           },
+          cacheKey,
+          ttl,
+          forceRefresh,
         });
 
-        const transformedData = this._transformFleetConfig(detailResponse.data);
+        const configs = response.data.map((item) =>
+          this._transformFleetConfig(item),
+        );
+
+        logger.info(`✅ Fleet configs fetched: ${configs.length}`, {
+          cached: !forceRefresh,
+          sampleConfig: configs[0] ? {
+            id: configs[0].id,
+            hasCheckers: !!configs[0].checkers,
+            hasInspectors: !!configs[0].inspectors,
+            checkersCount: configs[0].checkers?.length || 0,
+            inspectorsCount: configs[0].inspectors?.length || 0,
+          } : null,
+        });
+
+        return { success: true, data: configs };
+      } finally {
+        pendingRequests.delete(requestKey);
+      }
+    })();
+
+    pendingRequests.set(requestKey, requestPromise);
+    return requestPromise;
+  } catch (error) {
+    const errorMessage = extractErrorMessage(error);
+
+    logger.error("❌ Failed to fetch fleet configs", {
+      error: errorMessage,
+      details: error.response?.data,
+    });
+
+    return {
+      success: false,
+      data: [],
+      error: errorMessage,
+    };
+  }
+},
+
+async createFleetConfig(configData) {
+  try {
+    const now = new Date().toISOString();
+    const payload = {
+      unit_exca: configData.excavatorId
+        ? parseInt(configData.excavatorId)
+        : null,
+      loading_location: configData.loadingLocationId
+        ? parseInt(configData.loadingLocationId)
+        : null,
+      dumping_location: configData.dumpingLocationId
+        ? parseInt(configData.dumpingLocationId)
+        : null,
+      coal_type: configData.coalTypeId
+        ? parseInt(configData.coalTypeId)
+        : null,
+      distance: configData.distance || 0,
+      pic_work_unit: configData.workUnitId
+        ? parseInt(configData.workUnitId)
+        : null,
+      created_at: now,
+      measurement_type: configData.measurement_type,
+      pair_dt_op: configData.pairDtOp.map((pair) => ({
+        truckId: parseInt(pair.truckId),
+        operatorId: parseInt(pair.operatorId),
+      })),
+    };
+
+    if (configData.inspectorIds && Array.isArray(configData.inspectorIds) && configData.inspectorIds.length > 0) {
+      payload.inspectors = configData.inspectorIds.map(id => parseInt(id));
+    } 
+
+    if (configData.checkerIds && Array.isArray(configData.checkerIds) && configData.checkerIds.length > 0) {
+      payload.checkers = configData.checkerIds.map(id => parseInt(id));
+    } 
+    
+    if (configData.createdByUserId) {
+      payload.created_by_user = parseInt(configData.createdByUserId);
+    }
+
+    if (
+      configData.measurement_type === "Timbangan" &&
+      configData.weightBridgeId
+    ) {
+      payload.weigh_bridge = parseInt(configData.weightBridgeId);
+    }
+
+    const response = await offlineService.post(
+      "/v1/custom/setting-fleet",
+      payload,
+    );
+
+    if (response.status === "success") {
+      const fleetId =
+        response.data?.data?.id_setting_fleet ||
+        response.data?.id_setting_fleet;
+
+      logger.info("✅ Fleet created, ID:", fleetId);
+
+      await offlineService.clearCache("fleets_");
+
+      try {
+        const detailResponse = await offlineService.get(
+          `/setting-fleets/${fleetId}`,
+          {
+            params: {
+              populate: [
+                "unit_exca",
+                "unit_exca.company",
+                "loading_location",
+                "dumping_location",
+                "coal_type",
+                "pic_work_unit",
+                "weigh_bridge",
+                "setting_dump_truck",
+                "setting_dump_truck.pair_dt_op",
+                "setting_dump_truck.pair_dt_op.dts.company",
+                "setting_dump_truck.pair_dt_op.ops",
+                "checkers", 
+                "inspectors", 
+              ],
+            },
+          },
+        );
+
+        const transformedData = this._transformFleetConfig(
+          detailResponse.data,
+        );
 
         return {
           success: true,
@@ -253,24 +316,25 @@ async createFleetConfig(configData) {
           error: fetchError.message,
         });
 
-        // Return data minimal jika fetch detail gagal
         return {
           success: true,
           data: {
             id: fleetId.toString(),
-            distance: response.data?.data?.distance || response.data?.distance || 0,
-            measurementType: response.data?.data?.measurement_type || response.data?.measurement_type,
+            distance:
+              response.data?.data?.distance || response.data?.distance || 0,
+            measurementType:
+              response.data?.data?.measurement_type ||
+              response.data?.measurement_type,
           },
           setting_fleet_id: fleetId,
         };
       }
     }
-    
+
     return {
       success: false,
       error: "Failed to create fleet config",
     };
-    
   } catch (error) {
     const errorMessage = extractErrorMessage(error);
     logger.error("❌ Failed to create fleet config", {
@@ -283,13 +347,11 @@ async createFleetConfig(configData) {
       error: errorMessage,
     };
   }
-}, 
-
-// fleetService.js - FIX untuk update pair_dt_op
+},
 
 async updateFleetConfig(configId, updates) {
   try {
-    const payload = { };
+    const payload = {};
 
     if (updates.excavatorId !== undefined) {
       payload.unit_exca = updates.excavatorId
@@ -320,27 +382,46 @@ async updateFleetConfig(configId, updates) {
         ? parseInt(updates.workUnitId)
         : null;
     }
-    if (updates.inspectorId !== undefined) {
-      payload.inspector = updates.inspectorId
-        ? parseInt(updates.inspectorId)
-        : null;
-    }
-    if (updates.checkerId !== undefined) {
-      payload.checker = updates.checkerId
-        ? parseInt(updates.checkerId)
-        : null;
-    }
+    
+    // FIXED: Always send inspectors array if provided
+    if (updates.inspectorIds !== undefined) {
+      if (Array.isArray(updates.inspectorIds) && updates.inspectorIds.length > 0) {
+        payload.inspectors = updates.inspectorIds.map(id => parseInt(id));
+        logger.info("📝 Updating inspectors", {
+          configId,
+          count: payload.inspectors.length,
+          ids: payload.inspectors,
+        });
+      } else {
+        // IMPORTANT: If inspectorIds is empty array, we should handle it
+        logger.warn("⚠️ inspectorIds is empty or invalid", { inspectorIds: updates.inspectorIds });
+      }
+    } 
+    
+    // FIXED: Always send checkers array if provided
+    if (updates.checkerIds !== undefined) {
+      if (Array.isArray(updates.checkerIds) && updates.checkerIds.length > 0) {
+        payload.checkers = updates.checkerIds.map(id => parseInt(id));
+        logger.info("📝 Updating checkers", {
+          configId,
+          count: payload.checkers.length,
+          ids: payload.checkers,
+        });
+      } else {
+        // IMPORTANT: If checkerIds is empty array, we should handle it
+        logger.warn("⚠️ checkerIds is empty or invalid", { checkerIds: updates.checkerIds });
+      }
+    } 
+    
     if (updates.measurementType !== undefined) {
       payload.measurement_type = updates.measurementType;
     }
 
-    // ✅ FIX: Gunakan endpoint custom untuk update pair_dt_op
     if (updates.pairDtOp !== undefined && Array.isArray(updates.pairDtOp)) {
       if (updates.pairDtOp.length === 0) {
         throw new Error("Minimal 1 dump truck harus dipilih");
       }
 
-      // Transform untuk API
       payload.pair_dt_op = updates.pairDtOp.map((pair) => ({
         truckId: parseInt(pair.truckId),
         operatorId: parseInt(pair.operatorId),
@@ -353,14 +434,14 @@ async updateFleetConfig(configId, updates) {
       });
     }
 
-    console.log(payload)
-
     const endpoint = `/v1/custom/setting-fleet/${configId}`;
 
     logger.info("📡 Sending update request", {
       endpoint,
       payload,
       hasPairDtOp: !!payload.pair_dt_op,
+      hasInspectors: !!payload.inspectors,
+      hasCheckers: !!payload.checkers,
     });
 
     const response = await offlineService.put(endpoint, payload);
@@ -370,7 +451,6 @@ async updateFleetConfig(configId, updates) {
       hasData: !!response.data,
     });
 
-    // Clear cache
     await offlineService.clearCacheByPrefix("fleets");
     await offlineService.clearCacheByPrefix("ritases");
 
@@ -379,28 +459,41 @@ async updateFleetConfig(configId, updates) {
       endpoint,
       fieldsUpdated: Object.keys(payload),
       hasDumptrucks: !!payload.pair_dt_op,
+      hasInspectors: !!payload.inspectors,
+      hasCheckers: !!payload.checkers,
     });
 
-    // ✅ Fetch detail data yang sudah terupdate
+    // CRITICAL FIX: Fetch updated data with FULL populate including checkers & inspectors
     try {
-      const detailResponse = await offlineService.get(`/setting-fleets/${configId}`, {
-        params: {
-          populate: [
-            "unit_exca",
-            "unit_exca.company",
-            "loading_location",
-            "dumping_location",
-            "coal_type",
-            "pic_work_unit",
-            "weigh_bridge",
-            "setting_dump_truck",
-            "setting_dump_truck.pair_dt_op",
-            "setting_dump_truck.pair_dt_op.dts.company",
-            "setting_dump_truck.pair_dt_op.ops",
-            "checker",
-            "inspector",
-          ],
+      const detailResponse = await offlineService.get(
+        `/setting-fleets/${configId}`,
+        {
+          params: {
+            populate: [
+              "unit_exca",
+              "unit_exca.company",
+              "loading_location",
+              "dumping_location",
+              "coal_type",
+              "pic_work_unit",
+              "weigh_bridge",
+              "setting_dump_truck",
+              "setting_dump_truck.pair_dt_op",
+              "setting_dump_truck.pair_dt_op.dts",
+              "setting_dump_truck.pair_dt_op.dts.company",
+              "setting_dump_truck.pair_dt_op.ops",
+              "checkers",    // ✅ MUST POPULATE
+              "inspectors",  // ✅ MUST POPULATE
+            ],
+          },
         },
+      );
+
+      logger.info("📦 Detail response received", {
+        hasCheckers: !!detailResponse.data?.attributes?.checkers,
+        hasInspectors: !!detailResponse.data?.attributes?.inspectors,
+        checkersCount: detailResponse.data?.attributes?.checkers?.data?.length || 0,
+        inspectorsCount: detailResponse.data?.attributes?.inspectors?.data?.length || 0,
       });
 
       const transformedData = this._transformFleetConfig(detailResponse.data);
@@ -408,6 +501,10 @@ async updateFleetConfig(configId, updates) {
       logger.info("✅ Updated fleet data transformed", {
         id: transformedData.id,
         unitsCount: transformedData.units?.length || 0,
+        checkersCount: transformedData.checkers?.length || 0,
+        inspectorsCount: transformedData.inspectors?.length || 0,
+        checkerIds: transformedData.checkerIds,
+        inspectorIds: transformedData.inspectorIds,
       });
 
       return {
@@ -415,12 +512,12 @@ async updateFleetConfig(configId, updates) {
         data: transformedData,
       };
     } catch (fetchError) {
-      logger.warn("⚠️ Could not fetch updated fleet details", {
+      logger.error("❌ Could not fetch updated fleet details", {
         configId,
         error: fetchError.message,
       });
 
-      // Return success dengan data minimal jika fetch detail gagal
+      // Fallback: return basic data
       return {
         success: true,
         data: {
@@ -445,301 +542,337 @@ async updateFleetConfig(configId, updates) {
   }
 },
 
-    async getFilteredUnitsByFleet(excavatorId) {
-      try {
-        if (!excavatorId) {
-          throw new Error("excavatorId is required");
+  async getFilteredUnitsByFleet(excavatorId) {
+    try {
+      if (!excavatorId) {
+        throw new Error("excavatorId is required");
+      }
+
+      logger.info("🔍 Getting filtered units for excavator", { excavatorId });
+
+      const excavators = await masterDataService.fetchUnits({
+        type: "EXCAVATOR",
+        forceRefresh: false,
+      });
+
+      const excavator = excavators.find(
+        (e) => String(e.id) === String(excavatorId),
+      );
+
+      if (!excavator?.companyId) {
+        logger.warn("⚠️ Excavator has no company");
+        return { success: true, data: [] };
+      }
+
+      const allDumptrucks = await masterDataService.fetchUnits({
+        type: "DUMP_TRUCK",
+        forceRefresh: false,
+      });
+
+      const filteredUnits = allDumptrucks.filter(
+        (dt) => String(dt.companyId) === String(excavator.companyId),
+      );
+
+      logger.info("✅ Filtered units fetched from cache", {
+        excavatorId,
+        companyId: excavator.companyId,
+        count: filteredUnits.length,
+      });
+
+      return { success: true, data: filteredUnits };
+    } catch (error) {
+      const errorMessage = extractErrorMessage(error);
+
+      logger.error("❌ Failed to get filtered units by excavator", {
+        error: errorMessage,
+        details: error.response?.data,
+      });
+
+      return {
+        success: false,
+        data: [],
+        error: errorMessage,
+      };
+    }
+  },
+
+  async deleteFleetConfig(configId) {
+    try {
+      await offlineService.delete(`/setting-fleets/${configId}`);
+
+      await Promise.all([
+        offlineService.clearCache("fleets_"),
+        offlineService.clearCache(`fleets_${configId}`),
+        offlineService.clearCache("ritases_"),
+        offlineService.clearCacheByPrefix?.("fleets"),
+      ]);
+
+      await new Promise((resolve) => setTimeout(resolve, 200));
+
+      logger.info("🗑️ Fleet config deleted + cache cleared", { id: configId });
+
+      return {
+        success: true,
+        message: "Konfigurasi berhasil dihapus",
+        deletedId: configId,
+      };
+    } catch (error) {
+      const errorMessage = extractErrorMessage(error);
+
+      logger.error("❌ Failed to delete fleet config", {
+        error: errorMessage,
+        details: error.response?.data,
+      });
+
+      return {
+        success: false,
+        error: errorMessage,
+      };
+    }
+  },
+
+  async bulkDeleteFleets(fleetIds) {
+    try {
+      if (!Array.isArray(fleetIds) || fleetIds.length === 0) {
+        throw new Error("Fleet IDs harus berupa array dan tidak boleh kosong");
+      }
+
+      logger.info("🗑️ Bulk deleting fleets", {
+        count: fleetIds.length,
+      });
+
+      const results = {
+        success: [],
+        failed: [],
+        total: fleetIds.length,
+      };
+
+      const validationErrors = [];
+      for (const fleetId of fleetIds) {
+        try {
+          const response = await offlineService.get(
+            `/setting-fleets/${fleetId}`,
+          );
+          const fleet = response.data;
+
+          logger.info("Berhasil menghapus data");
+        } catch (error) {
+          logger.warn(`⚠️ Could not validate fleet ${fleetId}`, {
+            error: error.message,
+          });
         }
+      }
 
-        logger.info("🔍 Getting filtered units for excavator", { excavatorId });
-
-        const excavators = await masterDataService.fetchUnits({
-          type: "EXCAVATOR",
-          forceRefresh: false,
-        });
-
-        const excavator = excavators.find(
-          (e) => String(e.id) === String(excavatorId),
-        );
-
-        if (!excavator?.companyId) {
-          logger.warn("⚠️ Excavator has no company");
-          return { success: true, data: [] };
-        }
-
-        const allDumptrucks = await masterDataService.fetchUnits({
-          type: "DUMP_TRUCK",
-          forceRefresh: false,
-        });
-
-        const filteredUnits = allDumptrucks.filter(
-          (dt) => String(dt.companyId) === String(excavator.companyId),
-        );
-
-        logger.info("✅ Filtered units fetched from cache", {
-          excavatorId,
-          companyId: excavator.companyId,
-          count: filteredUnits.length,
-        });
-
-        return { success: true, data: filteredUnits };
-      } catch (error) {
-        const errorMessage = extractErrorMessage(error);
-
-        logger.error("❌ Failed to get filtered units by excavator", {
-          error: errorMessage,
-          details: error.response?.data,
+      if (validationErrors.length > 0) {
+        logger.warn("⚠️ Bulk delete validation failed", {
+          errors: validationErrors.length,
         });
 
         return {
           success: false,
-          data: [],
-          error: errorMessage,
+          error: `${validationErrors.length}`,
+          results: {
+            success: [],
+            failed: validationErrors,
+            total: fleetIds.length,
+          },
         };
       }
-    },
 
-    async deleteFleetConfig(configId) {
-      try {
-        await offlineService.delete(`/setting-fleets/${configId}`);
+      for (const fleetId of fleetIds) {
+        try {
+          await offlineService.delete(`/setting-fleets/${fleetId}`);
 
-        await Promise.all([
-          offlineService.clearCache("fleets_"),
-          offlineService.clearCache(`fleets_${configId}`),
-          offlineService.clearCache("ritases_"),
-          offlineService.clearCacheByPrefix?.("fleets"),
-        ]);
+          results.success.push({ id: fleetId });
 
-        await new Promise((resolve) => setTimeout(resolve, 200));
+          logger.info(`✅ Fleet ${fleetId} deleted`);
+        } catch (error) {
+          const errorMessage = extractErrorMessage(error);
 
-        logger.info("🗑️ Fleet config deleted + cache cleared", { id: configId });
-
-        return {
-          success: true,
-          message: "Konfigurasi berhasil dihapus",
-          deletedId: configId,
-        };
-      } catch (error) {
-        const errorMessage = extractErrorMessage(error);
-
-        logger.error("❌ Failed to delete fleet config", {
-          error: errorMessage,
-          details: error.response?.data,
-        });
-
-        return {
-          success: false,
-          error: errorMessage,
-        };
-      }
-    },
-
-    async bulkDeleteFleets(fleetIds) {
-      try {
-        if (!Array.isArray(fleetIds) || fleetIds.length === 0) {
-          throw new Error("Fleet IDs harus berupa array dan tidak boleh kosong");
-        }
-
-        logger.info("🗑️ Bulk deleting fleets", {
-          count: fleetIds.length,
-        });
-
-        const results = {
-          success: [],
-          failed: [],
-          total: fleetIds.length,
-        };
-
-        const validationErrors = [];
-        for (const fleetId of fleetIds) {
-          try {
-            const response = await offlineService.get(
-              `/setting-fleets/${fleetId}`,
-            );
-            const fleet = response.data;
-
-            logger.info("Berhasil menghapus data");
-          } catch (error) {
-            logger.warn(`⚠️ Could not validate fleet ${fleetId}`, {
-              error: error.message,
-            });
-          }
-        }
-
-        if (validationErrors.length > 0) {
-          logger.warn("⚠️ Bulk delete validation failed", {
-            errors: validationErrors.length,
+          results.failed.push({
+            id: fleetId,
+            error: errorMessage,
           });
 
-          return {
-            success: false,
-            error: `${validationErrors.length}`,
-            results: {
-              success: [],
-              failed: validationErrors,
-              total: fleetIds.length,
-            },
-          };
+          logger.error(`❌ Failed to delete fleet ${fleetId}`, {
+            error: errorMessage,
+          });
         }
-
-        for (const fleetId of fleetIds) {
-          try {
-            await offlineService.delete(`/setting-fleets/${fleetId}`);
-
-            results.success.push({ id: fleetId });
-
-            logger.info(`✅ Fleet ${fleetId} deleted`);
-          } catch (error) {
-            const errorMessage = extractErrorMessage(error);
-
-            results.failed.push({
-              id: fleetId,
-              error: errorMessage,
-            });
-
-            logger.error(`❌ Failed to delete fleet ${fleetId}`, {
-              error: errorMessage,
-            });
-          }
-        }
-
-        await Promise.all([
-          offlineService.clearCache("fleets_"),
-          offlineService.clearCacheByPrefix("fleets"),
-          offlineService.clearCacheByPrefix("ritases"),
-        ]);
-
-        const allSuccess = results.failed.length === 0;
-
-        logger.info("📊 Bulk delete summary", {
-          total: results.total,
-          success: results.success.length,
-          failed: results.failed.length,
-        });
-
-        return {
-          success: allSuccess,
-          partialSuccess: results.success.length > 0 && results.failed.length > 0,
-          results,
-          message: allSuccess
-            ? `Berhasil menghapus ${results.success.length} fleet`
-            : `${results.success.length} berhasil, ${results.failed.length} gagal`,
-        };
-      } catch (error) {
-        const errorMessage = extractErrorMessage(error);
-
-        logger.error("❌ Bulk delete failed", {
-          error: errorMessage,
-          details: error.response?.data,
-        });
-
-        return {
-          success: false,
-          error: errorMessage,
-          results: { success: [], failed: [], total: 0 },
-        };
       }
-    },
 
-    _transformFleetConfig(apiResponse) {
-      try {
-        const item = apiResponse.data || apiResponse;
-        const attr = item.attributes || item;
-        const normalizeUser = (userData) => {
-          if (!userData) return { name: null, id: null };
+      await Promise.all([
+        offlineService.clearCache("fleets_"),
+        offlineService.clearCacheByPrefix("fleets"),
+        offlineService.clearCacheByPrefix("ritases"),
+      ]);
 
-          if (userData.data) {
-            return {
-              name:
-                userData.data.attributes?.username ||
-                userData.data.attributes?.name ||
-                null,
-              id: userData.data.id?.toString() || null,
-            };
-          }
+      const allSuccess = results.failed.length === 0;
 
-          return {
-            name: userData.username || userData.name || null,
-            id: userData.id?.toString() || null,
-          };
-        };
-
-        const inspector = normalizeUser(attr.inspector);
-        const checker = normalizeUser(attr.checker);
-
-        const pairs = attr.setting_dump_truck?.data?.attributes?.pair_dt_op || [];
-
-        const dumptrucks = pairs.flatMap((pair) => {
-          const dts = pair.dts?.data || [];
-          const ops = pair.ops?.data || [];
-
-          return dts.map((dt) => ({
-            pairId: pair.id?.toString() || "",
-            dumpTruckId: dt.id?.toString() || "",
-            hull_no: dt.attributes?.hull_no || "",
-            type: dt.attributes?.type || "DUMP_TRUCK",
-            tareWeight: dt.attributes?.tare_weight ?? null,
-            company: dt.attributes?.company?.data?.attributes?.name || "-",
-            companyId: dt.attributes?.company?.data?.id?.toString() || "",
-            operator: ops[0]?.attributes?.name || null,
-            operatorId: ops[0]?.id?.toString() || null,
-          }));
-        });
-
-        const excavatorCompanyData =
-          attr.unit_exca?.data?.attributes?.company?.data;
-        const excavatorCompanyId = excavatorCompanyData?.id?.toString() || null;
-        const excavatorCompany = excavatorCompanyData?.attributes?.name || null;
-
-        return {
-          id: item.id.toString(),
-
-          excavator: attr.unit_exca?.data?.attributes?.hull_no || "",
-          excavatorId: attr.unit_exca?.data?.id?.toString() || "",
-
-          excavatorCompanyId,
-          excavatorCompany,
-
-          loadingLocation: attr.loading_location?.data?.attributes?.name || "",
-          loadingLocationId: attr.loading_location?.data?.id?.toString() || "",
-
-          dumpingLocation: attr.dumping_location?.data?.attributes?.name || "",
-          dumpingLocationId: attr.dumping_location?.data?.id?.toString() || "",
-
-          coalType: attr.coal_type?.data?.attributes?.name || "",
-          coalTypeId: attr.coal_type?.data?.id?.toString() || "",
-          distance: attr.distance || 0,
-
-          workUnit: attr.pic_work_unit?.data?.attributes?.subsatker || "",
-          workUnitId: attr.pic_work_unit?.data?.id?.toString() || "",
-
-          weightBridgeId: attr.weigh_bridge?.data?.id?.toString() || "",
-          weightBridge: attr.weigh_bridge?.data?.attributes?.name || "",
-
-          checker: checker.name,
-          checkerId: checker.id,
-          inspector: inspector.name,
-          inspectorId: inspector.id,
-
-          settingDumpTruckId: attr.setting_dump_truck?.data?.id?.toString() || "",
-          dumptruckCount: dumptrucks.length,
-          units: dumptrucks,
-
-          measurementType: attr.measurement_type,
-
-          createdAt: attr.createdAt,
-          updatedAt: attr.updatedAt,
-        };
-      } catch (error) {
-        console.error("❌ Error transforming fleet config:", error, apiResponse);
-        throw error;
-      }
-    },
-
-    clearCache(pattern = null) {
-      logger.info("🗑️ Fleet service cache cleared", {
-        pattern: pattern || "all",
+      logger.info("📊 Bulk delete summary", {
+        total: results.total,
+        success: results.success.length,
+        failed: results.failed.length,
       });
-      return offlineService.clearCache(pattern);
-    },
-  };
+
+      return {
+        success: allSuccess,
+        partialSuccess: results.success.length > 0 && results.failed.length > 0,
+        results,
+        message: allSuccess
+          ? `Berhasil menghapus ${results.success.length} fleet`
+          : `${results.success.length} berhasil, ${results.failed.length} gagal`,
+      };
+    } catch (error) {
+      const errorMessage = extractErrorMessage(error);
+
+      logger.error("❌ Bulk delete failed", {
+        error: errorMessage,
+        details: error.response?.data,
+      });
+
+      return {
+        success: false,
+        error: errorMessage,
+        results: { success: [], failed: [], total: 0 },
+      };
+    }
+  },
+
+_transformFleetConfig(apiResponse) {
+  try {
+    const item = apiResponse.data || apiResponse;
+    const attr = item.attributes || item;
+    
+    // Helper to normalize user data (single or array)
+    const normalizeUser = (userData) => {
+      if (!userData) return { name: null, id: null };
+
+      if (userData.data) {
+        return {
+          name:
+            userData.data.attributes?.username ||
+            userData.data.attributes?.name ||
+            null,
+          id: userData.data.id?.toString() || null,
+        };
+      }
+
+      return {
+        name: userData.username || userData.name || null,
+        id: userData.id?.toString() || null,
+      };
+    };
+
+    // Helper to normalize user array
+    const normalizeUserArray = (userData) => {
+      if (!userData) return [];
+      
+      if (Array.isArray(userData.data)) {
+        return userData.data.map(user => ({
+          name: user.attributes?.username || user.attributes?.name || null,
+          id: user.id?.toString() || null,
+        }));
+      }
+      
+      // Single user fallback
+      const single = normalizeUser(userData);
+      return single.id ? [single] : [];
+    };
+
+    // CHANGED: Handle both single and array inspectors
+    const inspectors = attr.inspectors 
+      ? normalizeUserArray(attr.inspectors)
+      : attr.inspector 
+        ? [normalizeUser(attr.inspector)]
+        : [];
+
+    // CHANGED: Handle both single and array checkers
+    const checkers = attr.checkers
+      ? normalizeUserArray(attr.checkers)
+      : attr.checker
+        ? [normalizeUser(attr.checker)]
+        : [];
+
+    const pairs = attr.setting_dump_truck?.data?.attributes?.pair_dt_op || [];
+
+    const dumptrucks = pairs.flatMap((pair) => {
+      const dts = pair.dts?.data || [];
+      const ops = pair.ops?.data || [];
+
+      return dts.map((dt) => ({
+        pairId: pair.id?.toString() || "",
+        dumpTruckId: dt.id?.toString() || "",
+        hull_no: dt.attributes?.hull_no || "",
+        type: dt.attributes?.type || "DUMP_TRUCK",
+        tareWeight: dt.attributes?.tare_weight ?? null,
+        company: dt.attributes?.company?.data?.attributes?.name || "-",
+        companyId: dt.attributes?.company?.data?.id?.toString() || "",
+        operator: ops[0]?.attributes?.name || null,
+        operatorId: ops[0]?.id?.toString() || null,
+      }));
+    });
+
+    const excavatorCompanyData =
+      attr.unit_exca?.data?.attributes?.company?.data;
+    const excavatorCompanyId = excavatorCompanyData?.id?.toString() || null;
+    const excavatorCompany = excavatorCompanyData?.attributes?.name || null;
+
+    return {
+      id: item.id.toString(),
+
+      excavator: attr.unit_exca?.data?.attributes?.hull_no || "",
+      excavatorId: attr.unit_exca?.data?.id?.toString() || "",
+
+      excavatorCompanyId,
+      excavatorCompany,
+
+      loadingLocation: attr.loading_location?.data?.attributes?.name || "",
+      loadingLocationId: attr.loading_location?.data?.id?.toString() || "",
+
+      dumpingLocation: attr.dumping_location?.data?.attributes?.name || "",
+      dumpingLocationId: attr.dumping_location?.data?.id?.toString() || "",
+
+      coalType: attr.coal_type?.data?.attributes?.name || "",
+      coalTypeId: attr.coal_type?.data?.id?.toString() || "",
+      distance: attr.distance || 0,
+
+      workUnit: attr.pic_work_unit?.data?.attributes?.subsatker || "",
+      workUnitId: attr.pic_work_unit?.data?.id?.toString() || "",
+
+      weightBridgeId: attr.weigh_bridge?.data?.id?.toString() || "",
+      weightBridge: attr.weigh_bridge?.data?.attributes?.name || "",
+
+      // CHANGED: Support both single and array
+      checker: checkers.length > 0 ? checkers[0].name : null,
+      checkerId: checkers.length > 0 ? checkers[0].id : null,
+      checkers: checkers, // ADDED: Array format
+      checkerIds: checkers.map(c => c.id).filter(Boolean), // ADDED
+      
+      inspector: inspectors.length > 0 ? inspectors[0].name : null,
+      inspectorId: inspectors.length > 0 ? inspectors[0].id : null,
+      inspectors: inspectors, // ADDED: Array format
+      inspectorIds: inspectors.map(i => i.id).filter(Boolean), // ADDED
+
+      settingDumpTruckId: attr.setting_dump_truck?.data?.id?.toString() || "",
+      dumptruckCount: dumptrucks.length,
+      units: dumptrucks,
+
+      measurementType: attr.measurement_type,
+
+      createdAt: attr.createdAt,
+      updatedAt: attr.updatedAt,
+    };
+  } catch (error) {
+    console.error("❌ Error transforming fleet config:", error, apiResponse);
+    throw error;
+  }
+},
+
+
+  clearCache(pattern = null) {
+    logger.info("🗑️ Fleet service cache cleared", {
+      pattern: pattern || "all",
+    });
+    return offlineService.clearCache(pattern);
+  },
+};

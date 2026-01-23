@@ -23,11 +23,10 @@ import {
   withErrorHandling,
   validateResponse,
 } from "@/shared/utils/errorHandler";
-import { shallow } from 'zustand/shallow';
+import { shallow } from "zustand/shallow";
 
-// ✅ FIX 1: Stable empty array to prevent re-renders
 const EMPTY_ARRAY = [];
-const PAGE_SIZE = 10; 
+const PAGE_SIZE = 10;
 
 const FleetManagement = ({ Type }) => {
   const { user } = useAuthStore();
@@ -62,15 +61,12 @@ const FleetManagement = ({ Type }) => {
     return canAccessFleetType(Type);
   }, [canAccessFleetType, Type]);
 
-
   const selectedFleetIds = useRitaseStore(
     useCallback((state) => state.selectedFleetIds ?? EMPTY_ARRAY, []),
-    shallow
+    shallow,
   );
-  
-  const setSelectedFleets = useRitaseStore(
-    (state) => state.setSelectedFleets,
-  );
+
+  const setSelectedFleets = useRitaseStore((state) => state.setSelectedFleets);
 
   const {
     isLoading: fleetLoading,
@@ -87,21 +83,20 @@ const FleetManagement = ({ Type }) => {
   const [isSaving, setIsSaving] = useState(false);
   const [filterExpanded, setFilterExpanded] = useState(false);
 
-
-    const allFleetConfigs = useRitaseStore(
+  const allFleetConfigs = useRitaseStore(
     useCallback((state) => state.fleetConfigs ?? EMPTY_ARRAY, []),
-    shallow
+    shallow,
   );
 
- const fleetConfigsByType = useMemo(() => {
+  const fleetConfigsByType = useMemo(() => {
     if (!measurementType) {
       return allFleetConfigs;
     }
-    
+
     const filtered = allFleetConfigs.filter(
-      (config) => config.measurementType === measurementType
+      (config) => config.measurementType === measurementType,
     );
-    
+
     return filtered;
   }, [allFleetConfigs, measurementType]);
 
@@ -159,17 +154,17 @@ const FleetManagement = ({ Type }) => {
     return filtered;
   }, [searchFilteredConfigs, activeFilters]);
   const finalPaginatedConfigs = useMemo(() => {
-  const start = (configPage - 1) * PAGE_SIZE;
-  return finalFilteredConfigs.slice(start, start + PAGE_SIZE);
-}, [finalFilteredConfigs, configPage]);
+    const start = (configPage - 1) * PAGE_SIZE;
+    return finalFilteredConfigs.slice(start, start + PAGE_SIZE);
+  }, [finalFilteredConfigs, configPage]);
 
-const totalPages = useMemo(() => {
-  const pageSize = 10;
-  if (finalFilteredConfigs.length === 0) return 1;
-  const calculated = Math.ceil(finalFilteredConfigs.length / pageSize);
-  
-  return calculated;
-}, [finalFilteredConfigs.length]);
+  const totalPages = useMemo(() => {
+    const pageSize = 10;
+    if (finalFilteredConfigs.length === 0) return 1;
+    const calculated = Math.ceil(finalFilteredConfigs.length / pageSize);
+
+    return calculated;
+  }, [finalFilteredConfigs.length]);
 
   const finalHasActiveFilters = useMemo(
     () =>
@@ -206,23 +201,20 @@ const totalPages = useMemo(() => {
     [fleetConfigsByType],
   );
 
-  const getFleetDumptruckList = useCallback(
-    (fleetConfig) => {
-      if (!fleetConfig) return EMPTY_ARRAY;
-      if (fleetConfig.units?.length > 0) {
-        return fleetConfig.units.map((unit) => ({
-          id: unit.id || unit.dumpTruckId || "",
-          hull_no: unit.hull_no || "-",
-          operatorName: unit.operator || "-",
-          company: unit.company || "-",
-          workUnit: unit.workUnit || "-",
-        }));
-      }
+  const getFleetDumptruckList = useCallback((fleetConfig) => {
+    if (!fleetConfig) return EMPTY_ARRAY;
+    if (fleetConfig.units?.length > 0) {
+      return fleetConfig.units.map((unit) => ({
+        id: unit.id || unit.dumpTruckId || "",
+        hull_no: unit.hull_no || "-",
+        operatorName: unit.operator || "-",
+        company: unit.company || "-",
+        workUnit: unit.workUnit || "-",
+      }));
+    }
 
-      return EMPTY_ARRAY;
-    },
-    [],
-  );
+    return EMPTY_ARRAY;
+  }, []);
 
   const filterOptions = useMemo(
     () => ({
@@ -236,14 +228,18 @@ const totalPages = useMemo(() => {
         label: wu.subsatker,
         hint: wu.satker || "-",
       })),
-      loadingLocations: (masters?.loadingLocations || EMPTY_ARRAY).map((loc) => ({
-        value: String(loc.id),
-        label: loc.name,
-      })),
-      dumpingLocations: (masters?.dumpingLocations || EMPTY_ARRAY).map((loc) => ({
-        value: String(loc.id),
-        label: loc.name,
-      })),
+      loadingLocations: (masters?.loadingLocations || EMPTY_ARRAY).map(
+        (loc) => ({
+          value: String(loc.id),
+          label: loc.name,
+        }),
+      ),
+      dumpingLocations: (masters?.dumpingLocations || EMPTY_ARRAY).map(
+        (loc) => ({
+          value: String(loc.id),
+          label: loc.name,
+        }),
+      ),
     }),
     [masters],
   );
@@ -408,10 +404,20 @@ const handleSaveConfig = async (configData) => {
 
   return await withErrorHandling(
     async () => {
-
       let result;
-      
+
+      // Log what we receive from modal
+      console.log("📥 Received from modal:", {
+        isEdit: !!selectedConfig,
+        configData,
+        hasInspectorIds: !!configData.inspectorIds,
+        hasCheckerIds: !!configData.checkerIds,
+        inspectorIdsCount: configData.inspectorIds?.length,
+        checkerIdsCount: configData.checkerIds?.length,
+      });
+
       if (selectedConfig) {
+        // EDIT MODE
         const updatePayload = {
           excavatorId: configData.excavatorId,
           loadingLocationId: configData.loadingLocationId,
@@ -419,14 +425,28 @@ const handleSaveConfig = async (configData) => {
           coalTypeId: configData.coalTypeId,
           distance: configData.distance,
           workUnitId: configData.workUnitId,
-          inspectorId: configData.inspectorId,
-          checkerId: configData.checkerId,
+          inspectorIds: configData.inspectorIds, // ✅ FIXED: array
+          checkerIds: configData.checkerIds,     // ✅ FIXED: array
           measurementType: configData.measurement_type,
           pairDtOp: configData.pairDtOp,
         };
 
+        console.log("📤 Sending update payload:", {
+          id: selectedConfig.id,
+          payload: updatePayload,
+          hasInspectorIds: !!updatePayload.inspectorIds,
+          hasCheckerIds: !!updatePayload.checkerIds,
+        });
+
         result = await updateConfig(selectedConfig.id, updatePayload);
       } else {
+        // CREATE MODE
+        console.log("📤 Sending create payload:", {
+          configData,
+          hasInspectorIds: !!configData.inspectorIds,
+          hasCheckerIds: !!configData.checkerIds,
+        });
+
         result = await createFleetConfig(configData);
       }
 
@@ -434,13 +454,15 @@ const handleSaveConfig = async (configData) => {
         result,
         selectedConfig ? "update fleet" : "create fleet",
       );
-if (result?.success) {
-  closeModal("config");
-  
-  setTimeout(() => {
-    refreshFleet(); 
-  }, 500);
-}
+      
+      if (result?.success) {
+        console.log("✅ Save successful, result:", result);
+        closeModal("config");
+
+        setTimeout(() => {
+          refreshFleet();
+        }, 500);
+      }
 
       return result;
     },
@@ -533,9 +555,7 @@ if (result?.success) {
         return;
       }
 
-     fleetConfigsByType.filter((f) =>
-        fleetIds.includes(f.id),
-      );
+      fleetConfigsByType.filter((f) => fleetIds.includes(f.id));
 
       setIsSaving(true);
 
@@ -705,29 +725,29 @@ if (result?.success) {
               onResetFilters={handleResetFilters}
             />
 
-<FleetTableContainer
-  filteredConfigs={finalFilteredConfigs}
-  paginatedConfigs={finalPaginatedConfigs}
-  isLoading={isConfigsLoading}
-  hasActiveFilters={finalHasActiveFilters}
-  onResetFilters={handleResetFilters}
-  isRefreshing={isRefreshing}
-  isSaving={isSaving}
-  canRead={canRead}
-  canUpdate={canUpdate && !isReadOnly}
-  canDelete={canDeletePerm && !isReadOnly}
-  onViewConfig={handleViewConfig}
-  onEditConfig={!isReadOnly ? handleEditConfig : undefined}
-  onDeleteConfig={!isReadOnly ? handleDeleteConfig : undefined}
-  getDumptruckCount={getFleetDumptruckCount}
-  getDumptruckList={getFleetDumptruckList}
-  currentPage={configPage}
-  onPageChange={setConfigPage}
-  totalPages={totalPages} // ✅ ADD THIS LINE
-  pageSize={10} // ✅ ADD THIS LINE
-  enableBulkActions={true}
-  onBulkDelete={handleBulkDelete}
-/>
+            <FleetTableContainer
+              filteredConfigs={finalFilteredConfigs}
+              paginatedConfigs={finalPaginatedConfigs}
+              isLoading={isConfigsLoading}
+              hasActiveFilters={finalHasActiveFilters}
+              onResetFilters={handleResetFilters}
+              isRefreshing={isRefreshing}
+              isSaving={isSaving}
+              canRead={canRead}
+              canUpdate={canUpdate && !isReadOnly}
+              canDelete={canDeletePerm && !isReadOnly}
+              onViewConfig={handleViewConfig}
+              onEditConfig={!isReadOnly ? handleEditConfig : undefined}
+              onDeleteConfig={!isReadOnly ? handleDeleteConfig : undefined}
+              getDumptruckCount={getFleetDumptruckCount}
+              getDumptruckList={getFleetDumptruckList}
+              currentPage={configPage}
+              onPageChange={setConfigPage}
+              totalPages={totalPages}
+              pageSize={10}
+              enableBulkActions={true}
+              onBulkDelete={handleBulkDelete}
+            />
           </div>
         </div>
       </div>

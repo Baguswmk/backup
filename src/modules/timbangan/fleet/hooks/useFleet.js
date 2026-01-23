@@ -1,5 +1,3 @@
-// useFleet.js - CLEANED VERSION (removed fleetConfigsByType)
-
 import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { fleetService } from "@/modules/timbangan/fleet/services/fleetService";
 import { masterDataService } from "@/modules/timbangan/masterData/services/masterDataService";
@@ -67,7 +65,7 @@ export const useFleet = (userAuth = null, measurementType = null) => {
 
   const isInitializedRef = useRef(false);
   const abortControllerRef = useRef(null);
-  
+
   const loadingStateRef = useRef({
     masters: false,
     fleets: false,
@@ -94,7 +92,6 @@ export const useFleet = (userAuth = null, measurementType = null) => {
 
       return await withErrorHandling(
         async () => {
-
           const allMasters = await masterDataService.fetchAllMasters({
             forceRefresh,
             userRole: user?.role,
@@ -103,8 +100,12 @@ export const useFleet = (userAuth = null, measurementType = null) => {
 
           const mastersData = {
             excavators: allMasters.excavators,
-            loadingLocations: allMasters.locations.filter(l => l.type === 'LOADING'),
-            dumpingLocations: allMasters.locations.filter(l => l.type === 'DUMPING'),
+            loadingLocations: allMasters.locations.filter(
+              (l) => l.type === "LOADING",
+            ),
+            dumpingLocations: allMasters.locations.filter(
+              (l) => l.type === "DUMPING",
+            ),
             workUnits: allMasters.workUnits,
             companies: allMasters.companies,
             coalTypes: allMasters.coalTypes,
@@ -116,7 +117,6 @@ export const useFleet = (userAuth = null, measurementType = null) => {
 
           setMasters(mastersData);
           setAvailableUnits(allMasters.dumptrucks);
-
 
           return { success: true, fromCache: !forceRefresh };
         },
@@ -133,7 +133,7 @@ export const useFleet = (userAuth = null, measurementType = null) => {
         setMastersLoading(false);
       });
     },
-    [user]
+    [user],
   );
 
   const preloadAllFleets = useCallback(
@@ -156,11 +156,9 @@ export const useFleet = (userAuth = null, measurementType = null) => {
 
       return withErrorHandling(
         async () => {
-          // ✅ Tidak ada lagi filter by type di sini, ambil semua
           if (options.forceRefresh) {
             await offlineService.clearCache(`fleets_${user?.id || "nouser"}`);
           }
-
 
           const startTime = performance.now();
 
@@ -182,7 +180,6 @@ export const useFleet = (userAuth = null, measurementType = null) => {
 
           const newConfigs = result.data || [];
 
-          // ✅ SIMPLIFIED: Langsung set, tidak ada by-type grouping
           useRitaseStore.setState({
             fleetConfigs: newConfigs,
           });
@@ -190,19 +187,19 @@ export const useFleet = (userAuth = null, measurementType = null) => {
           if (!options.skipAutoActivate && !isInitializedRef.current) {
             const currentStore = useRitaseStore.getState();
             const currentSelectedIds = currentStore.selectedFleetIds || [];
-            
-          if (currentSelectedIds.length > 0) {
+
+            if (currentSelectedIds.length > 0) {
               const validIds = currentSelectedIds.filter((id) => {
                 return newConfigs.some((c) => c.id === id);
               });
-              
+
               if (validIds.length !== currentSelectedIds.length) {
                 setSelectedFleets(validIds);
               }
-              
+
               if (validIds.length > 0) {
-                const selectedConfigs = newConfigs.filter(c => 
-                  validIds.includes(c.id)
+                const selectedConfigs = newConfigs.filter((c) =>
+                  validIds.includes(c.id),
                 );
                 setDumptruckIndexFromConfigs(selectedConfigs);
               }
@@ -250,13 +247,13 @@ export const useFleet = (userAuth = null, measurementType = null) => {
           });
 
           if (result.success) {
-            // ✅ SIMPLIFIED: Langsung set
             useRitaseStore.setState({
               fleetConfigs: result.data,
             });
 
             if (!options.skipAutoActivate && result.data.length > 0) {
-              const currentSelectedIds = useRitaseStore.getState().selectedFleetIds;
+              const currentSelectedIds =
+                useRitaseStore.getState().selectedFleetIds;
 
               const finalSelection = currentSelectedIds.filter((id) => {
                 return result.data.some((c) => c.id === id);
@@ -267,8 +264,8 @@ export const useFleet = (userAuth = null, measurementType = null) => {
               }
 
               if (finalSelection.length > 0) {
-                const selectedConfigs = result.data.filter(c => 
-                  finalSelection.includes(c.id)
+                const selectedConfigs = result.data.filter((c) =>
+                  finalSelection.includes(c.id),
                 );
                 setDumptruckIndexFromConfigs(selectedConfigs);
               }
@@ -295,35 +292,26 @@ export const useFleet = (userAuth = null, measurementType = null) => {
 
   const getFilteredUnitsForFleet = useCallback(async (excavatorId) => {
     try {
-      console.log('🔍 Filtering units for excavator', { excavatorId });
-
-      const excavators = await masterDataService.fetchUnits({ 
-        type: 'EXCAVATOR' 
+      const excavators = await masterDataService.fetchUnits({
+        type: "EXCAVATOR",
       });
-      const dumptrucks = await masterDataService.fetchUnits({ 
-        type: 'DUMP_TRUCK' 
+      const dumptrucks = await masterDataService.fetchUnits({
+        type: "DUMP_TRUCK",
       });
 
-      const excavator = excavators.find(e => e.id === excavatorId);
+      const excavator = excavators.find((e) => e.id === excavatorId);
       if (!excavator?.companyId) {
-        console.log('⚠️ Excavator has no company');
         return [];
       }
 
       const filtered = dumptrucks.filter(
-        dt => String(dt.companyId) === String(excavator.companyId)
+        (dt) => String(dt.companyId) === String(excavator.companyId),
       );
 
       setFilteredUnitsByFleet((prev) => ({
         ...prev,
         [String(excavatorId)]: filtered,
       }));
-
-      console.log('✅ Units filtered', { 
-        excavatorId, 
-        companyId: excavator.companyId,
-        count: filtered.length 
-      });
 
       return filtered;
     } catch (error) {
@@ -339,9 +327,15 @@ const createFleetConfig = useCallback(
 
     return await withErrorHandling(
       async () => {
-        if (!configData.inspectorId)
-          throw new Error("Inspector wajib dipilih");
-        if (!configData.checkerId) throw new Error("Checker wajib dipilih");
+        // CHANGED: Validate inspectorIds array
+        if (!configData.inspectorIds || !Array.isArray(configData.inspectorIds) || configData.inspectorIds.length === 0) {
+          throw new Error("Minimal 1 inspector wajib dipilih");
+        }
+        
+        // CHANGED: Validate checkerIds array
+        if (!configData.checkerIds || !Array.isArray(configData.checkerIds) || configData.checkerIds.length === 0) {
+          throw new Error("Minimal 1 checker wajib dipilih");
+        }
 
         const enrichedData = {
           ...configData,
@@ -357,8 +351,10 @@ const createFleetConfig = useCallback(
             Beltscale: "Beltscale",
           };
 
-          const fleetType = configData.fleetType || measurementType || "Timbangan";
-          enrichedData.measurement_type = fleetTypeMap[fleetType] || measurementType || "Timbangan";
+          const fleetType =
+            configData.fleetType || measurementType || "Timbangan";
+          enrichedData.measurement_type =
+            fleetTypeMap[fleetType] || measurementType || "Timbangan";
         }
 
         const satkerId = user?.work_unit?.id || user?.workUnit?.id;
@@ -372,9 +368,8 @@ const createFleetConfig = useCallback(
         const result = await fleetService.createFleetConfig(enrichedData);
 
         if (result.success) {
-          // ✅ HANYA clear cache, JANGAN fetch
           await offlineService.clearCache("fleets_");
-          
+
           return { success: true, data: result.data };
         }
 
@@ -394,50 +389,61 @@ const createFleetConfig = useCallback(
   [user, userRoleInfo, measurementType],
 );
 
-const updateConfig = useCallback(
-  async (configId, updates) => {
-    setIsLoading(true);
-    setError(null);
+// UPDATE: updateConfig function
+const updateConfig = useCallback(async (configId, updates) => {
+  setIsLoading(true);
+  setError(null);
 
-    const currentConfigs = useRitaseStore.getState().fleetConfigs;
-    const optimisticConfigs = currentConfigs.map((c) =>
-      c.id === configId ? { ...c, ...updates } : c,
-    );
+  const currentConfigs = useRitaseStore.getState().fleetConfigs;
+  const optimisticConfigs = currentConfigs.map((c) =>
+    c.id === configId ? { ...c, ...updates } : c,
+  );
 
-    useRitaseStore.setState({ fleetConfigs: optimisticConfigs });
+  useRitaseStore.setState({ fleetConfigs: optimisticConfigs });
 
-    return await withErrorHandling(
-      async () => {
-        const result = await fleetService.updateFleetConfig(
-          configId,
-          updates,
-        );
-
-        if (result.success) {
-          await offlineService.clearCacheByPrefix("fleets");
-          await offlineService.clearCacheByPrefix("ritases");
-
-          return { success: true, data: result.data };
+  return await withErrorHandling(
+    async () => {
+      // CHANGED: Validate inspectorIds if provided
+      if (updates.inspectorIds !== undefined) {
+        if (!Array.isArray(updates.inspectorIds) || updates.inspectorIds.length === 0) {
+          throw new Error("Minimal 1 inspector wajib dipilih");
         }
+      }
 
+      console.log(updates)
+      
+      // CHANGED: Validate checkerIds if provided
+      if (updates.checkerIds !== undefined) {
+        if (!Array.isArray(updates.checkerIds) || updates.checkerIds.length === 0) {
+          throw new Error("Minimal 1 checker wajib dipilih");
+        }
+      }
+
+      const result = await fleetService.updateFleetConfig(configId, updates);
+
+      if (result.success) {
+        await offlineService.clearCacheByPrefix("fleets");
+        await offlineService.clearCacheByPrefix("ritases");
+
+        return { success: true, data: result.data };
+      }
+
+      useRitaseStore.setState({ fleetConfigs: currentConfigs });
+      throw new Error(result.error || "Failed to update config");
+    },
+    {
+      operation: "update fleet config",
+      showSuccessToast: true,
+      successMessage: "Konfigurasi fleet berhasil diperbarui",
+      onError: (err) => {
         useRitaseStore.setState({ fleetConfigs: currentConfigs });
-        throw new Error(result.error || "Failed to update config");
+        setError(err.message);
       },
-      {
-        operation: "update fleet config",
-        showSuccessToast: true,
-        successMessage: "Konfigurasi fleet berhasil diperbarui",
-        onError: (err) => {
-          useRitaseStore.setState({ fleetConfigs: currentConfigs });
-          setError(err.message);
-        },
-      },
-    ).finally(() => {
-      setIsLoading(false);
-    });
-  },
-  [],
-);
+    },
+  ).finally(() => {
+    setIsLoading(false);
+  });
+}, []);
 
   const deleteConfig = useCallback(
     async (configId) => {
@@ -452,7 +458,6 @@ const updateConfig = useCallback(
         selectedFleetIds: [...currentState.selectedFleetIds],
       };
 
-      // ✅ SIMPLIFIED: Langsung filter tanpa by-type
       const optimisticConfigs = currentConfigs.filter((c) => c.id !== configId);
 
       useRitaseStore.setState({
@@ -521,24 +526,17 @@ const updateConfig = useCallback(
     [preloadAllFleets],
   );
 
-  const refreshMasters = useCallback(
-    async () => {
-      console.log('🔄 Refreshing masters via masterDataService');
-      return loadMasters({ forceRefresh: true });
-    },
-    [loadMasters]
-  );
+  const refreshMasters = useCallback(async () => {
+    return loadMasters({ forceRefresh: true });
+  }, [loadMasters]);
 
   const clearMastersCache = useCallback(() => {
-    console.log('🗑️ Clearing masters cache');
     masterDataService.clearCache();
   }, []);
 
   useEffect(() => {
     const unsubscribe = masterDataService.onUpdate((event) => {
-      console.log('📢 Master data updated:', event);
-      
-      if (event.category === 'units' || event.category === 'all') {
+      if (event.category === "units" || event.category === "all") {
         loadMasters({ forceRefresh: true });
       }
     });
@@ -555,17 +553,14 @@ const updateConfig = useCallback(
 
     const initializeData = async () => {
       try {
-        console.log('🚀 Starting initialization sequence...');
-        
         await loadMasters();
-        
+
         if (!isMounted) return;
 
         await preloadAllFleets();
-        
+
         if (isMounted) {
           isInitializedRef.current = true;
-          console.log('✅ Initialization complete');
         }
       } catch (error) {
         console.error("❌ Failed to initialize:", error);
