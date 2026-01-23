@@ -33,52 +33,90 @@ const TimbanganInternalPage = () => {
   const { user } = useAuthStore();
   const userRole = user?.role;
   const getDefaultMenu = () => {
-    if (userRole === 'operator_jt') {
-      return 'Ritase';
+    if (userRole === "operator_jt") {
+      return "Ritase";
     }
-    return 'Setting Fleet';
+    return "Setting Fleet";
   };
-  
+
   const [activeMenu, setActiveMenu] = useState(getDefaultMenu());
 
-const menuItems = useMemo(() => [
-  {
-    name: "Setting Fleet",
-    icon: Cog,
-    roles: ["checker", "pic", "pengawas", "evaluator", "admin", "super_admin", "ccr"],
-    locationId: "Setting Fleet",
-  },
-  {
-    name: "Ritase",
-    icon: Scale,
-    roles: ["checker", "pic", "pengawas", "operator_jt", "evaluator", "admin", "super_admin", "ccr"],
-    locationId: "ritase",
-  },
-  {
-    name: "Ritase History",
-    icon: History,
-    roles: ["checker", "pic", "pengawas", "operator_jt", "evaluator", "admin", "super_admin", "ccr"],
-    locationId: "ritase-history",
-  },
-  {
-    name: "Beltscale",
-    icon: Scale,
-    roles: ["checker", "pic", "pengawas", "operator_jt", "evaluator", "admin", "super_admin", "ccr"],
-    locationId: "beltscale",
-  },
-  {
-    name: "Overview",
-    icon: BarChart3,
-    roles: ["admin", "super_admin"],
-    locationId: "overview",
-  },
-  {
-    name: "Master Data",
-    icon: Database,
-    roles: ["super_admin", "operator_jt", "ccr", "admin"],
-    locationId: "master-data",
-  },
-], []);
+  const menuItems = useMemo(
+    () => [
+      {
+        name: "Setting Fleet",
+        icon: Cog,
+        roles: [
+          "checker",
+          "pic",
+          "pengawas",
+          "evaluator",
+          "admin",
+          "super_admin",
+          "ccr",
+        ],
+        locationId: "Setting Fleet",
+      },
+      {
+        name: "Ritase",
+        icon: Scale,
+        roles: [
+          "checker",
+          "pic",
+          "pengawas",
+          "operator_jt",
+          "evaluator",
+          "admin",
+          "super_admin",
+          "ccr",
+        ],
+        locationId: "ritase",
+      },
+      {
+        name: "Ritase History",
+        icon: History,
+        roles: [
+          "checker",
+          "pic",
+          "pengawas",
+          "operator_jt",
+          "evaluator",
+          "admin",
+          "super_admin",
+          "ccr",
+        ],
+        locationId: "ritase-history",
+      },
+      {
+        name: "Beltscale",
+        icon: Scale,
+        roles: [
+          "checker",
+          "pic",
+          "pengawas",
+          "operator_jt",
+          "evaluator",
+          "admin",
+          "super_admin",
+          "ccr",
+        ],
+        locationId: "beltscale",
+      },
+      {
+        name: "Overview",
+        icon: BarChart3,
+        roles: ["admin", "super_admin"],
+        locationId: "overview",
+      },
+      {
+        name: "Master Data",
+        icon: Database,
+        roles: ["super_admin", "operator_jt", "ccr", "admin"],
+        locationId: "master-data",
+      },
+    ],
+    [],
+  );
 
   const isMenuAccessible = useCallback(
     (menuItem) => {
@@ -209,10 +247,10 @@ const menuItems = useMemo(() => [
                 <FleetManagement Type="Setting Fleet" />
               ) : activeMenu === "Ritase" ? (
                 <RitaseManagement Type="Ritase" />
-              ): activeMenu === "Ritase History" ? (
-                <RitaseHistory Type="Ritase History"  />
+              ) : activeMenu === "Ritase History" ? (
+                <RitaseHistory Type="Ritase History" />
               ) : activeMenu === "Beltscale" ? (
-                <BeltscaleManagement Type="Beltscale"  />
+                <BeltscaleManagement Type="Beltscale" />
               ) : activeMenu === "Overview" ? (
                 <OverviewPage />
               ) : activeMenu === "Master Data" ? (

@@ -23,7 +23,7 @@ const ThemeToggle = () => {
       applyTheme(savedTheme);
     } else {
       const prefersDark = window.matchMedia(
-        "(prefers-color-scheme: dark)"
+        "(prefers-color-scheme: dark)",
       ).matches;
       const initialTheme = prefersDark ? "dark" : "light";
       setTheme("system");
@@ -48,7 +48,7 @@ const ThemeToggle = () => {
 
     if (newTheme === "system") {
       const prefersDark = window.matchMedia(
-        "(prefers-color-scheme: dark)"
+        "(prefers-color-scheme: dark)",
       ).matches;
       actualTheme = prefersDark ? "dark" : "light";
     }
@@ -62,7 +62,7 @@ const ThemeToggle = () => {
     window.dispatchEvent(
       new CustomEvent("themechange", {
         detail: { theme: actualTheme },
-      })
+      }),
     );
   };
 
@@ -75,7 +75,7 @@ const ThemeToggle = () => {
   const getCurrentTheme = () => {
     if (theme === "system") {
       const prefersDark = window.matchMedia(
-        "(prefers-color-scheme: dark)"
+        "(prefers-color-scheme: dark)",
       ).matches;
       return prefersDark ? "dark" : "light";
     }
@@ -106,7 +106,7 @@ const ThemeToggle = () => {
           className={cn(
             "w-9 h-9 rounded-md transition-all duration-200",
             "hover:bg-gray-100 dark:hover:bg-slate-700",
-            "dark:text-gray-200 cursor-pointer"
+            "dark:text-gray-200 cursor-pointer",
           )}
           aria-label="Toggle theme"
         >
@@ -123,7 +123,7 @@ const ThemeToggle = () => {
         align="end"
         className={cn(
           "w-40 shadow-lg transition-colors duration-200",
-          "bg-neutral-50 dark:bg-slate-900 border-gray-200 dark:border-slate-700"
+          "bg-neutral-50 dark:bg-slate-900 border-gray-200 dark:border-slate-700",
         )}
       >
         <DropdownMenuItem
@@ -133,7 +133,7 @@ const ThemeToggle = () => {
             "hover:bg-gray-100 dark:hover:bg-slate-800",
             "dark:text-gray-200",
             theme === "light" &&
-              "bg-orange-50 dark:bg-orange-900/20 font-medium text-[#ea661c] dark:text-orange-400"
+              "bg-orange-50 dark:bg-orange-900/20 font-medium text-[#ea661c] dark:text-orange-400",
           )}
         >
           <Sun className="w-4 h-4 text-yellow-500" />
@@ -152,7 +152,7 @@ const ThemeToggle = () => {
             "hover:bg-gray-100 dark:hover:bg-slate-800",
             "dark:text-gray-200",
             theme === "dark" &&
-              "bg-orange-50 dark:bg-orange-900/20 font-medium text-[#ea661c] dark:text-orange-400"
+              "bg-orange-50 dark:bg-orange-900/20 font-medium text-[#ea661c] dark:text-orange-400",
           )}
         >
           <Moon className="w-4 h-4 text-blue-500 dark:text-blue-400" />
@@ -171,7 +171,7 @@ const ThemeToggle = () => {
             "hover:bg-gray-100 dark:hover:bg-slate-800",
             "dark:text-gray-200",
             theme === "system" &&
-              "bg-orange-50 dark:bg-orange-900/20 font-medium text-[#ea661c] dark:text-orange-400"
+              "bg-orange-50 dark:bg-orange-900/20 font-medium text-[#ea661c] dark:text-orange-400",
           )}
         >
           <Monitor className="w-4 h-4 text-gray-500 dark:text-gray-400" />

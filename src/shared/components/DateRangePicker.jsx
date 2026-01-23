@@ -1,18 +1,26 @@
-import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { format } from 'date-fns';
-import { id } from 'date-fns/locale';
-import { Calendar as CalendarIcon, Filter, X } from 'lucide-react';
-import { Button } from '@/shared/components/ui/button';
-import { Calendar } from '@/shared/components/ui/calendar';
+import React, { useState, useCallback, useEffect, useRef } from "react";
+import { format } from "date-fns";
+import { id } from "date-fns/locale";
+import { Calendar as CalendarIcon, Filter, X } from "lucide-react";
+import { Button } from "@/shared/components/ui/button";
+import { Calendar } from "@/shared/components/ui/calendar";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from '@/shared/components/ui/popover';
-import { cn } from '@/lib/utils';
-import { showToast } from '@/shared/utils/toast';
-import { getTodayDateRange, validateDateRange, formatDate } from '@/shared/utils/date';
-import { getCurrentShift, getShiftOptions, getShiftLabel } from '@/shared/utils/shift';
+} from "@/shared/components/ui/popover";
+import { cn } from "@/lib/utils";
+import { showToast } from "@/shared/utils/toast";
+import {
+  getTodayDateRange,
+  validateDateRange,
+  formatDate,
+} from "@/shared/utils/date";
+import {
+  getCurrentShift,
+  getShiftOptions,
+  getShiftLabel,
+} from "@/shared/utils/shift";
 
 export const DateRangePicker = ({
   dateRange = {},
@@ -42,16 +50,14 @@ export const DateRangePicker = ({
   });
 
   const [isOpen, setIsOpen] = useState(false);
-  
-  // ✅ Use ref to track latest shift
+
   const shiftRef = useRef(shift);
   const selectRef = useRef(null);
-  
+
   useEffect(() => {
     shiftRef.current = shift;
   }, [shift]);
 
-  // Sync dates from parent
   useEffect(() => {
     if (dateRange.from && dateRange.to) {
       setDate({
@@ -61,7 +67,6 @@ export const DateRangePicker = ({
     }
   }, [dateRange.from, dateRange.to]);
 
-  // ✅ Sync shift ONLY when popover opens
   useEffect(() => {
     if (isOpen && viewingShift) {
       setShift(viewingShift);
@@ -72,29 +77,30 @@ export const DateRangePicker = ({
     setDate(selectedRange);
   }, []);
 
-  // ✅ FIXED: Immediate update without delay
-  const handleShiftChange = useCallback((value) => {
-    setShift(value);
-    shiftRef.current = value; // ✅ Update ref immediately
-  }, [shift]);
+  const handleShiftChange = useCallback(
+    (value) => {
+      setShift(value);
+      shiftRef.current = value;
+    },
+    [shift],
+  );
 
   const handleApply = useCallback(() => {
-    // ✅ Get latest value from ref
     const finalShift = shiftRef.current;
-    
+
     if (!date?.from) {
-      showToast.error('Silakan pilih tanggal mulai');
+      showToast.error("Silakan pilih tanggal mulai");
       return;
     }
 
     if (!date?.to) {
-      showToast.error('Silakan pilih tanggal akhir');
+      showToast.error("Silakan pilih tanggal akhir");
       return;
     }
 
-    const startDate = format(date.from, 'yyyy-MM-dd');
-    const endDate = format(date.to, 'yyyy-MM-dd');
-    
+    const startDate = format(date.from, "yyyy-MM-dd");
+    const endDate = format(date.to, "yyyy-MM-dd");
+
     const validation = validateDateRange({ from: startDate, to: endDate });
     if (!validation.valid) {
       showToast.error(validation.error);
@@ -104,35 +110,32 @@ export const DateRangePicker = ({
     const payload = {
       startDate,
       endDate,
-      shift: finalShift, // ✅ Use ref value
+      shift: finalShift,
       from: startDate,
       to: endDate,
     };
-    
-    
+
     onDateRangeChange(payload);
     setIsOpen(false);
-    
   }, [date, onDateRangeChange, setIsOpen]);
 
   const handleReset = useCallback(() => {
     const today = getTodayDateRange();
     const resetShift = currentShift || getCurrentShift();
-    
-    setDate({ 
-      from: new Date(today.from), 
-      to: new Date(today.to) 
+
+    setDate({
+      from: new Date(today.from),
+      to: new Date(today.to),
     });
     setShift(resetShift);
     shiftRef.current = resetShift;
-    
   }, [currentShift]);
 
   const displayText = date?.from
     ? date.to
-      ? `${formatDate(date.from, 'dd MMM yyyy')} - ${formatDate(date.to, 'dd MMM yyyy')} | ${getShiftLabel(shift)}`
-      : `${formatDate(date.from, 'dd MMM yyyy')} | ${getShiftLabel(shift)}`
-    : 'Pilih tanggal & shift';
+      ? `${formatDate(date.from, "dd MMM yyyy")} - ${formatDate(date.to, "dd MMM yyyy")} | ${getShiftLabel(shift)}`
+      : `${formatDate(date.from, "dd MMM yyyy")} | ${getShiftLabel(shift)}`
+    : "Pilih tanggal & shift";
 
   return (
     <div>
@@ -141,9 +144,9 @@ export const DateRangePicker = ({
           <Button
             variant="ghost"
             className={cn(
-              'w-full justify-start text-left font-normal cursor-pointer hover:bg-gray-200 truncate',
-              'dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-700',
-              !date && 'text-muted-foreground dark:text-gray-500'
+              "w-full justify-start text-left font-normal cursor-pointer hover:bg-gray-200 truncate",
+              "dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-700",
+              !date && "text-muted-foreground dark:text-gray-500",
             )}
             disabled={isLoading}
           >
@@ -151,15 +154,17 @@ export const DateRangePicker = ({
             {displayText}
           </Button>
         </PopoverTrigger>
-        <PopoverContent 
-          className="w-auto p-0 bg-neutral-50 border-none dark:bg-gray-800 dark:border-gray-700" 
+        <PopoverContent
+          className="w-auto p-0 bg-neutral-50 border-none dark:bg-gray-800 dark:border-gray-700"
           align="start"
           side="bottom"
           sideOffset={4}
         >
           <div className="max-h-[min(85vh,600px)] overflow-y-auto overflow-x-hidden">
             <div className="p-3 sticky top-0 bg-neutral-50 dark:bg-gray-800 dark:border-gray-700 z-10">
-              <p className="text-sm font-medium dark:text-gray-200">Filter Tanggal & Shift</p>
+              <p className="text-sm font-medium dark:text-gray-200">
+                Filter Tanggal & Shift
+              </p>
             </div>
 
             <div className="p-3 dark:bg-gray-800">
@@ -182,7 +187,7 @@ export const DateRangePicker = ({
                   <label className="text-sm font-medium mb-2 block dark:text-gray-200">
                     Pilih Shift: {shift}
                   </label>
-                  
+
                   {/* ✅ Native select as fallback for debugging */}
                   <select
                     ref={selectRef}

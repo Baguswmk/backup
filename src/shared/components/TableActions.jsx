@@ -1,12 +1,12 @@
-import React from 'react';
-import { Button } from '@/shared/components/ui/button';
+import React from "react";
+import { Button } from "@/shared/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
   DropdownMenuContent,
   DropdownMenuItem,
-} from '@/shared/components/ui/dropdown-menu';
-import { MoreVertical } from 'lucide-react';
+} from "@/shared/components/ui/dropdown-menu";
+import { MoreVertical } from "lucide-react";
 
 const TableActions = ({ actions, disabled = false }) => {
   return (
@@ -21,14 +21,19 @@ const TableActions = ({ actions, disabled = false }) => {
           <MoreVertical className="h-4 w-4" />
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="dark:bg-gray-800 dark:border-gray-700 bg-neutral-50 border-none">
+      <DropdownMenuContent
+        align="end"
+        className="dark:bg-gray-800 dark:border-gray-700 bg-neutral-50 border-none"
+      >
         {actions.map((action, idx) => (
           <DropdownMenuItem
             key={idx}
             onClick={action.onClick}
             disabled={action.disabled}
             className={`cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-700 dark:text-gray-200 ${
-              action.variant === 'destructive' ? 'text-red-600 dark:text-red-400' : ''
+              action.variant === "destructive"
+                ? "text-red-600 dark:text-red-400"
+                : ""
             }`}
           >
             {action.icon && <action.icon className="w-4 h-4 mr-2" />}

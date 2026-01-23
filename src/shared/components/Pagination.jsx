@@ -5,7 +5,7 @@ import { ChevronRight, ChevronLeft } from "lucide-react";
 const Pagination = ({ currentPage, totalPages, onPageChange, isLoading }) => {
   const pages = useMemo(() => {
     const items = [];
-    const isMobile = typeof window !== 'undefined' && window.innerWidth < 640;
+    const isMobile = typeof window !== "undefined" && window.innerWidth < 640;
     const maxVisible = isMobile ? 3 : 5;
 
     if (totalPages <= maxVisible) {
@@ -54,7 +54,9 @@ const Pagination = ({ currentPage, totalPages, onPageChange, isLoading }) => {
               onClick={() => typeof page === "number" && onPageChange(page)}
               disabled={typeof page !== "number" || isLoading}
               className="cursor-pointer disabled:cursor-not-allowed min-w-8 h-8 px-2 text-xs shrink-0 dark:border-gray-700 dark:hover:bg-gray-700 dark:text-gray-200"
-              aria-label={typeof page === "number" ? `Page ${page}` : "More pages"}
+              aria-label={
+                typeof page === "number" ? `Page ${page}` : "More pages"
+              }
               aria-current={page === currentPage ? "page" : undefined}
             >
               {page}
@@ -96,7 +98,9 @@ const Pagination = ({ currentPage, totalPages, onPageChange, isLoading }) => {
             onClick={() => typeof page === "number" && onPageChange(page)}
             disabled={typeof page !== "number" || isLoading}
             className="cursor-pointer disabled:cursor-not-allowed min-w-9 dark:border-gray-700 dark:hover:bg-gray-700 dark:text-gray-200"
-            aria-label={typeof page === "number" ? `Page ${page}` : "More pages"}
+            aria-label={
+              typeof page === "number" ? `Page ${page}` : "More pages"
+            }
             aria-current={page === currentPage ? "page" : undefined}
           >
             {page}

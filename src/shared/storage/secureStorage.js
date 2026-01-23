@@ -60,7 +60,7 @@ export const secureStorage = {
 
       if (!decryptedString) {
         throw new Error(
-          "Decryption resulted in empty string - possibly wrong key"
+          "Decryption resulted in empty string - possibly wrong key",
         );
       }
 
@@ -75,7 +75,7 @@ export const secureStorage = {
       } catch (removeError) {
         console.error(
           `❌ Failed to remove corrupted key "${key}":`,
-          removeError
+          removeError,
         );
       }
 

@@ -23,7 +23,7 @@ export const retryWithBackoff = async (fn, options = {}) => {
       if (attempt < maxRetries - 1) {
         const delayMs = Math.min(
           initialDelay * Math.pow(factor, attempt),
-          maxDelay
+          maxDelay,
         );
         await delay(delayMs);
       }

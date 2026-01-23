@@ -28,11 +28,11 @@ const SearchableSelect = ({
   allowClear = false,
 }) => {
   const [open, setOpen] = useState(false);
-  const commandListRef = useRef(null); // TAMBAH ini
+  const commandListRef = useRef(null);
 
   const selected = useMemo(
     () => items.find((it) => String(it.value) === String(value)) || null,
-    [items, value]
+    [items, value],
   );
 
   useEffect(() => {
@@ -47,18 +47,16 @@ const SearchableSelect = ({
     }
   }, [open]);
 
-  // TAMBAH: Handle scroll wheel
   useEffect(() => {
     const handleWheel = (e) => {
-      // Allow scroll di dalam list
       e.stopPropagation();
     };
 
     const listElement = commandListRef.current;
     if (listElement && open) {
-      listElement.addEventListener('wheel', handleWheel, { passive: true });
+      listElement.addEventListener("wheel", handleWheel, { passive: true });
       return () => {
-        listElement.removeEventListener('wheel', handleWheel);
+        listElement.removeEventListener("wheel", handleWheel);
       };
     }
   }, [open]);
@@ -76,7 +74,7 @@ const SearchableSelect = ({
           className={cn(
             "w-full justify-between cursor-pointer disabled:cursor-not-allowed hover:bg-gray-200",
             "dark:bg-gray-700 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-700",
-            error ? "border-red-500 dark:border-red-500" : ""
+            error ? "border-red-500 dark:border-red-500" : "",
           )}
         >
           <span className="truncate text-left">
@@ -89,18 +87,24 @@ const SearchableSelect = ({
       <PopoverContent
         className="w-[--radix-popover-trigger-width] p-0 bg-neutral-50 border-none dark:bg-gray-800 dark:border-gray-700"
         align="start"
-        onWheel={(e) => e.stopPropagation()} // TAMBAH ini
+        onWheel={(e) => e.stopPropagation()}
       >
-        <Command loop shouldFilter className="dark:bg-gray-800 dark:text-gray-200">
+        <Command
+          loop
+          shouldFilter
+          className="dark:bg-gray-800 dark:text-gray-200"
+        >
           <CommandInput
             placeholder={`${placeholder.toLowerCase()}`}
             className="h-9 dark:text-gray-200"
           />
-          <CommandList 
-            ref={commandListRef} // TAMBAH ini
-            className="max-h-[300px] overflow-y-auto" // TAMBAH ini untuk ensure scrollable
+          <CommandList
+            ref={commandListRef}
+            className="max-h-[300px] overflow-y-auto"
           >
-            <CommandEmpty className="dark:text-gray-400">{emptyText}</CommandEmpty>
+            <CommandEmpty className="dark:text-gray-400">
+              {emptyText}
+            </CommandEmpty>
             <CommandGroup>
               {allowClear && (
                 <CommandItem
@@ -132,7 +136,7 @@ const SearchableSelect = ({
                         "h-4 w-4",
                         String(item.value) === String(value)
                           ? "opacity-100"
-                          : "opacity-0"
+                          : "opacity-0",
                       )}
                     />
                     <div className="flex-1 min-w-0">

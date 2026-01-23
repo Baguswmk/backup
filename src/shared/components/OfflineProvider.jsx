@@ -1,5 +1,11 @@
-/* eslint-disable react-refresh/only-export-components */
-import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from "react";
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useCallback,
+  useRef,
+} from "react";
 import { offlineService } from "@/shared/services/offlineService";
 import { showToast } from "@/shared/utils/toast";
 
@@ -23,36 +29,27 @@ export const OfflineProvider = ({ children }) => {
   });
   const [autoSyncEnabled, setAutoSyncEnabled] = useState(true);
 
-  // ==========================================
-  // RE-ENTRANCY GUARDS (Tahap 2B)
-  // ==========================================
   const isSyncingRef = useRef(false);
   const syncTimeoutRef = useRef(null);
   const updateBatchRef = useRef([]);
   const updateTimerRef = useRef(null);
 
-  // ==========================================
-  // BATCHED STATE UPDATES (Tahap 2B)
-  // ==========================================
   const batchStateUpdate = useCallback((updates) => {
     updateBatchRef.current = { ...updateBatchRef.current, ...updates };
-    
+
     if (updateTimerRef.current) {
       clearTimeout(updateTimerRef.current);
     }
 
     updateTimerRef.current = setTimeout(() => {
-      setSyncStatus(prev => ({
+      setSyncStatus((prev) => ({
         ...prev,
         ...updateBatchRef.current,
       }));
       updateBatchRef.current = {};
-    }, 150); // Batch window 150ms
+    }, 150);
   }, []);
 
-  // ==========================================
-  // DEBOUNCED SYNC (Tahap 2B)
-  // ==========================================
   const debouncedSync = useCallback(() => {
     if (syncTimeoutRef.current) {
       clearTimeout(syncTimeoutRef.current);
@@ -62,18 +59,14 @@ export const OfflineProvider = ({ children }) => {
       if (!isSyncingRef.current && isOnline) {
         syncPendingData();
       }
-    }, 3000); // 3s debounce
+    }, 3000);
   }, [isOnline]);
 
-  // ==========================================
-  // ONLINE/OFFLINE DETECTION WITH DEBOUNCE
-  // ==========================================
   useEffect(() => {
     const handleOnline = () => {
       setIsOnline(true);
       showToast.success("Koneksi internet tersambung");
-      
-      // Debounced auto sync
+
       if (autoSyncEnabled) {
         debouncedSync();
       }
@@ -81,10 +74,11 @@ export const OfflineProvider = ({ children }) => {
 
     const handleOffline = () => {
       setIsOnline(false);
-      showToast.warning("Koneksi internet terputus. Data akan disimpan secara offline.");
+      showToast.warning(
+        "Koneksi internet terputus. Data akan disimpan secara offline.",
+      );
     };
 
-    // Visibility change - debounced sync
     const handleVisibilityChange = () => {
       if (!document.hidden && isOnline && autoSyncEnabled) {
         debouncedSync();
@@ -99,7 +93,7 @@ export const OfflineProvider = ({ children }) => {
       window.removeEventListener("online", handleOnline);
       window.removeEventListener("offline", handleOffline);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
-      
+
       if (syncTimeoutRef.current) {
         clearTimeout(syncTimeoutRef.current);
       }
@@ -109,9 +103,6 @@ export const OfflineProvider = ({ children }) => {
     };
   }, [autoSyncEnabled, isOnline, debouncedSync]);
 
-  // ==========================================
-  // LOAD PENDING COUNT (Non-blocking)
-  // ==========================================
   const loadPendingCount = useCallback(async () => {
     try {
       const count = await offlineService.getPendingCount();
@@ -123,16 +114,12 @@ export const OfflineProvider = ({ children }) => {
     }
   }, [batchStateUpdate]);
 
-  // ==========================================
-  // SYNC PENDING DATA WITH RE-ENTRANCY GUARD (Tahap 2B)
-  // ==========================================
   const syncPendingData = useCallback(async () => {
     if (!isOnline) {
       showToast.warning("Tidak ada koneksi internet");
       return { success: false, error: "No internet connection" };
     }
 
-    // Re-entrancy guard
     if (isSyncingRef.current) {
       return { success: false, error: "Sync already in progress" };
     }
@@ -170,9 +157,6 @@ export const OfflineProvider = ({ children }) => {
     }
   }, [isOnline, batchStateUpdate]);
 
-  // ==========================================
-  // MANUAL RETRY FAILED ITEMS
-  // ==========================================
   const retryFailed = useCallback(async () => {
     if (!isOnline) {
       showToast.warning("Tidak ada koneksi internet");
@@ -186,7 +170,7 @@ export const OfflineProvider = ({ children }) => {
 
     try {
       const result = await offlineService.retryFailed();
-      
+
       if (result.success && result.synced > 0) {
         showToast.success(`  ${result.synced} data berhasil disinkronkan`);
         await loadPendingCount();
@@ -200,21 +184,17 @@ export const OfflineProvider = ({ children }) => {
     }
   }, [isOnline, loadPendingCount]);
 
-  // ==========================================
-  // CLEAR ALL OFFLINE DATA (Chunked - Non-blocking)
-  // ==========================================
   const clearOfflineData = useCallback(async () => {
     try {
-      // Non-blocking clear (chunked internally in offlineService)
       await offlineService.clearAll();
-      
+
       batchStateUpdate({
         isSyncing: false,
         lastSync: null,
         pendingCount: 0,
         failedCount: 0,
       });
-      
+
       showToast.success("Data offline berhasil dihapus");
       return { success: true };
     } catch (error) {
@@ -224,9 +204,6 @@ export const OfflineProvider = ({ children }) => {
     }
   }, [batchStateUpdate]);
 
-  // ==========================================
-  // COALESCED EVENT LISTENERS (Tahap 2B)
-  // ==========================================
   useEffect(() => {
     const handleQueueUpdated = () => {
       loadPendingCount();
@@ -257,50 +234,42 @@ export const OfflineProvider = ({ children }) => {
     };
   }, [loadPendingCount, batchStateUpdate]);
 
-  // ==========================================
-  // INITIAL LOAD
-  // ==========================================
   useEffect(() => {
     loadPendingCount();
   }, [loadPendingCount]);
 
-  // ==========================================
-  // AUTO SYNC TIMER (setiap 5 menit) - dengan guard
-  // ==========================================
   useEffect(() => {
     if (!autoSyncEnabled || !isOnline) return;
 
-    const interval = setInterval(() => {
-      if (syncStatus.pendingCount > 0 && !isSyncingRef.current) {
-        syncPendingData();
-      }
-    }, 5 * 60 * 1000); // 5 minutes
+    const interval = setInterval(
+      () => {
+        if (syncStatus.pendingCount > 0 && !isSyncingRef.current) {
+          syncPendingData();
+        }
+      },
+      5 * 60 * 1000,
+    );
 
     return () => clearInterval(interval);
   }, [autoSyncEnabled, isOnline, syncStatus.pendingCount, syncPendingData]);
 
   const value = {
-    // Status
     isOnline,
     isOffline: !isOnline,
     syncStatus,
     autoSyncEnabled,
-    
-    // Actions
+
     syncPendingData,
     retryFailed,
     clearOfflineData,
     loadPendingCount,
     setAutoSyncEnabled,
-    
-    // Utilities
+
     canSync: isOnline && !isSyncingRef.current,
     hasPendingData: syncStatus.pendingCount > 0,
   };
 
   return (
-    <OfflineContext.Provider value={value}>
-      {children}
-    </OfflineContext.Provider>
+    <OfflineContext.Provider value={value}>{children}</OfflineContext.Provider>
   );
 };

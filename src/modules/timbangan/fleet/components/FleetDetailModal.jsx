@@ -3,7 +3,6 @@ import { Button } from "@/shared/components/ui/button";
 import {
   Settings,
   MapPin,
-  Clock,
   Truck,
   Users,
   UserCheck,
@@ -29,8 +28,26 @@ const FleetDetailModal = ({ isOpen, config, onClose, onEdit, dumptruck }) => {
 
   const dumptruckCount = dumptruck?.length || 0;
   const dumptruckList = dumptruck || [];
+
+  // ADDED: Handle multiple inspectors & checkers
+  const inspectors = config.inspectors || [];
+  const checkers = config.checkers || [];
+  
+  // Fallback to old format if new format is empty
+  const displayInspectors = inspectors.length > 0 
+    ? inspectors 
+    : config.inspector 
+      ? [{ id: config.inspectorId, name: config.inspector }]
+      : [];
+      
+  const displayCheckers = checkers.length > 0
+    ? checkers
+    : config.checker
+      ? [{ id: config.checkerId, name: config.checker }]
+      : [];
+
   return (
-    <div className="detail-modal fixed inset-0 .detail-modal dark:bg-opacity-70 z-50 flex items-center justify-center p-4">
+    <div className="detail-modal fixed inset-0 bg-black/50 dark:bg-black/70 z-50 flex items-center justify-center p-4">
       <div className="bg-neutral-50 dark:bg-gray-800 rounded-lg max-w-3xl w-full max-h-[90vh] overflow-auto">
         <ModalHeader
           title="Detail Fleet Configuration"
@@ -39,8 +56,6 @@ const FleetDetailModal = ({ isOpen, config, onClose, onEdit, dumptruck }) => {
         />
 
         <div className="p-6 space-y-6">
-          {/* Basic Information */}
-
           {/* Fleet Configuration */}
           <InfoCard title="Konfigurasi Fleet" icon={Settings} variant="default">
             <InfoItem
@@ -60,28 +75,79 @@ const FleetDetailModal = ({ isOpen, config, onClose, onEdit, dumptruck }) => {
             />
           </InfoCard>
 
-          {/* Inspector & Checker */}
+          {/* Inspector & Checker - UPDATED */}
           <InfoCard title="Inspector & Checker" icon={Users} variant="purple">
-            <InfoItem
-              label="Inspector"
-              icon={Users}
-              value={config.inspector || "-"}
-            />
-            <InfoItem
-              label="Checker"
-              icon={UserCheck}
-              value={config.checker || "-"}
-            />
+            {/* Inspectors */}
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                <Users className="w-4 h-4" />
+                <span>Inspector{displayInspectors.length > 1 ? 's' : ''}</span>
+                <span className="text-xs bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-300 px-2 py-0.5 rounded-full">
+                  {displayInspectors.length}
+                </span>
+              </div>
+              {displayInspectors.length > 0 ? (
+                <div className="space-y-1 pl-6">
+                  {displayInspectors.map((inspector, idx) => (
+                    <div 
+                      key={inspector.id || idx}
+                      className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400"
+                    >
+                      <div className="w-1.5 h-1.5 bg-purple-500 dark:bg-purple-400 rounded-full" />
+                      <span>{inspector.name || '-'}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-sm text-gray-500 dark:text-gray-400 pl-6">
+                  Tidak ada inspector
+                </div>
+              )}
+            </div>
+
+            {/* Checkers */}
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                <UserCheck className="w-4 h-4" />
+                <span>Checker{displayCheckers.length > 1 ? 's' : ''}</span>
+                <span className="text-xs bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 px-2 py-0.5 rounded-full">
+                  {displayCheckers.length}
+                </span>
+              </div>
+              {displayCheckers.length > 0 ? (
+                <div className="space-y-1 pl-6">
+                  {displayCheckers.map((checker, idx) => (
+                    <div 
+                      key={checker.id || idx}
+                      className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400"
+                    >
+                      <div className="w-1.5 h-1.5 bg-green-500 dark:bg-green-400 rounded-full" />
+                      <span>{checker.name || '-'}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-sm text-gray-500 dark:text-gray-400 pl-6">
+                  Tidak ada checker
+                </div>
+              )}
+            </div>
           </InfoCard>
 
           {/* Additional Info */}
-          {(config.coalType || config.distance > 0) && (
+          {(config.coalType || config.distance > 0 || config.workUnit) && (
             <InfoCard title="Informasi Tambahan" variant="default">
+              {config.workUnit && (
+                <InfoItem label="Work Unit" value={config.workUnit} />
+              )}
               {config.coalType && (
                 <InfoItem label="Coal Type" value={config.coalType} />
               )}
               {config.distance > 0 && (
                 <InfoItem label="Distance" value={`${config.distance} m`} />
+              )}
+              {config.measurementType && (
+                <InfoItem label="Measurement Type" value={config.measurementType} />
               )}
             </InfoCard>
           )}
@@ -125,7 +191,7 @@ const FleetDetailModal = ({ isOpen, config, onClose, onEdit, dumptruck }) => {
                         {dumptruckList.map((dt, index) => (
                           <tr
                             key={dt.id || index}
-                            className="dark:border-gray-700 hover:bg-blue-50 dark:hover:bg-blue-900/30"
+                            className="border-b border-gray-200 dark:border-gray-700 hover:bg-blue-50 dark:hover:bg-blue-900/30"
                           >
                             <td className="px-3 py-2 text-sm dark:text-gray-300">
                               {index + 1}
@@ -160,7 +226,7 @@ const FleetDetailModal = ({ isOpen, config, onClose, onEdit, dumptruck }) => {
           </InfoCard>
 
           {/* Actions */}
-          <div className="flex items-center justify-end gap-2 pt-4 dark:border-gray-700">
+          <div className="flex items-center justify-end gap-2 pt-4 border-t border-gray-200 dark:border-gray-700">
             <Button
               variant="ghost"
               onClick={onClose}
@@ -174,7 +240,7 @@ const FleetDetailModal = ({ isOpen, config, onClose, onEdit, dumptruck }) => {
                   onClose();
                   onEdit(config);
                 }}
-                className="cursor-pointer hover:bg-blue-600 hover:text-white dark:bg-blue-600 dark:hover:bg-blue-700 dark:text-gray-200"
+                className="cursor-pointer bg-blue-600 hover:bg-blue-700 text-white dark:bg-blue-600 dark:hover:bg-blue-700 dark:text-gray-200"
               >
                 Edit Fleet
               </Button>

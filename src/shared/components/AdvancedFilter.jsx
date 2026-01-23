@@ -4,7 +4,6 @@ import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import MultiSearchableSelect from "@/shared/components/MultiSearchableSelect";
 
-// Default measurement types
 const DEFAULT_MEASUREMENT_TYPES = [
   { value: "FOB", label: "FOB" },
   { value: "Timbangan", label: "Timbangan" },
@@ -33,11 +32,13 @@ const AdvancedFilter = ({
     <div className={cn("space-y-4 transition-all duration-200", className)}>
       {/* Advanced Filters Panel */}
       {isExpanded && (
-        <div className={cn(
-          "rounded-lg p-4 space-y-4 shadow-sm transition-all duration-200",
-          "bg-gray-50 dark:bg-slate-800/50",
-          "border-gray-200 dark:border-slate-700"
-        )}>
+        <div
+          className={cn(
+            "rounded-lg p-4 space-y-4 shadow-sm transition-all duration-200",
+            "bg-gray-50 dark:bg-slate-800/50",
+            "border-gray-200 dark:border-slate-700",
+          )}
+        >
           {/* Date Range Filter */}
           {onDateRangeChange && (
             <div>
@@ -59,7 +60,7 @@ const AdvancedFilter = ({
                     className={cn(
                       "mt-1 transition-colors duration-200",
                       "dark:bg-slate-900 dark:border-slate-600",
-                      "dark:text-white"
+                      "dark:text-white",
                     )}
                   />
                 </div>
@@ -77,7 +78,7 @@ const AdvancedFilter = ({
                     className={cn(
                       "mt-1 transition-colors duration-200",
                       "dark:bg-slate-900 dark:border-slate-600",
-                      "dark:text-white"
+                      "dark:text-white",
                     )}
                   />
                 </div>
@@ -128,10 +129,12 @@ const AdvancedFilter = ({
 
           {/* Reset Button */}
           {hasActiveFilters && (
-            <div className={cn(
-              "flex justify-end pt-2 border-t transition-colors duration-200",
-              "border-gray-200 dark:border-slate-700"
-            )}>
+            <div
+              className={cn(
+                "flex justify-end pt-2 border-t transition-colors duration-200",
+                "border-gray-200 dark:border-slate-700",
+              )}
+            >
               <Button
                 variant="ghost"
                 size="sm"
@@ -141,7 +144,7 @@ const AdvancedFilter = ({
                   "hover:bg-red-50 dark:hover:bg-red-900/20",
                   "hover:text-red-600 dark:hover:text-red-400",
                   "hover:border-red-300 dark:hover:border-red-800",
-                  "dark:bg-slate-800 dark:border-slate-600 dark:text-gray-200"
+                  "dark:bg-slate-800 dark:border-slate-600 dark:text-gray-200",
                 )}
               >
                 <X className="w-4 h-4" />

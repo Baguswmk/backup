@@ -28,7 +28,7 @@ const MultiSearchableSelect = ({
 
   const selectedItems = useMemo(
     () => items.filter((it) => values.includes(String(it.value))),
-    [items, values]
+    [items, values],
   );
 
   const toggleItem = (value) => {
@@ -52,7 +52,7 @@ const MultiSearchableSelect = ({
           className={cn(
             "w-full justify-between cursor-pointer disabled:cursor-not-allowed ",
             "dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-700",
-            error ? "border-red-500 dark:border-red-500" : ""
+            error ? "border-red-500 dark:border-red-500" : "",
           )}
         >
           <span className="truncate text-left">
@@ -71,11 +71,13 @@ const MultiSearchableSelect = ({
         align="start"
       >
         <Command className="bg-neutral-50 dark:bg-gray-800 dark:text-gray-200">
-          <CommandInput 
+          <CommandInput
             placeholder={`Cari ${placeholder.toLowerCase()}`}
             className="dark:text-gray-200"
           />
-          <CommandEmpty className="dark:text-gray-400">{emptyText}</CommandEmpty>
+          <CommandEmpty className="dark:text-gray-400">
+            {emptyText}
+          </CommandEmpty>
           <CommandGroup className="max-h-64 overflow-auto">
             {items.map((item) => (
               <CommandItem
@@ -90,7 +92,7 @@ const MultiSearchableSelect = ({
                       "h-4 w-4",
                       values.includes(String(item.value))
                         ? "opacity-100"
-                        : "opacity-0"
+                        : "opacity-0",
                     )}
                   />
                   <div className="flex-1 min-w-0">

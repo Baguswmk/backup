@@ -18,9 +18,6 @@ import {
   getRoleDescription,
 } from "@/shared/permissions/rolePermissions";
 
-/**
- * Main permissions hook with fleet type access support
- */
 export const usePermissions = (module = "timbangan") => {
   const { user } = useAuthStore();
 
@@ -94,17 +91,11 @@ export const usePermissions = (module = "timbangan") => {
     };
   }, [userRole, module, userSatker, userCompany, userWeighBridge]);
 
-  /**
-   * Filter data based on role permissions
-   */
   const filterDataBySatker = (data = []) => {
     if (!userRole || !data || data.length === 0) return data;
     return filterDataByRole(data, userRole, user);
   };
 
-  /**
-   * Check if user can access specific data
-   */
   const checkDataAccess = (item) => {
     if (!userRole) return false;
     if (isReadOnly(userRole)) {
@@ -114,9 +105,6 @@ export const usePermissions = (module = "timbangan") => {
     return true;
   };
 
-  /**
-   * Validate CCR subsatker - returns null if valid, or feedback message if invalid
-   */
   const validateCCRSubsatker = useCallback(() => {
     if (userRole?.toLowerCase() !== "ccr") return null;
 
@@ -131,9 +119,6 @@ export const usePermissions = (module = "timbangan") => {
     return { isValid: true };
   }, [userRole, userSatker]);
 
-  /**
-   * Get disabled message for specific action
-   */
   const getDisabledMessage = (action) => {
     if (!userRole) return "Please login to continue";
 
@@ -151,9 +136,6 @@ export const usePermissions = (module = "timbangan") => {
     return messages[action] || "Akses ditolak";
   };
 
-  /**
-   * Check if button should be shown based on permission
-   */
   const shouldShowButton = (action) => {
     if (
       permissions.isReadOnly &&
@@ -172,15 +154,6 @@ export const usePermissions = (module = "timbangan") => {
     return actionMap[action] !== undefined ? actionMap[action] : false;
   };
 
-  /**
-   * Get fleet form configuration based on role and fleet type
-   */
-  /**
-   * Get fleet form configuration based on role and fleet type
-   */
-  /**
-   * Get fleet form configuration based on role and fleet type
-   */
   const getFleetFormConfig = useCallback(
     (fleetType) => {
       const measurementType = permissions.getMeasurementType(fleetType);
@@ -220,9 +193,6 @@ export const usePermissions = (module = "timbangan") => {
   };
 };
 
-/**
- * Specialized hook for Fleet permissions with type access
- */
 export const useFleetPermissions = () => {
   const basePermissions = usePermissions("fleet");
 

@@ -1,9 +1,5 @@
 import { useMemo } from 'react';
 
-/**
- * Hook untuk memoize menu access checks
- * Mencegah multiple calls dengan caching hasil access check
- */
 export const useMenuAccess = (menuItems, isMenuAccessible) => {
   const accessMap = useMemo(() => {
     const map = {};

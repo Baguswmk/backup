@@ -14,7 +14,7 @@ export function isSessionExpired() {
   if (!loginTime) {
     loginTime = Date.now();
     secureStorage.setItem("login_timestamp", loginTime);
-    return false; 
+    return false;
   }
 
   const oneDay = 1 * 24 * 60 * 60 * 1000;

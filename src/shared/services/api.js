@@ -35,7 +35,7 @@ apiClient.interceptors.request.use(
       secureStorage.removeItem("auth_token");
       secureStorage.removeItem("user_data");
       secureStorage.removeItem("login_timestamp");
-      secureStorage.removeItem("timbangan_store")
+      secureStorage.removeItem("timbangan_store");
       if (
         typeof window !== "undefined" &&
         !window.location.pathname.includes("/timbangan-internal/login")
@@ -54,7 +54,7 @@ apiClient.interceptors.request.use(
   },
   (error) => {
     return Promise.reject(error);
-  }
+  },
 );
 
 export { apiClient };

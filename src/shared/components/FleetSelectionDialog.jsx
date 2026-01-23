@@ -3,7 +3,16 @@ import { Button } from "@/shared/components/ui/button";
 import { Badge } from "@/shared/components/ui/badge";
 import { Input } from "@/shared/components/ui/input";
 import { Checkbox } from "@/shared/components/ui/checkbox";
-import { RefreshCw, Settings, CheckCircle2, Search, Loader2, Calendar, Truck, MapPin } from "lucide-react";
+import {
+  RefreshCw,
+  Settings,
+  CheckCircle2,
+  Search,
+  Loader2,
+  Calendar,
+  Truck,
+  MapPin,
+} from "lucide-react";
 import EmptyState from "@/shared/components/EmptyState";
 import ModalHeader from "@/shared/components/ModalHeader";
 import { Card, CardContent } from "@/shared/components/ui/card";
@@ -12,15 +21,17 @@ import { showToast } from "@/shared/utils/toast";
 import { useFleetPermissions } from "@/shared/permissions/usePermissions";
 import { useDebouncedValue } from "@/shared/hooks/useDebouncedValue";
 
-const FleetSelectionDialog = ({ 
-  isOpen, 
-  onClose, 
+const FleetSelectionDialog = ({
+  isOpen,
+  onClose,
   onSave,
-  measurementType = "Timbangan"
+  measurementType = "Timbangan",
 }) => {
   const fleetConfigs = useRitaseStore((state) => state.fleetConfigs);
   const selectedFleetIds = useRitaseStore((state) => state.selectedFleetIds);
-  const loadFleetConfigsFromAPI = useRitaseStore((state) => state.loadFleetConfigsFromAPI);
+  const loadFleetConfigsFromAPI = useRitaseStore(
+    (state) => state.loadFleetConfigsFromAPI,
+  );
   const [tempSelectedIds, setTempSelectedIds] = useState([...selectedFleetIds]);
   const [searchQuery, setSearchQuery] = useState("");
   const [isRefreshingFleet, setIsRefreshingFleet] = useState(false);
@@ -50,7 +61,7 @@ const FleetSelectionDialog = ({
     if (!isOpen) return;
 
     setIsLoadingInitial(true);
-    loadFleetConfigsFromAPI(true, measurementType) 
+    loadFleetConfigsFromAPI(true, measurementType)
       .catch((error) => {
         console.error("❌ Failed to load fleet data:", error);
         showToast.error("Gagal memuat data fleet");
@@ -63,19 +74,18 @@ const FleetSelectionDialog = ({
   const { filterDataBySatker } = useFleetPermissions();
 
   const { filteredFleets, counts } = useMemo(() => {
-    // Filter by satker permission
     const accessibleFleets = filterDataBySatker(fleetConfigs);
 
-    // Filter by measurement type only
     const measurementFilteredFleets = accessibleFleets.filter((fleet) => {
-      const fleetMeasurementType = fleet.measurementType || fleet.measurement_type;
+      const fleetMeasurementType =
+        fleet.measurementType || fleet.measurement_type;
       return fleetMeasurementType === measurementType;
     });
-    
+
     const countsData = {
       all: measurementFilteredFleets.length,
       selected: tempSelectedIds.filter((id) =>
-        measurementFilteredFleets.some((f) => f.id === id)
+        measurementFilteredFleets.some((f) => f.id === id),
       ).length,
     };
 
@@ -90,7 +100,7 @@ const FleetSelectionDialog = ({
       (fleet) =>
         fleet.excavator?.toLowerCase().includes(query) ||
         fleet.shift?.toLowerCase().includes(query) ||
-        fleet.workUnit?.toLowerCase().includes(query)
+        fleet.workUnit?.toLowerCase().includes(query),
     );
   }, [filteredFleets, debouncedSearch]);
 
@@ -111,21 +121,19 @@ const FleetSelectionDialog = ({
     }
   }, [tempSelectedIds.length, searchedFleets]);
 
-// Di FleetSelectionDialog.jsx - UPDATE handleSave
-
-const handleSave = useCallback(() => {
-    const selectedConfigs = searchedFleets.filter(f => 
-      tempSelectedIds.includes(f.id)
+  const handleSave = useCallback(() => {
+    const selectedConfigs = searchedFleets.filter((f) =>
+      tempSelectedIds.includes(f.id),
     );
-    
+
     onSave(selectedConfigs);
     onClose();
-}, [tempSelectedIds, searchedFleets, onSave, onClose]);
+  }, [tempSelectedIds, searchedFleets, onSave, onClose]);
 
   const handleRefreshFleet = useCallback(async () => {
     setIsRefreshingFleet(true);
     try {
-      await loadFleetConfigsFromAPI(true, measurementType); 
+      await loadFleetConfigsFromAPI(true, measurementType);
       showToast.success("Data fleet berhasil diperbarui");
     } catch (error) {
       showToast.error("Gagal memperbarui data fleet");
@@ -138,7 +146,7 @@ const handleSave = useCallback(() => {
   if (!isOpen) return null;
 
   const getTitle = () => {
-    switch(measurementType) {
+    switch (measurementType) {
       case "Bypass":
         return "Pilih Fleet Bypass";
       case "Beltscale":
@@ -170,7 +178,7 @@ const handleSave = useCallback(() => {
                 disabled={isLoadingInitial}
               />
             </div>
-            
+
             <Button
               variant="ghost"
               size="sm"
@@ -236,7 +244,8 @@ const handleSave = useCallback(() => {
             <div className="space-y-3">
               {searchedFleets.map((fleet) => {
                 const isSelected = tempSelectedIds.includes(fleet.id);
-                const dtCount = fleet.dumptruckCount || fleet.dumptruck?.length || 0;
+                const dtCount =
+                  fleet.dumptruckCount || fleet.dumptruck?.length || 0;
                 return (
                   <Card
                     key={fleet.id}
@@ -260,16 +269,14 @@ const handleSave = useCallback(() => {
                           <div className="flex items-start justify-between mb-2">
                             <div>
                               <h3 className="font-semibold text-base dark:text-gray-200">
-                                 <Badge
+                                <Badge
                                   variant="outline"
                                   className="text-xs border-purple-300 text-purple-700 dark:border-purple-600 dark:text-purple-300"
                                 >
                                   {measurementType}
                                 </Badge>
                               </h3>
-                              <div className="flex items-center gap-2 mt-1 flex-wrap">
-                               
-                              </div>
+                              <div className="flex items-center gap-2 mt-1 flex-wrap"></div>
                             </div>
 
                             {isSelected && (

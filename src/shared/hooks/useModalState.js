@@ -1,8 +1,5 @@
 import { useState, useCallback } from "react";
 
-/**
- * Generic hook for managing modal states
- */
 export const useModalState = (defaultStates = {}) => {
   const [modals, setModals] = useState(
     Object.keys(defaultStates).reduce((acc, key) => {

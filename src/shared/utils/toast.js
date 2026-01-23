@@ -1,4 +1,4 @@
-/* eslint-disable no-constant-binary-expression */
+
 import { toast } from 'sonner';
 
 class ToastDeduplicator {
@@ -116,7 +116,7 @@ export const showToast = {
     return toast.promise(promise, {
       loading: messages.loading || 'Loading...',
       success: (data) => {
-        return messages.success || 'Success!' || data;
+        return messages.success || data || 'Success!';
       },
       error: (error) => {
         return messages.error || error.message || 'Error occurred';

@@ -107,7 +107,10 @@ export const OfflineSyncStatus = () => {
             )}
 
             {hasPendingData && !syncStatus.isSyncing && (
-              <Badge variant="warning" className="text-xs dark:bg-yellow-900/30 dark:text-yellow-300">
+              <Badge
+                variant="warning"
+                className="text-xs dark:bg-yellow-900/30 dark:text-yellow-300"
+              >
                 {syncStatus.pendingCount}
               </Badge>
             )}
@@ -130,7 +133,9 @@ export const OfflineSyncStatus = () => {
                   <Database className="w-4 h-4" />
                   Data Pending:
                 </span>
-                <span className="font-medium dark:text-gray-200">{syncStatus.pendingCount}</span>
+                <span className="font-medium dark:text-gray-200">
+                  {syncStatus.pendingCount}
+                </span>
               </div>
 
               {syncStatus.failedCount > 0 && (
@@ -160,7 +165,10 @@ export const OfflineSyncStatus = () => {
 
             {/* Warning Alert */}
             {!isOnline && (
-              <Alert variant="warning" className="py-2 dark:bg-orange-900/20 dark:border-orange-700">
+              <Alert
+                variant="warning"
+                className="py-2 dark:bg-orange-900/20 dark:border-orange-700"
+              >
                 <AlertDescription className="text-xs dark:text-gray-300">
                   Mode offline aktif. Data akan disimpan lokal dan disinkronkan
                   otomatis saat online.
@@ -170,7 +178,10 @@ export const OfflineSyncStatus = () => {
 
             {/* Confirmation Dialog for Clear */}
             {showConfirmClear && (
-              <Alert variant="destructive" className="py-2 dark:bg-red-900/20 dark:border-red-700">
+              <Alert
+                variant="destructive"
+                className="py-2 dark:bg-red-900/20 dark:border-red-700"
+              >
                 <AlertDescription className="text-xs space-y-2 dark:text-gray-300">
                   <p className="font-medium">
                     Yakin ingin menghapus semua data offline?

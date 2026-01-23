@@ -26,7 +26,7 @@ export const buildCacheKey = (prefix, params = {}) => {
 export const buildDateRangeCacheKey = (
   prefix,
   dateRange,
-  additionalParams = {}
+  additionalParams = {},
 ) => {
   const today = new Date().toISOString().split("T")[0];
 
@@ -54,7 +54,6 @@ export const buildUserCacheKey = (prefix, userId, additionalParams = {}) => {
     ...additionalParams,
   });
 };
-
 
 export const parseCacheKey = (cacheKey) => {
   const parts = cacheKey.split("_");

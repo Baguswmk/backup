@@ -1,5 +1,10 @@
 import React from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/shared/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/shared/components/ui/card";
 
 const InfoCard = ({
   title,
@@ -10,10 +15,14 @@ const InfoCard = ({
 }) => {
   const variantClasses = {
     default: "border-gray-200 dark:border-gray-700 dark:bg-gray-800",
-    primary: "border-blue-200 bg-blue-50 dark:border-blue-700 dark:bg-blue-900/20",
-    success: "border-green-200 bg-green-50 dark:border-green-700 dark:bg-green-900/20",
-    warning: "border-orange-200 bg-orange-50 dark:border-orange-700 dark:bg-orange-900/20",
-    purple: "border-purple-200 bg-purple-50 dark:border-purple-700 dark:bg-purple-900/20",
+    primary:
+      "border-blue-200 bg-blue-50 dark:border-blue-700 dark:bg-blue-900/20",
+    success:
+      "border-green-200 bg-green-50 dark:border-green-700 dark:bg-green-900/20",
+    warning:
+      "border-orange-200 bg-orange-50 dark:border-orange-700 dark:bg-orange-900/20",
+    purple:
+      "border-purple-200 bg-purple-50 dark:border-purple-700 dark:bg-purple-900/20",
   };
 
   return (

@@ -66,22 +66,13 @@ export const useWebSerialScale = () => {
 
     // Cancel reader first
     if (readerRef.current) {
-      try {
         await readerRef.current.cancel();
-      } catch (e) {
-        //
-      }
       
-      try {
         readerRef.current.releaseLock();
-      } catch (e) {
-        //
-      }
       
       readerRef.current = null;
     }
 
-    // Close port with retry
     if (portRef.current) {
       let retries = 3;
       while (retries > 0) {

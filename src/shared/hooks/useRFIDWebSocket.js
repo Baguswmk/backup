@@ -7,9 +7,6 @@ const RECONNECT_DELAY = 5000;
 const MAX_RECONNECT_ATTEMPTS = 3;
 const CONNECTION_TIMEOUT = 5000;
 
-/**
- * Hook Socket.IO untuk RFID Edge Service
- */
 export const useRFIDWebSocket = (options = {}) => {
   const {
     enabled = true,
@@ -18,29 +15,19 @@ export const useRFIDWebSocket = (options = {}) => {
     onConnectionChange,
   } = options;
 
-  // =========================
-  // STATE
-  // =========================
   const [isConnected, setIsConnected] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
   const [lastScan, setLastScan] = useState(null);
   const [error, setError] = useState(null);
   const [reconnectAttempt, setReconnectAttempt] = useState(0);
 
-  // =========================
-  // REFS
-  // =========================
   const socketRef = useRef(null);
   const isMountedRef = useRef(true);
   const shouldReconnectRef = useRef(true);
   const connectionTimeoutRef = useRef(null);
   
-  // ✅ TAMBAHAN: Ref untuk tracking apakah scan sudah diaktifkan
   const scanEnabledRef = useRef(false);
 
-  // =========================
-  // CLEAR TIMEOUT
-  // =========================
   const clearTimeouts = useCallback(() => {
     if (connectionTimeoutRef.current) {
       clearTimeout(connectionTimeoutRef.current);
@@ -48,13 +35,9 @@ export const useRFIDWebSocket = (options = {}) => {
     }
   }, []);
 
-  // =========================
-  // DISCONNECT (Internal cleanup)
-  // =========================
   const cleanupSocket = useCallback(() => {
     clearTimeouts();
     
-    // ✅ Reset scan enabled saat disconnect
     scanEnabledRef.current = false;
     
     if (socketRef.current) {
@@ -67,9 +50,6 @@ export const useRFIDWebSocket = (options = {}) => {
     setIsConnecting(false);
   }, [clearTimeouts]);
 
-  // =========================
-  // CONNECT
-  // =========================
   const connect = useCallback(() => {
     if (!enabled || socketRef.current || !isMountedRef.current) return;
 
@@ -98,19 +78,16 @@ export const useRFIDWebSocket = (options = {}) => {
       setReconnectAttempt(0);
       setError(null);
       
-      // ✅ Reset scan enabled saat baru connect
       scanEnabledRef.current = false;
 
       showToast.success("RFID reader terhubung", { duration: 2000 });
       onConnectionChange?.(true);
     });
 
-    // ✅ FIXED: Filter data RFID berdasarkan scan enabled
     socket.on("rfid-detected", (data) => {
       if (!isMountedRef.current) return;
       
       
-      // ✅ Hanya terima data kalau scan sudah diaktifkan
       if (!scanEnabledRef.current) {
         console.warn("⚠️ RFID data diabaikan - Weight belum locked");
         showToast.warning("Weight harus di-lock terlebih dahulu", { 
@@ -184,9 +161,6 @@ export const useRFIDWebSocket = (options = {}) => {
     cleanupSocket,
   ]);
 
-  // =========================
-  // SEND WEIGHT STABLE
-  // =========================
   const sendWeightStable = useCallback(
     (isStable) => {
       if (!enabled || !socketRef.current?.connected) {
@@ -201,9 +175,6 @@ export const useRFIDWebSocket = (options = {}) => {
     [enabled]
   );
 
-  // =========================
-  // DISCONNECT (Manual)
-  // =========================
   const disconnect = useCallback(() => {
     shouldReconnectRef.current = false;
     cleanupSocket();
@@ -211,9 +182,6 @@ export const useRFIDWebSocket = (options = {}) => {
     setError(null);
   }, [cleanupSocket]);
 
-  // =========================
-  // RECONNECT
-  // =========================
   const reconnect = useCallback(() => {
     disconnect();
     shouldReconnectRef.current = true;
@@ -221,16 +189,10 @@ export const useRFIDWebSocket = (options = {}) => {
     setTimeout(connect, 500);
   }, [disconnect, connect]);
 
-  // =========================
-  // CLEAR LAST SCAN
-  // =========================
   const clearLastScan = useCallback(() => {
     setLastScan(null);
   }, []);
 
-  // =========================
-  // AUTO CONNECT
-  // =========================
   useEffect(() => {
     isMountedRef.current = true;
     shouldReconnectRef.current = true;
@@ -245,9 +207,6 @@ export const useRFIDWebSocket = (options = {}) => {
     };
   }, []);
 
-  // =========================
-  // CLEANUP
-  // =========================
   useEffect(() => {
     return () => {
       isMountedRef.current = false;
@@ -256,9 +215,6 @@ export const useRFIDWebSocket = (options = {}) => {
     };
   }, [cleanupSocket]);
 
-  // =========================
-  // RETURN
-  // =========================
   return {
     isConnected,
     isConnecting,

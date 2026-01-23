@@ -1,4 +1,4 @@
-import React, { useCallback } from "react"; // ✅ ADDED useCallback
+import React, { useCallback } from "react";
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
 import { Search, X, RefreshCw, Trash2, Filter } from "lucide-react";
@@ -24,12 +24,14 @@ const TableToolbar = ({
   onDeleteSelected,
   extraActions,
 }) => {
-
-  const handleSearchChange = useCallback((e) => {
-    if (onSearchChange) {
-      onSearchChange(e.target.value);
-    }
-  }, [onSearchChange]);
+  const handleSearchChange = useCallback(
+    (e) => {
+      if (onSearchChange) {
+        onSearchChange(e.target.value);
+      }
+    },
+    [onSearchChange],
+  );
 
   const handleClearSearch = useCallback(() => {
     if (onSearchChange) {
@@ -41,16 +43,16 @@ const TableToolbar = ({
     <div className="space-y-3">
       <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
         {activeDateRange && (
-        <DateRangePicker
-          dateRange={dateRange}
-           currentShift={currentShift}
-  viewingShift={viewingShift}
-          onDateRangeChange={onDateRangeChange}
-          isLoading={isRefreshing}
-          shiftOptions={shiftOptions}
-        />
+          <DateRangePicker
+            dateRange={dateRange}
+            currentShift={currentShift}
+            viewingShift={viewingShift}
+            onDateRangeChange={onDateRangeChange}
+            isLoading={isRefreshing}
+            shiftOptions={shiftOptions}
+          />
         )}
-        
+
         {onSearchChange && (
           <div className="relative w-full sm:flex-1 hover:bg-gray-200 cursor-pointer">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500 dark:text-gray-400" />

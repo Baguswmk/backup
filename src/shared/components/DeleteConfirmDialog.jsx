@@ -1,7 +1,14 @@
-import React, { useState, useEffect } from 'react';
-import { Button } from '@/shared/components/ui/button';
-import { Checkbox } from '@/shared/components/ui/checkbox';
-import { AlertTriangle, Loader2, X, CheckCircle2, ChevronRight, ChevronLeft } from 'lucide-react';
+import React, { useState, useEffect } from "react";
+import { Button } from "@/shared/components/ui/button";
+import { Checkbox } from "@/shared/components/ui/checkbox";
+import {
+  AlertTriangle,
+  Loader2,
+  X,
+  CheckCircle2,
+  ChevronRight,
+  ChevronLeft,
+} from "lucide-react";
 
 const DeleteConfirmDialog = ({
   isOpen,
@@ -13,33 +20,53 @@ const DeleteConfirmDialog = ({
 }) => {
   const [currentStep, setCurrentStep] = useState(1);
   const [confirmDelete, setConfirmDelete] = useState(null);
-  const [selectedDay, setSelectedDay] = useState('');
+  const [selectedDay, setSelectedDay] = useState("");
   const [selectedReasons, setSelectedReasons] = useState([]);
 
-  const daysOfWeek = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'];
+  const daysOfWeek = [
+    "Senin",
+    "Selasa",
+    "Rabu",
+    "Kamis",
+    "Jumat",
+    "Sabtu",
+    "Minggu",
+  ];
 
   const getCurrentDay = () => {
-    const days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+    const days = [
+      "Minggu",
+      "Senin",
+      "Selasa",
+      "Rabu",
+      "Kamis",
+      "Jumat",
+      "Sabtu",
+    ];
     const today = new Date();
     return days[today.getDay()];
   };
 
   const reasonOptions = [
     {
-      id: 'reason-request-head',
-      label: 'Penghapusan dilakukan atas permintaan dan persetujuan Sub Section Head terkait',
+      id: "reason-request-head",
+      label:
+        "Penghapusan dilakukan atas permintaan dan persetujuan Sub Section Head terkait",
     },
     {
-      id: 'reason-misconfiguration',
-      label: 'Penghapusan dilakukan karena terdapat kesalahan pengaturan (misconfiguration) pada setting fleet',
+      id: "reason-misconfiguration",
+      label:
+        "Penghapusan dilakukan karena terdapat kesalahan pengaturan (misconfiguration) pada setting fleet",
     },
     {
-      id: 'reason-change-request',
-      label: 'Penghapusan dilakukan sebagai bagian dari permintaan perubahan atau pembaruan setting fleet',
+      id: "reason-change-request",
+      label:
+        "Penghapusan dilakukan sebagai bagian dari permintaan perubahan atau pembaruan setting fleet",
     },
     {
-      id: 'reason-evaluation',
-      label: 'Penghapusan dilakukan berdasarkan hasil evaluasi internal terhadap kebutuhan operasional',
+      id: "reason-evaluation",
+      label:
+        "Penghapusan dilakukan berdasarkan hasil evaluasi internal terhadap kebutuhan operasional",
     },
   ];
 
@@ -58,7 +85,7 @@ const DeleteConfirmDialog = ({
     if (!isOpen) {
       setCurrentStep(1);
       setConfirmDelete(null);
-      setSelectedDay('');
+      setSelectedDay("");
       setSelectedReasons([]);
     }
   }, [isOpen]);
@@ -82,20 +109,20 @@ const DeleteConfirmDialog = ({
   };
 
   const handleKeyDown = (e) => {
-    if (e.key === 'Escape') {
+    if (e.key === "Escape") {
       handleClose();
     }
   };
 
   const handleReasonToggle = (reasonId) => {
-    setSelectedReasons(prev => 
+    setSelectedReasons((prev) =>
       prev.includes(reasonId)
-        ? prev.filter(id => id !== reasonId)
-        : [...prev, reasonId]
+        ? prev.filter((id) => id !== reasonId)
+        : [...prev, reasonId],
     );
   };
 
-  const canProceedStep1 = confirmDelete === 'yes';
+  const canProceedStep1 = confirmDelete === "yes";
   const canProceedStep2 = selectedDay === getCurrentDay();
   const canProceedStep3 = selectedReasons.length > 0;
 
@@ -131,7 +158,9 @@ const DeleteConfirmDialog = ({
             <div className="w-10 h-10 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center shadow-sm">
               <AlertTriangle className="w-5 h-5 text-red-600 dark:text-red-400" />
             </div>
-            <span className="text-lg font-semibold">Hapus Konfigurasi Fleet</span>
+            <span className="text-lg font-semibold">
+              Hapus Konfigurasi Fleet
+            </span>
           </div>
           <Button
             onClick={handleClose}
@@ -151,20 +180,24 @@ const DeleteConfirmDialog = ({
                 <div
                   className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium transition-all duration-200 ${
                     currentStep === step
-                      ? 'bg-red-600 text-white dark:bg-red-700'
+                      ? "bg-red-600 text-white dark:bg-red-700"
                       : currentStep > step
-                      ? 'bg-green-600 text-white dark:bg-green-700'
-                      : 'bg-gray-200 text-gray-600 dark:bg-slate-700 dark:text-gray-400'
+                        ? "bg-green-600 text-white dark:bg-green-700"
+                        : "bg-gray-200 text-gray-600 dark:bg-slate-700 dark:text-gray-400"
                   }`}
                 >
-                  {currentStep > step ? <CheckCircle2 className="w-4 h-4" /> : step}
+                  {currentStep > step ? (
+                    <CheckCircle2 className="w-4 h-4" />
+                  ) : (
+                    step
+                  )}
                 </div>
                 {step < 3 && (
                   <div
                     className={`w-8 h-0.5 transition-all duration-200 ${
                       currentStep > step
-                        ? 'bg-green-600 dark:bg-green-700'
-                        : 'bg-gray-200 dark:bg-slate-700'
+                        ? "bg-green-600 dark:bg-green-700"
+                        : "bg-gray-200 dark:bg-slate-700"
                     }`}
                   />
                 )}
@@ -177,29 +210,37 @@ const DeleteConfirmDialog = ({
             <div className="rounded-md border p-3 transition-all duration-200 bg-gray-50 dark:bg-slate-800/50 border-gray-200 dark:border-slate-700">
               <div className="text-sm space-y-1">
                 <div className="flex items-center justify-between">
-                  <span className="text-gray-600 dark:text-gray-400">Excavator</span>
+                  <span className="text-gray-600 dark:text-gray-400">
+                    Excavator
+                  </span>
                   <span className="font-medium text-gray-900 dark:text-white">
                     {target.excavator || target.fleet?.excavator || "-"}
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-gray-600 dark:text-gray-400">Dumptruck Terikat</span>
+                  <span className="text-gray-600 dark:text-gray-400">
+                    Dumptruck Terikat
+                  </span>
                   <span className="font-medium text-gray-900 dark:text-white">
-                    {assignedCount >= 0 ? assignedCount : target.units?.length || 0}
+                    {assignedCount >= 0
+                      ? assignedCount
+                      : target.units?.length || 0}
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-gray-600 dark:text-gray-400">Lokasi Dumping</span>
+                  <span className="text-gray-600 dark:text-gray-400">
+                    Lokasi Dumping
+                  </span>
                   <span className="font-medium text-gray-900 dark:text-white">
                     {target.dumpingLocation || "-"}
-                    
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-gray-600 dark:text-gray-400">Lokasi Loading</span>
+                  <span className="text-gray-600 dark:text-gray-400">
+                    Lokasi Loading
+                  </span>
                   <span className="font-medium text-gray-900 dark:text-white">
                     {target.loadingLocation || "-"}
-                    
                   </span>
                 </div>
               </div>
@@ -209,7 +250,9 @@ const DeleteConfirmDialog = ({
                   <div className="flex gap-2">
                     <AlertTriangle className="w-4 h-4 text-yellow-600 dark:text-yellow-400 shrink-0 mt-0.5" />
                     <p className="text-sm text-yellow-800 dark:text-yellow-300">
-                      Konfigurasi ini memiliki {assignedCount || target.units?.length || 0} dumptruck yang terikat.
+                      Konfigurasi ini memiliki{" "}
+                      {assignedCount || target.units?.length || 0} dumptruck
+                      yang terikat.
                     </p>
                   </div>
                 </div>
@@ -222,36 +265,38 @@ const DeleteConfirmDialog = ({
             <div className="space-y-4">
               <div className="border-t border-gray-200 dark:border-slate-700 pt-3">
                 <p className="text-sm font-medium text-gray-900 dark:text-white mb-4">
-                  Langkah 1: Apakah Anda yakin akan menghapus konfigurasi fleet ini?
+                  Langkah 1: Apakah Anda yakin akan menghapus konfigurasi fleet
+                  ini?
                 </p>
                 <div className="flex gap-3">
                   <Button
                     className={`flex-1 px-4 py-2 rounded-md font-medium transition-all duration-200 border ${
-                      confirmDelete === 'yes'
-                        ? 'bg-red-600 hover:bg-red-700 text-white dark:bg-red-700 dark:hover:bg-red-800 border-transparent'
-                        : 'bg-transparent hover:bg-gray-100 dark:hover:bg-slate-800 text-gray-900 dark:text-white border-gray-300 dark:border-slate-600'
+                      confirmDelete === "yes"
+                        ? "bg-red-600 hover:bg-red-700 text-white dark:bg-red-700 dark:hover:bg-red-800 border-transparent"
+                        : "bg-transparent hover:bg-gray-100 dark:hover:bg-slate-800 text-gray-900 dark:text-white border-gray-300 dark:border-slate-600"
                     }`}
-                    onClick={() => setConfirmDelete('yes')}
+                    onClick={() => setConfirmDelete("yes")}
                   >
                     Ya, Hapus
                   </Button>
                   <Button
                     className={`flex-1 px-4 py-2 rounded-md font-medium transition-all duration-200 border ${
-                      confirmDelete === 'no'
-                        ? 'bg-green-600 hover:bg-green-700 text-white dark:bg-green-700 dark:hover:bg-green-800 border-transparent'
-                        : 'bg-transparent hover:bg-gray-100 dark:hover:bg-slate-800 text-gray-900 dark:text-white border-gray-300 dark:border-slate-600'
+                      confirmDelete === "no"
+                        ? "bg-green-600 hover:bg-green-700 text-white dark:bg-green-700 dark:hover:bg-green-800 border-transparent"
+                        : "bg-transparent hover:bg-gray-100 dark:hover:bg-slate-800 text-gray-900 dark:text-white border-gray-300 dark:border-slate-600"
                     }`}
-                    onClick={() => setConfirmDelete('no')}
+                    onClick={() => setConfirmDelete("no")}
                   >
                     Tidak
                   </Button>
                 </div>
               </div>
 
-              {confirmDelete === 'no' && (
+              {confirmDelete === "no" && (
                 <div className="bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800 rounded-md border p-3">
                   <p className="text-sm text-blue-800 dark:text-blue-300">
-                    Penghapusan dibatalkan. Klik tombol "Batal" untuk menutup dialog.
+                    Penghapusan dibatalkan. Klik tombol "Batal" untuk menutup
+                    dialog.
                   </p>
                 </div>
               )}
@@ -272,9 +317,9 @@ const DeleteConfirmDialog = ({
                       className={`px-4 py-2 rounded-md font-medium transition-all duration-200 border ${
                         selectedDay === day
                           ? day === getCurrentDay()
-                            ? 'bg-green-600 hover:bg-green-700 text-white dark:bg-green-700 dark:hover:bg-green-800 border-transparent'
-                            : 'bg-red-600 hover:bg-red-700 text-white dark:bg-red-700 dark:hover:bg-red-800 border-transparent'
-                          : 'bg-transparent hover:bg-gray-100 dark:hover:bg-slate-800 text-gray-900 dark:text-white border-gray-300 dark:border-slate-600'
+                            ? "bg-green-600 hover:bg-green-700 text-white dark:bg-green-700 dark:hover:bg-green-800 border-transparent"
+                            : "bg-red-600 hover:bg-red-700 text-white dark:bg-red-700 dark:hover:bg-red-800 border-transparent"
+                          : "bg-transparent hover:bg-gray-100 dark:hover:bg-slate-800 text-gray-900 dark:text-white border-gray-300 dark:border-slate-600"
                       }`}
                       onClick={() => setSelectedDay(day)}
                     >
@@ -358,7 +403,7 @@ const DeleteConfirmDialog = ({
                 Kembali
               </Button>
             )}
-            
+
             {currentStep < 3 ? (
               <Button
                 className="w-full sm:flex-1 px-4 py-2 rounded-md font-medium bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-800 text-white cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 transition-all duration-200 flex items-center justify-center gap-1 border-0"
@@ -387,7 +432,7 @@ const DeleteConfirmDialog = ({
                 )}
               </Button>
             )}
-            
+
             <Button
               className="w-full sm:w-auto px-4 py-2 rounded-md font-medium bg-transparent hover:bg-gray-100 dark:hover:bg-slate-800 text-gray-900 dark:text-white cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 transition-all duration-200 border-0"
               onClick={handleClose}

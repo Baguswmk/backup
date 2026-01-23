@@ -19,7 +19,11 @@ const ModalHeader = ({
           {Icon && <Icon className="w-5 h-5" />}
           {title}
         </h2>
-        {subtitle && <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{subtitle}</p>}
+        {subtitle && (
+          <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+            {subtitle}
+          </p>
+        )}
       </div>
       <Button
         variant="ghost"

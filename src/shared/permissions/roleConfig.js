@@ -11,10 +11,9 @@ export const ROLE_GROUPS = {
     "data_entry_in_36",
     "data_entry_out_36",
     "data_entry_sdj",
-    "ccr"
+    "ccr",
   ],
 
-  // Timbangan roles
   TIMBANGAN_INTERNAL: [
     "checker",
     "pic",
@@ -24,17 +23,15 @@ export const ROLE_GROUPS = {
     "mitra",
     "admin",
     "super_admin",
-    "ccr"
+    "ccr",
   ],
 
   TIMBANGAN_FOB: ["operator_timbangan_fob"],
   TIMBANGAN_FOT: ["operator_timbangan_fot"],
 
-  // Supervisor roles
   SUPERVISOR: ["supervisor_timbangan", "kepala_timbangan"],
 };
 
-// Location mapping - untuk backward compatibility
 export const LOCATION_ROLE_MAP = {
   118: ["data_entry_118"],
   107: ["data_entry_in_107", "data_entry_out_107"],
@@ -43,7 +40,6 @@ export const LOCATION_ROLE_MAP = {
   portsdj: ["data_entry_sdj"],
 };
 
-// Application Configuration with role groups
 export const APP_ROLES = {
   "b-trace": [...ROLE_GROUPS.ADMIN, ...ROLE_GROUPS.BTRACE_DATA_ENTRY],
 
@@ -64,14 +60,13 @@ export const APP_ROLES = {
   ],
 };
 
-// App metadata - UPDATED: Semua app bisa punya url atau path
 export const APP_METADATA = {
   "b-trace": {
     name: "B-Trace Application",
     description: "Batubara Tracking & Analysis System",
     type: "external",
     url: "https://btrace.bukitasam.co.id/timbangan-fob/",
-    path: null, // optional: bisa diisi jika ada internal path
+    path: null,
     icon: "BarChart3",
     color: "bg-purple-500 hover:bg-purple-600",
   },
@@ -91,47 +86,22 @@ export const APP_METADATA = {
     description: "Internal Weighing System",
     type: "internal",
     url: null,
-    path: '/timbangan-internal/apps/',
+    path: "/timbangan-internal/apps/",
     icon: "Scale",
     color: "bg-orange-500 hover:bg-orange-600",
     loadingMessage: "Loading Timbangan Internal...",
   },
-
-  // "timbangan-fob": {
-  //   name: "Timbangan FOB",
-  //   description: "Free On Board Weighing System",
-  //   type: "internal",
-  //   url: null,
-  //   path: null,
-  //   icon: "Scale",
-  //   color: "bg-blue-500 hover:bg-blue-600",
-  //   loadingMessage: "Loading Timbangan FOB...",
-  // },
-
-  // "timbangan-fot": {
-  //   name: "Timbangan FOT",
-  //   description: "Free On Truck Weighing System",
-  //   type: "internal", 
-  //   url: null,
-  //   path: null,
-  //   icon: "Scale",
-  //   color: "bg-green-500 hover:bg-green-600",
-  //   loadingMessage: "Loading Timbangan FOT...",
-  // },
 };
 
-// Helper function untuk get all roles in a group
 export const getRolesInGroup = (groupName) => {
   return ROLE_GROUPS[groupName] || [];
 };
 
-// Helper function untuk check if role is in group
 export const isRoleInGroup = (role, groupName) => {
   const group = ROLE_GROUPS[groupName];
   return group ? group.includes(role) : false;
 };
 
-// Helper function untuk get app config
 export const getAppConfig = (appKey) => {
   const metadata = APP_METADATA[appKey];
   const roles = APP_ROLES[appKey];
@@ -155,14 +125,11 @@ export const getAppsForRole = (userRole) => {
     .filter(Boolean);
 };
 
-
-// Helper function untuk check app access
 export const hasAppAccess = (userRole, appKey) => {
   const appRoles = APP_ROLES[appKey];
   return appRoles ? appRoles.includes(userRole) : false;
 };
 
-// Get location from role
 export const getLocationFromRole = (role) => {
   for (const [location, roles] of Object.entries(LOCATION_ROLE_MAP)) {
     if (roles.includes(role)) {
@@ -172,28 +139,23 @@ export const getLocationFromRole = (role) => {
   return null;
 };
 
-// Check if role has location access
 export const hasLocationAccess = (role, locationId) => {
-  // Admin has access to all locations
   if (ROLE_GROUPS.ADMIN.includes(role)) return true;
 
   const locationRoles = LOCATION_ROLE_MAP[locationId];
   return locationRoles ? locationRoles.includes(role) : false;
 };
 
-// Validation helper - get valid locations
 export const getValidLocations = () => {
   return Object.keys(LOCATION_ROLE_MAP);
 };
 
-// Export combined configuration for easy import
 export const ROLE_CONFIG = {
   groups: ROLE_GROUPS,
   apps: APP_ROLES,
   metadata: APP_METADATA,
   locations: LOCATION_ROLE_MAP,
 
-  // Helper methods
   getRolesInGroup,
   isRoleInGroup,
   getAppConfig,
