@@ -33,7 +33,7 @@ const TimbanganInternalPage = () => {
   const { user } = useAuthStore();
   const userRole = user?.role;
   const getDefaultMenu = () => {
-    if (userRole === "operator_jt") {
+    if (userRole === "operator_jt" || userRole === "checker") {
       return "Ritase";
     }
     return "Setting Fleet";
@@ -47,7 +47,6 @@ const TimbanganInternalPage = () => {
         name: "Setting Fleet",
         icon: Cog,
         roles: [
-          "checker",
           "pic",
           "pengawas",
           "evaluator",
@@ -105,13 +104,19 @@ const TimbanganInternalPage = () => {
       {
         name: "Overview",
         icon: BarChart3,
-        roles: ["admin", "super_admin"],
+        roles: ["admin", "super_admin","ccr", "checker","pengawas",],
         locationId: "overview",
+      },
+      {
+        name: "Laporan",
+        icon: BarChart3,
+        roles: ["admin", "super_admin", "ccr", "checker","pengawas",],
+        locationId: "laporan",
       },
       {
         name: "Master Data",
         icon: Database,
-        roles: ["super_admin", "operator_jt", "ccr", "admin"],
+        roles: ["super_admin", "operator_jt", "ccr", "admin", "checker"],
         locationId: "master-data",
       },
     ],
@@ -253,6 +258,8 @@ const TimbanganInternalPage = () => {
                 <BeltscaleManagement Type="Beltscale" />
               ) : activeMenu === "Overview" ? (
                 <OverviewPage />
+              ) : activeMenu === "Laporan" ? (
+                <LaporanManagement />
               ) : activeMenu === "Master Data" ? (
                 <MasterDataManagement />
               ) : activeMenu === "Laporan" ? (

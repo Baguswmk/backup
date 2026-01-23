@@ -2,9 +2,6 @@ import { useState, useCallback } from "react";
 import laporanService from "@/modules/timbangan/laporan/services/laporanService";
 import { showToast } from "@/shared/utils/toast";
 
-/**
- * ✅ UPDATED - Support date range & filters
- */
 export const useLaporan = () => {
   const [isDownloading, setIsDownloading] = useState(false);
   const [downloadType, setDownloadType] = useState(null);
@@ -98,9 +95,6 @@ export const useLaporan = () => {
     }
   }, []);
 
-  /**
-   * Shortcut: Download Laporan SPPH
-   */
   const downloadLaporanSPPH = useCallback(
     async (params) => {
       return downloadLaporan("spph", params);
@@ -108,9 +102,6 @@ export const useLaporan = () => {
     [downloadLaporan],
   );
 
-  /**
-   * Shortcut: Download Laporan Dump Truck
-   */
   const downloadLaporanDumpTruck = useCallback(
     async (params) => {
       return downloadLaporan("dump-truck", params);
@@ -118,9 +109,6 @@ export const useLaporan = () => {
     [downloadLaporan],
   );
 
-  /**
-   * Check if specific type is downloading
-   */
   const isTypeDownloading = useCallback(
     (type) => {
       return isDownloading && downloadType === type;
@@ -128,9 +116,6 @@ export const useLaporan = () => {
     [isDownloading, downloadType],
   );
 
-  /**
-   * Check if specific format is downloading for a type
-   */
   const isFormatDownloading = useCallback(
     (type, format) => {
       return (

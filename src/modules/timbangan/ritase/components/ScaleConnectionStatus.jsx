@@ -1,18 +1,9 @@
 import React from "react";
 import { Button } from "@/shared/components/ui/button";
 import { Alert, AlertDescription } from "@/shared/components/ui/alert";
-import {
-  AlertCircle,
-  Loader2,
-  Wifi,
-  WifiOff,
-  RefreshCw,
-} from "lucide-react";
+import { AlertCircle, Loader2, Wifi, WifiOff, RefreshCw } from "lucide-react";
 import { formatWeight } from "@/shared/utils/number";
 
-/**
- * Komponen sederhana untuk status koneksi timbangan
- */
 const ScaleConnectionStatus = ({
   isSupported,
   isAutoConnecting,
@@ -26,18 +17,20 @@ const ScaleConnectionStatus = ({
 }) => {
   if (!isSupported) {
     return (
-      <Alert variant="destructive" className="bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800">
+      <Alert
+        variant="destructive"
+        className="bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800"
+      >
         <AlertCircle className="w-4 h-4 text-red-600 dark:text-red-400" />
         <AlertDescription className="text-red-800 dark:text-red-200">
-          WebSerial tidak didukung di browser ini. Gunakan Chrome atau Edge versi 89+
+          WebSerial tidak didukung di browser ini. Gunakan Chrome atau Edge
+          versi 89+
         </AlertDescription>
       </Alert>
     );
   }
 
-  // Render single button based on state
   const renderButton = () => {
-    // Jika sedang connecting atau auto-connecting
     if (isConnecting || isAutoConnecting) {
       return (
         <Button
@@ -50,7 +43,6 @@ const ScaleConnectionStatus = ({
       );
     }
 
-    // Jika timeout atau ada error
     if ((connectionTimeout && !wsConnected) || scaleError) {
       return (
         <Button
@@ -63,7 +55,6 @@ const ScaleConnectionStatus = ({
       );
     }
 
-    // Jika sudah connected
     if (wsConnected) {
       return (
         <Button
@@ -77,7 +68,6 @@ const ScaleConnectionStatus = ({
       );
     }
 
-    // Default: belum connected
     return (
       <Button
         onClick={onConnect}
@@ -89,7 +79,6 @@ const ScaleConnectionStatus = ({
     );
   };
 
-  // Status color
   const getStatusColor = () => {
     if (isAutoConnecting || isConnecting) return "blue";
     if (connectionTimeout || scaleError) return "orange";
@@ -100,19 +89,21 @@ const ScaleConnectionStatus = ({
   const statusColor = getStatusColor();
   const colorClasses = {
     blue: "border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/20 text-blue-900 dark:text-blue-200",
-    orange: "border-orange-200 dark:border-orange-800 bg-orange-50 dark:bg-orange-900/20 text-orange-900 dark:text-orange-200",
-    green: "border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/20 text-green-900 dark:text-green-200",
+    orange:
+      "border-orange-200 dark:border-orange-800 bg-orange-50 dark:bg-orange-900/20 text-orange-900 dark:text-orange-200",
+    green:
+      "border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/20 text-green-900 dark:text-green-200",
     gray: "border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-200",
   };
 
   return (
     <div className={colorClasses[statusColor]}>
-          {wsConnected && currentWeight && (
-            <span className="text-sm font-mono font-medium">
-              {formatWeight(currentWeight)} ton
-            </span>
-          )}
-        {renderButton()}
+      {wsConnected && currentWeight && (
+        <span className="text-sm font-mono font-medium">
+          {formatWeight(currentWeight)} ton
+        </span>
+      )}
+      {renderButton()}
     </div>
   );
 };

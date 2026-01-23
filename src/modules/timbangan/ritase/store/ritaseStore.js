@@ -107,15 +107,13 @@ const initialState = {
     dumptrucks: createEmptyDumptruckSetup(),
   },
 
-  // ✅ SIMPLIFIED: Single source of truth
   fleetConfigs: [],
   activeFleetConfigId: null,
   selectedFleetIds: [],
 
-  // ✅ SIMPLIFIED: Single index for all types
   dtIndex: {},
   hiddenDumptrucks: {},
-  
+
   masters: createEmptyMasters(),
   mastersMeta: createMastersMeta(),
 
@@ -242,7 +240,7 @@ export const useRitaseStore = create(
             }
             return acc;
           },
-          {}
+          {},
         );
 
         set({ hiddenDumptrucks: cleaned });
@@ -250,18 +248,17 @@ export const useRitaseStore = create(
 
       _scheduleIndexRebuild: () => {
         debounceIndexRebuild(
-          'rebuild-main',
+          "rebuild-main",
           () => {
             const state = get();
             queueIndexRebuild(() => {
               return get()._executeIndexRebuild(state.fleetConfigs);
             });
           },
-          150
+          150,
         );
       },
 
-      // ✅ SIMPLIFIED: Single rebuild function
       _executeIndexRebuild: (configs) => {
         if (!Array.isArray(configs)) {
           console.warn("⚠️ _executeIndexRebuild: configs must be array");
@@ -270,7 +267,7 @@ export const useRitaseStore = create(
 
         const state = get();
         const rebuildId = Date.now();
-        
+
         const idx = {};
         let totalUnits = 0;
 
@@ -317,11 +314,10 @@ export const useRitaseStore = create(
               tareWeight: unit.tareWeight ?? null,
               isHidden: !!state.hiddenDumptrucks[key],
             };
-            
+
             totalUnits++;
           });
         });
-
 
         set({
           dtIndex: idx,
@@ -330,59 +326,64 @@ export const useRitaseStore = create(
         });
       },
 
-      // ✅ SIMPLIFIED: Single function for setting configs
       setDumptruckIndexFromConfigs: (configs) => {
         if (!Array.isArray(configs)) {
-          console.warn("⚠️ setDumptruckIndexFromConfigs: configs must be array");
+          console.warn(
+            "⚠️ setDumptruckIndexFromConfigs: configs must be array",
+          );
           return;
         }
 
         const state = get();
-        
-        // ✅ Compare IDs only
-        const currentIds = (state.fleetConfigs || []).map(c => c.id).sort().join(',');
-        const newIds = configs.map(c => c.id).sort().join(',');
-        
-        // Only update if there's actual change
+
+        const currentIds = (state.fleetConfigs || [])
+          .map((c) => c.id)
+          .sort()
+          .join(",");
+        const newIds = configs
+          .map((c) => c.id)
+          .sort()
+          .join(",");
+
         if (currentIds !== newIds) {
           set({ fleetConfigs: configs });
         }
 
         const selectedIds = state.selectedFleetIds || [];
 
-        // ✅ Only rebuild if there are selected items AND configs exist
         if (selectedIds.length > 0 && configs.length > 0) {
-          const selectedConfigs = configs.filter(c => selectedIds.includes(c.id));
-          
+          const selectedConfigs = configs.filter((c) =>
+            selectedIds.includes(c.id),
+          );
+
           if (selectedConfigs.length > 0) {
-            // Check if index actually needs update
             const currentIndex = state.dtIndex || {};
-            
-            const needsRebuild = selectedConfigs.some(cfg => {
+
+            const needsRebuild = selectedConfigs.some((cfg) => {
               const units = Array.isArray(cfg.units) ? cfg.units : [];
               return units.length > 0;
             });
-            
+
             if (needsRebuild || Object.keys(currentIndex).length === 0) {
               get()._executeIndexRebuild(selectedConfigs);
             }
           }
         } else if (selectedIds.length === 0) {
-          // Clear index if no selection
           if (Object.keys(state.dtIndex || {}).length > 0) {
             set({ dtIndex: {} });
           }
         }
       },
 
-      // ✅ SIMPLIFIED: Remove by-type methods
       setSelectedFleets: (fleetIds) => {
         const ids = Array.isArray(fleetIds) ? fleetIds : [];
         set({ selectedFleetIds: ids });
 
         const state = get();
         if (ids.length > 0) {
-          const selectedConfigs = state.fleetConfigs.filter(c => ids.includes(c.id));
+          const selectedConfigs = state.fleetConfigs.filter((c) =>
+            ids.includes(c.id),
+          );
           get()._executeIndexRebuild(selectedConfigs);
         } else {
           set({ dtIndex: {} });
@@ -423,11 +424,10 @@ export const useRitaseStore = create(
       getSelectedFleets: () => {
         const state = get();
         return state.fleetConfigs.filter((f) =>
-          state.selectedFleetIds.includes(f.id)
+          state.selectedFleetIds.includes(f.id),
         );
       },
 
-      // ✅ SIMPLIFIED: Single index lookup
       findByHullNo: (hullNo, includeHidden = false) => {
         const state = get();
         const index = state.dtIndex;
@@ -451,11 +451,10 @@ export const useRitaseStore = create(
         return result;
       },
 
-      // ✅ Helper untuk filter by type (computed, bukan stored)
       getFleetConfigsByType: (measurementType) => {
         const state = get();
         return state.fleetConfigs.filter(
-          (config) => config.measurementType === measurementType
+          (config) => config.measurementType === measurementType,
         );
       },
 
@@ -469,7 +468,7 @@ export const useRitaseStore = create(
           };
 
           const newConfigs = [...state.fleetConfigs, newConfig];
-          
+
           get().setDumptruckIndexFromConfigs(newConfigs);
           return { fleetConfigs: newConfigs };
         }),
@@ -479,7 +478,7 @@ export const useRitaseStore = create(
           const newConfigs = state.fleetConfigs.map((config) =>
             config.id === configId
               ? { ...config, ...updates, updatedAt: new Date().toISOString() }
-              : config
+              : config,
           );
 
           get().setDumptruckIndexFromConfigs(newConfigs);
@@ -493,10 +492,10 @@ export const useRitaseStore = create(
         set((state) => {
           const isActive = state.activeFleetConfigId === configId;
           const newConfigs = state.fleetConfigs.filter(
-            (c) => c.id !== configId
+            (c) => c.id !== configId,
           );
           const newSelectedFleetIds = state.selectedFleetIds.filter(
-            (id) => id !== configId
+            (id) => id !== configId,
           );
 
           get().setDumptruckIndexFromConfigs(newConfigs);
@@ -512,7 +511,7 @@ export const useRitaseStore = create(
       loadFleetConfigsFromAPI: async (
         forceRefresh = false,
         dateRange = null,
-        measurementType = null
+        measurementType = null,
       ) => {
         set({ isLoading: true, error: null });
 
@@ -550,14 +549,13 @@ export const useRitaseStore = create(
             const state = get();
             const existingSelectedIds = state.selectedFleetIds || [];
 
-            // ✅ SIMPLIFIED: Merge all configs
             const existingSelectedFleets = state.fleetConfigs.filter((f) =>
-              existingSelectedIds.includes(f.id)
+              existingSelectedIds.includes(f.id),
             );
 
             const mergedConfigs = [...existingSelectedFleets, ...result.data];
             const uniqueConfigs = Array.from(
-              new Map(mergedConfigs.map((c) => [c.id, c])).values()
+              new Map(mergedConfigs.map((c) => [c.id, c])).values(),
             );
 
             set({
@@ -568,8 +566,8 @@ export const useRitaseStore = create(
             });
 
             if (existingSelectedIds.length > 0) {
-              const selectedConfigs = uniqueConfigs.filter(c => 
-                existingSelectedIds.includes(c.id)
+              const selectedConfigs = uniqueConfigs.filter((c) =>
+                existingSelectedIds.includes(c.id),
               );
               get()._executeIndexRebuild(selectedConfigs);
             } else {
@@ -596,7 +594,7 @@ export const useRitaseStore = create(
         try {
           const result = await ritaseServices.updateFleetConfig(
             configId,
-            config
+            config,
           );
           return result;
         } catch (error) {
@@ -610,38 +608,44 @@ export const useRitaseStore = create(
       loadRitaseDataFromAPI: async (
         dateRange = null,
         forceRefresh = true,
-        measurementType = null  
+        measurementType = null,
       ) => {
         set({ isLoading: true });
 
         try {
           const { user } = useAuthStore.getState();
-          
-          const filters = { 
+
+          const filters = {
             forceRefresh,
-            user,  
-            measurementType  
+            user,
+            measurementType,
           };
 
           if (dateRange) {
             const fromDate = dateRange.from || dateRange.startDate;
             const toDate = dateRange.to || dateRange.endDate;
-            
+
             if (fromDate) {
-              filters.startDate = fromDate instanceof Date 
-                ? fromDate.toISOString().split('T')[0]
-                : (typeof fromDate === 'string' ? fromDate : null);
+              filters.startDate =
+                fromDate instanceof Date
+                  ? fromDate.toISOString().split("T")[0]
+                  : typeof fromDate === "string"
+                    ? fromDate
+                    : null;
             }
-            
+
             if (toDate) {
-              filters.endDate = toDate instanceof Date 
-                ? toDate.toISOString().split('T')[0]
-                : (typeof toDate === 'string' ? toDate : null);
+              filters.endDate =
+                toDate instanceof Date
+                  ? toDate.toISOString().split("T")[0]
+                  : typeof toDate === "string"
+                    ? toDate
+                    : null;
             }
           }
 
           const result = await ritaseServices.fetchTimbanganData(filters);
-          
+
           if (result.success) {
             set({
               ritaseData: result.data,
@@ -701,13 +705,13 @@ export const useRitaseStore = create(
       getActiveFleetConfig: () => {
         const state = get();
         return state.fleetConfigs.find(
-          (c) => c.id === state.activeFleetConfigId
+          (c) => c.id === state.activeFleetConfigId,
         );
       },
 
       setFleetField: (key, value) => {
         const safeValue =
-          typeof value === "string" ? value.trim() : value ?? "";
+          typeof value === "string" ? value.trim() : (value ?? "");
         set((state) => ({
           setupData: {
             ...state.setupData,
@@ -725,7 +729,7 @@ export const useRitaseStore = create(
           : [];
         set((state) => {
           const selectedIds = state.setupData.dumptrucks.selectedIds.filter(
-            (id) => safePool.some((dt) => dt.id === id)
+            (id) => safePool.some((dt) => dt.id === id),
           );
           return {
             setupData: {
@@ -742,10 +746,10 @@ export const useRitaseStore = create(
       setDumptruckSelection: (ids) =>
         set((state) => {
           const poolIds = new Set(
-            state.setupData.dumptrucks.pool.map((dt) => dt.id)
+            state.setupData.dumptrucks.pool.map((dt) => dt.id),
           );
           const uniqueIds = Array.from(new Set(ids || [])).filter((id) =>
-            poolIds.has(id)
+            poolIds.has(id),
           );
 
           return {
@@ -778,7 +782,7 @@ export const useRitaseStore = create(
         if (!dt?.id) return;
         set((state) => {
           const exists = state.setupData.dumptrucks.pool.some(
-            (item) => item.id === dt.id
+            (item) => item.id === dt.id,
           );
           if (exists) return state;
 
@@ -867,7 +871,7 @@ export const useRitaseStore = create(
           ritaseData: state.ritaseData.map((item) =>
             item.id === id
               ? { ...item, ...updatedData, updatedAt: new Date().toISOString() }
-              : item
+              : item,
           ),
         })),
 
@@ -878,9 +882,7 @@ export const useRitaseStore = create(
 
       deleteMultipleTimbanganEntries: (ids) =>
         set((state) => ({
-          ritaseData: state.ritaseData.filter(
-            (item) => !ids.includes(item.id)
-          ),
+          ritaseData: state.ritaseData.filter((item) => !ids.includes(item.id)),
           selectedItems: [],
         })),
 
@@ -1004,8 +1006,8 @@ export const useRitaseStore = create(
       migrate: (persistedState) => {
         return persistedState;
       },
-    }
-  )
+    },
+  ),
 );
 
 export { normalizeDateRange, normalizeHull };

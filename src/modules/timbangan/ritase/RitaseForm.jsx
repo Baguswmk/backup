@@ -512,7 +512,6 @@ const RitaseForm = ({
       e.preventDefault();
     }
 
-
     if (
       !isEditMode &&
       !manualEditMode &&
@@ -532,9 +531,7 @@ const RitaseForm = ({
       const isQueued = result?.queued === true;
       const shouldClose = result?.shouldClose === true;
 
-
       if (isQueued || (result?.success && !result?.data)) {
-
         showToast.info(
           "📤 Data disimpan di queue dan akan otomatis tersinkron saat online",
           { duration: 4000 },
@@ -553,8 +550,6 @@ const RitaseForm = ({
       }
 
       if (result?.success && result?.data) {
-
-
         if (onSubmit) {
           onSubmit(result);
         }
@@ -583,7 +578,6 @@ const RitaseForm = ({
         err?.queued || err?.message?.includes("queued for offline sync");
 
       if (isQueuedError) {
-
         showToast.info(
           "📤 Data disimpan di queue dan akan otomatis tersinkron saat online",
           { duration: 4000 },

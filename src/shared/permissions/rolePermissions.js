@@ -33,6 +33,17 @@ export const FLEET_TYPE_ACCESS = {
       Jembatan: "Timbangan",
     },
   },
+    checker: {
+    allowedTypes: ["Jembatan", "FOB", "Bypass", "Beltscale"],
+    readOnly: true,
+    autoWeighBridge: false,
+    canSelectWeighBridge: false,
+    measurementTypeMap: {
+      Jembatan: "Timbangan",
+      Bypass: "Bypass",
+      Beltscale: "Beltscale",
+    },
+  },
   ccr: {
     allowedTypes: ["Jembatan", "FOB", "Bypass", "Beltscale"],
     autoWeighBridge: false,
@@ -66,17 +77,7 @@ export const FLEET_TYPE_ACCESS = {
       Beltscale: "Beltscale",
     },
   },
-  checker: {
-    allowedTypes: ["Jembatan", "FOB", "Bypass", "Beltscale"],
-    readOnly: true,
-    autoWeighBridge: false,
-    canSelectWeighBridge: false,
-    measurementTypeMap: {
-      Jembatan: "Timbangan",
-      Bypass: "Bypass",
-      Beltscale: "Beltscale",
-    },
-  },
+
   admin: {
     allowedTypes: ["Jembatan", "FOB", "Bypass", "Beltscale"],
     readOnly: true,
@@ -136,7 +137,6 @@ export const ROLE_PERMISSIONS = {
       PERMISSIONS.CREATE,
       PERMISSIONS.UPDATE,
       PERMISSIONS.DELETE,
-      PERMISSIONS.EXPORT,
     ],
     fleet: [
       PERMISSIONS.READ,
@@ -144,13 +144,9 @@ export const ROLE_PERMISSIONS = {
       PERMISSIONS.UPDATE,
       PERMISSIONS.DELETE,
     ],
-    masterData: [
-      PERMISSIONS.READ,
-      PERMISSIONS.CREATE,
-      PERMISSIONS.UPDATE,
-      PERMISSIONS.DELETE,
-    ],
     fleetTypes: ["Setting Fleet"],
+        masterData: [PERMISSIONS.READ, PERMISSIONS.CREATE, PERMISSIONS.UPDATE],
+    masterDataCategories: ["units"],
     canSelectWeighBridge: true,
     canDeleteWithRitase: true, 
     description: "CRUD untuk Timbangan/Beltscale/Bypass, filter by company",
@@ -354,7 +350,6 @@ export const filterDataByRole = (data, userRole, user) => {
 
   switch (filterType) {
     case "subsatker": {
-      // ✅ For ccr, pengawas, evaluator, pic - filter by subsatker (string)
       const userSubsatker = user?.work_unit?.subsatker || user?.subsatker;
       if (!userSubsatker) {
         console.warn(`⚠️ ${roleLower}: User subsatker not found`);

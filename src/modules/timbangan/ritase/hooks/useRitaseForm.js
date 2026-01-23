@@ -32,7 +32,6 @@ const CREATE_VALIDATION_RULES = {
   },
 };
 
-
 const GROSS_WEIGHT_VALIDATION = {
   gross_weight: {
     required: true,
@@ -44,7 +43,6 @@ const GROSS_WEIGHT_VALIDATION = {
     errorMessage: "Gross weight harus antara 0-9999.99 ton (max 4 digit)",
   },
 };
-
 
 const NET_WEIGHT_VALIDATION = {
   net_weight: {
@@ -254,30 +252,30 @@ export const useRitaseForm = (
   const modeRef = useRef(mode);
   const mastersRef = useRef(masters);
 
-const validationRules = useMemo(() => {
-  if (mode === "edit") {
-    return EDIT_VALIDATION_RULES;
-  } else if (mode === "delete") {
-    return {};
-  } else {
-    const rules = { ...CREATE_VALIDATION_RULES };
-    
-    if (currentFleet) {
-      const measurementType = currentFleet.measurement_type || "Timbangan";
-      const hasWeighBridge = user?.weigh_bridge != null;
+  const validationRules = useMemo(() => {
+    if (mode === "edit") {
+      return EDIT_VALIDATION_RULES;
+    } else if (mode === "delete") {
+      return {};
+    } else {
+      const rules = { ...CREATE_VALIDATION_RULES };
 
-      if (measurementType === "Timbangan") {
-        if (hasWeighBridge) {
-          Object.assign(rules, GROSS_WEIGHT_VALIDATION);
-        } else {
-          Object.assign(rules, NET_WEIGHT_VALIDATION);
+      if (currentFleet) {
+        const measurementType = currentFleet.measurement_type || "Timbangan";
+        const hasWeighBridge = user?.weigh_bridge != null;
+
+        if (measurementType === "Timbangan") {
+          if (hasWeighBridge) {
+            Object.assign(rules, GROSS_WEIGHT_VALIDATION);
+          } else {
+            Object.assign(rules, NET_WEIGHT_VALIDATION);
+          }
         }
       }
+
+      return rules;
     }
-    
-    return rules;
-  }
-}, [mode, currentFleet, user]);
+  }, [mode, currentFleet, user]);
   useEffect(() => {
     isMountedRef.current = true;
 
@@ -411,7 +409,6 @@ const validationRules = useMemo(() => {
     [validationRules],
   );
 
-  
   const validateAllFields = useCallback(() => {
     const newErrors = {};
     let isValid = true;
@@ -428,27 +425,27 @@ const validationRules = useMemo(() => {
         isValid = false;
       }
 
-      
       if (currentFleet) {
         const measurementType = currentFleet.measurement_type || "Timbangan";
         const hasWeighBridge = user?.weigh_bridge != null;
 
         if (measurementType === "Timbangan") {
           if (hasWeighBridge) {
-            
-            if (!formData.gross_weight || parseFloat(formData.gross_weight) <= 0) {
-              newErrors.gross_weight = "Gross weight wajib diisi dan lebih dari 0";
+            if (
+              !formData.gross_weight ||
+              parseFloat(formData.gross_weight) <= 0
+            ) {
+              newErrors.gross_weight =
+                "Gross weight wajib diisi dan lebih dari 0";
               isValid = false;
             }
           } else {
-            
             if (!formData.net_weight || parseFloat(formData.net_weight) <= 0) {
               newErrors.net_weight = "Net weight wajib diisi dan lebih dari 0";
               isValid = false;
             }
           }
         }
-        
       }
     } else if (mode === "edit") {
       if (!formData.gross_weight) {
@@ -583,7 +580,6 @@ const validationRules = useMemo(() => {
     [formData, validateField],
   );
 
-  
   const handleSubmit = useCallback(async () => {
     if (isSubmitting) {
       console.warn("⚠️ Already submitting, blocking duplicate call");
@@ -642,8 +638,7 @@ const validationRules = useMemo(() => {
             throw new Error("Component unmounted during request");
           }
 
-          const updateRitaseEntry =
-            useRitaseStore.getState().updateRitaseEntry;
+          const updateRitaseEntry = useRitaseStore.getState().updateRitaseEntry;
           updateRitaseEntry(editingItem.id, result.data);
 
           return { success: true, data: result.data };
@@ -691,44 +686,39 @@ const validationRules = useMemo(() => {
         }
       });
     } else {
-      
-     if (!currentFleet) {
-      showToast.error("Data fleet tidak lengkap");
-      setIsSubmitting(false);
-      return { success: false, error: "Fleet data missing" };
-    }
+      if (!currentFleet) {
+        showToast.error("Data fleet tidak lengkap");
+        setIsSubmitting(false);
+        return { success: false, error: "Fleet data missing" };
+      }
 
-    return await withErrorHandling(
-      async () => {
-        const measurementType = currentFleet.measurement_type || "Timbangan";
-        const hasWeighBridge = user?.weigh_bridge != null;
+      return await withErrorHandling(
+        async () => {
+          const measurementType = currentFleet.measurement_type || "Timbangan";
+          const hasWeighBridge = user?.weigh_bridge != null;
 
-        const submissionData = {
-          setting_fleet: parseInt(formData.setting_fleet_id),
-          unit_dump_truck: parseInt(formData.dumptruck),
-          operator: formData.operator ? parseInt(formData.operator) : null,
-          clientCreatedAt: formData.createdAt || new Date().toISOString(),
-          created_by_user: user?.id || null,
-          measurement_type: measurementType,
-          has_weigh_bridge: hasWeighBridge,
-        };
+          const submissionData = {
+            setting_fleet: parseInt(formData.setting_fleet_id),
+            unit_dump_truck: parseInt(formData.dumptruck),
+            operator: formData.operator ? parseInt(formData.operator) : null,
+            clientCreatedAt: formData.createdAt || new Date().toISOString(),
+            created_by_user: user?.id || null,
+            measurement_type: measurementType,
+            has_weigh_bridge: hasWeighBridge,
+          };
 
-        
-        if (measurementType === "Timbangan") {
-          if (hasWeighBridge) {
-            
-            submissionData.gross_weight = parseFloat(formData.gross_weight);
-          } else {
-            
-            submissionData.net_weight = parseFloat(formData.net_weight);
+          if (measurementType === "Timbangan") {
+            if (hasWeighBridge) {
+              submissionData.gross_weight = parseFloat(formData.gross_weight);
+            } else {
+              submissionData.net_weight = parseFloat(formData.net_weight);
+            }
           }
-        }
-        
 
-        const result = await ritaseServices.submitTimbanganForm(
-          submissionData,
-          { signal },
-        );
+          const result = await ritaseServices.submitTimbanganForm(
+            submissionData,
+            { signal },
+          );
 
           if (!isMountedRef.current) {
             throw new Error("Component unmounted during request");
@@ -744,8 +734,7 @@ const validationRules = useMemo(() => {
           }
 
           if (result.success && result.data) {
-            const { addRitaseEntry, hideDumptruck } =
-              useRitaseStore.getState();
+            const { addRitaseEntry, hideDumptruck } = useRitaseStore.getState();
             addRitaseEntry(result.data);
             hideDumptruck(editingItem?.hull_no || formData.hull_no);
 
@@ -827,9 +816,7 @@ const validationRules = useMemo(() => {
         gross_weight: formData.gross_weight
           ? `${formData.gross_weight} ton`
           : "-",
-        net_weight: formData.net_weight
-          ? `${formData.net_weight} ton`
-          : "-",
+        net_weight: formData.net_weight ? `${formData.net_weight} ton` : "-",
         isEditMode: true,
       };
     }
@@ -839,9 +826,7 @@ const validationRules = useMemo(() => {
       gross_weight: formData.gross_weight
         ? `${formData.gross_weight} ton`
         : "-",
-      net_weight: formData.net_weight
-        ? `${formData.net_weight} ton`
-        : "-",
+      net_weight: formData.net_weight ? `${formData.net_weight} ton` : "-",
       isAutoFilled: !!formData.setting_fleet_id && !!currentFleet,
       fleetInfo: currentFleet,
     };

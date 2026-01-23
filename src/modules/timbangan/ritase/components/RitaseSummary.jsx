@@ -1,9 +1,8 @@
-import React, { useMemo } from 'react';
-import { Card, CardContent } from '@/shared/components/ui/card';
-import { Package, Scale, Truck, TrendingUp } from 'lucide-react';
+import React, { useMemo } from "react";
+import { Card, CardContent } from "@/shared/components/ui/card";
+import { Package, Scale, Truck, TrendingUp } from "lucide-react";
 
 const RitaseSummary = ({ summaryData, isLoading = false }) => {
-  // Calculate totals from summaries
   const stats = useMemo(() => {
     if (!summaryData?.summaries || summaryData.summaries.length === 0) {
       return {
@@ -16,18 +15,18 @@ const RitaseSummary = ({ summaryData, isLoading = false }) => {
 
     const totalRitase = summaryData.summaries.reduce(
       (sum, item) => sum + (item.total_ritase || 0),
-      0
+      0,
     );
     const totalTonase = summaryData.summaries.reduce(
-      (sum, item) => sum + (item.total_tonase || 0),
-      0
+        (sum, item) => sum + (item.total_tonaspe || 0),
+        0,
     );
     const totalActiveDT = summaryData.summaries.reduce(
       (sum, item) => sum + (item.total_active_dt || 0),
-      0
+      0,
     );
     const uniqueExcavators = new Set(
-      summaryData.summaries.map((item) => item.unit_exca)
+      summaryData.summaries.map((item) => item.unit_exca),
     ).size;
 
     return {
@@ -40,44 +39,44 @@ const RitaseSummary = ({ summaryData, isLoading = false }) => {
 
   const statCards = [
     {
-      title: 'Total Ritase',
+      title: "Total Ritase",
       value: stats.totalRitase,
       icon: Package,
-      color: 'bg-blue-500',
-      lightColor: 'bg-blue-50',
-      darkLightColor: 'dark:bg-blue-900/20',
-      textColor: 'text-blue-600',
-      darkTextColor: 'dark:text-blue-400',
+      color: "bg-blue-500",
+      lightColor: "bg-blue-50",
+      darkLightColor: "dark:bg-blue-900/20",
+      textColor: "text-blue-600",
+      darkTextColor: "dark:text-blue-400",
     },
     {
-      title: 'Total Tonase',
+      title: "Total Tonase",
       value: `${stats.totalTonase.toFixed(2)} ton`,
       icon: Scale,
-      color: 'bg-green-500',
-      lightColor: 'bg-green-50',
-      darkLightColor: 'dark:bg-green-900/20',
-      textColor: 'text-green-600',
-      darkTextColor: 'dark:text-green-400',
+      color: "bg-green-500",
+      lightColor: "bg-green-50",
+      darkLightColor: "dark:bg-green-900/20",
+      textColor: "text-green-600",
+      darkTextColor: "dark:text-green-400",
     },
     {
-      title: 'Active Dump Trucks',
+      title: "Active Dump Trucks",
       value: stats.totalActiveDT,
       icon: Truck,
-      color: 'bg-orange-500',
-      lightColor: 'bg-orange-50',
-      darkLightColor: 'dark:bg-orange-900/20',
-      textColor: 'text-orange-600',
-      darkTextColor: 'dark:text-orange-400',
+      color: "bg-orange-500",
+      lightColor: "bg-orange-50",
+      darkLightColor: "dark:bg-orange-900/20",
+      textColor: "text-orange-600",
+      darkTextColor: "dark:text-orange-400",
     },
     {
-      title: 'Active Excavators',
+      title: "Active Excavators",
       value: stats.uniqueExcavators,
       icon: TrendingUp,
-      color: 'bg-purple-500',
-      lightColor: 'bg-purple-50',
-      darkLightColor: 'dark:bg-purple-900/20',
-      textColor: 'text-purple-600',
-      darkTextColor: 'dark:text-purple-400',
+      color: "bg-purple-500",
+      lightColor: "bg-purple-50",
+      darkLightColor: "dark:bg-purple-900/20",
+      textColor: "text-purple-600",
+      darkTextColor: "dark:text-purple-400",
     },
   ];
 

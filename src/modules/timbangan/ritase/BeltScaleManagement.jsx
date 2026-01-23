@@ -14,11 +14,11 @@ import useAuthStore from "@/modules/auth/store/authStore";
 
 import { getInitialDateRange } from "@/modules/timbangan/ritase/constant/ritaseConstants";
 
-const BeltscaleManagement = ({Type}) => {
+const BeltscaleManagement = () => {
   const { user } = useAuthStore();
   const ritaseData = useRitaseStore((state) => state.ritaseData);
   const loadRitaseDataFromAPI = useRitaseStore(
-    (state) => state.loadRitaseDataFromAPI
+    (state) => state.loadRitaseDataFromAPI,
   );
   const error = useRitaseStore((state) => state.error);
   const clearError = useRitaseStore((state) => state.clearError);
@@ -37,7 +37,7 @@ const BeltscaleManagement = ({Type}) => {
     if (dateRange.from || dateRange.to) {
       filtered = filtered.filter((item) => {
         const itemDate = new Date(
-          item.tanggal || item.date || item.createdAt || item.timestamp
+          item.tanggal || item.date || item.createdAt || item.timestamp,
         );
         if (isNaN(itemDate.getTime())) return false;
         if (dateRange.from && itemDate < dateRange.from) return false;
@@ -56,7 +56,7 @@ const BeltscaleManagement = ({Type}) => {
     return filtered;
   }, [ritaseData, dateRange]);
 
- const handleDateRangeChange = useCallback((range) => {
+  const handleDateRangeChange = useCallback((range) => {
     const normalized = {
       from:
         range.from || range.startDate
@@ -70,25 +70,22 @@ const BeltscaleManagement = ({Type}) => {
     if (normalized.from) normalized.from.setHours(0, 0, 0, 0);
     if (normalized.to) normalized.to.setHours(23, 59, 59, 999);
 
-
-    // Update state
     setDateRange(normalized);
 
-    // ✅ Load data using getState() to avoid infinite loop
     const { loadRitaseDataFromAPI } = useRitaseStore.getState();
-    
+
     setIsLoading(true);
-    
+
     loadRitaseDataFromAPI(
       { from: normalized.from, to: normalized.to },
-      true, 
-      "Beltscale"
+      true,
+      "Beltscale",
     )
       .then(() => {
-        showToast.success('Data berhasil dimuat');
+        showToast.success("Data berhasil dimuat");
       })
       .catch((error) => {
-        console.error('❌ Failed to load Beltscale data:', error);
+        console.error("❌ Failed to load Beltscale data:", error);
         showToast.error("Gagal memuat data");
       })
       .finally(() => {
@@ -102,7 +99,7 @@ const BeltscaleManagement = ({Type}) => {
       await loadRitaseDataFromAPI(
         { from: dateRange.from, to: dateRange.to },
         true,
-        "Beltscale"
+        "Beltscale",
       );
       showToast.success("Data berhasil di-refresh");
     } catch (error) {
@@ -124,15 +121,15 @@ const BeltscaleManagement = ({Type}) => {
         await loadRitaseDataFromAPI(
           { from: dateRange.from, to: dateRange.to },
           true,
-          "Beltscale"
+          "Beltscale",
         );
 
         showToast.success(
-          result.message || "Beltscale adjustment berhasil disimpan"
+          result.message || "Beltscale adjustment berhasil disimpan",
         );
       }
     },
-    [dateRange, loadRitaseDataFromAPI]
+    [dateRange, loadRitaseDataFromAPI],
   );
 
   const handleOpenForm = useCallback(() => {
@@ -147,26 +144,25 @@ const BeltscaleManagement = ({Type}) => {
     setAdjustmentSummary(null);
   }, []);
 
-useEffect(() => {
-  const loadInitialData = async () => {
-    setIsInitialLoading(true);
-    try {
-      await loadRitaseDataFromAPI(
-        { from: dateRange.from, to: dateRange.to },
-        false,
-        "Beltscale"
-      );
-    } catch (error) {
-      console.error("❌ Failed to load initial Beltscale data:", error);
-      showToast.error("Gagal memuat data awal");
-    } finally {
-      setIsInitialLoading(false);
-    }
-  };
+  useEffect(() => {
+    const loadInitialData = async () => {
+      setIsInitialLoading(true);
+      try {
+        await loadRitaseDataFromAPI(
+          { from: dateRange.from, to: dateRange.to },
+          false,
+          "Beltscale",
+        );
+      } catch (error) {
+        console.error("❌ Failed to load initial Beltscale data:", error);
+        showToast.error("Gagal memuat data awal");
+      } finally {
+        setIsInitialLoading(false);
+      }
+    };
 
-  loadInitialData();
-}, []); 
-  
+    loadInitialData();
+  }, []);
 
   useEffect(() => {
     if (showForm) {

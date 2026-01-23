@@ -54,7 +54,6 @@ const RitaseEditForm = ({
     handleSubmit,
   } = useRitaseForm(editingItem, "edit", masters);
 
-  // Dropdown options
   const loadingLocationOptions = useMemo(() => {
     return (masters.loadingLocations || []).map((loc) => ({
       value: loc.name,
@@ -127,7 +126,7 @@ const RitaseEditForm = ({
       }
     } catch (err) {
       console.error("Error updating ritase:", err);
-      
+
       const isValidation =
         err?.validationError ||
         (err?.response?.status >= 400 && err?.response?.status < 500);
@@ -155,19 +154,23 @@ const RitaseEditForm = ({
           <div className="bg-white dark:bg-gray-800 rounded-lg p-3 border border-blue-200 dark:border-blue-700">
             <div className="grid grid-cols-2 gap-3 text-xs">
               <div>
-                <span className="text-gray-600 dark:text-gray-400">Dibuat:</span>
+                <span className="text-gray-600 dark:text-gray-400">
+                  Dibuat:
+                </span>
                 <span className="font-medium ml-2 dark:text-gray-200">
                   {editingItem?.createdAt
                     ? format(
                         new Date(editingItem.createdAt),
                         "dd MMM yyyy | HH:mm:ss",
-                        { locale: localeId }
+                        { locale: localeId },
                       )
                     : "-"}
                 </span>
               </div>
               <div>
-                <span className="text-gray-600 dark:text-gray-400">Original Date:</span>
+                <span className="text-gray-600 dark:text-gray-400">
+                  Original Date:
+                </span>
                 <span className="font-medium ml-2 dark:text-gray-200">
                   {editingItem?.date || "-"}
                 </span>
@@ -189,7 +192,10 @@ const RitaseEditForm = ({
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
-                <Label htmlFor="gross_weight_edit" className="pb-2 dark:text-gray-300">
+                <Label
+                  htmlFor="gross_weight_edit"
+                  className="pb-2 dark:text-gray-300"
+                >
                   Gross Weight (ton) *
                 </Label>
                 <Input
@@ -216,7 +222,9 @@ const RitaseEditForm = ({
                   placeholder="0.00"
                 />
                 {errors.gross_weight && (
-                  <p className="text-sm text-red-500 mt-1">{errors.gross_weight}</p>
+                  <p className="text-sm text-red-500 mt-1">
+                    {errors.gross_weight}
+                  </p>
                 )}
                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                   Maksimal 999.99 ton
@@ -237,7 +245,9 @@ const RitaseEditForm = ({
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <Label className="pb-2 dark:text-gray-300">Unit Dump Truck *</Label>
+                <Label className="pb-2 dark:text-gray-300">
+                  Unit Dump Truck *
+                </Label>
                 <SearchableSelect
                   items={dumptruckOptions}
                   value={formData.unit_dump_truck}
@@ -246,12 +256,16 @@ const RitaseEditForm = ({
                   error={!!errors.unit_dump_truck}
                 />
                 {errors.unit_dump_truck && (
-                  <p className="text-sm text-red-500 mt-1">{errors.unit_dump_truck}</p>
+                  <p className="text-sm text-red-500 mt-1">
+                    {errors.unit_dump_truck}
+                  </p>
                 )}
               </div>
 
               <div>
-                <Label className="pb-2 dark:text-gray-300">Unit Excavator *</Label>
+                <Label className="pb-2 dark:text-gray-300">
+                  Unit Excavator *
+                </Label>
                 <SearchableSelect
                   items={excavatorOptions}
                   value={formData.unit_exca}
@@ -260,7 +274,9 @@ const RitaseEditForm = ({
                   error={!!errors.unit_exca}
                 />
                 {errors.unit_exca && (
-                  <p className="text-sm text-red-500 mt-1">{errors.unit_exca}</p>
+                  <p className="text-sm text-red-500 mt-1">
+                    {errors.unit_exca}
+                  </p>
                 )}
               </div>
             </div>
@@ -278,7 +294,9 @@ const RitaseEditForm = ({
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <Label className="pb-2 dark:text-gray-300">Loading Location *</Label>
+                <Label className="pb-2 dark:text-gray-300">
+                  Loading Location *
+                </Label>
                 <SearchableSelect
                   items={loadingLocationOptions}
                   value={formData.loading_location}
@@ -287,12 +305,16 @@ const RitaseEditForm = ({
                   error={!!errors.loading_location}
                 />
                 {errors.loading_location && (
-                  <p className="text-sm text-red-500 mt-1">{errors.loading_location}</p>
+                  <p className="text-sm text-red-500 mt-1">
+                    {errors.loading_location}
+                  </p>
                 )}
               </div>
 
               <div>
-                <Label className="pb-2 dark:text-gray-300">Dumping Location *</Label>
+                <Label className="pb-2 dark:text-gray-300">
+                  Dumping Location *
+                </Label>
                 <SearchableSelect
                   items={dumpingLocationOptions}
                   value={formData.dumping_location}
@@ -301,12 +323,16 @@ const RitaseEditForm = ({
                   error={!!errors.dumping_location}
                 />
                 {errors.dumping_location && (
-                  <p className="text-sm text-red-500 mt-1">{errors.dumping_location}</p>
+                  <p className="text-sm text-red-500 mt-1">
+                    {errors.dumping_location}
+                  </p>
                 )}
               </div>
 
               <div>
-                <Label className="pb-2 dark:text-gray-300">PIC Work Unit *</Label>
+                <Label className="pb-2 dark:text-gray-300">
+                  PIC Work Unit *
+                </Label>
                 <SearchableSelect
                   items={workUnitOptions}
                   value={formData.pic_work_unit}
@@ -315,7 +341,9 @@ const RitaseEditForm = ({
                   error={!!errors.pic_work_unit}
                 />
                 {errors.pic_work_unit && (
-                  <p className="text-sm text-red-500 mt-1">{errors.pic_work_unit}</p>
+                  <p className="text-sm text-red-500 mt-1">
+                    {errors.pic_work_unit}
+                  </p>
                 )}
               </div>
             </div>
@@ -360,7 +388,9 @@ const RitaseEditForm = ({
                   error={!!errors.coal_type}
                 />
                 {errors.coal_type && (
-                  <p className="text-sm text-red-500 mt-1">{errors.coal_type}</p>
+                  <p className="text-sm text-red-500 mt-1">
+                    {errors.coal_type}
+                  </p>
                 )}
               </div>
             </div>

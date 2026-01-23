@@ -32,16 +32,37 @@ const RitaseTicket = forwardRef(({ data }, ref) => {
     );
   }
 
-  // ✅ Extract all values using centralized utils
   const ticketData = {
-    hullNo: getFirstTruthyValue(data, "hull_no", "dumptruck", "unit_dump_truck"),
-    excavator: getFirstTruthyValue(data, "fleet_excavator", "unit_exca", "excavator"),
+    hullNo: getFirstTruthyValue(
+      data,
+      "hull_no",
+      "dumptruck",
+      "unit_dump_truck",
+    ),
+    excavator: getFirstTruthyValue(
+      data,
+      "fleet_excavator",
+      "unit_exca",
+      "excavator",
+    ),
     operator: getFirstTruthyValue(data, "operator", "operator_name"),
-    loadingLocation: getFirstTruthyValue(data, "fleet_loading", "loading_location"),
-    dumpingLocation: getFirstTruthyValue(data, "fleet_dumping", "dumping_location"),
+    loadingLocation: getFirstTruthyValue(
+      data,
+      "fleet_loading",
+      "loading_location",
+    ),
+    dumpingLocation: getFirstTruthyValue(
+      data,
+      "fleet_dumping",
+      "dumping_location",
+    ),
     netWeight: parseFloat(data.net_weight || data.tonnage || 0),
     tareWeight: parseFloat(data.tare_weight || 0),
-    grossWeight: parseFloat(data.gross_weight || (parseFloat(data.net_weight || data.tonnage || 0) + parseFloat(data.tare_weight || 0))),
+    grossWeight: parseFloat(
+      data.gross_weight ||
+        parseFloat(data.net_weight || data.tonnage || 0) +
+          parseFloat(data.tare_weight || 0),
+    ),
   };
 
   return (
@@ -116,7 +137,9 @@ const RitaseTicket = forwardRef(({ data }, ref) => {
 
         <div>No DT</div>
         <div>:</div>
-        <div><strong>{ticketData.hullNo}</strong></div>
+        <div>
+          <strong>{ticketData.hullNo}</strong>
+        </div>
 
         <div>Nama Pengemudi</div>
         <div>:</div>
@@ -142,7 +165,9 @@ const RitaseTicket = forwardRef(({ data }, ref) => {
 
         <div>Berat Kotor</div>
         <div>:</div>
-        <div><strong>{formatWeight(ticketData.grossWeight)} ton</strong></div>
+        <div>
+          <strong>{formatWeight(ticketData.grossWeight)} ton</strong>
+        </div>
 
         <div>Berat Kosong</div>
         <div>:</div>
@@ -150,7 +175,9 @@ const RitaseTicket = forwardRef(({ data }, ref) => {
 
         <div>Berat Bersih</div>
         <div>:</div>
-        <div><strong>{formatWeight(ticketData.netWeight)} ton</strong></div>
+        <div>
+          <strong>{formatWeight(ticketData.netWeight)} ton</strong>
+        </div>
       </div>
 
       {/* Footer */}

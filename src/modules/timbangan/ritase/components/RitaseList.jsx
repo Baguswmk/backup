@@ -1,8 +1,27 @@
 import React, { useMemo, useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/shared/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/shared/components/ui/card";
 import { Button } from "@/shared/components/ui/button";
 import { Badge } from "@/shared/components/ui/badge";
-import { BarChart3, RefreshCw, Package, Plus, Filter, ChevronDown, ChevronUp, CheckCircle2, Eye, Printer, Edit2, Trash2, MoreVertical } from "lucide-react";
+import {
+  BarChart3,
+  RefreshCw,
+  Package,
+  Plus,
+  Filter,
+  ChevronDown,
+  ChevronUp,
+  CheckCircle2,
+  Eye,
+  Printer,
+  Edit2,
+  Trash2,
+  MoreVertical,
+} from "lucide-react";
 import {
   Table,
   TableBody,
@@ -43,22 +62,6 @@ const RitaseList = ({
   onPageChange,
   onOpenInputModal,
   filteredFleetCount,
-  fleetConfigs = [],
-  // Filter states
-  isFilterExpanded,
-  setIsFilterExpanded,
-  selectedExcavators,
-  setSelectedExcavators,
-  selectedCompanies,
-  setSelectedCompanies,
-  selectedLoadingPoints,
-  setSelectedLoadingPoints,
-  selectedDumpingPoints,
-  setSelectedDumpingPoints,
-  filterOptions,
-  onResetFilters,
-  hasActiveFilters,
-  // Action handlers
   onPrintTicket,
   onUpdateRitase,
   onDeleteRitase,
@@ -72,8 +75,6 @@ const RitaseList = ({
   const getInputButtonText = () => {
     return userRole === USER_ROLES.OPERATOR_JT ? "Timbang" : "Input Data";
   };
-
-  console.log(filteredRitaseData)
 
   const paginatedData = useMemo(() => {
     const startIdx = (currentPage - 1) * ITEMS_PER_PAGE;
@@ -106,7 +107,7 @@ const RitaseList = ({
 
   const handleConfirmDelete = async () => {
     if (!selectedRitase || isDeletingRitase) return;
-    
+
     setIsDeletingRitase(true);
     try {
       if (onDeleteRitase) {
@@ -133,7 +134,10 @@ const RitaseList = ({
 
   return (
     <>
-      <Card data-ritase-list className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
+      <Card
+        data-ritase-list
+        className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700"
+      >
         <CardHeader className="border-b border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between">
             <CardTitle className="flex items-center gap-2 text-gray-900 dark:text-white">
@@ -141,7 +145,10 @@ const RitaseList = ({
               Daftar Ritase Detail
             </CardTitle>
             <div className="flex items-center gap-2">
-              <Badge variant="secondary" className="bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300">
+              <Badge
+                variant="secondary"
+                className="bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300"
+              >
                 {filteredRitaseData.length} total
               </Badge>
             </div>
@@ -151,12 +158,16 @@ const RitaseList = ({
           {isInitialLoading ? (
             <div className="text-center py-12">
               <RefreshCw className="w-8 h-8 animate-spin mx-auto text-gray-400 dark:text-gray-500" />
-              <p className="text-sm text-gray-500 dark:text-gray-400 mt-4">Memuat data...</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-4">
+                Memuat data...
+              </p>
             </div>
           ) : filteredRitaseData.length === 0 ? (
             <div className="text-center py-12">
               <Package className="w-12 h-12 mx-auto text-gray-300 dark:text-gray-600" />
-              <p className="text-sm text-gray-500 dark:text-gray-400 mt-4">Belum ada data ritase</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-4">
+                Belum ada data ritase
+              </p>
               <Button
                 onClick={onOpenInputModal}
                 variant="outline"
@@ -173,21 +184,41 @@ const RitaseList = ({
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-gray-50 dark:bg-gray-900/50 hover:bg-gray-50 dark:hover:bg-gray-900/50">
-                      <TableHead className="text-gray-700 dark:text-gray-300 font-semibold w-16">No</TableHead>
-                      <TableHead className="text-gray-700 dark:text-gray-300 font-semibold">Hull No</TableHead>
-                      <TableHead className="text-gray-700 dark:text-gray-300 font-semibold">Excavator</TableHead>
-                      <TableHead className="text-gray-700 dark:text-gray-300 font-semibold">Company</TableHead>
-                      <TableHead className="text-gray-700 dark:text-gray-300 font-semibold">Type</TableHead>
-                      <TableHead className="text-gray-700 dark:text-gray-300 font-semibold">Loading</TableHead>
-                      <TableHead className="text-gray-700 dark:text-gray-300 font-semibold">Dumping</TableHead>
-                      <TableHead className="text-right text-gray-700 dark:text-gray-300 font-semibold">Weight</TableHead>
-                      <TableHead className="text-gray-700 dark:text-gray-300 font-semibold">Waktu</TableHead>
-                      <TableHead className="text-center text-gray-700 dark:text-gray-300 font-semibold w-20">Action</TableHead>
+                      <TableHead className="text-gray-700 dark:text-gray-300 font-semibold w-16">
+                        No
+                      </TableHead>
+                      <TableHead className="text-gray-700 dark:text-gray-300 font-semibold">
+                        Hull No
+                      </TableHead>
+                      <TableHead className="text-gray-700 dark:text-gray-300 font-semibold">
+                        Excavator
+                      </TableHead>
+                      <TableHead className="text-gray-700 dark:text-gray-300 font-semibold">
+                        Company
+                      </TableHead>
+                      <TableHead className="text-gray-700 dark:text-gray-300 font-semibold">
+                        Type
+                      </TableHead>
+                      <TableHead className="text-gray-700 dark:text-gray-300 font-semibold">
+                        Loading
+                      </TableHead>
+                      <TableHead className="text-gray-700 dark:text-gray-300 font-semibold">
+                        Dumping
+                      </TableHead>
+                      <TableHead className="text-right text-gray-700 dark:text-gray-300 font-semibold">
+                        Weight
+                      </TableHead>
+                      <TableHead className="text-gray-700 dark:text-gray-300 font-semibold">
+                        Waktu
+                      </TableHead>
+                      <TableHead className="text-center text-gray-700 dark:text-gray-300 font-semibold w-20">
+                        Action
+                      </TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {paginatedData.map((ritase, index) => (
-                      <TableRow 
+                      <TableRow
                         key={ritase.id || index}
                         className="border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800/50"
                       >
@@ -201,36 +232,45 @@ const RitaseList = ({
                         </TableCell>
                         <TableCell>
                           <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                            {ritase.unit_exca || '-'}
+                            {ritase.unit_exca || "-"}
                           </span>
                         </TableCell>
                         <TableCell className="text-gray-700 dark:text-gray-300 text-sm">
-                          {ritase.company || '-'}
+                          {ritase.company || "-"}
                         </TableCell>
                         <TableCell>
-                          <Badge variant="outline" className="text-xs capitalize border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300">
-                            {ritase.measurement_type || 'timbangan'}
+                          <Badge
+                            variant="outline"
+                            className="text-xs capitalize border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300"
+                          >
+                            {ritase.measurement_type || "timbangan"}
                           </Badge>
                         </TableCell>
                         <TableCell className="text-gray-700 dark:text-gray-300 text-sm">
-                          {ritase.loading_location || '-'}
+                          {ritase.loading_location || "-"}
                         </TableCell>
                         <TableCell className="text-gray-700 dark:text-gray-300 text-sm">
-                          {ritase.dumping_location || '-'}
+                          {ritase.dumping_location || "-"}
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex flex-col items-end">
                             <span className="font-bold text-green-600 dark:text-green-400">
-                              {ritase.measurement_type === 'bypass' || ritase.measurement_type === 'manual'
-                                ? (ritase.net_weight || '-')
-                                : (ritase.gross_weight || '-')
-                              }
+                              {ritase.measurement_type === "bypass" ||
+                              ritase.measurement_type === "manual"
+                                ? ritase.net_weight || "-"
+                                : ritase.gross_weight || "-"}
                             </span>
-                            <span className="text-xs text-gray-500 dark:text-gray-400">ton</span>
+                            <span className="text-xs text-gray-500 dark:text-gray-400">
+                              ton
+                            </span>
                           </div>
                         </TableCell>
                         <TableCell className="text-sm text-gray-600 dark:text-gray-400">
-                          {format(new Date(ritase.createdAt || ritase.date), 'dd MMM yyyy HH:mm', { locale: localeId })}
+                          {format(
+                            new Date(ritase.createdAt || ritase.date),
+                            "dd MMM yyyy HH:mm",
+                            { locale: localeId },
+                          )}
                         </TableCell>
                         <TableCell className="text-center ">
                           <DropdownMenu>
@@ -243,15 +283,18 @@ const RitaseList = ({
                                 <MoreVertical className="h-4 w-4" />
                               </Button>
                             </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="w-48 bg-neutral-50 dark:bg-slate-800 dark:text-neutral-50 border-none shadow-sm shadow-slate-700">
-                              <DropdownMenuItem 
+                            <DropdownMenuContent
+                              align="end"
+                              className="w-48 bg-neutral-50 dark:bg-slate-800 dark:text-neutral-50 border-none shadow-sm shadow-slate-700"
+                            >
+                              <DropdownMenuItem
                                 onClick={() => handleViewDetail(ritase)}
                                 className="cursor-pointer hover:bg-gray-200 dark:hover:bg-slate-700"
                               >
                                 <Eye className="mr-2 h-4 w-4" />
                                 Detail
                               </DropdownMenuItem>
-                              <DropdownMenuItem 
+                              <DropdownMenuItem
                                 onClick={() => handlePrintTicket(ritase)}
                                 className="cursor-pointer hover:bg-gray-200 dark:hover:bg-slate-700"
                               >
@@ -259,14 +302,14 @@ const RitaseList = ({
                                 Cetak Karcis
                               </DropdownMenuItem>
                               <DropdownMenuSeparator />
-                              <DropdownMenuItem 
+                              <DropdownMenuItem
                                 onClick={() => handleEdit(ritase)}
                                 className="cursor-pointer hover:bg-gray-200 dark:hover:bg-slate-700"
                               >
                                 <Edit2 className="mr-2 h-4 w-4" />
                                 Edit
                               </DropdownMenuItem>
-                              <DropdownMenuItem 
+                              <DropdownMenuItem
                                 onClick={() => handleDelete(ritase)}
                                 className="cursor-pointer text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-slate-700"
                               >
@@ -306,22 +349,28 @@ const RitaseList = ({
               Detail Ritase
             </DialogTitle>
           </DialogHeader>
-          
+
           {selectedRitase && (
             <div className="space-y-4">
               {/* Header Info */}
               <div className="grid grid-cols-2 gap-4 p-4 bg-gray-50 dark:bg-gray-900/30 rounded-lg">
                 <div>
-                  <div className="text-sm text-gray-500 dark:text-gray-400">Hull No</div>
+                  <div className="text-sm text-gray-500 dark:text-gray-400">
+                    Hull No
+                  </div>
                   <Badge className="mt-1 bg-blue-600 dark:bg-blue-500 text-white">
                     {selectedRitase.unit_dump_truck}
                   </Badge>
                 </div>
                 <div>
-                  <div className="text-sm text-gray-500 dark:text-gray-400">Status</div>
+                  <div className="text-sm text-gray-500 dark:text-gray-400">
+                    Status
+                  </div>
                   <div className="flex items-center gap-2 mt-1">
                     <CheckCircle2 className="w-4 h-4 text-green-600 dark:text-green-400" />
-                    <span className="text-sm font-medium text-gray-900 dark:text-gray-100">Completed</span>
+                    <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                      Completed
+                    </span>
                   </div>
                 </div>
               </div>
@@ -329,83 +378,114 @@ const RitaseList = ({
               {/* Detail Information */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <div className="text-sm text-gray-500 dark:text-gray-400 mb-1">Excavator</div>
+                  <div className="text-sm text-gray-500 dark:text-gray-400 mb-1">
+                    Excavator
+                  </div>
                   <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                    {selectedRitase.unit_exca || '-'}
+                    {selectedRitase.unit_exca || "-"}
                   </div>
                 </div>
                 <div>
-                  <div className="text-sm text-gray-500 dark:text-gray-400 mb-1">Company</div>
+                  <div className="text-sm text-gray-500 dark:text-gray-400 mb-1">
+                    Company
+                  </div>
                   <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                    {selectedRitase.company || '-'}
+                    {selectedRitase.company || "-"}
                   </div>
                 </div>
                 <div>
-                  <div className="text-sm text-gray-500 dark:text-gray-400 mb-1">Operator</div>
+                  <div className="text-sm text-gray-500 dark:text-gray-400 mb-1">
+                    Operator
+                  </div>
                   <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                    {selectedRitase.operator || '-'}
+                    {selectedRitase.operator || "-"}
                   </div>
                 </div>
                 <div>
-                  <div className="text-sm text-gray-500 dark:text-gray-400 mb-1">Measurement Type</div>
-                  <Badge variant="outline" className="capitalize dark:text-gray-200">
-                    {selectedRitase.measurement_type || 'timbangan'}
+                  <div className="text-sm text-gray-500 dark:text-gray-400 mb-1">
+                    Measurement Type
+                  </div>
+                  <Badge
+                    variant="outline"
+                    className="capitalize dark:text-gray-200"
+                  >
+                    {selectedRitase.measurement_type || "timbangan"}
                   </Badge>
                 </div>
                 <div>
-                  <div className="text-sm text-gray-500 dark:text-gray-400 mb-1">Loading Location</div>
+                  <div className="text-sm text-gray-500 dark:text-gray-400 mb-1">
+                    Loading Location
+                  </div>
                   <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                    {selectedRitase.loading_location || '-'}
+                    {selectedRitase.loading_location || "-"}
                   </div>
                 </div>
                 <div>
-                  <div className="text-sm text-gray-500 dark:text-gray-400 mb-1">Dumping Location</div>
+                  <div className="text-sm text-gray-500 dark:text-gray-400 mb-1">
+                    Dumping Location
+                  </div>
                   <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                    {selectedRitase.dumping_location || '-'}
+                    {selectedRitase.dumping_location || "-"}
                   </div>
                 </div>
-                
+
                 {/* Weight Details - Conditional based on measurement_type */}
-                {selectedRitase.measurement_type === 'timbangan' ? (
+                {selectedRitase.measurement_type === "timbangan" ? (
                   <>
                     <div>
-                      <div className="text-sm text-gray-500 dark:text-gray-400 mb-1">Gross Weight</div>
+                      <div className="text-sm text-gray-500 dark:text-gray-400 mb-1">
+                        Gross Weight
+                      </div>
                       <div className="text-lg font-bold text-blue-600 dark:text-blue-400">
-                        {selectedRitase.gross_weight || '-'} ton
+                        {selectedRitase.gross_weight || "-"} ton
                       </div>
                     </div>
                     <div>
-                      <div className="text-sm text-gray-500 dark:text-gray-400 mb-1">Tare Weight</div>
+                      <div className="text-sm text-gray-500 dark:text-gray-400 mb-1">
+                        Tare Weight
+                      </div>
                       <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                        {selectedRitase.tare_weight || '-'} ton
+                        {selectedRitase.tare_weight || "-"} ton
                       </div>
                     </div>
                     <div>
-                      <div className="text-sm text-gray-500 dark:text-gray-400 mb-1">Net Weight</div>
+                      <div className="text-sm text-gray-500 dark:text-gray-400 mb-1">
+                        Net Weight
+                      </div>
                       <div className="text-lg font-bold text-green-600 dark:text-green-400">
-                        {selectedRitase.net_weight || '-'} ton
+                        {selectedRitase.net_weight || "-"} ton
                       </div>
                     </div>
                   </>
                 ) : (
                   <div>
-                    <div className="text-sm text-gray-500 dark:text-gray-400 mb-1">Net Weight</div>
+                    <div className="text-sm text-gray-500 dark:text-gray-400 mb-1">
+                      Net Weight
+                    </div>
                     <div className="text-lg font-bold text-green-600 dark:text-green-400">
-                      {selectedRitase.net_weight || '-'} ton
+                      {selectedRitase.net_weight || "-"} ton
                     </div>
                   </div>
                 )}
-                
+
                 <div>
-                  <div className="text-sm text-gray-500 dark:text-gray-400 mb-1">Distance</div>
+                  <div className="text-sm text-gray-500 dark:text-gray-400 mb-1">
+                    Distance
+                  </div>
                   <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                    {selectedRitase.distance || '0'} m
+                    {selectedRitase.distance || "0"} m
                   </div>
                 </div>
                 <div className="col-span-2">
-                  <div className="text-sm text-gray-500 dark:text-gray-400 mb-1">Waktu</div>
+                  <div className="text-sm text-gray-500 dark:text-gray-400 mb-1">
+                    Waktu
+                  </div>
                   <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                    {format(new Date(selectedRitase.createdAt || selectedRitase.date), 'dd MMMM yyyy HH:mm:ss', { locale: localeId })}
+                    {format(
+                      new Date(selectedRitase.createdAt || selectedRitase.date),
+                      "dd MMMM yyyy HH:mm:ss",
+                      { locale: localeId },
+                    )}
                   </div>
                 </div>
               </div>
@@ -441,7 +521,9 @@ const RitaseList = ({
         <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
           <DialogContent className="max-w-4xl lg:min-w-4xl max-h-[90vh] overflow-y-auto dark:bg-slate-900">
             <DialogHeader>
-              <DialogTitle className="dark:text-neutral-50">Edit Data Ritase</DialogTitle>
+              <DialogTitle className="dark:text-neutral-50">
+                Edit Data Ritase
+              </DialogTitle>
             </DialogHeader>
             <RitaseEditForm
               editingItem={selectedRitase}
@@ -469,9 +551,11 @@ const RitaseList = ({
             excavator: selectedRitase.unit_exca,
             loadingLocation: selectedRitase.loading_location,
             dumpingLocation: selectedRitase.dumping_location,
-            weight: selectedRitase.measurement_type === 'bypass' || selectedRitase.measurement_type === 'manual'
-              ? selectedRitase.net_weight 
-              : selectedRitase.gross_weight,
+            weight:
+              selectedRitase.measurement_type === "bypass" ||
+              selectedRitase.measurement_type === "manual"
+                ? selectedRitase.net_weight
+                : selectedRitase.gross_weight,
             measurement_type: selectedRitase.measurement_type,
           }}
           isProcessing={isDeletingRitase}

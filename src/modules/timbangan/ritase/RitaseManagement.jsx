@@ -48,7 +48,7 @@ const RitaseManagement = () => {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [showInputModal, setShowInputModal] = useState(false);
   const [currentRitasePage, setCurrentRitasePage] = useState(1);
-  const [currentFleetPage, setCurrentFleetPage] = useState(1);
+  const [_, setCurrentFleetPage] = useState(1);
   const [currentAggregatedPage, setCurrentAggregatedPage] = useState(1);
 
   const [summaryData, setSummaryData] = useState({
@@ -58,7 +58,6 @@ const RitaseManagement = () => {
   const [currentDateRange] = useState(getTodayDateRange());
   const [currentShift] = useState(getCurrentShift());
 
-  const [isFleetFilterExpanded, setIsFleetFilterExpanded] = useState(false);
   const [selectedFleetCompanies, setSelectedFleetCompanies] = useState([]);
   const [selectedFleetLoadingPoints, setSelectedFleetLoadingPoints] = useState(
     [],
@@ -82,11 +81,6 @@ const RitaseManagement = () => {
 
   const loadSummaryData = useCallback(
     async (forceRefresh = false) => {
-      console.log("📥 Loading summary data...", {
-        forceRefresh,
-        currentDateRange,
-        currentShift,
-      });
       try {
         const result = await ritaseServices.fetchSummaryFleetByRitases({
           user,
@@ -95,14 +89,7 @@ const RitaseManagement = () => {
           forceRefresh,
         });
 
-        console.log("📦 Summary API result:", result);
-
         if (result.success) {
-          console.log("✅ Summary data loaded:", {
-            summariesCount: result.data.summaries?.length || 0,
-            ritasesCount: result.data.ritases?.length || 0,
-            data: result.data,
-          });
           setSummaryData(result.data);
           return result.data;
         } else {
@@ -123,24 +110,9 @@ const RitaseManagement = () => {
     mountCount.current += 1;
     const currentMount = mountCount.current;
 
-    console.log(`🔄 Component mounted (mount #${currentMount})`, {
-      hasMountedBefore: hasMounted.current,
-      user: user?.username,
-      dateRange: currentDateRange,
-      shift: currentShift,
-    });
-
-    const isRemount = hasMounted.current && currentMount > 2;
-
-    console.log(`🎯 Load decision:`, {
-      isRemount,
-      hasMounted: hasMounted.current,
-      currentMount,
-      willLoad: !hasMounted.current || isRemount,
-    });
+    hasMounted.current && currentMount > 2;
 
     if (hasMounted.current && currentMount === 2) {
-      console.log("⏭️ Skipping duplicate Strict Mode mount");
       return;
     }
 
@@ -149,7 +121,7 @@ const RitaseManagement = () => {
 
     const initializeData = async () => {
       try {
-       const response = await Promise.all([
+        const response = await Promise.all([
           loadFleetConfigsFromAPI(false, null),
           loadSummaryData(true),
         ]);
@@ -162,7 +134,6 @@ const RitaseManagement = () => {
     };
 
     initializeData();
-   
   }, []);
 
   const filteredFleetConfigs = useMemo(() => {

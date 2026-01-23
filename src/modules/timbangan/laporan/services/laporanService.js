@@ -3,14 +3,6 @@ import { logger } from "@/shared/services/log";
 import { createValidationError } from "@/shared/utils/errorHandler";
 import { generateFile } from "@/modules/timbangan/laporan/services/fileGeneratorService";
 
-/**
- * Laporan Service
- * ✅ UPDATED - Support date range & filters (spph, unit_dump_truck)
- */
-
-/**
- * Validate download parameters
- */
 const validateDownloadParams = (params) => {
   const { startDate, endDate, shift, format } = params;
 
@@ -33,10 +25,7 @@ const validateDownloadParams = (params) => {
   return true;
 };
 
-/**
- * ✅ UPDATED - Fetch data dengan date range & filters
- */
-const fetchDataAndGenerateFile = async (endpoint, params) => {
+const fetchDataAndGenerateFile = async (endpoint, params, reportType) => {
   try {
     validateDownloadParams(params);
 
@@ -49,6 +38,7 @@ const fetchDataAndGenerateFile = async (endpoint, params) => {
       format,
       spph,
       unit_dump_truck,
+      reportType,
     });
 
     const queryParams = {
@@ -77,17 +67,24 @@ const fetchDataAndGenerateFile = async (endpoint, params) => {
 
     logger.info(`✅ Data fetched: ${data.length} records`);
 
-    const result = generateFile(data, format, {
-      startDate,
-      endDate,
-      shift,
-      spph,
-      unit_dump_truck,
-    });
+    // Pass reportType ke generateFile
+    const result = generateFile(
+      data,
+      format,
+      {
+        startDate,
+        endDate,
+        shift,
+        spph,
+        unit_dump_truck,
+      },
+      reportType // 👈 Ini yang membedakan struktur laporan
+    );
 
     logger.info(`✅ File generated successfully`, {
       filename: result.filename,
       format,
+      reportType,
     });
 
     return {
@@ -113,30 +110,18 @@ const fetchDataAndGenerateFile = async (endpoint, params) => {
 };
 
 const laporanService = {
-  /**
-   * ✅ Download Laporan Generic
-   */
   downloadLaporan: async (params) => {
-    return fetchDataAndGenerateFile("/v1/custom/report", params);
+    return fetchDataAndGenerateFile("/v1/custom/report", params, "spph");
   },
 
-  /**
-   * Download Laporan SPPH
-   */
   downloadLaporanSPPH: async (params) => {
-    return fetchDataAndGenerateFile("/v1/custom/report", params);
+    return fetchDataAndGenerateFile("/v1/custom/report", params, "spph");
   },
 
-  /**
-   * Download Laporan Dump Truck
-   */
   downloadLaporanDumpTruck: async (params) => {
-    return fetchDataAndGenerateFile("/v1/custom/report", params);
+    return fetchDataAndGenerateFile("/v1/custom/report", params, "dump-truck");
   },
 
-  /**
-   * Preview Laporan (Get data only, no file generation)
-   */
   previewLaporan: async (params) => {
     try {
       const { startDate, endDate, shift, spph, unit_dump_truck } = params;

@@ -39,7 +39,6 @@ export const InputFormModal = ({
           />
         );
 
-
       default:
         return (
           <RitaseForm
@@ -52,7 +51,6 @@ export const InputFormModal = ({
     }
   };
 
-  // Determine modal title based on type
   const getModalTitle = () => {
     switch (timbanganType) {
       case TIMBANGAN_TYPES.MANUAL:
@@ -76,9 +74,7 @@ export const InputFormModal = ({
             disabled={isActionLoading}
           />
         </div>
-        <div className="p-6">
-          {renderFormComponent()}
-        </div>
+        <div className="p-6">{renderFormComponent()}</div>
       </div>
     </div>
   );
@@ -95,7 +91,6 @@ export const EditFormModal = ({
 }) => {
   if (!isOpen || !editingItem) return null;
 
-  // Determine which form component to render for editing
   const renderEditFormComponent = () => {
     switch (timbanganType) {
       case TIMBANGAN_TYPES.MANUAL:
@@ -122,7 +117,6 @@ export const EditFormModal = ({
     }
   };
 
-  // Determine modal title based on type
   const getModalTitle = () => {
     switch (timbanganType) {
       case TIMBANGAN_TYPES.MANUAL:
@@ -146,9 +140,7 @@ export const EditFormModal = ({
             disabled={isActionLoading}
           />
         </div>
-        <div className="p-6">
-          {renderEditFormComponent()}
-        </div>
+        <div className="p-6">{renderEditFormComponent()}</div>
       </div>
     </div>
   );

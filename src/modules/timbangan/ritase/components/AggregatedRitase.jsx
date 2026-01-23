@@ -405,105 +405,103 @@ const AggregatedRitase = ({
             onValueChange={setActiveTab}
             className="w-full"
           >
-<div className="mb-4 sm:mb-6">
-  {/* Mobile: Scrollable horizontal tabs */}
-  <div className="block sm:hidden overflow-x-auto scrollbar-hide -mx-2 px-2">
-    <TabsList className="inline-flex w-auto min-w-full bg-gray-100 dark:bg-gray-800 dark:text-neutral-50 p-1 gap-1">
-      {isCCR && (
-        <TabsTrigger
-          value="all-shipment"
-          className="data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 cursor-pointer text-xs px-3 py-2 whitespace-nowrap shrink-0"
-        >
-          <List className="w-3 h-3 mr-1" />
-          All
-        </TabsTrigger>
-      )}
+            <div className="mb-4 sm:mb-6">
+              {/* Mobile: Scrollable horizontal tabs */}
+              <div className="block sm:hidden overflow-x-auto scrollbar-hide -mx-2 px-2">
+                <TabsList className="inline-flex w-auto min-w-full bg-gray-100 dark:bg-gray-800 dark:text-neutral-50 p-1 gap-1">
+                  {isCCR && (
+                    <TabsTrigger
+                      value="all-shipment"
+                      className="data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 cursor-pointer text-xs px-3 py-2 whitespace-nowrap shrink-0"
+                    >
+                      <List className="w-3 h-3 mr-1" />
+                      All
+                    </TabsTrigger>
+                  )}
 
-      <TabsTrigger
-        value="checker"
-        className="data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 cursor-pointer text-xs px-3 py-2 whitespace-nowrap shrink-0"
-      >
-        <UserCheck className="w-3 h-3 mr-1" />
-        Checker
-      </TabsTrigger>
-      
-      <TabsTrigger
-        value="dumping"
-        className="data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 cursor-pointer text-xs px-3 py-2 whitespace-nowrap shrink-0"
-      >
-        <MapPin className="w-3 h-3 mr-1" />
-        Dumping
-      </TabsTrigger>
-      
-      <TabsTrigger
-        value="loading"
-        className="data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 cursor-pointer text-xs px-3 py-2 whitespace-nowrap shrink-0"
-      >
-        <Upload className="w-3 h-3 mr-1" />
-        Loading
-      </TabsTrigger>
-      
-      <TabsTrigger
-        value="mitra"
-        className="data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 cursor-pointer text-xs px-3 py-2 whitespace-nowrap shrink-0"
-      >
-        <Building2 className="w-3 h-3 mr-1" />
-        Mitra
-      </TabsTrigger>
-    </TabsList>
-  </div>
+                  <TabsTrigger
+                    value="checker"
+                    className="data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 cursor-pointer text-xs px-3 py-2 whitespace-nowrap shrink-0"
+                  >
+                    <UserCheck className="w-3 h-3 mr-1" />
+                    Checker
+                  </TabsTrigger>
 
-  {/* Desktop: Grid layout */}
-  <div className="hidden sm:block">
-    <TabsList
-      className={`grid w-full ${isCCR ? "grid-cols-5" : "grid-cols-4"} bg-gray-100 dark:bg-gray-800 dark:text-neutral-50`}
-    >
-      {isCCR && (
-        <TabsTrigger
-          value="all-shipment"
-          className="data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 cursor-pointer text-sm px-4"
-        >
-          <List className="w-4 h-4 mr-2" />
-          All Shipment
-        </TabsTrigger>
-      )}
+                  <TabsTrigger
+                    value="dumping"
+                    className="data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 cursor-pointer text-xs px-3 py-2 whitespace-nowrap shrink-0"
+                  >
+                    <MapPin className="w-3 h-3 mr-1" />
+                    Dumping
+                  </TabsTrigger>
 
-      <TabsTrigger
-        value="checker"
-        className="data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 cursor-pointer text-sm px-4"
-      >
-        <UserCheck className="w-4 h-4 mr-2" />
-        Checker
-      </TabsTrigger>
-      
-      <TabsTrigger
-        value="dumping"
-        className="data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 cursor-pointer text-sm px-4"
-      >
-        <MapPin className="w-4 h-4 mr-2" />
-        Dumping Point
-      </TabsTrigger>
-      
-      <TabsTrigger
-        value="loading"
-        className="data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 cursor-pointer text-sm px-4"
-      >
-        <Upload className="w-4 h-4 mr-2" />
-        Loading Point
-      </TabsTrigger>
-      
-      <TabsTrigger
-        value="mitra"
-        className="data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 cursor-pointer text-sm px-4"
-      >
-        <Building2 className="w-4 h-4 mr-2" />
-        Mitra
-      </TabsTrigger>
-    </TabsList>
-  </div>
-</div>
+                  <TabsTrigger
+                    value="loading"
+                    className="data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 cursor-pointer text-xs px-3 py-2 whitespace-nowrap shrink-0"
+                  >
+                    <Upload className="w-3 h-3 mr-1" />
+                    Loading
+                  </TabsTrigger>
 
+                  <TabsTrigger
+                    value="mitra"
+                    className="data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 cursor-pointer text-xs px-3 py-2 whitespace-nowrap shrink-0"
+                  >
+                    <Building2 className="w-3 h-3 mr-1" />
+                    Mitra
+                  </TabsTrigger>
+                </TabsList>
+              </div>
 
+              {/* Desktop: Grid layout */}
+              <div className="hidden sm:block">
+                <TabsList
+                  className={`grid w-full ${isCCR ? "grid-cols-5" : "grid-cols-4"} bg-gray-100 dark:bg-gray-800 dark:text-neutral-50`}
+                >
+                  {isCCR && (
+                    <TabsTrigger
+                      value="all-shipment"
+                      className="data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 cursor-pointer text-sm px-4"
+                    >
+                      <List className="w-4 h-4 mr-2" />
+                      All Shipment
+                    </TabsTrigger>
+                  )}
+
+                  <TabsTrigger
+                    value="checker"
+                    className="data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 cursor-pointer text-sm px-4"
+                  >
+                    <UserCheck className="w-4 h-4 mr-2" />
+                    Checker
+                  </TabsTrigger>
+
+                  <TabsTrigger
+                    value="dumping"
+                    className="data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 cursor-pointer text-sm px-4"
+                  >
+                    <MapPin className="w-4 h-4 mr-2" />
+                    Dumping Point
+                  </TabsTrigger>
+
+                  <TabsTrigger
+                    value="loading"
+                    className="data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 cursor-pointer text-sm px-4"
+                  >
+                    <Upload className="w-4 h-4 mr-2" />
+                    Loading Point
+                  </TabsTrigger>
+
+                  <TabsTrigger
+                    value="mitra"
+                    className="data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 cursor-pointer text-sm px-4"
+                  >
+                    <Building2 className="w-4 h-4 mr-2" />
+                    Mitra
+                  </TabsTrigger>
+                </TabsList>
+              </div>
+            </div>
 
             {isCCR && (
               <TabsContent value="all-shipment" className="mt-0">
@@ -767,15 +765,15 @@ const AggregatedRitase = ({
         data={selectedChecker}
       />
 
-<style jsx>{`
-  .scrollbar-hide::-webkit-scrollbar {
-    display: none;
-  }
-  .scrollbar-hide {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
-  }
-`}</style>
+      <style jsx>{`
+        .scrollbar-hide::-webkit-scrollbar {
+          display: none;
+        }
+        .scrollbar-hide {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
+        }
+      `}</style>
     </>
   );
 };

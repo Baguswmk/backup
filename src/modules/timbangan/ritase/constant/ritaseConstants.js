@@ -1,13 +1,13 @@
 export const getInitialDateRange = () => {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  
+
   const endOfDay = new Date(today);
   endOfDay.setHours(23, 59, 59, 999);
   return {
     from: today,
     to: endOfDay,
-    shift: "All"
+    shift: "All",
   };
 };
 
@@ -69,22 +69,19 @@ export const KEYBOARD_SHORTCUTS = {
   },
 };
 
-// NEW: Timbangan Types
 export const TIMBANGAN_TYPES = {
   INTERNAL: "INTERNAL",
   MANUAL: "MANUAL",
-  BYPASS:"BYPASS",
+  BYPASS: "BYPASS",
   CHECKPOINT: "checkpoint",
 };
 
-// NEW: Storage Keys untuk setiap tipe timbangan
 export const STORAGE_KEYS = {
   [TIMBANGAN_TYPES.INTERNAL]: "timbangan-store",
   [TIMBANGAN_TYPES.MANUAL]: "timbangan-manual-store",
   [TIMBANGAN_TYPES.CHECKPOINT]: "timbangan-checkpoint-store",
 };
 
-// NEW: API Endpoints untuk setiap tipe
 export const API_ENDPOINTS = {
   [TIMBANGAN_TYPES.INTERNAL]: {
     CREATE: "/v1/custom/ritase",
@@ -106,7 +103,6 @@ export const API_ENDPOINTS = {
   },
 };
 
-// NEW: Features untuk setiap tipe
 export const TIMBANGAN_FEATURES = {
   [TIMBANGAN_TYPES.INTERNAL]: {
     hasAutoConnect: true,

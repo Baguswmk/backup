@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { Card, CardContent } from "@/shared/components/ui/card";
 import { Button } from "@/shared/components/ui/button";
 import { Badge } from "@/shared/components/ui/badge";
@@ -6,18 +6,18 @@ import {
   Clock,
   MapPin,
   Weight,
-  Plus,
-  Edit,
-  Eye,
-  Trash2,
   AlertTriangle,
-  FileText,
-  MoreVertical,
-  Calendar,
 } from "lucide-react";
-
 import ModalHeader from "@/shared/components/ModalHeader";
-import ConfirmDialog from "@/shared/components/ConfirmDialog";
+import KendalaModal from "./KendalaModal";
+import KendalaTable from "./KendalaTable";
+import KendalaDeleteConfirmModal from "./KendalaDeleteConfirmModal";
+import RitaseFormModal from "./RitaseFormModal";
+import RitaseDetailModal from "./RitaseDetailModal";
+import DeleteConfirmModal from "./DeleteConfirmModal";
+import CompanySection from "./CompanySection";
+import { hindranceService } from "@/modules/timbangan/overview/services/hindranceService";
+import { showToast } from "@/shared/utils/toast";
 
 const parseMySQLDateTime = (dateString) => {
   if (!dateString) return new Date();
@@ -27,408 +27,170 @@ const parseMySQLDateTime = (dateString) => {
   return new Date(year, month - 1, day, hour, minute, second);
 };
 
-const KendalaModal = ({ isOpen, hour, currentKendala, onClose, onSave }) => {
-  const [kendala, setKendala] = useState(currentKendala || "");
-  const [kategori, setKategori] = useState("operasional");
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    onSave({ kendala, kategori, hour });
-    onClose();
-  };
-
-  return (
-    <ConfirmDialog
-      isOpen={isOpen}
-      onClose={onClose}
-      onConfirm={handleSubmit}
-      title={`Input Kendala Jam ${hour}:00`}
-      confirmLabel="Simpan Kendala"
-      cancelLabel="Batal"
-      variant="default"
-      icon={AlertTriangle}
-    >
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div>
-          <label className="block text-sm font-medium mb-2 dark:text-gray-200">
-            Kategori Kendala <span className="text-red-500">*</span>
-          </label>
-          <select
-            value={kategori}
-            onChange={(e) => setKategori(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-neutral-50 dark:bg-gray-800 dark:text-gray-200"
-            required
-          >
-            <option value="operasional">Operasional</option>
-            <option value="cuaca">Cuaca</option>
-            <option value="alat">Kerusakan Alat</option>
-            <option value="material">Material</option>
-            <option value="infrastruktur">Infrastruktur</option>
-            <option value="lainnya">Lainnya</option>
-          </select>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium mb-2 dark:text-gray-200">
-            Deskripsi Kendala <span className="text-red-500">*</span>
-          </label>
-          <textarea
-            value={kendala}
-            onChange={(e) => setKendala(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-neutral-50 dark:bg-gray-800 dark:text-gray-200 min-h-30"
-            placeholder="Jelaskan kendala yang menyebabkan produksi tidak mencapai 250 ton..."
-            required
-          />
-          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-            Minimal 10 karakter
-          </p>
-        </div>
-      </form>
-    </ConfirmDialog>
-  );
-};
-
-const RitaseFormModal = ({ isOpen, mode, ritase, onClose, onSave }) => {
-  const [formData, setFormData] = useState(
-    ritase || {
-      unit_dump_truck: "",
-      driver: "",
-      company: "",
-      net_weight: "",
-      shift: "Shift 1",
-      date: new Date().toISOString().split("T")[0],
-      time: new Date().toTimeString().slice(0, 5),
-    },
-  );
-
-  const handleChange = (field, value) => {
-    setFormData({ ...formData, [field]: value });
-  };
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    onSave(formData);
-    onClose();
-  };
-
-  if (!isOpen) return null;
-
-  return (
-    <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-black/50">
-      <Card className="w-full max-w-2xl bg-neutral-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
-        {/* ✅ USING ModalHeader */}
-        <ModalHeader
-          title={mode === "create" ? "Tambah Ritase Baru" : "Edit Ritase"}
-          icon={mode === "create" ? Plus : Edit}
-          onClose={onClose}
-        />
-
-        <CardContent className="p-6">
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="col-span-2">
-                <label className="block text-sm font-medium mb-2 dark:text-gray-200">
-                  Unit Dump Truck <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={formData.unit_dump_truck}
-                  onChange={(e) =>
-                    handleChange("unit_dump_truck", e.target.value)
-                  }
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-neutral-50 dark:bg-gray-800 dark:text-gray-200"
-                  placeholder="Contoh: DT-001"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-2 dark:text-gray-200">
-                  Nama Driver <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={formData.driver}
-                  onChange={(e) => handleChange("driver", e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-neutral-50 dark:bg-gray-800 dark:text-gray-200"
-                  placeholder="Nama driver"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-2 dark:text-gray-200">
-                  Mitra/Perusahaan <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={formData.company}
-                  onChange={(e) => handleChange("company", e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-neutral-50 dark:bg-gray-800 dark:text-gray-200"
-                  placeholder="Nama perusahaan"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-2 dark:text-gray-200">
-                  Berat (Ton) <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={formData.net_weight}
-                  onChange={(e) => handleChange("net_weight", e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-neutral-50 dark:bg-gray-800 dark:text-gray-200"
-                  placeholder="0.00"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-2 dark:text-gray-200">
-                  Shift <span className="text-red-500">*</span>
-                </label>
-                <select
-                  value={formData.shift}
-                  onChange={(e) => handleChange("shift", e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-neutral-50 dark:bg-gray-800 dark:text-gray-200"
-                  required
-                >
-                  <option value="Shift 1">Shift 1</option>
-                  <option value="Shift 2">Shift 2</option>
-                  <option value="Shift 3">Shift 3</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-2 dark:text-gray-200">
-                  Tanggal <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="date"
-                  value={formData.date}
-                  onChange={(e) => handleChange("date", e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-neutral-50 dark:bg-gray-800 dark:text-gray-200"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-2 dark:text-gray-200">
-                  Waktu <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="time"
-                  value={formData.time}
-                  onChange={(e) => handleChange("time", e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-neutral-50 dark:bg-gray-800 dark:text-gray-200"
-                  required
-                />
-              </div>
-            </div>
-
-            <div className="flex justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={onClose}
-                className="cursor-pointer"
-              >
-                Batal
-              </Button>
-              <Button
-                type="submit"
-                className="bg-blue-600 hover:bg-blue-700 text-white cursor-pointer"
-              >
-                {mode === "create" ? "Simpan" : "Update"}
-              </Button>
-            </div>
-          </form>
-        </CardContent>
-      </Card>
-    </div>
-  );
-};
-
-const RitaseDetailModal = ({ isOpen, ritase, onClose, onEdit }) => {
-  if (!isOpen || !ritase) return null;
-
-  const ritaseDate = parseMySQLDateTime(ritase.created_at);
-  const displayDate = ritaseDate.toLocaleDateString("id-ID", {
-    day: "2-digit",
-    month: "long",
-    year: "numeric",
-  });
-  const displayTime = ritaseDate.toLocaleTimeString("id-ID", {
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-  });
-
-  return (
-    <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-black/50">
-      <Card className="w-full max-w-2xl bg-neutral-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
-        {/* ✅ USING ModalHeader */}
-        <ModalHeader title="Detail Ritase" icon={Eye} onClose={onClose} />
-
-        <CardContent className="p-6">
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="text-sm text-gray-500 dark:text-gray-400">
-                  Unit Dump Truck
-                </label>
-                <p className="font-semibold text-lg dark:text-gray-200">
-                  {ritase.unit_dump_truck}
-                </p>
-              </div>
-              <div>
-                <label className="text-sm text-gray-500 dark:text-gray-400">
-                  Driver
-                </label>
-                <p className="font-semibold text-lg dark:text-gray-200">
-                  {ritase.driver || "-"}
-                </p>
-              </div>
-              <div>
-                <label className="text-sm text-gray-500 dark:text-gray-400">
-                  Mitra/Perusahaan
-                </label>
-                <Badge variant="secondary" className="mt-1 dark:bg-gray-700">
-                  {ritase.company}
-                </Badge>
-              </div>
-              <div>
-                <label className="text-sm text-gray-500 dark:text-gray-400">
-                  Shift
-                </label>
-                <div className="mt-1">
-                  <Badge
-                    variant={
-                      ritase.shift.includes("1") ? "default" : "secondary"
-                    }
-                    className={
-                      ritase.shift.includes("1")
-                        ? "dark:bg-blue-600"
-                        : "dark:bg-gray-700"
-                    }
-                  >
-                    {ritase.shift.split("(")[0].trim()}
-                  </Badge>
-                </div>
-              </div>
-              <div>
-                <label className="text-sm text-gray-500 dark:text-gray-400 flex items-center gap-1">
-                  <Weight className="w-4 h-4" />
-                  Berat Bersih
-                </label>
-                <p className="font-bold text-2xl text-green-600 dark:text-green-400">
-                  {ritase.net_weight.toFixed(2)} Ton
-                </p>
-              </div>
-              <div>
-                <label className="text-sm text-gray-500 dark:text-gray-400 flex items-center gap-1">
-                  <Calendar className="w-4 h-4" />
-                  Tanggal & Waktu
-                </label>
-                <p className="font-medium dark:text-gray-200">{displayDate}</p>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  {displayTime}
-                </p>
-              </div>
-            </div>
-
-            <div className="flex justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
-              <Button
-                variant="outline"
-                onClick={onClose}
-                className="cursor-pointer"
-              >
-                Tutup
-              </Button>
-              <Button
-                onClick={() => {
-                  onClose();
-                  onEdit(ritase);
-                }}
-                className="bg-blue-600 hover:bg-blue-700 text-white cursor-pointer"
-              >
-                <Edit className="w-4 h-4 mr-2" />
-                Edit
-              </Button>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
-  );
-};
-
-const DeleteConfirmModal = ({ isOpen, ritase, onClose, onConfirm }) => {
-  if (!isOpen || !ritase) return null;
-
-  return (
-    <ConfirmDialog
-      isOpen={isOpen}
-      onClose={onClose}
-      onConfirm={() => {
-        onConfirm(ritase.id);
-        onClose();
-      }}
-      title="Konfirmasi Hapus"
-      confirmLabel="Hapus"
-      cancelLabel="Batal"
-      variant="destructive"
-      icon={Trash2}
-    >
-      <p className="text-gray-700 dark:text-gray-300 mb-4">
-        Apakah Anda yakin ingin menghapus ritase ini?
-      </p>
-      <div className="bg-gray-50 dark:bg-gray-800 p-3 rounded-md mb-4">
-        <p className="text-sm dark:text-gray-300">
-          <span className="font-semibold">Unit:</span> {ritase.unit_dump_truck}
-        </p>
-        <p className="text-sm dark:text-gray-300">
-          <span className="font-semibold">Driver:</span> {ritase.driver}
-        </p>
-        <p className="text-sm dark:text-gray-300">
-          <span className="font-semibold">Berat:</span> {ritase.net_weight} Ton
-        </p>
-      </div>
-      <p className="text-sm text-red-600 dark:text-red-400">
-        Data yang dihapus tidak dapat dikembalikan!
-      </p>
-    </ConfirmDialog>
-  );
-};
-
 const HourDetailModal = ({ isOpen, data, hour, onClose }) => {
   const [showKendalaModal, setShowKendalaModal] = useState(false);
   const [showFormModal, setShowFormModal] = useState(false);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showKendalaDeleteModal, setShowKendalaDeleteModal] = useState(false);
   const [formMode, setFormMode] = useState("create");
   const [selectedRitase, setSelectedRitase] = useState(null);
+  const [selectedKendala, setSelectedKendala] = useState(null);
   const [actionMenuOpen, setActionMenuOpen] = useState(null);
-  const [kendalaData, setKendalaData] = useState(null);
+  const [kendalaList, setKendalaList] = useState([]);
+  const [isLoadingKendala, setIsLoadingKendala] = useState(false);
+  const [isDeletingKendala, setIsDeletingKendala] = useState(false);
+
+  // Fetch kendala data saat modal dibuka
+  useEffect(() => {
+    if (isOpen && data && hour !== null) {
+      fetchKendalaData();
+    }
+  }, [isOpen, data, hour]);
+
+  const fetchKendalaData = async () => {
+    if (!data?.unit_exca) return;
+
+    setIsLoadingKendala(true);
+    try {
+      // Get date from first ritase or use current date
+      const firstRitase = data.ritases?.[0];
+      const ritaseDate = firstRitase?.created_at 
+        ? parseMySQLDateTime(firstRitase.created_at)
+        : new Date();
+      const dateStr = ritaseDate.toISOString().split('T')[0];
+
+      const result = await hindranceService.getHindranceDetails({
+        exca_hull_no: data.unit_exca,
+        date: dateStr,
+      });
+
+      if (result.success && result.data?.length > 0) {
+        // Filter kendala untuk jam ini dan convert hour_data ke hour number
+        const hourKendalaList = result.data.filter(k => {
+          if (k.hour_data) {
+            const kendalaHour = parseInt(k.hour_data.split(':')[0]);
+            return kendalaHour === hour;
+          }
+          return false;
+        });
+
+        // Parse evidence untuk setiap kendala
+        const parsedKendalaList = hourKendalaList.map(k => {
+          let photos = [];
+          if (k.evidence) {
+            if (typeof k.evidence === 'string') {
+              try {
+                photos = JSON.parse(k.evidence);
+              } catch (e) {
+                photos = [];
+              }
+            } else if (Array.isArray(k.evidence)) {
+              photos = k.evidence.map(media => ({
+                id: media.id,
+                url: media.url,
+                name: media.name,
+              }));
+            }
+          }
+
+          return {
+            ...k,
+            photos,
+          };
+        });
+
+        setKendalaList(parsedKendalaList);
+      } else {
+        setKendalaList([]);
+      }
+    } catch (error) {
+      console.error("Error fetching kendala:", error);
+      setKendalaList([]);
+    } finally {
+      setIsLoadingKendala(false);
+    }
+  };
+
+  // Group ritases by company for this specific hour
+  const companyData = useMemo(() => {
+    if (!isOpen || !data) return [];
+
+    // Filter ritases untuk jam ini
+    const hourRitases = data.ritases.filter((ritase) => {
+      const ritaseDate = parseMySQLDateTime(ritase.created_at);
+      const ritaseHour = ritaseDate.getHours();
+      return ritaseHour === hour;
+    });
+
+    // Group by company
+    const grouped = hourRitases.reduce((acc, ritase) => {
+      const company = ritase.company || "Tidak Diketahui";
+      if (!acc[company]) {
+        acc[company] = [];
+      }
+      acc[company].push(ritase);
+      return acc;
+    }, {});
+
+    const totalRitases = hourRitases.length;
+    const TARGET_PER_HOUR = 250;
+
+    return Object.entries(grouped).map(([company, ritases]) => {
+      const ritaseCount = ritases.length;
+      const targetTonnage = (ritaseCount / totalRitases) * TARGET_PER_HOUR;
+      const actualTonnage = ritases.reduce((sum, r) => sum + r.net_weight, 0);
+      
+      // Filter kendala untuk company ini
+      const companyKendala = kendalaList.filter(k => k.company === company);
+      
+      return {
+        company,
+        ritases,
+        targetTonnage,
+        actualTonnage,
+        isBelowTarget: actualTonnage < targetTonnage,
+        kendalaList: companyKendala,
+      };
+    });
+  }, [isOpen, data, hour, kendalaList]);
+
+  const totalTonnage = useMemo(() => {
+    return companyData.reduce((sum, cd) => sum + cd.actualTonnage, 0);
+  }, [companyData]);
+
+  const totalTarget = useMemo(() => {
+    return companyData.reduce((sum, cd) => sum + cd.targetTonnage, 0);
+  }, [companyData]);
+
+  const hasCompaniesWithIssues = useMemo(() => {
+    return companyData.some(cd => cd.isBelowTarget);
+  }, [companyData]);
+
+  const totalKendala = useMemo(() => {
+    return kendalaList.length;
+  }, [kendalaList]);
+
+  // Get shift from first ritase
+  const currentShift = useMemo(() => {
+    if (!data?.ritases?.length) return null;
+    const hourRitases = data.ritases.filter((ritase) => {
+      const ritaseDate = parseMySQLDateTime(ritase.created_at);
+      return ritaseDate.getHours() === hour;
+    });
+    if (hourRitases.length === 0) return null;
+    return hourRitases[0].shift || null;
+  }, [data, hour]);
+
+  // Get date from first ritase
+  const currentDate = useMemo(() => {
+    if (!data?.ritases?.length) return null;
+    const firstRitase = data.ritases[0];
+    const ritaseDate = parseMySQLDateTime(firstRitase.created_at);
+    return ritaseDate.toISOString().split('T')[0];
+  }, [data]);
 
   if (!isOpen || !data) return null;
-
-  const hourRitases = data.ritases.filter((ritase) => {
-    const ritaseDate = parseMySQLDateTime(ritase.created_at);
-    const ritaseHour = ritaseDate.getHours();
-    return ritaseHour === hour;
-  });
-
-  const sortedRitases = [...hourRitases].sort((a, b) => {
-    const dateA = parseMySQLDateTime(a.created_at);
-    const dateB = parseMySQLDateTime(b.created_at);
-    return dateA - dateB;
-  });
-
-  const totalTonnage = hourRitases.reduce((sum, r) => sum + r.net_weight, 0);
-  const isBelowThreshold = totalTonnage < 250;
 
   const handleCreate = () => {
     setFormMode("create");
@@ -455,85 +217,104 @@ const HourDetailModal = ({ isOpen, data, hour, onClose }) => {
     setActionMenuOpen(null);
   };
 
-  const handleSaveRitase = (formData) => {};
+  const handleSaveRitase = (formData) => {
+    console.log("Saving ritase:", formData);
+    // TODO: Implement actual save logic via API
+  };
 
-  const handleConfirmDelete = (id) => {};
+  const handleConfirmDelete = (id) => {
+    console.log("Deleting ritase:", id);
+    // TODO: Implement actual delete logic via API
+  };
 
-  const handleSaveKendala = (kendalaInfo) => {
-    setKendalaData(kendalaInfo);
+  const handleSaveKendala = async (kendalaInfo) => {
+    // Refresh kendala data untuk memastikan sync dengan database
+    await fetchKendalaData();
+    showToast.success("Kendala berhasil disimpan");
+  };
+
+  const handleEditKendala = (kendala) => {
+    setSelectedKendala(kendala);
+    setFormMode("edit");
+    setShowKendalaModal(true);
+  };
+
+  const handleDeleteKendala = (kendala) => {
+    setSelectedKendala(kendala);
+    setShowKendalaDeleteModal(true);
+  };
+
+  const handleConfirmDeleteKendala = async (kendalaId) => {
+    setIsDeletingKendala(true);
+    try {
+      const result = await hindranceService.deleteHindrance(kendalaId);
+      
+      if (result.success) {
+        showToast.success("Kendala berhasil dihapus");
+        // Refresh data kendala
+        await fetchKendalaData();
+        setShowKendalaDeleteModal(false);
+        setSelectedKendala(null);
+      }
+    } catch (error) {
+      console.error("Error deleting kendala:", error);
+      showToast.error(error.message || "Gagal menghapus kendala");
+    } finally {
+      setIsDeletingKendala(false);
+    }
   };
 
   return (
     <>
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
         <Card className="w-full max-w-6xl max-h-[90vh] overflow-hidden flex flex-col bg-neutral-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
-          {/* ✅ USING ModalHeader */}
           <ModalHeader
-            title={`Detail Jam ${hour}:00 - ${data.unit_exca}`}
+            title={`Detail Jam ${hour.toString().padStart(2, '0')}:00 - ${data.unit_exca}`}
             subtitle={
               <div className="space-y-2 mt-3">
                 <div className="flex flex-wrap gap-4 text-sm">
                   <div className="flex items-center gap-2">
                     <MapPin className="w-4 h-4 text-gray-500 dark:text-gray-400" />
-                    <span className="text-gray-600 dark:text-gray-400">
-                      Loading:
-                    </span>
-                    <span className="font-medium dark:text-gray-200">
-                      {data.loading_location}
-                    </span>
+                    <span className="text-gray-600 dark:text-gray-400">Loading:</span>
+                    <span className="font-medium dark:text-gray-200">{data.loading_location}</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <MapPin className="w-4 h-4 text-gray-500 dark:text-gray-400" />
-                    <span className="text-gray-600 dark:text-gray-400">
-                      Dumping:
-                    </span>
-                    <span className="font-medium dark:text-gray-200">
-                      {data.dumping_location}
+                    <span className="text-gray-600 dark:text-gray-400">Dumping:</span>
+                    <span className="font-medium dark:text-gray-200">{data.dumping_location}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Weight className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+                    <span className="text-gray-600 dark:text-gray-400">Target Jam Ini:</span>
+                    <span className="font-bold text-blue-600 dark:text-blue-400">
+                      {totalTarget.toFixed(2)} Ton
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
                     <Weight className="w-4 h-4 text-gray-500 dark:text-gray-400" />
-                    <span className="text-gray-600 dark:text-gray-400">
-                      Total Jam Ini:
-                    </span>
-                    <span
-                      className={`font-bold ${isBelowThreshold ? "text-red-600 dark:text-red-400" : "text-green-600 dark:text-green-400"}`}
-                    >
+                    <span className="text-gray-600 dark:text-gray-400">Realisasi:</span>
+                    <span className={`font-bold ${totalTonnage < totalTarget ? "text-red-600 dark:text-red-400" : "text-green-600 dark:text-green-400"}`}>
                       {totalTonnage.toFixed(2)} Ton
                     </span>
-                    {isBelowThreshold && (
-                      <Badge variant="destructive" className="ml-2">
-                        <AlertTriangle className="w-3 h-3 mr-1" />
-                        Di bawah target
-                      </Badge>
-                    )}
+                 
                   </div>
+                  {totalKendala > 0 && (
+                    <div className="flex items-center gap-2">
+                      <AlertTriangle className="w-4 h-4 text-orange-500 dark:text-orange-400" />
+                      <span className="text-gray-600 dark:text-gray-400">Total Kendala:</span>
+                      <Badge variant="outline" className="bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-200 border-orange-300 dark:border-orange-700">
+                        {totalKendala}
+                      </Badge>
+                    </div>
+                  )}
                 </div>
 
                 {data.pic_work_unit && (
                   <div className="flex items-center gap-2 text-sm">
-                    <span className="text-gray-600 dark:text-gray-400">
-                      PIC Work Unit:
-                    </span>
+                    <span className="text-gray-600 dark:text-gray-400">PIC Work Unit:</span>
                     <Badge variant="outline" className="dark:border-gray-600">
                       {data.pic_work_unit}
                     </Badge>
-                  </div>
-                )}
-
-                {kendalaData && (
-                  <div className="bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-md p-3">
-                    <div className="flex items-start gap-2">
-                      <FileText className="w-4 h-4 text-orange-600 dark:text-orange-400 mt-0.5" />
-                      <div className="flex-1">
-                        <p className="text-sm font-semibold text-orange-900 dark:text-orange-100">
-                          Kendala: {kendalaData.kategori}
-                        </p>
-                        <p className="text-sm text-orange-800 dark:text-orange-200 mt-1">
-                          {kendalaData.kendala}
-                        </p>
-                      </div>
-                    </div>
                   </div>
                 )}
               </div>
@@ -543,17 +324,21 @@ const HourDetailModal = ({ isOpen, data, hour, onClose }) => {
           />
 
           <CardContent className="flex-1 overflow-auto p-4">
-            <div className="flex justify-between items-center mb-3">
+            <div className="flex justify-between items-center mb-4">
               <div className="text-sm text-gray-600 dark:text-gray-400">
-                Total {sortedRitases.length} ritase pada jam {hour}:00
+                Total {companyData.reduce((sum, cd) => sum + cd.ritases.length, 0)} ritase dari {companyData.length} company pada jam {hour.toString().padStart(2, '0')}:00
               </div>
 
               <div className="flex gap-2">
-                {isBelowThreshold && (
+                {hasCompaniesWithIssues && (
                   <Button
                     variant="outline"
-                    onClick={() => setShowKendalaModal(true)}
-                    className="cursor-pointer dark:hover:bg-orange-900/20 dark:border-orange-600 text-orange-600 dark:text-orange-400"
+                    onClick={() => {
+                      setFormMode("create");
+                      setSelectedKendala(null);
+                      setShowKendalaModal(true);
+                    }}
+                    className="cursor-pointer dark:hover:bg-orange-900/20 dark:border-orange-600 text-orange-600 dark:text-orange-400 hover:bg-orange-50"
                   >
                     <AlertTriangle className="w-4 h-4 mr-2" />
                     Input Kendala
@@ -562,177 +347,74 @@ const HourDetailModal = ({ isOpen, data, hour, onClose }) => {
               </div>
             </div>
 
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="bg-gray-50 dark:bg-gray-800 sticky top-0">
-                  <tr>
-                    <th className="px-3 py-2 text-left font-semibold">No</th>
-                    <th className="px-3 py-2 text-left font-semibold">
-                      Tanggal & Waktu
-                    </th>
-                    <th className="px-3 py-2 text-left font-semibold">
-                      Dump Truck
-                    </th>
-                    <th className="px-3 py-2 text-left font-semibold">
-                      Driver
-                    </th>
-                    <th className="px-3 py-2 text-left font-semibold">Mitra</th>
-                    <th className="px-3 py-2 text-right font-semibold">
-                      Berat (Ton)
-                    </th>
-                    <th className="px-3 py-2 text-center font-semibold">
-                      Shift
-                    </th>
-                    <th className="px-3 py-2 text-center font-semibold">
-                      Aksi
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                  {sortedRitases.length === 0 ? (
-                    <tr>
-                      <td
-                        colSpan="8"
-                        className="px-3 py-8 text-center text-gray-500 dark:text-gray-400"
-                      >
-                        Tidak ada data ritase pada jam ini
-                      </td>
-                    </tr>
-                  ) : (
-                    sortedRitases.map((ritase, idx) => {
-                      const ritaseDate = parseMySQLDateTime(ritase.created_at);
-                      const displayDate =
-                        ritase.date ||
-                        ritaseDate.toLocaleDateString("id-ID", {
-                          day: "2-digit",
-                          month: "short",
-                          year: "numeric",
-                        });
+            {companyData.length === 0 ? (
+              <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+                <p className="text-base font-medium">Tidak ada data ritase pada jam ini</p>
+                <p className="text-sm mt-1">Jam {hour.toString().padStart(2, '0')}:00 - {(hour + 1).toString().padStart(2, '0')}:00</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {/* List Ritase per Company dengan Kendala */}
+                {companyData.map((cd) => (
+                  <CompanySection
+                    key={cd.company}
+                    company={cd.company}
+                    ritases={cd.ritases}
+                    hour={hour}
+                    targetTonnage={cd.targetTonnage}
+                    actualTonnage={cd.actualTonnage}
+                    kendalaList={cd.kendalaList}
+                    onEdit={handleEdit}
+                    onDetail={handleDetail}
+                    onDelete={handleDelete}
+                    onEditKendala={handleEditKendala}
+                    onDeleteKendala={handleDeleteKendala}
+                    actionMenuOpen={actionMenuOpen}
+                    setActionMenuOpen={setActionMenuOpen}
+                  />
+                ))}
 
-                      return (
-                        <tr
-                          key={ritase.id}
-                          className="hover:bg-gray-50 dark:hover:bg-gray-800/50"
-                        >
-                          <td className="px-3 py-2">{idx + 1}</td>
-                          <td className="px-3 py-2">
-                            <div className="flex flex-col gap-1">
-                              <div className="text-xs text-gray-500 dark:text-gray-400">
-                                {displayDate}
-                              </div>
-                              <div className="flex items-center gap-1">
-                                <Clock className="w-3 h-3 text-gray-500 dark:text-gray-400" />
-                                {ritaseDate.toLocaleTimeString("id-ID", {
-                                  hour: "2-digit",
-                                  minute: "2-digit",
-                                  second: "2-digit",
-                                })}
-                              </div>
-                            </div>
-                          </td>
-                          <td className="px-3 py-2 font-medium dark:text-gray-200">
-                            {ritase.unit_dump_truck}
-                          </td>
-                          <td className="px-3 py-2 text-gray-700 dark:text-gray-300">
-                            {ritase.driver || "-"}
-                          </td>
-                          <td className="px-3 py-2">
-                            <Badge
-                              variant="secondary"
-                              className="text-xs dark:bg-gray-700"
-                            >
-                              {ritase.company}
-                            </Badge>
-                          </td>
-                          <td className="px-3 py-2 text-right font-medium dark:text-gray-200">
-                            {ritase.net_weight.toFixed(2)}
-                          </td>
-                          <td className="px-3 py-2 text-center">
-                            <Badge
-                              variant={
-                                ritase.shift.includes("1")
-                                  ? "default"
-                                  : "secondary"
-                              }
-                              className={
-                                ritase.shift.includes("1")
-                                  ? "dark:bg-blue-600"
-                                  : "dark:bg-gray-700"
-                              }
-                            >
-                              {ritase.shift.split("(")[0].trim()}
-                            </Badge>
-                          </td>
-                          <td className="px-3 py-2 text-center relative">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() =>
-                                setActionMenuOpen(
-                                  actionMenuOpen === ritase.id
-                                    ? null
-                                    : ritase.id,
-                                )
-                              }
-                              className="h-8 w-8 p-0 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800"
-                            >
-                              <MoreVertical className="w-4 h-4" />
-                            </Button>
-
-                            {actionMenuOpen === ritase.id && (
-                              <div className="absolute right-0  mt-2 w-48 bg-neutral-50 dark:bg-gray-800 rounded-md shadow-lg border border-gray-200 dark:border-gray-700 z-10">
-                                <Button
-                                  onClick={() => handleDetail(ritase)}
-                                  className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2 cursor-pointer dark:text-gray-200"
-                                >
-                                  <Eye className="w-4 h-4" />
-                                  Detail
-                                </Button>
-                                <Button
-                                  onClick={() => handleEdit(ritase)}
-                                  className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2 cursor-pointer dark:text-gray-200"
-                                >
-                                  <Edit className="w-4 h-4" />
-                                  Edit
-                                </Button>
-                                <Button
-                                  onClick={() => handleDelete(ritase)}
-                                  className="w-full px-4 py-2 text-left text-sm hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400 flex items-center gap-2 cursor-pointer rounded-b-md"
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                  Hapus
-                                </Button>
-                              </div>
-                            )}
-                          </td>
-                        </tr>
-                      );
-                    })
-                  )}
-                </tbody>
-                {sortedRitases.length > 0 && (
-                  <tfoot className="bg-blue-50 dark:bg-blue-900/30 font-semibold sticky bottom-0">
-                    <tr>
-                      <td colSpan="5" className="px-3 py-2 text-right">
-                        Total Tonase Jam {hour}:00:
-                      </td>
-                      <td className="px-3 py-2 text-right">
-                        <span
-                          className={
-                            isBelowThreshold
-                              ? "text-red-600 dark:text-red-400"
-                              : "text-green-600 dark:text-green-400"
-                          }
-                        >
-                          {totalTonnage.toFixed(2)}
-                        </span>
-                      </td>
-                      <td colSpan="2"></td>
-                    </tr>
-                  </tfoot>
-                )}
-              </table>
-            </div>
+                {/* Grand Total */}
+                <div className="bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-900/30 dark:to-blue-800/30 border border-blue-200 dark:border-blue-700 rounded-lg p-4">
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <h3 className="font-bold text-lg text-gray-900 dark:text-gray-100">
+                        Total Keseluruhan Jam {hour.toString().padStart(2, '0')}:00
+                      </h3>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">
+                        {companyData.length} company • {companyData.reduce((sum, cd) => sum + cd.ritases.length, 0)} ritase
+                        {totalKendala > 0 && (
+                          <span className="text-orange-600 dark:text-orange-400"> • {totalKendala} kendala</span>
+                        )}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <div className="flex items-center gap-4">
+                        <div>
+                          <div className="text-xs text-gray-500 dark:text-gray-400">Target</div>
+                          <div className="font-bold text-lg text-blue-600 dark:text-blue-400">
+                            {totalTarget.toFixed(2)} Ton
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-xs text-gray-500 dark:text-gray-400">Realisasi</div>
+                          <div className={`font-bold text-2xl ${totalTonnage < totalTarget ? "text-red-600 dark:text-red-400" : "text-green-600 dark:text-green-400"}`}>
+                            {totalTonnage.toFixed(2)} Ton
+                          </div>
+                        </div>
+                      </div>
+                      {totalTonnage < totalTarget && (
+                        <div className="mt-2">
+                          <Badge variant="destructive">
+                            Kurang {(totalTarget - totalTonnage).toFixed(2)} Ton dari target
+                          </Badge>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -741,9 +423,28 @@ const HourDetailModal = ({ isOpen, data, hour, onClose }) => {
       <KendalaModal
         isOpen={showKendalaModal}
         hour={hour}
-        currentKendala={kendalaData?.kendala}
-        onClose={() => setShowKendalaModal(false)}
+        mode={formMode}
+        currentKendala={selectedKendala}
+        onClose={() => {
+          setShowKendalaModal(false);
+          setSelectedKendala(null);
+          setFormMode("create");
+        }}
         onSave={handleSaveKendala}
+        excaHullNo={data?.unit_exca}
+        date={currentDate}
+        shift={currentShift}
+      />
+
+      <KendalaDeleteConfirmModal
+        isOpen={showKendalaDeleteModal}
+        kendala={selectedKendala}
+        onClose={() => {
+          setShowKendalaDeleteModal(false);
+          setSelectedKendala(null);
+        }}
+        onConfirm={handleConfirmDeleteKendala}
+        isDeleting={isDeletingKendala}
       />
 
       <RitaseFormModal

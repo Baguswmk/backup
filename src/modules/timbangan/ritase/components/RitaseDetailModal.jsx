@@ -1,5 +1,10 @@
 import React, { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/shared/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/shared/components/ui/card";
 import { Button } from "@/shared/components/ui/button";
 import { Badge } from "@/shared/components/ui/badge";
 import { Input } from "@/shared/components/ui/input";
@@ -19,11 +24,7 @@ import {
   Loader2,
   FileEdit,
 } from "lucide-react";
-import {
-  formatDate,
-  formatTime,
-  formatDateTime,
-} from "@/shared/utils/date";
+import { formatDate, formatTime, formatDateTime } from "@/shared/utils/date";
 import { getFirstTruthyValue } from "@/shared/utils/object";
 import { formatWeight } from "@/shared/utils/number";
 import PrintTicketButton from "@/modules/timbangan/ritase/components/PrintTicketButton";
@@ -52,38 +53,38 @@ const RitaseDetailModal = ({
         item,
         "hull_no",
         "dumptruck",
-        "unit_dump_truck"
+        "unit_dump_truck",
       ),
       excavator: getFirstTruthyValue(
         item,
         "fleet_excavator",
         "unit_exca",
-        "excavator"
+        "excavator",
       ),
       dumpTruck: getFirstTruthyValue(
         item,
         "dumptruck",
         "unit_dump_truck",
-        "hull_no"
+        "hull_no",
       ),
       operator: getFirstTruthyValue(
         item,
         "operator",
         "operator_name",
         "operatorId",
-        "operatorName"
+        "operatorName",
       ),
       loadingLocation: getFirstTruthyValue(
         item,
         "fleet_loading",
         "loading_location",
-        "source"
+        "source",
       ),
       dumpingLocation: getFirstTruthyValue(
         item,
         "fleet_dumping",
         "dumping_location",
-        "destination"
+        "destination",
       ),
       shift: getFirstTruthyValue(item, "fleet_shift", "shift"),
       netWeight: item.net_weight || item.tonnage || 0,
@@ -503,7 +504,7 @@ const RitaseDetailModal = ({
               </Card>
 
               {/* Personnel Information */}
-             <Card className="dark:bg-gray-900 border-none dark:text-gray-200">
+              <Card className="dark:bg-gray-900 border-none dark:text-gray-200">
                 <CardHeader className="pb-3">
                   <CardTitle className="text-base flex items-center gap-2">
                     <User className="w-4 h-4" />

@@ -154,10 +154,10 @@ export const ritaseServices = {
         shift: effectiveShift,
       };
 
-      const cacheKey = `summary_fleet_${queryParams.startDate}_${queryParams.endDate}_${queryParams.shift}_${user?.id || 'guest'}`;
-      
+      const cacheKey = `summary_fleet_${queryParams.startDate}_${queryParams.endDate}_${queryParams.shift}_${user?.id || "guest"}`;
+
       const isToday = effectiveDateRange.from === getTodayDateRange().from;
-      const ttl = isToday 
+      const ttl = isToday
         ? offlineService.CACHE_CONFIG.SHORT
         : offlineService.CACHE_CONFIG.MEDIUM;
 
@@ -176,10 +176,10 @@ export const ritaseServices = {
             summariesCount: cached.summaries?.length || 0,
             ritasesCount: cached.ritases?.length || 0,
           });
-          return { 
-            success: true, 
+          return {
+            success: true,
             data: cached,
-            fromCache: true 
+            fromCache: true,
           };
         }
       }
@@ -203,10 +203,10 @@ export const ritaseServices = {
         shift: effectiveShift,
       });
 
-      return { 
-        success: true, 
+      return {
+        success: true,
         data,
-        fromCache: false 
+        fromCache: false,
       };
     } catch (error) {
       logger.error("❌ Failed to fetch summary fleet", {
@@ -214,16 +214,16 @@ export const ritaseServices = {
         details: error.response?.data,
       });
 
-      const cacheKey = `summary_fleet_${options.dateRange?.from || getTodayDateRange().from}_${options.dateRange?.to || getTodayDateRange().to}_${options.shift || getCurrentShift()}_${options.user?.id || 'guest'}`;
+      const cacheKey = `summary_fleet_${options.dateRange?.from || getTodayDateRange().from}_${options.dateRange?.to || getTodayDateRange().to}_${options.shift || getCurrentShift()}_${options.user?.id || "guest"}`;
       const stale = await offlineService.getCache(cacheKey, true);
-      
+
       if (stale) {
         logger.warn("⚠️ Returning stale cache due to API error");
-        return { 
-          success: true, 
-          data: stale, 
-          fromCache: true, 
-          offline: true 
+        return {
+          success: true,
+          data: stale,
+          fromCache: true,
+          offline: true,
         };
       }
 
@@ -235,26 +235,23 @@ export const ritaseServices = {
     }
   },
 
-  // ✅ OPTIMIZED: Use centralized masterDataService
   async fetchMasters(options = {}) {
     try {
       const { forceRefresh = false, userRole, userCompanyId } = options;
 
-      logger.info('📦 Fetching masters via masterDataService', { 
-        forceRefresh, 
-        userRole 
-      });
-
-      // Use centralized master data service
-      const masters = await masterDataService.fetchAllMasters({ 
+      logger.info("📦 Fetching masters via masterDataService", {
         forceRefresh,
         userRole,
-        userCompanyId
       });
 
-      // Transform to ritase format
+      const masters = await masterDataService.fetchAllMasters({
+        forceRefresh,
+        userRole,
+        userCompanyId,
+      });
+
       const ritaseMasters = {
-        excavators: masters.excavators.map(e => ({
+        excavators: masters.excavators.map((e) => ({
           id: e.id,
           name: e.hull_no,
           hull_no: e.hull_no,
@@ -264,7 +261,7 @@ export const ritaseServices = {
           workUnitId: e.workUnitId,
         })),
 
-        dumptrucks: masters.dumptrucks.map(d => ({
+        dumptrucks: masters.dumptrucks.map((d) => ({
           id: d.id,
           hullNo: d.hull_no,
           hull_no: d.hull_no,
@@ -277,29 +274,29 @@ export const ritaseServices = {
         })),
 
         locations: {
-          loading: masters.locations.filter(l => l.type === 'LOADING'),
-          dumping: masters.locations.filter(l => l.type === 'DUMPING'),
+          loading: masters.locations.filter((l) => l.type === "LOADING"),
+          dumping: masters.locations.filter((l) => l.type === "DUMPING"),
         },
 
-        operators: masters.operators.map(o => ({
+        operators: masters.operators.map((o) => ({
           id: o.id,
           name: o.name,
           company: o.company,
           companyId: o.companyId,
         })),
 
-        companies: masters.companies.map(c => ({
+        companies: masters.companies.map((c) => ({
           id: c.id,
           name: c.name,
         })),
 
-        workUnits: masters.workUnits.map(w => ({
+        workUnits: masters.workUnits.map((w) => ({
           id: w.id,
           satker: w.satker,
           subsatker: w.subsatker,
         })),
 
-        coalTypes: masters.coalTypes.map(ct => ({
+        coalTypes: masters.coalTypes.map((ct) => ({
           id: ct.id,
           name: ct.name,
         })),
@@ -323,29 +320,31 @@ export const ritaseServices = {
         error: error.message,
       });
 
-      // Try to get stale cache
       const stale = masterDataService.getStaleCache();
       if (stale && Object.keys(stale).length > 0) {
         logger.warn("⚠️ Returning stale cache due to API error");
-        
-        // Transform stale data
+
         const ritaseMasters = {
-          excavators: (stale.excavators || []).map(e => ({
+          excavators: (stale.excavators || []).map((e) => ({
             id: e.id,
             name: e.hull_no,
             hull_no: e.hull_no,
             company: e.company,
             companyId: e.companyId,
           })),
-          dumptrucks: (stale.dumptrucks || []).map(d => ({
+          dumptrucks: (stale.dumptrucks || []).map((d) => ({
             id: d.id,
             hullNo: d.hull_no,
             label: d.hull_no,
             company: d.company,
           })),
           locations: {
-            loading: (stale.locations || []).filter(l => l.type === 'LOADING'),
-            dumping: (stale.locations || []).filter(l => l.type === 'DUMPING'),
+            loading: (stale.locations || []).filter(
+              (l) => l.type === "LOADING",
+            ),
+            dumping: (stale.locations || []).filter(
+              (l) => l.type === "DUMPING",
+            ),
           },
           operators: stale.operators || [],
           companies: stale.companies || [],
@@ -356,25 +355,29 @@ export const ritaseServices = {
             { id: "MALAM", name: "Shift Malam" },
           ],
         };
-        
-        return { success: true, data: ritaseMasters, fromCache: true, offline: true };
+
+        return {
+          success: true,
+          data: ritaseMasters,
+          fromCache: true,
+          offline: true,
+        };
       }
 
       throw error;
     }
   },
 
-  // ✅ OPTIMIZED: Use centralized masterDataService
   async fetchOperators(options = {}) {
     try {
       const { forceRefresh = false, userRole, userCompanyId } = options;
 
-      logger.info('👷 Fetching operators via masterDataService');
+      logger.info("👷 Fetching operators via masterDataService");
 
-      const operators = await masterDataService.fetchOperators({ 
+      const operators = await masterDataService.fetchOperators({
         forceRefresh,
         userRole,
-        userCompanyId 
+        userCompanyId,
       });
 
       const transformed = operators.map((item) => ({
@@ -738,71 +741,71 @@ export const ritaseServices = {
     }
   },
 
-async submitTimbanganForm(formData, type) {
-  try {
-    const now = new Date().toISOString();
+  async submitTimbanganForm(formData, type) {
+    try {
+      const now = new Date().toISOString();
 
-    const payload = {
-      setting_fleet: formData.setting_fleet
-        ? parseInt(formData.setting_fleet)
-        : null,
-      unit_dump_truck: formData.unit_dump_truck
-        ? parseInt(formData.unit_dump_truck)
-        : null,
-      operator: formData.operator ? parseInt(formData.operator) : null,
-      created_at: formData.clientCreatedAt || now,
-    };
+      const payload = {
+        setting_fleet: formData.setting_fleet
+          ? parseInt(formData.setting_fleet)
+          : null,
+        unit_dump_truck: formData.unit_dump_truck
+          ? parseInt(formData.unit_dump_truck)
+          : null,
+        operator: formData.operator ? parseInt(formData.operator) : null,
+        created_at: formData.clientCreatedAt || now,
+      };
 
-    // MODIFIKASI: Logic berdasarkan weigh_bridge dan measurement_type
-    const measurementType = formData.measurement_type || "Timbangan";
-    const hasWeighBridge = formData.has_weigh_bridge; // Dari user
+      const measurementType = formData.measurement_type || "Timbangan";
+      const hasWeighBridge = formData.has_weigh_bridge;
 
-    if (measurementType === "Timbangan") {
-      if (hasWeighBridge) {
-        // User dengan weigh_bridge → kirim gross_weight
-        if (formData.gross_weight !== undefined && formData.gross_weight !== null) {
-          const grossWeight = formatWeight(formData.gross_weight);
-          payload.gross_weight = parseFloat(grossWeight);
-        }
-      } else {
-        // User tanpa weigh_bridge → kirim net_weight
-        if (formData.net_weight !== undefined && formData.net_weight !== null) {
-          const netWeight = formatWeight(formData.net_weight);
-          payload.net_weight = parseFloat(netWeight);
+      if (measurementType === "Timbangan") {
+        if (hasWeighBridge) {
+          if (
+            formData.gross_weight !== undefined &&
+            formData.gross_weight !== null
+          ) {
+            const grossWeight = formatWeight(formData.gross_weight);
+            payload.gross_weight = parseFloat(grossWeight);
+          }
+        } else {
+          if (
+            formData.net_weight !== undefined &&
+            formData.net_weight !== null
+          ) {
+            const netWeight = formatWeight(formData.net_weight);
+            payload.net_weight = parseFloat(netWeight);
+          }
         }
       }
-    }
-    // Untuk Bypass, Manual, Checkpoint → tidak kirim weight
 
-    if (formData.created_by_user) {
-      payload.created_by_user = parseInt(formData.created_by_user);
-    }
-
-    if (!payload.setting_fleet)
-      throw new Error("Setting fleet wajib dipilih");
-    if (!payload.unit_dump_truck) 
-      throw new Error("Dump truck wajib dipilih");
-
-    // Validasi weight hanya untuk measurement_type Timbangan
-    if (measurementType === "Timbangan") {
-      if (hasWeighBridge) {
-        if (!payload.gross_weight || payload.gross_weight <= 0)
-          throw new Error("Gross weight harus lebih dari 0");
-      } else {
-        if (!payload.net_weight || payload.net_weight <= 0)
-          throw new Error("Net weight harus lebih dari 0");
+      if (formData.created_by_user) {
+        payload.created_by_user = parseInt(formData.created_by_user);
       }
-    }
 
-    logger.info("📤 CREATE Ritase Payload:", {
-      ...payload,
-      measurementType,
-      hasWeighBridge,
-      hasGrossWeight: !!payload.gross_weight,
-      hasNetWeight: !!payload.net_weight,
-    });
+      if (!payload.setting_fleet)
+        throw new Error("Setting fleet wajib dipilih");
+      if (!payload.unit_dump_truck) throw new Error("Dump truck wajib dipilih");
 
-    const response = await offlineService.post("/v1/custom/ritase", payload);
+      if (measurementType === "Timbangan") {
+        if (hasWeighBridge) {
+          if (!payload.gross_weight || payload.gross_weight <= 0)
+            throw new Error("Gross weight harus lebih dari 0");
+        } else {
+          if (!payload.net_weight || payload.net_weight <= 0)
+            throw new Error("Net weight harus lebih dari 0");
+        }
+      }
+
+      logger.info("📤 CREATE Ritase Payload:", {
+        ...payload,
+        measurementType,
+        hasWeighBridge,
+        hasGrossWeight: !!payload.gross_weight,
+        hasNetWeight: !!payload.net_weight,
+      });
+
+      const response = await offlineService.post("/v1/custom/ritase", payload);
 
       const serverData = response.data || {};
 
@@ -1054,7 +1057,7 @@ async submitTimbanganForm(formData, type) {
       throw enhancedError;
     }
   },
-  
+
   async deleteTimbanganEntry(id) {
     try {
       await offlineService.delete(`/v1/custom/ritase/${id}`);

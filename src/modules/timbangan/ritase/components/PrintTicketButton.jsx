@@ -1,53 +1,53 @@
-/* eslint-disable react-hooks/rules-of-hooks */
 import React, { useRef, forwardRef, useImperativeHandle } from "react";
 import { Button } from "@/shared/components/ui/button";
 import { Printer } from "lucide-react";
 import RitaseTicket from "@/modules/timbangan/ritase/components/RitaseTicket";
 
-const PrintTicketButton = forwardRef(({
-  data,
-  onAfterPrint,
-  variant = "outline",
-  size = "default",
-  className = "",
-  children,
-}, ref) => {
-  const componentRef = useRef();
-  const buttonRef = useRef();
+const PrintTicketButton = forwardRef(
+  (
+    {
+      data,
+      onAfterPrint,
+      variant = "outline",
+      size = "default",
+      className = "",
+      children,
+    },
+    ref,
+  ) => {
+    const componentRef = useRef();
+    const buttonRef = useRef();
 
-  if (!data) {
-    console.warn("⚠️ PrintTicketButton: No data provided, skipping render");
-    return null;
-  }
-
-  const hasRequiredData = data && (
-    data.hull_no || 
-    data.dumptruck || 
-    data.unit_dump_truck ||
-    data.id
-  );
-
-  if (!hasRequiredData) {
-    console.warn("⚠️ PrintTicketButton: Invalid data structure", data);
-    return null;
-  }
-
-  const handlePrint = () => {
-    const content = componentRef.current;
-
-    if (!content) {
-      console.error("❌ Print content not found");
-      return;
+    if (!data) {
+      console.warn("⚠️ PrintTicketButton: No data provided, skipping render");
+      return null;
     }
 
-    const printWindow = window.open("", "_blank");
+    const hasRequiredData =
+      data &&
+      (data.hull_no || data.dumptruck || data.unit_dump_truck || data.id);
 
-    if (!printWindow) {
-      console.error("❌ Could not open print window - popup blocked?");
-      return;
+    if (!hasRequiredData) {
+      console.warn("⚠️ PrintTicketButton: Invalid data structure", data);
+      return null;
     }
 
-    const html = `
+    const handlePrint = () => {
+      const content = componentRef.current;
+
+      if (!content) {
+        console.error("❌ Print content not found");
+        return;
+      }
+
+      const printWindow = window.open("", "_blank");
+
+      if (!printWindow) {
+        console.error("❌ Could not open print window - popup blocked?");
+        return;
+      }
+
+      const html = `
         <!DOCTYPE html>
         <html>
           <head>
@@ -187,39 +187,40 @@ const PrintTicketButton = forwardRef(({
       </html>
     `;
 
-    printWindow.document.write(html);
-    printWindow.document.close();
+      printWindow.document.write(html);
+      printWindow.document.close();
 
-    if (onAfterPrint) {
-      setTimeout(() => {
-        onAfterPrint();
-      }, 1000);
-    }
-  };
+      if (onAfterPrint) {
+        setTimeout(() => {
+          onAfterPrint();
+        }, 1000);
+      }
+    };
 
-  useImperativeHandle(ref, () => ({
-    click: handlePrint
-  }));
+    useImperativeHandle(ref, () => ({
+      click: handlePrint,
+    }));
 
-  return (
-    <>
-      <Button
-        ref={buttonRef}
-        type="button"
-        variant={variant}
-        size={size}
-        onClick={handlePrint}
-        className={`flex items-center cursor-pointer gap-2 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600 ${className}`}
-      >
-        <Printer className="w-4 h-4" />
-        {children || "Cetak Karcis"}
-      </Button>
-      <div style={{ display: "none" }}>
-        <RitaseTicket ref={componentRef} data={data} />
-      </div>
-    </>
-  );
-});
+    return (
+      <>
+        <Button
+          ref={buttonRef}
+          type="button"
+          variant={variant}
+          size={size}
+          onClick={handlePrint}
+          className={`flex items-center cursor-pointer gap-2 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600 ${className}`}
+        >
+          <Printer className="w-4 h-4" />
+          {children || "Cetak Karcis"}
+        </Button>
+        <div style={{ display: "none" }}>
+          <RitaseTicket ref={componentRef} data={data} />
+        </div>
+      </>
+    );
+  },
+);
 
 PrintTicketButton.displayName = "PrintTicketButton";
 

@@ -16,6 +16,7 @@ export const useMasterData = (category) => {
 
   const { user } = useAuthStore();
   const userRole = user?.role;
+  const userCompanyId = user?.company?.id; // ✅ Ambil company ID dari user
 
   const initialLoadAttemptedRef = useRef(false);
   const pendingRequestRef = useRef(null);
@@ -28,9 +29,6 @@ export const useMasterData = (category) => {
     users: false,
   });
 
-  /**
-   * ✅ NEW: Load all master data needed for forms
-   */
   const loadAllMasterData = useCallback(async () => {
     if (!isMountedRef.current) return;
 
@@ -81,9 +79,6 @@ export const useMasterData = (category) => {
     }
   }, [userRole]);
 
-  /**
-   * Load data with cache-first strategy
-   */
   const loadData = useCallback(
     async (forceRefresh = false) => {
       if (!category) {
@@ -103,6 +98,7 @@ export const useMasterData = (category) => {
           const fetchOptions = {
             forceRefresh,
             userRole: userRole,
+            userCompanyId: userCompanyId, // ✅ Kirim company ID
           };
 
           if (userRole === "operator_jt" && category === "units") {
@@ -157,19 +153,13 @@ export const useMasterData = (category) => {
       pendingRequestRef.current = requestPromise;
       return requestPromise;
     },
-    [category, userRole],
+    [category, userRole, userCompanyId], // ✅ Tambahkan userCompanyId ke dependency
   );
 
-  /**
-   * Refresh data (force fetch from API)
-   */
   const refresh = useCallback(async () => {
     return await loadData(true);
   }, [loadData]);
 
-  /**
-   * ✅ NEW: Refresh all master data
-   */
   const refreshAllMasterData = useCallback(async () => {
     try {
       const [companiesData, workUnitsData, locationsData, usersData] =
@@ -198,9 +188,6 @@ export const useMasterData = (category) => {
     }
   }, [userRole]);
 
-  /**
-   * Create item
-   */
   const createItem = useCallback(
     async (formData) => {
       try {
@@ -223,9 +210,6 @@ export const useMasterData = (category) => {
     [category, loadData, refreshAllMasterData],
   );
 
-  /**
-   * Update item
-   */
   const updateItem = useCallback(
     async (id, formData) => {
       try {
@@ -252,9 +236,6 @@ export const useMasterData = (category) => {
     [category, loadData, refreshAllMasterData],
   );
 
-  /**
-   * Delete item
-   */
   const deleteItem = useCallback(
     async (id) => {
       try {
@@ -279,9 +260,6 @@ export const useMasterData = (category) => {
     [category, loadData, refreshAllMasterData],
   );
 
-  /**
-   * Clear cache and reload
-   */
   const clearCache = useCallback(() => {
     masterDataService.clearCache(category);
     return loadData(true);

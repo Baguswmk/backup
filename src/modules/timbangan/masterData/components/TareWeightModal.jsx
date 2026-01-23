@@ -2,8 +2,6 @@ import React, { useState, useEffect, useMemo } from "react";
 import {
   Card,
   CardContent,
-  CardHeader,
-  CardTitle,
 } from "@/shared/components/ui/card";
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
@@ -371,7 +369,9 @@ const TareWeightModal = ({
                         )}
                       </p>
                     </div>
-                    <Badge variant="destructive" className="text-red-700">Perlu Timbang Ulang</Badge>
+                    <Badge variant="destructive" className="text-red-700">
+                      Perlu Timbang Ulang
+                    </Badge>
                   </div>
                 </AlertDescription>
               </Alert>

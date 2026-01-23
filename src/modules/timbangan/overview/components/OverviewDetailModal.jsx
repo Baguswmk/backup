@@ -1,6 +1,6 @@
 import { Card, CardContent } from "@/shared/components/ui/card";
 import { Badge } from "@/shared/components/ui/badge";
-import { MapPin, Weight, Clock, Briefcase } from "lucide-react";
+import { MapPin, Weight, Clock, Briefcase, AlertTriangle, Image as ImageIcon } from "lucide-react";
 import ModalHeader from "@/shared/components/ModalHeader";
 
 const parseMySQLDateTime = (dateString) => {
@@ -23,7 +23,6 @@ const OverviewDetailModal = ({ isOpen, data, onClose }) => {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
       <Card className="w-full max-w-5xl max-h-[90vh] overflow-hidden flex flex-col bg-neutral-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 border-gray-200 dark:border-gray-700">
-        {/* ✅ USING ModalHeader instead of custom header */}
         <ModalHeader
           title={`Detail Ritase - ${data.unit_exca}`}
           subtitle={
@@ -123,6 +122,7 @@ const OverviewDetailModal = ({ isOpen, data, onClose }) => {
                     Berat (Ton)
                   </th>
                   <th className="px-3 py-2 text-center font-semibold">Shift</th>
+                  <th className="px-3 py-2 text-center font-semibold">Kendala</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
@@ -135,59 +135,130 @@ const OverviewDetailModal = ({ isOpen, data, onClose }) => {
                       month: "short",
                       year: "numeric",
                     });
+                  
+                  const hasKendala = ritase.kendala && ritase.kendala.trim().length > 0;
+                  const hasPhotos = ritase.photos && ritase.photos.length > 0;
 
                   return (
-                    <tr
-                      key={ritase.id}
-                      className="hover:bg-gray-50 dark:hover:bg-gray-800/50"
-                    >
-                      <td className="px-3 py-2">{idx + 1}</td>
-                      <td className="px-3 py-2">
-                        <div className="flex flex-col gap-1">
-                          <div className="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400">
-                            {displayDate}
+                    <React.Fragment key={ritase.id}>
+                      <tr className="hover:bg-gray-50 dark:hover:bg-gray-800/50">
+                        <td className="px-3 py-2">{idx + 1}</td>
+                        <td className="px-3 py-2">
+                          <div className="flex flex-col gap-1">
+                            <div className="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400">
+                              {displayDate}
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <Clock className="w-3 h-3 text-gray-500 dark:text-gray-400" />
+                              {ritaseDate.toLocaleTimeString("id-ID", {
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              })}
+                            </div>
                           </div>
-                          <div className="flex items-center gap-1">
-                            <Clock className="w-3 h-3 text-gray-500 dark:text-gray-400" />
-                            {ritaseDate.toLocaleTimeString("id-ID", {
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            })}
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-3 py-2 font-medium dark:text-gray-200">
-                        {ritase.unit_dump_truck}
-                      </td>
-                      <td className="px-3 py-2 text-gray-700 dark:text-gray-300">
-                        {ritase.driver || "-"}
-                      </td>
-                      <td className="px-3 py-2">
-                        <Badge
-                          variant="secondary"
-                          className="text-xs dark:bg-gray-700 dark:text-gray-200"
-                        >
-                          {ritase.company}
-                        </Badge>
-                      </td>
-                      <td className="px-3 py-2 text-right font-medium dark:text-gray-200">
-                        {ritase.net_weight.toFixed(2)}
-                      </td>
-                      <td className="px-3 py-2 text-center">
-                        <Badge
-                          variant={
-                            ritase.shift.includes("1") ? "default" : "secondary"
-                          }
-                          className={
-                            ritase.shift.includes("1")
-                              ? "dark:bg-blue-600"
-                              : "dark:bg-gray-700 dark:text-gray-200"
-                          }
-                        >
-                          {ritase.shift.split("(")[0].trim()}
-                        </Badge>
-                      </td>
-                    </tr>
+                        </td>
+                        <td className="px-3 py-2 font-medium dark:text-gray-200">
+                          {ritase.unit_dump_truck}
+                        </td>
+                        <td className="px-3 py-2 text-gray-700 dark:text-gray-300">
+                          {ritase.driver || "-"}
+                        </td>
+                        <td className="px-3 py-2">
+                          <Badge
+                            variant="secondary"
+                            className="text-xs dark:bg-gray-700 dark:text-gray-200"
+                          >
+                            {ritase.company}
+                          </Badge>
+                        </td>
+                        <td className="px-3 py-2 text-right font-medium dark:text-gray-200">
+                          {ritase.net_weight.toFixed(2)}
+                        </td>
+                        <td className="px-3 py-2 text-center">
+                          <Badge
+                            variant={
+                              ritase.shift.includes("1") ? "default" : "secondary"
+                            }
+                            className={
+                              ritase.shift.includes("1")
+                                ? "dark:bg-blue-600"
+                                : "dark:bg-gray-700 dark:text-gray-200"
+                            }
+                          >
+                            {ritase.shift.split("(")[0].trim()}
+                          </Badge>
+                        </td>
+                        <td className="px-3 py-2 text-center">
+                          {hasKendala ? (
+                            <div className="flex items-center justify-center gap-1">
+                              <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-500" />
+                              {hasPhotos && (
+                                <ImageIcon className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                              )}
+                            </div>
+                          ) : (
+                            <span className="text-gray-400 dark:text-gray-600">-</span>
+                          )}
+                        </td>
+                      </tr>
+                      
+                      {/* Kendala Row - Expandable */}
+                      {hasKendala && (
+                        <tr className="bg-amber-50/50 dark:bg-amber-900/10">
+                          <td colSpan="8" className="px-3 py-3">
+                            <div className="flex gap-3">
+                              <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-500 shrink-0 mt-0.5" />
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <span className="font-semibold text-sm text-amber-900 dark:text-amber-100">
+                                    Kendala:
+                                  </span>
+                                  {ritase.kategori && (
+                                    <Badge 
+                                      variant="outline" 
+                                      className="text-xs border-amber-600 dark:border-amber-500 text-amber-700 dark:text-amber-400"
+                                    >
+                                      {ritase.kategori.charAt(0).toUpperCase() + ritase.kategori.slice(1)}
+                                    </Badge>
+                                  )}
+                                </div>
+                                <p className="text-sm text-gray-700 dark:text-gray-300 mb-2 whitespace-pre-wrap">
+                                  {ritase.kendala}
+                                </p>
+                                
+                                {/* Foto Pendukung */}
+                                {hasPhotos && (
+                                  <div className="mt-3">
+                                    <div className="flex items-center gap-2 mb-2">
+                                      <ImageIcon className="w-4 h-4 text-gray-600 dark:text-gray-400" />
+                                      <span className="text-xs font-medium text-gray-600 dark:text-gray-400">
+                                        Foto Pendukung ({ritase.photos.length})
+                                      </span>
+                                    </div>
+                                    <div className="flex gap-2 flex-wrap">
+                                      {ritase.photos.map((photo, photoIdx) => (
+                                        <div
+                                          key={photoIdx}
+                                          className="relative w-20 h-20 rounded-md overflow-hidden border border-gray-300 dark:border-gray-600 group cursor-pointer hover:opacity-90 transition-opacity"
+                                          onClick={() => window.open(photo.url || photo, '_blank')}
+                                        >
+                                          <img
+                                            src={photo.url || photo}
+                                            alt={`Foto kendala ${photoIdx + 1}`}
+                                            className="w-full h-full object-cover"
+                                          />
+                                          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors" />
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </React.Fragment>
                   );
                 })}
               </tbody>
@@ -202,7 +273,7 @@ const OverviewDetailModal = ({ isOpen, data, onClose }) => {
                   <td className="px-3 py-2 text-right text-blue-600 dark:text-blue-400">
                     {data.totalTonase.toFixed(2)}
                   </td>
-                  <td></td>
+                  <td colSpan="2"></td>
                 </tr>
               </tfoot>
             </table>
