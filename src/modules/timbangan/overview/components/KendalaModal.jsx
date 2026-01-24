@@ -61,7 +61,6 @@ const KendalaModal = ({
   }, [selectedCategory, categories, mode]);
 
   const loadKendalaData = (kendala) => {
-    console.log('🔍 Loading kendala data for edit:', kendala);
     
     setSelectedCategory(kendala.hindrance_category || "");
     
@@ -97,7 +96,6 @@ const KendalaModal = ({
         evidenceData = kendala.evidence;
       }
       
-      console.log('📸 Evidence data:', evidenceData);
       
       if (evidenceData.length > 0) {
         // Extract media IDs
@@ -129,8 +127,6 @@ const KendalaModal = ({
           return null;
         }).filter(Boolean);
         
-        console.log('📋 Media IDs:', mediaIds);
-        console.log('🖼️ Preview URLs:', urls);
         
         setUploadedMediaIds(mediaIds);
         setPreviews(urls);
@@ -505,7 +501,6 @@ const KendalaModal = ({
           {previews.length > 0 && (
             <div className="grid grid-cols-3 gap-2">
               {previews.map((preview, index) => {
-                console.log(`Preview ${index}:`, preview);
                 return (
                   <div
                     key={index}
@@ -519,9 +514,6 @@ const KendalaModal = ({
                         console.error(`❌ Failed to load image ${index}:`, preview);
                         e.target.onerror = null; // Prevent infinite loop
                         e.target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2VlZSIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTQiIGZpbGw9IiM5OTkiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj5HYWdhbCBtZW11YXQgZ2FtYmFyPC90ZXh0Pjwvc3ZnPg==';
-                      }}
-                      onLoad={() => {
-                        console.log(`✅ Successfully loaded image ${index}:`, preview);
                       }}
                     />
                     <button

@@ -201,80 +201,60 @@ const OverviewManagement = () => {
     selectedDumpPoints,
   ]);
 
-  const summaryData = useMemo(() => {
-    const defaultSummary = {
-      activeDumptrucks: 0,
-      activeExcavators: 0,
-      totalTonnage: "0.00",
-      shift1Tonnage: "0.00",
-      shift2Tonnage: "0.00",
-      companyBreakdown: [],
-    };
+const summaryData = useMemo(() => {
+  const defaultSummary = {
+    activeDumptrucks: 0,
+    activeExcavators: 0,
+    totalTonnage: "0.00",
+    shift1Tonnage: "0.00",
+    shift2Tonnage: "0.00",
+    dumptruckBreakdown: [],
+    excavatorBreakdown: [],
+  };
 
-    if (isRefreshing && cachedData?.data?.summaryData) {
-      const cached = cachedData.data.summaryData;
-      const companyBreakdown = {};
-      tableData.forEach((item) => {
-        if (item.company) {
-          if (!companyBreakdown[item.company]) {
-            companyBreakdown[item.company] = new Set();
-          }
-          item.ritases?.forEach((r) => {
-            if (r.unit_dump_truck) {
-              companyBreakdown[item.company].add(r.unit_dump_truck);
-            }
-          });
-        }
-      });
-
-      return {
-        activeDumptrucks: cached.activeDumptrucks || 0,
-        activeExcavators: cached.activeExcavators || 0,
-        totalTonnage: (cached.totalTonnage || 0).toFixed(2),
-        shift1Tonnage: (cached.shift1Tonnage || 0).toFixed(2),
-        shift2Tonnage: (cached.shift2Tonnage || 0).toFixed(2),
-        companyBreakdown: Object.entries(companyBreakdown).map(
-          ([company, trucks]) => ({
-            company,
-            count: trucks.size,
-          }),
-        ),
-      };
-    }
-
-    if (!hookSummaryData || error) {
-      return defaultSummary;
-    }
-
-    const companyBreakdown = {};
-    tableData.forEach((item) => {
-      if (item.company) {
-        if (!companyBreakdown[item.company]) {
-          companyBreakdown[item.company] = new Set();
-        }
-        item.ritases?.forEach((r) => {
-          if (r.unit_dump_truck) {
-            companyBreakdown[item.company].add(r.unit_dump_truck);
-          }
-        });
-      }
-    });
-
+  if (isRefreshing && cachedData?.data?.summaryData) {
+    const cached = cachedData.data.summaryData;
     return {
-      activeDumptrucks: hookSummaryData.activeDumptrucks || 0,
-      activeExcavators: hookSummaryData.activeExcavators || 0,
-      totalTonnage: (hookSummaryData.totalTonnage || 0).toFixed(2),
-      shift1Tonnage: (hookSummaryData.shift1Tonnage || 0).toFixed(2),
-      shift2Tonnage: (hookSummaryData.shift2Tonnage || 0).toFixed(2),
-      companyBreakdown: Object.entries(companyBreakdown).map(
-        ([company, trucks]) => ({
-          company,
-          count: trucks.size,
-        }),
-      ),
+      activeDumptrucks: Array.isArray(cached.activeDumptrucks)
+        ? cached.activeDumptrucks.reduce((sum, item) => sum + (item.count || 0), 0)
+        : 0,
+      activeExcavators: Array.isArray(cached.activeExcavators)
+        ? cached.activeExcavators.reduce((sum, item) => sum + (item.count || 0), 0)
+        : 0,
+      totalTonnage: (cached.totalTonnage || 0).toFixed(2),
+      shift1Tonnage: (cached.shift1Tonnage || 0).toFixed(2),
+      shift2Tonnage: (cached.shift2Tonnage || 0).toFixed(2),
+      dumptruckBreakdown: Array.isArray(cached.activeDumptrucks)
+        ? cached.activeDumptrucks
+        : [],
+      excavatorBreakdown: Array.isArray(cached.activeExcavators)
+        ? cached.activeExcavators
+        : [],
     };
-  }, [hookSummaryData, tableData, error, isRefreshing, cachedData]);
+  }
 
+  if (!hookSummaryData || error) {
+    return defaultSummary;
+  }
+
+  return {
+    activeDumptrucks: Array.isArray(hookSummaryData.activeDumptrucks)
+      ? hookSummaryData.activeDumptrucks.reduce((sum, item) => sum + (item.count || 0), 0)
+      : 0,
+    activeExcavators: Array.isArray(hookSummaryData.activeExcavators)
+      ? hookSummaryData.activeExcavators.reduce((sum, item) => sum + (item.count || 0), 0)
+      : 0,
+    totalTonnage: (hookSummaryData.totalTonnage || 0).toFixed(2),
+    shift1Tonnage: (hookSummaryData.shift1Tonnage || 0).toFixed(2),
+    shift2Tonnage: (hookSummaryData.shift2Tonnage || 0).toFixed(2),
+    dumptruckBreakdown: Array.isArray(hookSummaryData.activeDumptrucks)
+      ? hookSummaryData.activeDumptrucks
+      : [],
+    excavatorBreakdown: Array.isArray(hookSummaryData.activeExcavators)
+      ? hookSummaryData.activeExcavators
+      : [],
+  };
+}, [hookSummaryData, error, isRefreshing, cachedData]);
   const sortedTableData = useMemo(() => {
     if (!sortConfig.key) return filteredTableData;
 
@@ -439,97 +419,112 @@ const OverviewManagement = () => {
     <div className="space-y-6 p-4 md:p-6 min-h-screen">
       {/* ✅ Summary Cards - Loading indicator di header card, tidak menutupi konten */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card className="shadow-sm hover:shadow-md transition-shadow dark:text-gray-200 border-none dark:shadow-gray-600">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium flex items-center gap-2 text-gray-600 dark:text-gray-200">
-              <Truck className="w-4 h-4" />
-              Active Dump Truck
-              {isRefreshing && (
-                <RefreshCw className="w-3 h-3 animate-spin text-blue-600 ml-auto" />
-              )}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-blue-600 mb-3">
-              {summaryData.activeDumptrucks}
-            </div>
-            {summaryData.companyBreakdown.length > 0 ? (
-              <div className="space-y-1">
-                {summaryData.companyBreakdown.map(({ company, count }) => (
-                  <div
-                    key={company}
-                    className="flex items-center justify-between text-xs"
-                  >
-                    <span className="text-gray-600 dark:text-gray-400">
-                      {company}:
-                    </span>
-                    <span className="font-medium">{count} unit</span>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-xs text-gray-400">Tidak ada data</div>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card className="shadow-sm hover:shadow-md transition-shadow dark:text-gray-200 border-none dark:shadow-gray-600">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium flex items-center gap-2 text-gray-600 dark:text-gray-200">
-              <Hammer className="w-4 h-4" />
-              Active Excavator
-              {isRefreshing && (
-                <RefreshCw className="w-3 h-3 animate-spin text-blue-600 ml-auto" />
-              )}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-green-600 mb-3">
-              {summaryData.activeExcavators}
-            </div>
-            <div className="text-xs text-gray-500 dark:text-gray-400">
-              {summaryData.activeExcavators === 0
-                ? "Tidak ada data"
-                : "Total unit beroperasi"}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="shadow-sm hover:shadow-md transition-shadow dark:text-gray-200 border-none dark:shadow-gray-600">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium flex items-center gap-2 text-gray-600 dark:text-gray-200">
-              <Weight className="w-4 h-4" />
-              Total Tonnage
-              {isRefreshing && (
-                <RefreshCw className="w-3 h-3 animate-spin text-blue-600 ml-auto" />
-              )}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-orange-600 mb-3">
-              {summaryData.totalTonnage} <span className="text-lg">Ton</span>
-            </div>
-            <div className="space-y-1">
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-gray-600 dark:text-gray-400">
-                  Shift 1:
-                </span>
-                <span className="font-medium">
-                  {summaryData.shift1Tonnage} Ton
-                </span>
-              </div>
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-gray-600 dark:text-gray-400">
-                  Shift 2:
-                </span>
-                <span className="font-medium">
-                  {summaryData.shift2Tonnage} Ton
-                </span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+  {/* Active Dump Truck Card */}
+  <Card className="shadow-sm hover:shadow-md transition-shadow dark:text-gray-200 border-none dark:shadow-gray-600">
+    <CardHeader className="pb-3">
+      <CardTitle className="text-sm font-medium flex items-center gap-2 text-gray-600 dark:text-gray-200">
+        <Truck className="w-4 h-4" />
+        Active Dump Truck
+        {isRefreshing && (
+          <RefreshCw className="w-3 h-3 animate-spin text-blue-600 ml-auto" />
+        )}
+      </CardTitle>
+    </CardHeader>
+    <CardContent>
+      <div className="text-3xl font-bold text-blue-600 mb-3">
+        {summaryData.activeDumptrucks}
       </div>
+      {summaryData.dumptruckBreakdown.length > 0 ? (
+        <div className="space-y-1">
+          {summaryData.dumptruckBreakdown.map((item) => (
+            <div
+              key={item.name}
+              className="flex items-center justify-between text-xs"
+            >
+              <span className="text-gray-600 dark:text-gray-400">
+                {item.name}:
+              </span>
+              <span className="font-medium">{item.count} unit</span>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="text-xs text-gray-400">Tidak ada data</div>
+      )}
+    </CardContent>
+  </Card>
+
+  {/* Active Excavator Card */}
+  <Card className="shadow-sm hover:shadow-md transition-shadow dark:text-gray-200 border-none dark:shadow-gray-600">
+    <CardHeader className="pb-3">
+      <CardTitle className="text-sm font-medium flex items-center gap-2 text-gray-600 dark:text-gray-200">
+        <Hammer className="w-4 h-4" />
+        Active Excavator
+        {isRefreshing && (
+          <RefreshCw className="w-3 h-3 animate-spin text-blue-600 ml-auto" />
+        )}
+      </CardTitle>
+    </CardHeader>
+    <CardContent>
+      <div className="text-3xl font-bold text-green-600 mb-3">
+        {summaryData.activeExcavators}
+      </div>
+      {summaryData.excavatorBreakdown.length > 0 ? (
+        <div className="space-y-1">
+          {summaryData.excavatorBreakdown.map((item) => (
+            <div
+              key={item.name}
+              className="flex items-center justify-between text-xs"
+            >
+              <span className="text-gray-600 dark:text-gray-400">
+                {item.name}:
+              </span>
+              <span className="font-medium">{item.count} unit</span>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="text-xs text-gray-400">Tidak ada data</div>
+      )}
+    </CardContent>
+  </Card>
+
+  {/* Total Tonnage Card */}
+  <Card className="shadow-sm hover:shadow-md transition-shadow dark:text-gray-200 border-none dark:shadow-gray-600">
+    <CardHeader className="pb-3">
+      <CardTitle className="text-sm font-medium flex items-center gap-2 text-gray-600 dark:text-gray-200">
+        <Weight className="w-4 h-4" />
+        Total Tonnage
+        {isRefreshing && (
+          <RefreshCw className="w-3 h-3 animate-spin text-blue-600 ml-auto" />
+        )}
+      </CardTitle>
+    </CardHeader>
+    <CardContent>
+      <div className="text-3xl font-bold text-orange-600 mb-3">
+        {summaryData.totalTonnage} <span className="text-lg">Ton</span>
+      </div>
+      <div className="space-y-1">
+        <div className="flex items-center justify-between text-xs">
+          <span className="text-gray-600 dark:text-gray-400">
+            Shift 1:
+          </span>
+          <span className="font-medium">
+            {summaryData.shift1Tonnage} Ton
+          </span>
+        </div>
+        <div className="flex items-center justify-between text-xs">
+          <span className="text-gray-600 dark:text-gray-400">
+            Shift 2:
+          </span>
+          <span className="font-medium">
+            {summaryData.shift2Tonnage} Ton
+          </span>
+        </div>
+      </div>
+    </CardContent>
+  </Card>
+</div>
 
       {/* ✅ Table Component - Loading indicator di Card Title table */}
       <OverviewTable

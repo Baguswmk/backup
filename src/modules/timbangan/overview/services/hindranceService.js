@@ -38,8 +38,6 @@ export const hindranceService = {
         }
       );
 
-      console.log(response)
-
       logger.info("✅ Hindrance details fetched", {
         count: response.data?.length || 0,
       });
@@ -310,12 +308,6 @@ export const hindranceService = {
         },
       });
 
-      // Debug: Log raw response
-      console.log("🔍 Raw upload response:", response);
-      console.log("🔍 response.data type:", typeof response.data);
-      console.log("🔍 response.data is array:", Array.isArray(response.data));
-      console.log("🔍 response.data:", response.data);
-
       // Response bisa berupa array langsung atau wrapped
       let uploadedFile;
       
@@ -337,9 +329,6 @@ export const hindranceService = {
         // Last resort: check if response itself is an array
         uploadedFile = Array.isArray(response) ? response[0] : response;
       }
-
-      console.log("🔍 Extracted uploadedFile:", uploadedFile);
-      console.log("🔍 uploadedFile.id:", uploadedFile?.id);
 
       if (!uploadedFile?.id) {
         console.error("❌ Full response structure:", JSON.stringify(response, null, 2));

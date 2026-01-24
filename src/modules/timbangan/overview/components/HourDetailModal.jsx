@@ -218,12 +218,10 @@ const HourDetailModal = ({ isOpen, data, hour, onClose }) => {
   };
 
   const handleSaveRitase = (formData) => {
-    console.log("Saving ritase:", formData);
     // TODO: Implement actual save logic via API
   };
 
   const handleConfirmDelete = (id) => {
-    console.log("Deleting ritase:", id);
     // TODO: Implement actual delete logic via API
   };
 
