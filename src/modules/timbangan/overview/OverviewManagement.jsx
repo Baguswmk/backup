@@ -13,6 +13,9 @@ import { exportToPDF } from "@/shared/utils/pdf";
 import { showToast } from "@/shared/utils/toast";
 import { useDashboardDaily } from "@/modules/timbangan/dashboard/hooks/useDashboardDaily";
 import SupervisorInputModal from "@/modules/timbangan/overview/components/SupervisorInputModal";
+import { getCurrentShift } from "@/shared/utils/shift";
+
+
 const OverviewManagement = () => {
   const [dateRange, setDateRange] = useState(() => {
     const today = new Date().toISOString().split("T")[0];
@@ -22,7 +25,7 @@ const OverviewManagement = () => {
     };
   });
 
-  const [shift, setShift] = useState("All");
+   const [shift, setShift] = useState(() => getCurrentShift());
 
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [cachedData, setCachedData] = useState(null);
@@ -315,11 +318,20 @@ const summaryData = useMemo(() => {
     refresh();
   }, [refresh]);
 
-  const handleDateRangeChange = useCallback((newDateRange) => {
-    setDateRange(newDateRange);
-    setCurrentPage(1);
-  }, []);
-
+const handleDateRangeChange = useCallback((payload) => {
+  const { startDate, endDate, shift: newShift, from, to } = payload;
+  
+  setDateRange({
+    from: from || startDate,
+    to: to || endDate,
+  });
+  
+  if (newShift) {
+    setShift(newShift);
+  }
+  
+  setCurrentPage(1);
+}, []);
   const handleShiftChange = useCallback((newShift) => {
     setShift(newShift);
     setCurrentPage(1);

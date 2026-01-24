@@ -1,5 +1,5 @@
 import QRCode from "qrcode";
-import bukitAsamLogo from "../../../public/logo_ptba.png"
+import bukitAsamLogo from "/logo_ptba.png"
 
 export const generateRitasePDF = async (data, supervisorName) => {
   const {
@@ -67,11 +67,11 @@ export const generateRitasePDF = async (data, supervisorName) => {
   // Tentukan jam berdasarkan shift
   let hours = [];
   if (shift.includes("Shift 1") || shift.includes("1")) {
-    hours = [22, 23, 0, 1, 2, 3, 4, 5, 6];
+    hours = [22, 23, 0, 1, 2, 3, 4, 5];
   } else if (shift.includes("Shift 2") || shift.includes("2")) {
     hours = [6, 7, 8, 9, 10, 11, 12, 13];
   } else if (shift.includes("Shift 3") || shift.includes("3")) {
-    hours = [14, 15, 16, 17, 18, 19, 20, 21, 22];
+    hours = [14, 15, 16, 17, 18, 19, 20, 21];
   } else {
     hours = [6, 7, 8, 9, 10, 11, 12, 13];
   }
@@ -96,7 +96,7 @@ export const generateRitasePDF = async (data, supervisorName) => {
 
   // Data untuk QR Code
   const mitraName = company;
-  const supervisor = supervisorName || "SUPERVISOR"; // ✅ Gunakan parameter supervisor
+  const supervisor = supervisorName || "SUPERVISOR";
 
   // Generate QR Codes untuk tanda tangan
   const checkerQR = await QRCode.toDataURL(checker, {

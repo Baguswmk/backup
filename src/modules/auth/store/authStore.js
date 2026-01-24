@@ -4,6 +4,8 @@ import { authService } from "@/modules/auth/services/authService";
 import { logger } from "@/shared/services/log";
 import { secureStorage } from "@/shared/storage/secureStorage";
 
+let isCheckingAuth = false;
+
 const useAuthStore = create(
   persist(
     (set, get) => ({
@@ -77,6 +79,8 @@ const useAuthStore = create(
       },
 
       checkAuth: async () => {
+        if (isCheckingAuth) return;
+        isCheckingAuth = true;
         try {
           set({ isLoading: true });
 
@@ -134,6 +138,8 @@ const useAuthStore = create(
             error: "Authentication check failed",
           });
           return false;
+        } finally {
+          isCheckingAuth = false;
         }
       },
 
@@ -208,8 +214,8 @@ const useAuthStore = create(
         token: state.token,
         isAuthenticated: state.isAuthenticated,
       }),
-    }
-  )
+    },
+  ),
 );
 
 if (typeof window !== "undefined") {
