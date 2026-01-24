@@ -335,7 +335,7 @@ async fetchUnits(filters = {}) {
   }
 
   const params = {
-    pagination: { pageSize: 500 },
+    pagination: { pageSize: 7500 },
     sort: ["hull_no:asc"],
   };
 
@@ -511,7 +511,7 @@ async fetchUnits(filters = {}) {
     }
 
     const params = {
-      pagination: { pageSize: 200 },
+      pagination: { pageSize: 7500 },
       sort: ["name:asc"],
     };
 
@@ -599,7 +599,7 @@ async fetchUnits(filters = {}) {
     }
 
     const params = {
-      pagination: { pageSize: 500 },
+      pagination: { pageSize: 7500 },
       sort: ["name:asc"],
     };
 
@@ -673,7 +673,7 @@ async fetchUnits(filters = {}) {
     }
 
     const params = {
-      pagination: { pageSize: 100 },
+      pagination: { pageSize: 7500 },
       sort: ["satker:asc"],
     };
 
@@ -757,7 +757,7 @@ async fetchUnits(filters = {}) {
 
     const response = await offlineService.get("/coal-types", {
       params: {
-        pagination: { pageSize: 50 },
+        pagination: { pageSize: 1000 },
         sort: ["name:asc"],
       },
       cacheKey: "coal_types",
@@ -821,7 +821,7 @@ async fetchUnits(filters = {}) {
     }
 
     const params = {
-      pagination: { pageSize: 100 },
+      pagination: { pageSize: 1000 },
       sort: ["name:asc"],
     };
 
