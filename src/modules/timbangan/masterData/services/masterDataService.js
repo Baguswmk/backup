@@ -4,14 +4,14 @@ import { buildCacheKey } from "@/shared/utils/cache";
 const MASTER_DATA_CACHE = {
   data: {},
   TTL: {
-    units: 30 * 60 * 1000,
-    operators: 30 * 60 * 1000,
+    units: 5 * 60 * 1000,
+    operators: 5 * 60 * 1000,
     companies: 60 * 60 * 1000,
     locations: 60 * 60 * 1000,
-    "work-units": 60 * 60 * 1000,
+    "work-units": 5 * 60 * 1000,
     "coal-types": 60 * 60 * 1000,
     "weigh-bridge": 60 * 60 * 1000,
-    users: 30 * 60 * 1000,
+    users: 5 * 60 * 1000,
   },
 
   isValid(category) {

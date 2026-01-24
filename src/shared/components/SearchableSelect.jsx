@@ -47,20 +47,6 @@ const SearchableSelect = ({
     }
   }, [open]);
 
-  useEffect(() => {
-    const handleWheel = (e) => {
-      e.stopPropagation();
-    };
-
-    const listElement = commandListRef.current;
-    if (listElement && open) {
-      listElement.addEventListener("wheel", handleWheel, { passive: true });
-      return () => {
-        listElement.removeEventListener("wheel", handleWheel);
-      };
-    }
-  }, [open]);
-
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>

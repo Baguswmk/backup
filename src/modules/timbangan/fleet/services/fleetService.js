@@ -4,7 +4,7 @@ import { logger } from "@/shared/services/log";
 
 const CACHE_TTL = {
   FLEET_DATA: 5 * 60 * 1000,
-  MASTERS: 30 * 60 * 1000,
+  MASTERS: 5 * 60 * 1000,
 };
 
 const pendingRequests = new Map();
