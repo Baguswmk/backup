@@ -244,50 +244,53 @@ useEffect(() => {
     return Object.values(unitOperators).filter(Boolean);
   }, [unitOperators]);
 
-  const handleExcavatorChange = useCallback(
-    async (excavatorId) => {
-      setFleetData((p) => ({ ...p, excavator: excavatorId || "" }));
+const handleExcavatorChange = useCallback(
+  async (excavatorId) => {
+    setFleetData((p) => ({ ...p, excavator: excavatorId || "" }));
 
-      if (!isEdit || (isEdit && excavatorId !== editingConfig?.excavatorId)) {
-        setSelectedUnits([]);
-        setUnitOperators({});
-      }
+    // FIXED: Hanya reset units jika excavator BENAR-BENAR berubah, bukan saat edit
+    if (!isEdit || (isEdit && excavatorId !== editingConfig?.excavatorId)) {
+      setSelectedUnits([]);
+      setUnitOperators({});
+    }
 
-      setShowAllUnits(false);
-      setErrors((prev) => {
-        const e = { ...prev };
-        delete e.excavator;
-        return e;
-      });
+    // HAPUS baris ini yang menyebabkan bug:
+    // setShowAllUnits(false); // ❌ INI PENYEBAB BUG!
 
-      if (excavatorId) {
-        setIsLoadingFilteredUnits(true);
-        try {
-          const filtered = await filterUnitsByExcavator(String(excavatorId));
-          setFleetFilteredUnits(filtered);
+    setErrors((prev) => {
+      const e = { ...prev };
+      delete e.excavator;
+      return e;
+    });
 
-          if (filtered.length === 0) {
-            setErrors((prev) => ({
-              ...prev,
-              units: "Tidak ada dump truck tersedia untuk excavator ini",
-            }));
-          }
-        } catch (error) {
-          console.error("Failed to load filtered units:", error);
+    if (excavatorId) {
+      setIsLoadingFilteredUnits(true);
+      try {
+        const filtered = await filterUnitsByExcavator(String(excavatorId));
+        setFleetFilteredUnits(filtered);
+
+        if (filtered.length === 0) {
           setErrors((prev) => ({
             ...prev,
-            units: "Gagal memuat dump truck",
+            units: "Tidak ada dump truck tersedia untuk excavator ini",
           }));
-          setFleetFilteredUnits([]);
-        } finally {
-          setIsLoadingFilteredUnits(false);
         }
-      } else {
+      } catch (error) {
+        console.error("Failed to load filtered units:", error);
+        setErrors((prev) => ({
+          ...prev,
+          units: "Gagal memuat dump truck",
+        }));
         setFleetFilteredUnits([]);
+      } finally {
+        setIsLoadingFilteredUnits(false);
       }
-    },
-    [filterUnitsByExcavator, isEdit, editingConfig],
-  );
+    } else {
+      setFleetFilteredUnits([]);
+    }
+  },
+  [filterUnitsByExcavator, isEdit, editingConfig],
+);
 
   const filteredUnits = useMemo(() => {
     let units = [];
@@ -995,8 +998,6 @@ const handleSave = useCallback(async () => {
                         checked={showAllUnits}
                         onCheckedChange={(checked) => {
                           setShowAllUnits(checked);
-                          setSelectedUnits([]);
-                          setUnitOperators({});
                         }}
                         disabled={isSaving}
                         className="dark:text-gray-200"
