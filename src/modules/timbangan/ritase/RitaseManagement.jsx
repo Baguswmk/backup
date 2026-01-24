@@ -257,12 +257,14 @@ const RitaseManagement = () => {
     };
   }, [summaryData.ritases]);
 
-  const aggregatedRitaseData = useMemo(() => {
+
+const aggregatedRitaseData = useMemo(() => {
     const summaries = summaryData.summaries || [];
     const ritases = summaryData.ritases || [];
 
     return summaries.map((summary) => {
-      const matchingRitase = ritases.find(
+      // Ambil semua ritase yang cocok dengan summary ini
+      const matchingRitases = ritases.filter(
         (r) =>
           r.unit_exca === summary.unit_exca &&
           r.loading_location === summary.loading_location &&
@@ -270,17 +272,18 @@ const RitaseManagement = () => {
           r.measurement_type === summary.measurement_type,
       );
 
+      // Ambil checker dan company dari ritase pertama yang cocok
+      const firstMatch = matchingRitases[0];
+
       return {
         ...summary,
-        checker: matchingRitase?.checker || summary.checker,
-        company: matchingRitase?.company || summary.company,
-
+        checker: firstMatch?.checker || "Unknown Checker",
+        company: firstMatch?.company || "Unknown Company",
         tripCount: summary.total_ritase,
         totalWeight: summary.total_tonase,
       };
     });
   }, [summaryData.summaries, summaryData.ritases]);
-
   const handleRitasePageChange = useCallback((page) => {
     setCurrentRitasePage(page);
     const ritaseCard = document.querySelector("[data-ritase-list]");

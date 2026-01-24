@@ -105,12 +105,12 @@ const AggregatedRitase = ({
     }
 
     const grouped = {};
-
     aggregatedData.forEach((item) => {
       let key;
       switch (activeTab) {
         case "checker":
-          key = item.checker || "Unknown Checker";
+          // ✅ FIXED: Cek kedua kemungkinan properti
+          key = item.checker || item.unit_exca || "Unknown Checker";
           break;
         case "dumping":
           key = item.dumping_location || "Unknown Dumping";
@@ -119,7 +119,8 @@ const AggregatedRitase = ({
           key = item.loading_location || "Unknown Loading";
           break;
         case "mitra":
-          key = item.company || "Unknown Company";
+          // ✅ FIXED: Cek kedua kemungkinan properti
+          key = item.company || item.unit_exca || "Unknown Company";
           break;
         default:
           key = "Unknown";
@@ -135,8 +136,13 @@ const AggregatedRitase = ({
       }
 
       grouped[key].items.push(item);
-      grouped[key].totalWeight += item.totalWeight || 0;
-      grouped[key].totalTrips += item.tripCount || 0;
+      
+      // ✅ FIXED: Gunakan properti yang benar dari data
+      const weight = item.totalWeight || item.total_tonase || 0;
+      const trips = item.tripCount || item.total_ritase || 0;
+      
+      grouped[key].totalWeight += parseFloat(weight);
+      grouped[key].totalTrips += parseInt(trips);
     });
 
     return Object.values(grouped).map((group) => ({
@@ -196,6 +202,16 @@ const AggregatedRitase = ({
     }
   };
 
+  // ✅ FIXED: Helper function untuk mendapatkan nilai dengan fallback
+  const getTripCount = (item) => {
+    return item.tripCount || item.total_ritase || 0;
+  };
+
+  const getTotalWeight = (item) => {
+    const weight = item.totalWeight || item.total_tonase || 0;
+    return parseFloat(weight).toFixed(2);
+  };
+
   const renderGroupedView = () => {
     if (!Array.isArray(paginatedData) || paginatedData.length === 0) {
       return null;
@@ -219,7 +235,7 @@ const AggregatedRitase = ({
             className="mb-4 sm:mb-6 last:mb-0"
           >
             <div className="bg-gray-100 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
-              <CollapsibleTrigger className="w-full  cursor-pointer p-3 sm:p-4 border-b-2 border-blue-500 dark:border-blue-400 hover:bg-gray-200 dark:hover:bg-gray-700/50 transition-colors">
+              <CollapsibleTrigger className="w-full cursor-pointer p-3 sm:p-4 border-b-2 border-blue-500 dark:border-blue-400 hover:bg-gray-200 dark:hover:bg-gray-700/50 transition-colors">
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                   <div className="flex items-center gap-2 sm:gap-3">
                     {isExpanded ? (
@@ -315,10 +331,10 @@ const AggregatedRitase = ({
                             </Badge>
                           </TableCell>
                           <TableCell className="text-right font-semibold text-blue-600 dark:text-blue-400 text-xs sm:text-sm">
-                            {item.tripCount || 0} rit
+                            {getTripCount(item)} rit
                           </TableCell>
                           <TableCell className="text-right font-semibold text-green-600 dark:text-green-400 text-xs sm:text-sm">
-                            {item.totalWeight || 0} ton
+                            {getTotalWeight(item)} ton
                           </TableCell>
                           <TableCell className="text-center">
                             <DropdownMenu>
@@ -354,7 +370,6 @@ const AggregatedRitase = ({
                                   Lihat Kertas Checker
                                 </DropdownMenuItem>
                                 <DropdownMenuItem
-                                  onClick={() => console.log(item)}
                                   className="cursor-pointer text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-slate-700 text-xs sm:text-sm"
                                 >
                                   <Trash2 className="mr-2 h-3 w-3 sm:h-4 sm:w-4" />
@@ -406,7 +421,6 @@ const AggregatedRitase = ({
             className="w-full"
           >
             <div className="mb-4 sm:mb-6">
-              {/* Mobile: Scrollable horizontal tabs */}
               <div className="block sm:hidden overflow-x-auto scrollbar-hide -mx-2 px-2">
                 <TabsList className="inline-flex w-auto min-w-full bg-gray-100 dark:bg-gray-800 dark:text-neutral-50 p-1 gap-1">
                   {isCCR && (
@@ -453,7 +467,6 @@ const AggregatedRitase = ({
                 </TabsList>
               </div>
 
-              {/* Desktop: Grid layout */}
               <div className="hidden sm:block">
                 <TabsList
                   className={`grid w-full ${isCCR ? "grid-cols-5" : "grid-cols-4"} bg-gray-100 dark:bg-gray-800 dark:text-neutral-50`}
@@ -601,7 +614,6 @@ const AggregatedRitase = ({
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="min-w-4xl max-h-[85vh] bg-neutral-50 dark:bg-slate-800 p-0 overflow-hidden">
-          {/* Header - Fixed */}
           <DialogHeader>
             <DialogTitle className="flex flex-col sm:flex-row sm:items-center gap-2">
               <div className="sticky top-0 z-10 bg-neutral-50 dark:bg-slate-800 p-4 sm:p-6">
@@ -616,145 +628,139 @@ const AggregatedRitase = ({
             </DialogTitle>
           </DialogHeader>
 
-          {/* Content - Scrollable */}
           <div className="overflow-y-auto max-h-[calc(85vh-80px)] p-4 sm:p-6">
-            {/* Summary Cards */}
-            <div className="grid grid-cols-2 gap-3 sm:gap-4 mb-4 sm:mb-6 p-3 sm:p-4 bg-gray-50 dark:bg-gray-900/30 rounded-lg">
-              <div>
-                <div className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">
-                  Total Ritase
+            {selectedDetail && (
+              <>
+                <div className="grid grid-cols-2 gap-3 sm:gap-4 mb-4 sm:mb-6 p-3 sm:p-4 bg-gray-50 dark:bg-gray-900/30 rounded-lg">
+                  <div>
+                    <div className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">
+                      Total Ritase
+                    </div>
+                    <div className="text-lg sm:text-2xl font-bold text-blue-600 dark:text-blue-400">
+                      {getTripCount(selectedDetail)} rit
+                    </div>
+                  </div>
                 </div>
-                <div className="text-lg sm:text-2xl font-bold text-blue-600 dark:text-blue-400">
-                  {selectedDetail?.tripCount} rit
-                </div>
-              </div>
-              <div>
-                <div className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">
-                  Total Tonase
-                </div>
-                <div className="text-lg sm:text-2xl font-bold text-green-600 dark:text-green-400">
-                  {selectedDetail?.totalWeight} ton
-                </div>
-              </div>
-            </div>
 
-            {/* Table - Horizontally Scrollable */}
-            <div className="rounded-md border border-gray-200 dark:border-gray-700">
-              <Table>
-                <TableHeader className="sticky top-0 z-10">
-                  <TableRow className="bg-gray-50 dark:bg-gray-900/50">
-                    <TableHead className="text-gray-700 dark:text-gray-300 font-semibold w-12 text-xs sm:text-sm sticky left-0 bg-gray-50 dark:bg-gray-900/50">
-                      No
-                    </TableHead>
-                    <TableHead className="text-gray-700 dark:text-gray-300 font-semibold text-xs sm:text-sm min-w-25">
-                      Tanggal
-                    </TableHead>
-                    <TableHead className="text-gray-700 dark:text-gray-300 font-semibold text-xs sm:text-sm min-w-20">
-                      Waktu
-                    </TableHead>
-                    <TableHead className="text-gray-700 dark:text-gray-300 font-semibold text-xs sm:text-sm min-w-25">
-                      Hull No (DT)
-                    </TableHead>
-                    <TableHead className="text-gray-700 dark:text-gray-300 font-semibold text-xs sm:text-sm min-w-20">
-                      Shift
-                    </TableHead>
-                    <TableHead className="text-gray-700 dark:text-gray-300 font-semibold text-xs sm:text-sm min-w-30">
-                      Loading Point
-                    </TableHead>
-                    <TableHead className="text-gray-700 dark:text-gray-300 font-semibold text-xs sm:text-sm min-w-30">
-                      Dumping Point
-                    </TableHead>
-                    <TableHead className="text-gray-700 dark:text-gray-300 font-semibold text-xs sm:text-sm min-w-20">
-                      Jarak
-                    </TableHead>
-                    <TableHead className="text-gray-700 dark:text-gray-300 font-semibold text-xs sm:text-sm min-w-30">
-                      Jenis Batubara
-                    </TableHead>
-                    <TableHead className="text-gray-700 dark:text-gray-300 font-semibold text-xs sm:text-sm min-w-30">
-                      Measurement
-                    </TableHead>
-                    <TableHead className="text-right text-gray-700 dark:text-gray-300 font-semibold text-xs sm:text-sm min-w-25">
-                      Tonase
-                    </TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {isLoadingTrips ? (
-                    <TableRow>
-                      <TableCell colSpan={11} className="text-center py-8">
-                        <RefreshCw className="w-6 h-6 animate-spin mx-auto text-gray-400 dark:text-gray-500" />
-                        <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
-                          Memuat detail ritase...
-                        </p>
-                      </TableCell>
-                    </TableRow>
-                  ) : detailTrips.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={11} className="text-center py-8">
-                        <p className="text-sm text-gray-500 dark:text-gray-400">
-                          Tidak ada data ritase
-                        </p>
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    detailTrips.map((trip, tripIdx) => (
-                      <TableRow
-                        key={tripIdx}
-                        className="hover:bg-gray-50 dark:hover:bg-gray-800/50"
-                      >
-                        <TableCell className="text-gray-600 dark:text-gray-400 text-xs sm:text-sm sticky left-0 bg-white dark:bg-slate-800">
-                          {tripIdx + 1}
-                        </TableCell>
-                        <TableCell className="text-gray-700 dark:text-gray-300 text-xs sm:text-sm">
-                          {formatDate(trip.createdAt || trip.date)}
-                        </TableCell>
-                        <TableCell className="text-gray-700 dark:text-gray-300 text-xs sm:text-sm">
-                          {formatTime(trip.createdAt || trip.date)}
-                        </TableCell>
-                        <TableCell>
-                          <Badge
-                            variant="outline"
-                            className="border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 text-xs sm:text-sm"
-                          >
-                            {trip.unit_dump_truck || "-"}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-gray-700 dark:text-gray-300 text-xs sm:text-sm">
-                          {trip.shift || "-"}
-                        </TableCell>
-                        <TableCell className="text-gray-700 dark:text-gray-300 text-xs sm:text-sm">
-                          {trip.loading_location || "-"}
-                        </TableCell>
-                        <TableCell className="text-gray-700 dark:text-gray-300 text-xs sm:text-sm">
-                          {trip.dumping_location || "-"}
-                        </TableCell>
-                        <TableCell className="text-gray-700 dark:text-gray-300 text-xs sm:text-sm">
-                          {trip.distance ? `${trip.distance} m` : "-"}
-                        </TableCell>
-                        <TableCell className="text-gray-700 dark:text-gray-300 text-xs sm:text-sm">
-                          {trip.coal_type || "-"}
-                        </TableCell>
-                        <TableCell>
-                          <Badge
-                            variant="outline"
-                            className="capitalize border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 text-xs sm:text-sm"
-                          >
-                            {trip.measurement_type || "-"}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-right font-semibold text-green-600 dark:text-green-400 text-xs sm:text-sm">
-                          {trip.measurement_type === "bypass" ||
-                          trip.measurement_type === "manual"
-                            ? trip.net_weight
-                            : trip.gross_weight}{" "}
-                          ton
-                        </TableCell>
+                {/* Table - Horizontally Scrollable */}
+                <div className="rounded-md border border-gray-200 dark:border-gray-700">
+                  <Table>
+                    <TableHeader className="sticky top-0 z-10">
+                      <TableRow className="bg-gray-50 dark:bg-gray-900/50">
+                        <TableHead className="text-gray-700 dark:text-gray-300 font-semibold w-12 text-xs sm:text-sm sticky left-0 bg-gray-50 dark:bg-gray-900/50">
+                          No
+                        </TableHead>
+                        <TableHead className="text-gray-700 dark:text-gray-300 font-semibold text-xs sm:text-sm min-w-25">
+                          Tanggal
+                        </TableHead>
+                        <TableHead className="text-gray-700 dark:text-gray-300 font-semibold text-xs sm:text-sm min-w-20">
+                          Waktu
+                        </TableHead>
+                        <TableHead className="text-gray-700 dark:text-gray-300 font-semibold text-xs sm:text-sm min-w-25">
+                          Hull No (DT)
+                        </TableHead>
+                        <TableHead className="text-gray-700 dark:text-gray-300 font-semibold text-xs sm:text-sm min-w-20">
+                          Shift
+                        </TableHead>
+                        <TableHead className="text-gray-700 dark:text-gray-300 font-semibold text-xs sm:text-sm min-w-30">
+                          Loading Point
+                        </TableHead>
+                        <TableHead className="text-gray-700 dark:text-gray-300 font-semibold text-xs sm:text-sm min-w-30">
+                          Dumping Point
+                        </TableHead>
+                        <TableHead className="text-gray-700 dark:text-gray-300 font-semibold text-xs sm:text-sm min-w-20">
+                          Jarak
+                        </TableHead>
+                        <TableHead className="text-gray-700 dark:text-gray-300 font-semibold text-xs sm:text-sm min-w-30">
+                          Jenis Batubara
+                        </TableHead>
+                        <TableHead className="text-gray-700 dark:text-gray-300 font-semibold text-xs sm:text-sm min-w-30">
+                          Measurement
+                        </TableHead>
+                        <TableHead className="text-right text-gray-700 dark:text-gray-300 font-semibold text-xs sm:text-sm min-w-25">
+                          Tonase
+                        </TableHead>
                       </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-            </div>
+                    </TableHeader>
+                    <TableBody>
+                      {isLoadingTrips ? (
+                        <TableRow>
+                          <TableCell colSpan={11} className="text-center py-8">
+                            <RefreshCw className="w-6 h-6 animate-spin mx-auto text-gray-400 dark:text-gray-500" />
+                            <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
+                              Memuat detail ritase...
+                            </p>
+                          </TableCell>
+                        </TableRow>
+                      ) : detailTrips.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={11} className="text-center py-8">
+                            <p className="text-sm text-gray-500 dark:text-gray-400">
+                              Tidak ada data ritase
+                            </p>
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        detailTrips.map((trip, tripIdx) => (
+                          <TableRow
+                            key={tripIdx}
+                            className="hover:bg-gray-50 dark:hover:bg-gray-800/50"
+                          >
+                            <TableCell className="text-gray-600 dark:text-gray-400 text-xs sm:text-sm sticky left-0 bg-white dark:bg-slate-800">
+                              {tripIdx + 1}
+                            </TableCell>
+                            <TableCell className="text-gray-700 dark:text-gray-300 text-xs sm:text-sm">
+                              {formatDate(trip.createdAt || trip.date)}
+                            </TableCell>
+                            <TableCell className="text-gray-700 dark:text-gray-300 text-xs sm:text-sm">
+                              {formatTime(trip.createdAt || trip.date)}
+                            </TableCell>
+                            <TableCell>
+                              <Badge
+                                variant="outline"
+                                className="border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 text-xs sm:text-sm"
+                              >
+                                {trip.unit_dump_truck || "-"}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-gray-700 dark:text-gray-300 text-xs sm:text-sm">
+                              {trip.shift || "-"}
+                            </TableCell>
+                            <TableCell className="text-gray-700 dark:text-gray-300 text-xs sm:text-sm">
+                              {trip.loading_location || "-"}
+                            </TableCell>
+                            <TableCell className="text-gray-700 dark:text-gray-300 text-xs sm:text-sm">
+                              {trip.dumping_location || "-"}
+                            </TableCell>
+                            <TableCell className="text-gray-700 dark:text-gray-300 text-xs sm:text-sm">
+                              {trip.distance ? `${trip.distance} m` : "-"}
+                            </TableCell>
+                            <TableCell className="text-gray-700 dark:text-gray-300 text-xs sm:text-sm">
+                              {trip.coal_type || "-"}
+                            </TableCell>
+                            <TableCell>
+                              <Badge
+                                variant="outline"
+                                className="capitalize border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 text-xs sm:text-sm"
+                              >
+                                {trip.measurement_type || "-"}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-right font-semibold text-green-600 dark:text-green-400 text-xs sm:text-sm">
+                              {trip.measurement_type === "bypass" ||
+                              trip.measurement_type === "manual"
+                                ? trip.net_weight
+                                : trip.gross_weight}{" "}
+                              ton
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+              </>
+            )}
           </div>
         </DialogContent>
       </Dialog>

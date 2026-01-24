@@ -41,7 +41,7 @@ const RitaseHistoryHeader = ({
               <span className="text-xs sm:text-sm font-medium gap-2 text-gray-700 dark:text-gray-300">
                 Periode & Shift:
               </span>
-              <DateRangePicker
+                 <DateRangePicker
                 dateRange={dateRange}
                 currentShift={currentShift}
                 viewingShift={viewingShift}

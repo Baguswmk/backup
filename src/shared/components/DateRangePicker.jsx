@@ -145,7 +145,7 @@ export const DateRangePicker = ({
             variant="ghost"
             className={cn(
               "w-full justify-start text-left font-normal cursor-pointer hover:bg-gray-200 truncate",
-              "dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-700",
+              "dark:bg-gray-900 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-700",
               !date && "text-muted-foreground dark:text-gray-500",
             )}
             disabled={isLoading}

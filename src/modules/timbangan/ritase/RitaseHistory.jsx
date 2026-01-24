@@ -218,8 +218,29 @@ const RitaseHistory = () => {
   }, [summaryData.ritases]);
 
   const aggregatedRitaseData = useMemo(() => {
-    return summaryData.summaries || [];
-  }, [summaryData.summaries]);
+    const summaries = summaryData.summaries || [];
+    const ritases = summaryData.ritases || [];
+
+    return summaries.map((summary) => {
+      const matchingRitases = ritases.filter(
+        (r) =>
+          r.unit_exca === summary.unit_exca &&
+          r.loading_location === summary.loading_location &&
+          r.dumping_location === summary.dumping_location &&
+          r.measurement_type === summary.measurement_type,
+      );
+
+      const firstMatch = matchingRitases[0];
+
+      return {
+        ...summary,
+        checker: firstMatch?.checker || "Unknown Checker",
+        company: firstMatch?.company || "Unknown Company",
+        tripCount: summary.total_ritase,
+        totalWeight: summary.total_tonase,
+      };
+    });
+  }, [summaryData.summaries, summaryData.ritases]);
 
   const handleRitasePageChange = useCallback((page) => {
     setCurrentRitasePage(page);

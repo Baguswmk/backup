@@ -17,26 +17,26 @@ const RitaseSummary = ({ summaryData, isLoading = false }) => {
       (sum, item) => sum + (item.total_ritase || 0),
       0,
     );
-    const totalTonase = summaryData.summaries.reduce(
-        (sum, item) => sum + (item.total_tonaspe || 0),
+const totalTonase = summaryData.summaries.reduce(
+    (sum, item) => sum + (item.total_tonase || 0),
+    0,
+);
+      const totalActiveDT = summaryData.summaries.reduce(
+        (sum, item) => sum + (item.total_active_dt || 0),
         0,
-    );
-    const totalActiveDT = summaryData.summaries.reduce(
-      (sum, item) => sum + (item.total_active_dt || 0),
-      0,
-    );
-    const uniqueExcavators = new Set(
-      summaryData.summaries.map((item) => item.unit_exca),
-    ).size;
-
-    return {
-      totalRitase,
-      totalTonase,
-      totalActiveDT,
-      uniqueExcavators,
-    };
-  }, [summaryData]);
-
+      );
+      const uniqueExcavators = new Set(
+        summaryData.summaries.map((item) => item.unit_exca),
+      ).size;
+      
+      return {
+        totalRitase,
+        totalTonase,
+        totalActiveDT,
+        uniqueExcavators,
+      };
+    }, [summaryData]);
+    
   const statCards = [
     {
       title: "Total Ritase",
