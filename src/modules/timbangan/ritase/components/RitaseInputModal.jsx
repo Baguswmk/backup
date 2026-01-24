@@ -678,33 +678,47 @@ const RitaseInputModal = ({
   const canEditWeight = manualEditMode || insertedWeight !== null;
 
   return (
-    <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-2xl bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center justify-between mr-8 text-gray-900 dark:text-white">
-            <div className="flex gap-2">
+    <>
+      {isOpen && (
+        <div className="fixed inset-0 bg-black/50 dark:bg-black/70 z-50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+      {/* Sticky header */}
+      <div className="sticky top-0 bg-white dark:bg-gray-800 border-b z-10">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-gray-900 dark:text-white font-semibold">
               <Truck className="w-5 h-5" />
               Input Data Ritase
             </div>
-            {showWeightFields && (
-              <ScaleConnectionStatus
-                isSupported={isSupported}
-                isAutoConnecting={isAutoConnecting}
-                connectionTimeout={connectionTimeout}
-                wsConnected={wsConnected}
-                isConnecting={isConnecting}
-                waitingForFirstData={waitingForFirstData}
-                insertedWeight={insertedWeight}
-                currentWeight={currentWeight}
-                isWeightStable={isWeightStable}
-                stableWeightCount={stableWeightCount}
-                scaleError={scaleError}
-                onConnect={connect}
-                onDisconnect={disconnect}
-              />
-            )}
-          </DialogTitle>
-        </DialogHeader>
+            <div className="flex items-center gap-2">
+              {showWeightFields && (
+                <ScaleConnectionStatus
+                  isSupported={isSupported}
+                  isAutoConnecting={isAutoConnecting}
+                  connectionTimeout={connectionTimeout}
+                  wsConnected={wsConnected}
+                  isConnecting={isConnecting}
+                  waitingForFirstData={waitingForFirstData}
+                  insertedWeight={insertedWeight}
+                  currentWeight={currentWeight}
+                  isWeightStable={isWeightStable}
+                  stableWeightCount={stableWeightCount}
+                  scaleError={scaleError}
+                  onConnect={connect}
+                  onDisconnect={disconnect}
+                />
+              )}
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleClose}
+                disabled={isSubmitting}
+                className="h-8 w-8"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* No Fleet Warning */}
@@ -1189,8 +1203,10 @@ const RitaseInputModal = ({
             </Button>
           </div>
         </form>
-      </DialogContent>
-    </Dialog>
+      </div>
+    </div>
+      )}
+    </>
   );
 };
 export default RitaseInputModal;

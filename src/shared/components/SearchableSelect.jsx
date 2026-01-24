@@ -73,7 +73,6 @@ const SearchableSelect = ({
       <PopoverContent
         className="w-[--radix-popover-trigger-width] p-0 bg-neutral-50 border-none dark:bg-gray-800 dark:border-gray-700"
         align="start"
-        onWheel={(e) => e.stopPropagation()}
       >
         <Command
           loop
