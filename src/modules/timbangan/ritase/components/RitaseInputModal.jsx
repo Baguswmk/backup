@@ -680,10 +680,10 @@ const RitaseInputModal = ({
   return (
     <>
       {isOpen && (
-        <div className="fixed inset-0 bg-black/50 dark:bg-black/70 z-50 flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-      {/* Sticky header */}
-      <div className="sticky top-0 bg-white dark:bg-gray-800 border-b z-10">
+     <div className="fixed inset-0 bg-black/50 dark:bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 transition-all">
+      <div className="bg-white dark:bg-gray-800 rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl dark:shadow-gray-900/50 border border-gray-200 dark:border-gray-700">
+        {/* Header - Sticky */}
+        <div className="sticky top-0 bg-white dark:bg-gray-800 px-6 py-4 z-10 border-b border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 text-gray-900 dark:text-white font-semibold">
               <Truck className="w-5 h-5" />
@@ -712,7 +712,7 @@ const RitaseInputModal = ({
                 size="icon"
                 onClick={handleClose}
                 disabled={isSubmitting}
-                className="h-8 w-8"
+                className="h-8 w-8 dark:text-neutral-50 dark:hover:bg-slate-900"
               >
                 <X className="h-4 w-4" />
               </Button>
@@ -720,7 +720,7 @@ const RitaseInputModal = ({
           </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4 mx-6">
           {/* No Fleet Warning */}
           {fleetConfigs.length === 0 && (
             <Alert
@@ -736,7 +736,7 @@ const RitaseInputModal = ({
 
           {/* Hull Number Input */}
           <div>
-            <Label className="flex items-center gap-2 mb-2 text-gray-700 dark:text-gray-300">
+            <Label className="flex items-center gap-2 my-2 text-gray-700 dark:text-gray-300">
               <Truck className="w-4 h-4" />
               Nomor Lambung / Nomor DT *
             </Label>
@@ -1163,7 +1163,7 @@ const RitaseInputModal = ({
             </Alert>
           )}
 
-          <div className="flex items-center justify-end gap-2 pt-4 border-t border-gray-200 dark:border-gray-700">
+          <div className="flex items-center justify-end gap-2 py-4 border-t border-gray-200 dark:border-gray-700">
             <Button
               type="button"
               variant="outline"
