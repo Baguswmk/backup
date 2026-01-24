@@ -410,8 +410,6 @@ const updateConfig = useCallback(async (configId, updates) => {
         }
       }
 
-      console.log(updates)
-      
       // CHANGED: Validate checkerIds if provided
       if (updates.checkerIds !== undefined) {
         if (!Array.isArray(updates.checkerIds) || updates.checkerIds.length === 0) {

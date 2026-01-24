@@ -406,16 +406,6 @@ const handleSaveConfig = async (configData) => {
     async () => {
       let result;
 
-      // Log what we receive from modal
-      console.log("📥 Received from modal:", {
-        isEdit: !!selectedConfig,
-        configData,
-        hasInspectorIds: !!configData.inspectorIds,
-        hasCheckerIds: !!configData.checkerIds,
-        inspectorIdsCount: configData.inspectorIds?.length,
-        checkerIdsCount: configData.checkerIds?.length,
-      });
-
       if (selectedConfig) {
         // EDIT MODE
         const updatePayload = {
@@ -431,21 +421,9 @@ const handleSaveConfig = async (configData) => {
           pairDtOp: configData.pairDtOp,
         };
 
-        console.log("📤 Sending update payload:", {
-          id: selectedConfig.id,
-          payload: updatePayload,
-          hasInspectorIds: !!updatePayload.inspectorIds,
-          hasCheckerIds: !!updatePayload.checkerIds,
-        });
 
         result = await updateConfig(selectedConfig.id, updatePayload);
       } else {
-        // CREATE MODE
-        console.log("📤 Sending create payload:", {
-          configData,
-          hasInspectorIds: !!configData.inspectorIds,
-          hasCheckerIds: !!configData.checkerIds,
-        });
 
         result = await createFleetConfig(configData);
       }
@@ -456,7 +434,6 @@ const handleSaveConfig = async (configData) => {
       );
       
       if (result?.success) {
-        console.log("✅ Save successful, result:", result);
         closeModal("config");
 
         setTimeout(() => {

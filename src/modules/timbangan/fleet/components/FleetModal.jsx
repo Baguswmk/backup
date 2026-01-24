@@ -109,7 +109,6 @@ useEffect(() => {
 
   const initializeModalData = async () => {
     if (editingConfig) {
-      console.log("🔧 EDIT MODE - editingConfig:", editingConfig);
       
       const initialData = {
         excavator: editingConfig.excavatorId || "",
@@ -142,7 +141,6 @@ useEffect(() => {
         inspectorIdsToSet = [String(editingConfig.inspectorId)];
       }
       
-      console.log("👁️ Inspector IDs to set:", inspectorIdsToSet);
       setInspectorIds(inspectorIdsToSet);
       
       // FIXED: Better handling untuk checkers
@@ -159,7 +157,6 @@ useEffect(() => {
         checkerIdsToSet = [String(editingConfig.checkerId)];
       }
       
-      console.log("✅ Checker IDs to set:", checkerIdsToSet);
       setCheckerIds(checkerIdsToSet);
 
       if (editingConfig.units) {
@@ -201,7 +198,6 @@ useEffect(() => {
       }
     } else {
       // NEW MODE
-      console.log("➕ CREATE MODE");
       
       const measurementTypeMap = {
         Timbangan: "Timbangan",
@@ -394,16 +390,12 @@ const validate = useCallback(() => {
   }
 
   // FIXED: Validate with better logging
-  console.log("🔍 Validating inspectorIds:", inspectorIds);
   if (!inspectorIds || inspectorIds.length === 0) {
     e.inspector = "Pilih minimal 1 inspector";
-    console.log("❌ Inspector validation failed");
   }
   
-  console.log("🔍 Validating checkerIds:", checkerIds);
   if (!checkerIds || checkerIds.length === 0) {
     e.checker = "Pilih minimal 1 checker";
-    console.log("❌ Checker validation failed");
   }
 
   if (selectedUnits.length === 0) {
@@ -417,7 +409,6 @@ const validate = useCallback(() => {
     }
   });
 
-  console.log("📋 Validation errors:", e);
   setErrors(e);
   return Object.keys(e).length === 0;
 }, [
@@ -430,16 +421,7 @@ const validate = useCallback(() => {
 ]);
 
 const handleSave = useCallback(async () => {
-  console.log("💾 Attempting to save...");
-  console.log("📊 Current state:", {
-    fleetData,
-    inspectorIds,
-    checkerIds,
-    selectedUnits: selectedUnits.length,
-  });
-  
   if (!validate()) {
-    console.log("❌ Validation failed, aborting save");
     showToast.error("Mohon lengkapi semua field yang wajib diisi");
     return;
   }
@@ -470,22 +452,9 @@ const handleSave = useCallback(async () => {
 
     basePayload.pairDtOp = pairDtOp;
 
-    console.log(
-      isEdit ? "🔄 Updating fleet config" : "➕ Creating fleet config",
-      {
-        configId: editingConfig?.id,
-        hasUnits: pairDtOp.length > 0,
-        unitsCount: pairDtOp.length,
-        inspectorsCount: inspectorIds.length,
-        checkersCount: checkerIds.length,
-        payload: basePayload,
-      },
-    );
-
     const result = await onSave(basePayload);
 
     if (result?.success) {
-      console.log("✅ Save successful");
       setFleetData((p) => ({ ...p, distance: dist }));
       onClose();
     }
@@ -519,19 +488,7 @@ const handleSave = useCallback(async () => {
   } finally {
     setIsSaving(false);
   }
-}, [
-  isEdit,
-  validate,
-  distanceText,
-  fleetData,
-  inspectorIds,
-  checkerIds,
-  selectedUnits,
-  unitOperators,
-  onSave,
-  onClose,
-  editingConfig,
-]);
+}, [validate, distanceText, fleetData, inspectorIds, checkerIds, selectedUnits, unitOperators, onSave, onClose]);
   const excaItems = useMemo(
     () =>
       (masters?.excavators || []).map((e) => ({
