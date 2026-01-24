@@ -1,22 +1,29 @@
-export const generateRitasePDF = (data) => {
+import QRCode from "qrcode";
+import bukitAsamLogo from "../../../public/logo_ptba.png"
+
+export const generateRitasePDF = async (data, supervisorName) => {
   const {
     unit_exca,
     company,
-    date,
-    shift,
     loading_location,
     dumping_location,
     ritases,
     totalTonase,
-    distance = "8100 m",
-    coalType = "BTB 53",
-    measurement = "Timbangan",
-    location = "Banko",
-    checker = "Denni Prayoga",
-    mitra = "Agus Hidayat",
-    supervisor = "Nurfajrian Trilaksono",
-    remarks = [],
+    pic_work_unit,
   } = data;
+
+  // Validasi data
+  if (!ritases || ritases.length === 0) {
+    throw new Error("Tidak ada data ritase untuk digenerate PDF");
+  }
+
+  // Ambil data dari ritase pertama untuk informasi umum
+  const firstRitase = ritases[0];
+  const date = firstRitase.date;
+  const shift = firstRitase.shift;
+  
+  // ✅ Ambil checker dari ritase pertama
+  const checker = firstRitase.checker || "Checker";
 
   const dateObj = new Date(date);
   const formattedDate = dateObj.toLocaleDateString("id-ID", {
@@ -26,12 +33,18 @@ export const generateRitasePDF = (data) => {
     day: "numeric",
   });
 
+  // Group ritases by truck
   const groupedData = {};
 
   ritases.forEach((ritase) => {
     const truck = ritase.unit_dump_truck;
-    const hour = new Date(ritase.createdAt).getHours();
-    const time = new Date(ritase.createdAt).toLocaleTimeString("id-ID");
+    const createdAtDate = new Date(ritase.created_at);
+    const hour = createdAtDate.getHours();
+    const time = createdAtDate.toLocaleTimeString("id-ID", {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit'
+    });
 
     if (!groupedData[truck]) {
       groupedData[truck] = {
@@ -51,16 +64,29 @@ export const generateRitasePDF = (data) => {
     });
   });
 
-  const hourlyTotals = {};
-  for (let hour = 6; hour <= 23; hour++) {
-    hourlyTotals[hour] = { tonnage: 0, ritCount: 0 };
+  // Tentukan jam berdasarkan shift
+  let hours = [];
+  if (shift.includes("Shift 1") || shift.includes("1")) {
+    hours = [22, 23, 0, 1, 2, 3, 4, 5, 6];
+  } else if (shift.includes("Shift 2") || shift.includes("2")) {
+    hours = [6, 7, 8, 9, 10, 11, 12, 13];
+  } else if (shift.includes("Shift 3") || shift.includes("3")) {
+    hours = [14, 15, 16, 17, 18, 19, 20, 21, 22];
+  } else {
+    hours = [6, 7, 8, 9, 10, 11, 12, 13];
   }
 
+  // Calculate hourly totals
+  const hourlyTotals = {};
+  hours.forEach((hour) => {
+    hourlyTotals[hour] = { tonnage: 0, ritCount: 0 };
+  });
+
   Object.values(groupedData).forEach((truckData) => {
-    Object.entries(truckData.hourlyData).forEach(([hour, ritases]) => {
+    Object.entries(truckData.hourlyData).forEach(([hour, ritasesList]) => {
       const hourNum = parseInt(hour);
-      ritases.forEach((r) => {
-        if (hourlyTotals[hourNum]) {
+      ritasesList.forEach((r) => {
+        if (hourlyTotals[hourNum] !== undefined) {
           hourlyTotals[hourNum].tonnage += r.weight;
           hourlyTotals[hourNum].ritCount += 1;
         }
@@ -68,10 +94,25 @@ export const generateRitasePDF = (data) => {
     });
   });
 
-  const isShift1 = shift.includes("LS 1") || shift.includes("Shift 1");
-  const hours = isShift1
-    ? [6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17]
-    : [18, 19, 20, 21, 22, 23, 0, 1, 2, 3, 4, 5];
+  // Data untuk QR Code
+  const mitraName = company;
+  const supervisor = supervisorName || "SUPERVISOR"; // ✅ Gunakan parameter supervisor
+
+  // Generate QR Codes untuk tanda tangan
+  const checkerQR = await QRCode.toDataURL(checker, {
+    width: 400,
+    margin: 1,
+  });
+
+  const mitraQR = await QRCode.toDataURL(mitraName, {
+    width: 400,
+    margin: 1,
+  });
+
+  const supervisorQR = await QRCode.toDataURL(supervisor, {
+    width: 400,
+    margin: 1,
+  });
 
   const htmlContent = `
 <!DOCTYPE html>
@@ -93,29 +134,54 @@ export const generateRitasePDF = (data) => {
     }
     
     .header {
-      text-align: center;
+      position: relative;
       margin-bottom: 15px;
+      border-bottom: 2px solid #4A90E2;
+      padding-bottom: 10px;
+    }
+    
+    .logo {
+      position: absolute;
+      top: 0;
+      right: 0;
+      width: 240px;
+      height: auto;
+    }
+    
+    .header-content {
+      padding-right: 140px;
     }
     
     .header h1 {
       font-size: 16pt;
       margin: 5px 0;
       font-weight: bold;
+      color: #333;
     }
     
     .header h2 {
       font-size: 13pt;
       margin: 3px 0;
       font-weight: bold;
+      color: #4A90E2;
     }
     
     .info-section {
       margin-bottom: 10px;
       font-size: 9pt;
+      background-color: #f8f9fa;
+      padding: 10px;
+      border-radius: 5px;
     }
     
     .info-row {
-      margin: 2px 0;
+      margin: 3px 0;
+      display: flex;
+    }
+    
+    .info-row strong {
+      min-width: 120px;
+      color: #555;
     }
     
     table {
@@ -126,29 +192,44 @@ export const generateRitasePDF = (data) => {
     }
     
     th, td {
-      border: 1px solid #000;
-      padding: 4px 6px;
+      border: 1px solid #ddd;
+      padding: 5px 6px;
       text-align: center;
+      vertical-align: top;
     }
     
     th {
-      background-color: #f0f0f0;
+      background-color: #4A90E2;
+      color: white;
       font-weight: bold;
+      font-size: 8pt;
     }
     
     .truck-cell {
       text-align: left;
       font-weight: bold;
+      background-color: #f8f9fa;
     }
     
     .time-cell {
       font-size: 7pt;
+      color: #666;
+    }
+    
+    .driver-cell {
+      font-size: 7pt;
       color: #333;
+      font-weight: 500;
     }
     
     .total-row {
       font-weight: bold;
-      background-color: #f5f5f5;
+      background-color: #e3f2fd;
+    }
+    
+    .total-row td {
+      font-weight: bold;
+      border-top: 2px solid #4A90E2;
     }
     
     .footer {
@@ -156,52 +237,76 @@ export const generateRitasePDF = (data) => {
       display: flex;
       justify-content: space-between;
       font-size: 9pt;
+      page-break-inside: avoid;
+      border-top: 2px solid #ddd;
+      padding-top: 15px;
     }
     
     .signature-box {
       text-align: center;
       min-width: 150px;
+      max-width: 200px;
     }
     
-    .signature-line {
-      margin-top: 50px;
-      border-top: 1px solid #000;
+    .signature-box .role {
+      font-weight: bold;
+      margin-bottom: 8px;
+      color: #555;
+    }
+    
+    .signature-qr {
+      width: 80px;
+      height: 80px;
+      margin: 8px auto;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+    }
+    
+    .signature-name {
+      margin-top: 8px;
       padding-top: 5px;
-    }
-    
-    .remarks {
-      margin-top: 15px;
-      font-size: 8pt;
+      border-top: 1px solid #333;
+      font-weight: bold;
+      color: #333;
     }
     
     .page-number {
       text-align: right;
       font-size: 8pt;
-      margin-top: 5px;
+      margin-top: 10px;
+      color: #666;
+    }
+    
+    tbody tr:hover {
+      background-color: #f5f5f5;
     }
   </style>
 </head>
 <body>
   <div class="header">
-    <h1>Laporan Ritase</h1>
-    <h2>${unit_exca}_${company}</h2>
+    <img src="${bukitAsamLogo}" alt="Bukit Asam" class="logo" />
+    <div class="header-content">
+      <h1>Laporan Ritase Dump Truck</h1>
+      <h2>${unit_exca}</h2>
+    </div>
   </div>
   
   <div class="info-section">
-    <div class="info-row"><strong>Tanggal:</strong> ${formattedDate} (${shift.split("(")[0].trim()})</div>
-    <div class="info-row"><strong>Lokasi Ops:</strong> ${location}</div>
-    <div class="info-row"><strong>Loading Point:</strong> ${loading_location}</div>
-    <div class="info-row"><strong>Dumping Point:</strong> ${dumping_location}</div>
-    <div class="info-row"><strong>Pengukuran:</strong> ${measurement} | <strong>Jarak:</strong> ${distance} | <strong>Jenis Batubara:</strong> ${coalType}</div>
+    <div class="info-row"><strong>Tanggal:</strong> <span>${formattedDate}</span></div>
+    <div class="info-row"><strong>Shift:</strong> <span>${shift}</span></div>
+    <div class="info-row"><strong>PIC Unit Kerja:</strong> <span>${pic_work_unit}</span></div>
+    <div class="info-row"><strong>Mitra:</strong> <span>${company}</span></div>
+    <div class="info-row"><strong>Loading Point:</strong> <span>${loading_location}</span></div>
+    <div class="info-row"><strong>Dumping Point:</strong> <span>${dumping_location}</span></div>
   </div>
   
   <table>
     <thead>
       <tr>
-        <th>No.</th>
-        <th>Dump Truck</th>
-        ${hours.map((hour) => `<th>${String(hour).padStart(2, "0")}:00</th>`).join("")}
-        <th>Total</th>
+        <th style="width: 30px;">No.</th>
+        <th style="width: 120px;">Dump Truck</th>
+        ${hours.map((hour) => `<th style="width: 80px;">${String(hour).padStart(2, "0")}:00</th>`).join("")}
+        <th style="width: 100px;">Total</th>
       </tr>
     </thead>
     <tbody>
@@ -217,64 +322,57 @@ export const generateRitasePDF = (data) => {
               return `<td>${hourData
                 .map((r) => {
                   total += r.weight;
-                  return `${r.weight.toFixed(2)}<br><span class="time-cell">(${r.time})</span><br>[${truckData.driver}]`;
+                  return `<strong>${r.weight.toFixed(2)}</strong><br><span class="time-cell">${r.time}</span><br><span class="driver-cell">${truckData.driver}</span>`;
                 })
-                .join("<br>")}</td>`;
+                .join("<br><br>")}</td>`;
             })
             .join("");
 
           return `
           <tr>
             <td>${idx + 1}</td>
-            <td class="truck-cell">${truck}<br>${truckData.company}</td>
+            <td class="truck-cell"><strong>${truck}</strong><br><span style="font-size: 7pt; font-weight: normal; color: #666;">${truckData.company}</span></td>
             ${cells}
-            <td><strong>${total.toFixed(2)} Ton</strong></td>
+            <td style="background-color: #fff3cd;"><strong>${total.toFixed(2)} Ton</strong></td>
           </tr>
         `;
         })
         .join("")}
       
       <tr class="total-row">
-        <td colspan="2">TOTAL</td>
+        <td colspan="2" style="text-align: center;"><strong>TOTAL KESELURUHAN</strong></td>
         ${hours
           .map((hour) => {
             const data = hourlyTotals[hour] || { tonnage: 0, ritCount: 0 };
-            return `<td>${data.tonnage.toFixed(2)} Ton<br>(${data.ritCount} Rit)</td>`;
+            if (data.ritCount === 0) return '<td>-</td>';
+            return `<td><strong>${data.tonnage.toFixed(2)}</strong><br><span style="font-size: 7pt;">(${data.ritCount} Rit)</span></td>`;
           })
           .join("")}
-        <td><strong>${totalTonase.toFixed(2)} Ton<br>(${ritases.length} Rit)</strong></td>
+        <td style="background-color: #c8e6c9;"><strong>${totalTonase.toFixed(2)} Ton</strong><br><span style="font-size: 7pt;">(${ritases.length} Ritase)</span></td>
       </tr>
     </tbody>
   </table>
   
   <div class="footer">
     <div class="signature-box">
-      <div>Checker</div>
-      <div class="signature-line">(${checker})</div>
+      <div class="role">Checker</div>
+      <img src="${checkerQR}" alt="QR Checker" class="signature-qr" />
+      <div class="signature-name">${checker}</div>
     </div>
     <div class="signature-box">
-      <div>Mitra</div>
-      <div class="signature-line">(${mitra})</div>
+      <div class="role">Mitra</div>
+      <img src="${mitraQR}" alt="QR Mitra" class="signature-qr" />
+      <div class="signature-name">${mitraName}</div>
     </div>
     <div class="signature-box">
-      <div>Supervisor Rehandling</div>
-      <div class="signature-line">(${supervisor})</div>
+      <div class="role">Supervisor Rehandling</div>
+      <img src="${supervisorQR}" alt="QR Supervisor" class="signature-qr" />
+      <div class="signature-name">${supervisor}</div>
     </div>
   </div>
   
-  ${
-    remarks.length > 0
-      ? `
-    <div class="remarks">
-      <strong>Remarks:</strong><br>
-      ${remarks.map((r) => `[${r.title}] - [${r.time}] - ${r.description}`).join("<br>")}
-    </div>
-  `
-      : ""
-  }
-  
   <div class="page-number">
-    ${unit_exca}_${company} / ${formattedDate} / ${shift.split("(")[0].trim()} Hlm. 1 - 1
+    ${unit_exca} | ${formattedDate} | ${shift} | Halaman 1 dari 1
   </div>
 </body>
 </html>
@@ -283,23 +381,28 @@ export const generateRitasePDF = (data) => {
   return htmlContent;
 };
 
-export const exportToPDF = (rowData) => {
+export const exportToPDF = async (rowData, supervisorName) => {
+  console.log("📄 Generating PDF with data:", rowData);
+  
   try {
-    const htmlContent = generateRitasePDF({
+    // Validasi data
+    if (!rowData || !rowData.ritases || rowData.ritases.length === 0) {
+      throw new Error("Data ritase tidak tersedia atau kosong");
+    }
+
+    const htmlContent = await generateRitasePDF({
       unit_exca: rowData.unit_exca,
-      company: rowData.ritases[0]?.company || "Unknown",
-      date: rowData.ritases[0]?.date || new Date().toISOString().split("T")[0],
-      shift: rowData.ritases[0]?.shift || "Shift 1",
+      company: rowData.company,
       loading_location: rowData.loading_location,
       dumping_location: rowData.dumping_location,
       ritases: rowData.ritases,
       totalTonase: rowData.totalTonase,
-      remarks: [],
-    });
+      pic_work_unit: rowData.pic_work_unit,
+    }, supervisorName);
 
     const printWindow = window.open("", "_blank");
     if (!printWindow) {
-      throw new Error("Popup blocked. Please allow popups for this site.");
+      throw new Error("Popup diblokir. Silakan izinkan popup untuk situs ini.");
     }
 
     printWindow.document.write(htmlContent);
@@ -313,7 +416,7 @@ export const exportToPDF = (rowData) => {
 
     return true;
   } catch (error) {
-    console.error("Error generating PDF:", error);
-    return false;
+    console.error("❌ Error generating PDF:", error);
+    throw error;
   }
 };

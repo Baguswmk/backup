@@ -12,7 +12,7 @@ import HourDetailModal from "@/modules/timbangan/overview/components/HourDetailM
 import { exportToPDF } from "@/shared/utils/pdf";
 import { showToast } from "@/shared/utils/toast";
 import { useDashboardDaily } from "@/modules/timbangan/dashboard/hooks/useDashboardDaily";
-
+import SupervisorInputModal from "@/modules/timbangan/overview/components/SupervisorInputModal";
 const OverviewManagement = () => {
   const [dateRange, setDateRange] = useState(() => {
     const today = new Date().toISOString().split("T")[0];
@@ -49,6 +49,11 @@ const OverviewManagement = () => {
     data: null,
     hour: null,
   });
+
+  const [supervisorModal, setSupervisorModal] = useState({
+  isOpen: false,
+  rowData: null,
+});
 
   const hookParams = useMemo(
     () => ({
@@ -353,21 +358,34 @@ const summaryData = useMemo(() => {
     });
   }, []);
 
-  const handleExportPDF = useCallback((rowData) => {
-    try {
-      const success = exportToPDF(rowData);
-      if (success) {
-        showToast.success("PDF berhasil dibuat. Silakan cek tab baru.");
-      } else {
-        showToast.error(
-          "Gagal membuat PDF. Silakan coba lagi atau aktifkan popup pada browser Anda.",
-        );
-      }
-    } catch (error) {
-      console.error("PDF Export Error:", error);
-      showToast.error("Terjadi kesalahan saat membuat PDF");
+const handleExportPDF = useCallback((rowData) => {
+  // Buka modal untuk input supervisor
+  setSupervisorModal({
+    isOpen: true,
+    rowData: rowData,
+  });
+}, []);
+
+const handleConfirmExport = useCallback(async (supervisorName) => {
+  try {
+    const success = await exportToPDF(supervisorModal.rowData, supervisorName);
+    if (success) {
+      showToast.success("PDF berhasil dibuat. Silakan cek tab baru.");
+      setSupervisorModal({ isOpen: false, rowData: null });
+    } else {
+      showToast.error(
+        "Gagal membuat PDF. Silakan coba lagi atau aktifkan popup pada browser Anda.",
+      );
     }
-  }, []);
+  } catch (error) {
+    console.error("PDF Export Error:", error);
+    showToast.error("Terjadi kesalahan saat membuat PDF");
+  }
+}, [supervisorModal.rowData]);
+
+const handleCloseSupervisorModal = useCallback(() => {
+  setSupervisorModal({ isOpen: false, rowData: null });
+}, []);
 
   const filterGroups = useMemo(
     () => [
@@ -564,12 +582,19 @@ const summaryData = useMemo(() => {
         onClose={closeDetailModal}
       />
 
-      <HourDetailModal
-        isOpen={hourDetailModal.isOpen}
-        data={hourDetailModal.data}
-        hour={hourDetailModal.hour}
-        onClose={closeHourDetailModal}
-      />
+<HourDetailModal
+  isOpen={hourDetailModal.isOpen}
+  data={hourDetailModal.data}
+  hour={hourDetailModal.hour}
+  onClose={closeHourDetailModal}
+/>
+
+<SupervisorInputModal
+  isOpen={supervisorModal.isOpen}
+  onClose={handleCloseSupervisorModal}
+  onConfirm={handleConfirmExport}
+  isLoading={false}
+/>
     </div>
   );
 };
