@@ -5,12 +5,6 @@ import React, {
   useEffect,
   useRef,
 } from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/shared/components/ui/dialog";
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
 import { Label } from "@/shared/components/ui/label";
@@ -28,17 +22,19 @@ import {
   CheckCircle2,
   Loader2,
   Info,
-  Wifi,
   WifiOff,
   Download,
   Edit2,
   Radio,
+  Clock,
+  Wifi,
 } from "lucide-react";
 import { showToast } from "@/shared/utils/toast";
 import { ritaseServices } from "@/modules/timbangan/ritase/services/ritaseServices";
 import { useWebSerialScale } from "@/shared/hooks/useWebSerialScale";
 import { format } from "date-fns";
 import { useAuth } from "@/modules/auth/hooks/useAuth";
+import { useRitaseStore } from "@/modules/timbangan/ritase/store/ritaseStore";
 
 const MEASUREMENT_TYPES = {
   TIMBANGAN: "Timbangan",
@@ -47,6 +43,9 @@ const MEASUREMENT_TYPES = {
   MANUAL: "Manual",
   CHECKPOINT: "Checkpoint",
 };
+
+// Konstanta untuk durasi hidden (10 menit dalam milidetik)
+const HIDDEN_DURATION_MS = 10 * 60 * 1000; // 10 menit
 
 const RitaseInputModal = ({
   isOpen,
@@ -81,6 +80,13 @@ const RitaseInputModal = ({
   const stableWeightValueRef = useRef(null);
   const stableWeightStartTimeRef = useRef(null);
   const connectionTimeoutRef = useRef(null);
+  const autoUnhideTimerRef = useRef(null);
+
+  // Zustand store actions
+  const hiddenDumptrucks = useRitaseStore((state) => state.hiddenDumptrucks);
+  const hideDumptruck = useRitaseStore((state) => state.hideDumptruck);
+  const unhideDumptruck = useRitaseStore((state) => state.unhideDumptruck);
+  const isHiddenDumptruck = useRitaseStore((state) => state.isHiddenDumptruck);
 
   const {
     isConnected: wsConnected,
@@ -92,6 +98,43 @@ const RitaseInputModal = ({
     autoConnect,
     error: scaleError,
   } = useWebSerialScale();
+
+  // Auto-unhide timer - check setiap 30 detik
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const checkAndUnhideExpired = () => {
+      const now = Date.now();
+      
+      Object.entries(hiddenDumptrucks).forEach(([key, data]) => {
+        const hiddenTime = new Date(data.timestamp).getTime();
+        const elapsed = now - hiddenTime;
+        
+        // Jika sudah lebih dari 10 menit, unhide
+        if (elapsed >= HIDDEN_DURATION_MS) {
+          console.log(`⏰ Auto-unhiding ${data.originalHullNo} after 10 minutes`);
+          unhideDumptruck(data.originalHullNo);
+          
+          showToast.info(
+            `${data.originalHullNo} sudah tersedia kembali setelah 10 menit`,
+            { duration: 3000 }
+          );
+        }
+      });
+    };
+
+    // Check immediately on mount
+    checkAndUnhideExpired();
+
+    // Set interval untuk check setiap 30 detik
+    autoUnhideTimerRef.current = setInterval(checkAndUnhideExpired, 30000);
+
+    return () => {
+      if (autoUnhideTimerRef.current) {
+        clearInterval(autoUnhideTimerRef.current);
+      }
+    };
+  }, [isOpen, hiddenDumptrucks, unhideDumptruck]);
 
   useEffect(() => {
     const measurementType =
@@ -321,40 +364,78 @@ const RitaseInputModal = ({
     return () => clearTimeout(timeoutId);
   }, [currentWeight, wsConnected, manualEditMode, insertedWeight]);
 
-  const fleetsByMeasurementType = useMemo(() => {
-    const grouped = {};
-    fleetConfigs.forEach((fleet) => {
-      const type =
-        fleet.measurement_type ||
-        fleet.measurementType ||
-        MEASUREMENT_TYPES.TIMBANGAN;
-      if (!grouped[type]) {
-        grouped[type] = [];
-      }
-      grouped[type].push(fleet);
-    });
-    return grouped;
-  }, [fleetConfigs]);
+  // Fungsi untuk menghitung sisa waktu hidden
+  const getRemainingHiddenTime = useCallback((hullNo) => {
+    // Normalize hull number untuk konsistensi dengan store
+    const normalizedHull = String(hullNo)
+      .replace(/[\s\-_]+/g, "")
+      .toUpperCase()
+      .slice(0, 50);
+    
+    const hiddenData = hiddenDumptrucks[normalizedHull];
+    if (!hiddenData) return null;
+
+    const hiddenTime = new Date(hiddenData.timestamp).getTime();
+    const now = Date.now();
+    const elapsed = now - hiddenTime;
+    const remaining = HIDDEN_DURATION_MS - elapsed;
+
+    if (remaining <= 0) return null;
+
+    const minutes = Math.floor(remaining / 60000);
+    const seconds = Math.floor((remaining % 60000) / 1000);
+
+    return { minutes, seconds, total: remaining };
+  }, [hiddenDumptrucks]);
 
   const hullNoOptions = useMemo(() => {
     const hullNos = new Map();
+    const now = Date.now();
 
     fleetConfigs.forEach((fleet) => {
       const dumptrucks = fleet.dumptruck || fleet.units || [];
       dumptrucks.forEach((dt) => {
         const hull = dt.hull_no || dt.hullNo;
-        if (hull) {
-          hullNos.set(hull, {
-            value: hull,
-            label: hull,
-            hint: `${fleet.excavator} | ${dt.operator || dt.operator_name || "No Operator"}`,
-          });
+        if (!hull) return;
+
+        // Normalize hull number untuk pengecekan hidden
+        const normalizedHull = String(hull)
+          .replace(/[\s\-_]+/g, "")
+          .toUpperCase()
+          .slice(0, 50);
+        
+        // Check if hidden and if still within 10 minutes
+        const hiddenData = hiddenDumptrucks[normalizedHull];
+        
+        if (hiddenData) {
+          const hiddenTime = new Date(hiddenData.timestamp).getTime();
+          const elapsed = now - hiddenTime;
+          
+          // Skip jika masih dalam periode hidden (< 10 menit)
+          if (elapsed < HIDDEN_DURATION_MS) {
+            const remaining = getRemainingHiddenTime(normalizedHull);
+            console.log(`⏳ ${hull} still hidden for ${remaining?.minutes}m ${remaining?.seconds}s`);
+            return; // Skip dumptruck ini, jangan masukkan ke options
+          } else {
+            // Sudah lewat 10 menit, unhide otomatis
+            console.log(`⏰ Auto-unhiding ${hull} (elapsed: ${Math.floor(elapsed / 60000)}m)`);
+            unhideDumptruck(hull);
+          }
         }
+
+        // Tambahkan ke options jika tidak hidden atau sudah expired
+        hullNos.set(hull, {
+          value: hull,
+          label: hull,
+          hint: `${fleet.excavator} | ${dt.operator || dt.operator_name || "No Operator"}`,
+        });
       });
     });
 
-    return Array.from(hullNos.values());
-  }, [fleetConfigs]);
+    const options = Array.from(hullNos.values());
+    console.log(`📋 Hull options: ${options.length} available, ${Object.keys(hiddenDumptrucks).length} hidden`);
+    return options;
+  }, [fleetConfigs, hiddenDumptrucks, getRemainingHiddenTime, unhideDumptruck]);
 
   const findFleetForHullNo = useCallback(
     (hull) => {
@@ -455,32 +536,58 @@ const RitaseInputModal = ({
     }
   }, [manualEditMode, wsConnected, currentWeight]);
 
-  const handleManualWeightChange = useCallback(
+const handleManualWeightChange = useCallback(
     (value) => {
       const canEdit = manualEditMode || insertedWeight !== null;
 
       if (canEdit) {
-        if (value === "" || parseFloat(value) <= 999.99) {
-          setDisplayWeight(value);
+        // Auto-replace koma dengan titik
+        let formattedValue = value.replace(/,/g, '.');
+        
+        const measurementType =
+          selectedFleet?.measurement_type ||
+          selectedFleet?.measurementType ||
+          MEASUREMENT_TYPES.TIMBANGAN;
+        const hasWeighBridge = user?.weigh_bridge != null;
 
-          const measurementType =
-            selectedFleet?.measurement_type ||
-            selectedFleet?.measurementType ||
-            MEASUREMENT_TYPES.TIMBANGAN;
-          const hasWeighBridge = user?.weigh_bridge != null;
+        // Validasi berdasarkan tipe measurement
+        const isGrossWeight = measurementType === MEASUREMENT_TYPES.TIMBANGAN && hasWeighBridge;
+        const isNetWeight = (measurementType === MEASUREMENT_TYPES.TIMBANGAN && !hasWeighBridge) || measurementType === MEASUREMENT_TYPES.BYPASS;
 
-          if (
-            measurementType === MEASUREMENT_TYPES.TIMBANGAN &&
-            hasWeighBridge
-          ) {
-            setGrossWeight(value);
+        // Regex untuk validasi format
+        // Net: max 99.99 (2 digit sebelum titik, 2 digit setelah titik)
+        // Gross: max 199.99 (3 digit sebelum titik, 2 digit setelah titik)
+        const netWeightRegex = /^\d{0,2}(\.\d{0,2})?$/;
+        const grossWeightRegex = /^\d{0,3}(\.\d{0,2})?$/;
+
+        // Validasi format dan batas maksimal
+        let isValid = false;
+        if (formattedValue === "") {
+          isValid = true;
+        } else if (isGrossWeight) {
+          // Gross weight: max 199.99 ton
+          isValid = grossWeightRegex.test(formattedValue);
+          const numValue = parseFloat(formattedValue);
+          if (!isNaN(numValue) && numValue > 199.99) {
+            isValid = false;
+          }
+        } else if (isNetWeight) {
+          // Net weight: max 99.99 ton
+          isValid = netWeightRegex.test(formattedValue);
+          const numValue = parseFloat(formattedValue);
+          if (!isNaN(numValue) && numValue > 99.99) {
+            isValid = false;
+          }
+        }
+
+        if (isValid) {
+          setDisplayWeight(formattedValue);
+
+          if (isGrossWeight) {
+            setGrossWeight(formattedValue);
             setErrors((prev) => ({ ...prev, gross_weight: null }));
-          } else if (
-            (measurementType === MEASUREMENT_TYPES.TIMBANGAN &&
-              !hasWeighBridge) ||
-            measurementType === MEASUREMENT_TYPES.BYPASS
-          ) {
-            setNetWeight(value);
+          } else if (isNetWeight) {
+            setNetWeight(formattedValue);
             setErrors((prev) => ({ ...prev, net_weight: null }));
           }
 
@@ -602,6 +709,10 @@ const RitaseInputModal = ({
 
       if (result.queued) {
         showToast.success("Data disimpan offline dan akan tersinkron otomatis");
+        
+        // Hide dumptruck untuk 10 menit
+        hideDumptruck(hullNo, "submitted");
+        
         resetForm();
         if (onSubmit) {
           onSubmit({
@@ -616,6 +727,9 @@ const RitaseInputModal = ({
 
       if (result.success && result.data) {
         showToast.success("Data berhasil disimpan");
+        
+        hideDumptruck(hullNo, "submitted");
+        
         resetForm();
         if (onSubmit) {
           onSubmit({ success: true, data: result.data, shouldClose: true });
@@ -677,536 +791,556 @@ const RitaseInputModal = ({
   const showWeightFields = showGrossWeight || showNetWeight;
   const canEditWeight = manualEditMode || insertedWeight !== null;
 
+  // Hitung total hidden dumptrucks yang masih aktif
+  const activeHiddenCount = useMemo(() => {
+    const now = Date.now();
+    return Object.values(hiddenDumptrucks).filter(data => {
+      const hiddenTime = new Date(data.timestamp).getTime();
+      return (now - hiddenTime) < HIDDEN_DURATION_MS;
+    }).length;
+  }, [hiddenDumptrucks]);
+
   return (
     <>
       {isOpen && (
-     <div className="fixed inset-0 bg-black/50 dark:bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 transition-all">
-      <div className="bg-white dark:bg-gray-800 rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl dark:shadow-gray-900/50 border border-gray-200 dark:border-gray-700">
-        {/* Header - Sticky */}
-        <div className="sticky top-0 bg-white dark:bg-gray-800 px-6 py-4 z-10 border-b border-gray-200 dark:border-gray-700">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 text-gray-900 dark:text-white font-semibold">
-              <Truck className="w-5 h-5" />
-              Input Data Ritase
+        <div className="fixed inset-0 bg-black/50 dark:bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 transition-all">
+          <div className="bg-white dark:bg-gray-800 rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl dark:shadow-gray-900/50 border border-gray-200 dark:border-gray-700">
+            {/* Header - Sticky */}
+            <div className="sticky top-0 bg-white dark:bg-gray-800 px-6 py-4 z-10 border-b border-gray-200 dark:border-gray-700">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-gray-900 dark:text-white font-semibold">
+                  <Truck className="w-5 h-5" />
+                  Input Data Ritase
+                </div>
+                <div className="flex items-center gap-2">
+                  {showWeightFields && (
+                    <ScaleConnectionStatus
+                      isSupported={isSupported}
+                      isAutoConnecting={isAutoConnecting}
+                      connectionTimeout={connectionTimeout}
+                      wsConnected={wsConnected}
+                      isConnecting={isConnecting}
+                      waitingForFirstData={waitingForFirstData}
+                      insertedWeight={insertedWeight}
+                      currentWeight={currentWeight}
+                      isWeightStable={isWeightStable}
+                      stableWeightCount={stableWeightCount}
+                      scaleError={scaleError}
+                      onConnect={connect}
+                      onDisconnect={disconnect}
+                    />
+                  )}
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={handleClose}
+                    disabled={isSubmitting}
+                    className="h-8 w-8 dark:text-neutral-50 dark:hover:bg-slate-900"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+
+              {/* Hidden DT Counter */}
+              {/* {activeHiddenCount > 0 && (
+                <div className="mt-2 flex items-center gap-2 text-xs text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-900/20 px-3 py-1.5 rounded-md">
+                  <Clock className="w-3.5 h-3.5" />
+                  <span>
+                    {activeHiddenCount} dump truck tersembunyi (akan muncul otomatis setelah 10 menit)
+                  </span>
+                </div>
+              )} */}
             </div>
-            <div className="flex items-center gap-2">
-              {showWeightFields && (
-                <ScaleConnectionStatus
-                  isSupported={isSupported}
-                  isAutoConnecting={isAutoConnecting}
-                  connectionTimeout={connectionTimeout}
-                  wsConnected={wsConnected}
-                  isConnecting={isConnecting}
-                  waitingForFirstData={waitingForFirstData}
-                  insertedWeight={insertedWeight}
-                  currentWeight={currentWeight}
-                  isWeightStable={isWeightStable}
-                  stableWeightCount={stableWeightCount}
-                  scaleError={scaleError}
-                  onConnect={connect}
-                  onDisconnect={disconnect}
-                />
+
+            <form onSubmit={handleSubmit} className="space-y-4 mx-6">
+              {/* No Fleet Warning */}
+              {fleetConfigs.length === 0 && (
+                <Alert
+                  variant="destructive"
+                  className="bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800"
+                >
+                  <AlertCircle className="w-4 h-4 text-red-600 dark:text-red-400" />
+                  <AlertDescription className="text-red-800 dark:text-red-200">
+                    Tidak ada fleet yang terdaftar. Silakan hubungi administrator.
+                  </AlertDescription>
+                </Alert>
               )}
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={handleClose}
-                disabled={isSubmitting}
-                className="h-8 w-8 dark:text-neutral-50 dark:hover:bg-slate-900"
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
+
+              {/* Hull Number Input */}
+              <div>
+                <Label className="flex items-center gap-2 my-2 text-gray-700 dark:text-gray-300">
+                  <Truck className="w-4 h-4" />
+                  Nomor Lambung / Nomor DT *
+                </Label>
+                <SearchableSelect
+                  items={hullNoOptions}
+                  value={hullNo}
+                  onChange={handleHullNoChange}
+                  placeholder="Pilih atau ketik nomor lambung..."
+                  error={!!errors.hull_no}
+                  disabled={isSubmitting || fleetConfigs.length === 0}
+                />
+                {errors.hull_no && (
+                  <p className="text-sm text-red-500 dark:text-red-400 mt-1">
+                    {errors.hull_no}
+                  </p>
+                )}
+              </div>
+
+              {/* Fleet Info Display */}
+              {selectedFleet && (
+                <Alert className="border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/20">
+                  <CheckCircle2 className="w-4 h-4 text-green-600 dark:text-green-400" />
+                  <AlertDescription>
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium text-green-900 dark:text-green-200">
+                          Fleet Ditemukan:
+                        </span>
+                        <Badge
+                          className={`${getMeasurementTypeBadge(measurementType)} text-white`}
+                        >
+                          {measurementType}
+                        </Badge>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2 text-sm">
+                        <div>
+                          <span className="text-gray-600 dark:text-gray-400">
+                            Excavator:
+                          </span>
+                          <span className="ml-2 font-medium text-gray-900 dark:text-gray-100">
+                            {selectedFleet.excavator}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-gray-600 dark:text-gray-400">
+                            Loading:
+                          </span>
+                          <span className="ml-2 font-medium text-gray-900 dark:text-gray-100">
+                            {selectedFleet.loadingLocation}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-gray-600 dark:text-gray-400">
+                            Dumping:
+                          </span>
+                          <span className="ml-2 font-medium text-gray-900 dark:text-gray-100">
+                            {selectedFleet.dumpingLocation}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-gray-600 dark:text-gray-400">
+                            Distance:
+                          </span>
+                          <span className="ml-2 font-medium text-gray-900 dark:text-gray-100">
+                            {selectedFleet.distance} m
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              {/* Error for fleet not found */}
+              {errors.fleet && (
+                <Alert
+                  variant="destructive"
+                  className="bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800"
+                >
+                  <AlertCircle className="w-4 h-4 text-red-600 dark:text-red-400" />
+                  <AlertDescription className="text-red-800 dark:text-red-200">
+                    {errors.fleet}
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              {/* Weight Input - Conditional based on measurement type */}
+              {showWeightFields && selectedFleet && (
+                <>
+                  {showGrossWeight && (
+                    <div>
+                      <Label className="flex items-center gap-2 mb-2 text-gray-700 dark:text-gray-300">
+                        <Weight className="w-4 h-4" />
+                        Gross Weight (ton) *
+                      </Label>
+
+                      <div className="flex items-center gap-2">
+                        <div className="relative flex-1">
+                          <Input
+                            type="text"
+                            inputMode="decimal"
+                            value={displayWeight}
+                            onChange={(e) =>
+                              handleManualWeightChange(e.target.value)
+                            }
+                            placeholder="0.00"
+                            disabled={isSubmitting}
+                            readOnly={!canEditWeight}
+                            className={`${errors.gross_weight ? "border-red-500 dark:border-red-400" : ""} ${
+                              manualEditMode
+                                ? "bg-yellow-50 dark:bg-yellow-900/20 border-yellow-400 dark:border-yellow-600 font-bold"
+                                : insertedWeight !== null
+                                  ? "bg-green-50 dark:bg-green-900/20 border-green-400 dark:border-green-600 font-bold"
+                                  : wsConnected
+                                    ? "bg-blue-50 dark:bg-blue-900/20 border-blue-300 dark:border-blue-600"
+                                    : "bg-white dark:bg-gray-900"
+                            } border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500`}
+                          />
+                          <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                            {manualEditMode ? (
+                              <Edit2 className="w-4 h-4 text-yellow-600 dark:text-yellow-400" />
+                            ) : insertedWeight !== null ? (
+                              <Download className="w-4 h-4 text-green-600 dark:text-green-400" />
+                            ) : wsConnected ? (
+                              <Radio className="w-4 h-4 text-blue-600 dark:text-blue-400 animate-pulse" />
+                            ) : (
+                              <WifiOff className="w-4 h-4 text-gray-400 dark:text-gray-500" />
+                            )}
+                          </div>
+                        </div>
+
+                        {!wsConnected && (
+                          <Button
+                            type="button"
+                            onClick={handleToggleManualEdit}
+                            className={`gap-1 shrink-0 ${
+                              manualEditMode
+                                ? "bg-yellow-600 hover:bg-yellow-700 dark:bg-yellow-500 dark:hover:bg-yellow-600"
+                                : "bg-gray-600 hover:bg-gray-700 dark:bg-gray-500 dark:hover:bg-gray-600"
+                            } text-white`}
+                            size="default"
+                          >
+                            {manualEditMode ? (
+                              <>
+                                <Wifi className="w-4 h-4" />
+                                <span className="hidden sm:inline">Auto</span>
+                              </>
+                            ) : (
+                              <>
+                                <Edit2 className="w-4 h-4" />
+                                <span className="hidden sm:inline">Manual</span>
+                              </>
+                            )}
+                          </Button>
+                        )}
+
+                        {wsConnected && !manualEditMode && (
+                          <Button
+                            type="button"
+                            onClick={handleInsert}
+                            disabled={
+                              !wsConnected ||
+                              !currentWeight ||
+                              !isWeightStable ||
+                              waitingForFirstData
+                            }
+                            className={`gap-1 shrink-0 ${
+                              insertedWeight !== null
+                                ? "bg-green-600 hover:bg-green-700 dark:bg-green-500 dark:hover:bg-green-600"
+                                : "bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
+                            } text-white`}
+                            size="default"
+                          >
+                            <Download className="w-4 h-4" />
+                            <span className="hidden sm:inline">
+                              {insertedWeight !== null ? "Re-Insert" : "Insert"}
+                            </span>
+                          </Button>
+                        )}
+                      </div>
+
+                      {errors.gross_weight && (
+                        <p className="text-sm text-red-500 dark:text-red-400 mt-1">
+                          {errors.gross_weight}
+                        </p>
+                      )}
+
+                      <div className="space-y-1">
+                        {manualEditMode && (
+                          <div className="flex items-center gap-1 mt-2 text-xs text-yellow-600 dark:text-yellow-400">
+                            <Edit2 className="w-3 h-3" />
+                            <span>Mode manual</span>
+                          </div>
+                        )}
+
+                        {!manualEditMode &&
+                          insertedWeight !== null &&
+                          insertedTime && (
+                            <div className="flex items-center gap-1 text-xs text-green-600 dark:text-green-400">
+                              <Download className="w-3 h-3" />
+                              <span>
+                                Locked: {insertedWeight.toFixed(2)} ton -{" "}
+                                {format(insertedTime, "HH:mm:ss")}
+                              </span>
+                            </div>
+                          )}
+
+                        {!manualEditMode &&
+                          insertedWeight === null &&
+                          wsConnected &&
+                          !waitingForFirstData &&
+                          !isWeightStable && (
+                            <div className="flex items-center gap-1 text-xs text-blue-600 dark:text-blue-400">
+                              <Radio className="w-3 h-3 animate-pulse" />
+                              <span>
+                                Menunggu stabil... ({stableWeightCount}/10)
+                              </span>
+                            </div>
+                          )}
+
+                        {!manualEditMode &&
+                          insertedWeight === null &&
+                          wsConnected &&
+                          !waitingForFirstData &&
+                          isWeightStable && (
+                            <div className="flex items-center gap-1 text-xs text-green-600 dark:text-green-400">
+                              <CheckCircle2 className="w-3 h-3" />
+                              <span>Berat stabil - Siap insert</span>
+                            </div>
+                          )}
+                      </div>
+                    </div>
+                  )}
+
+                  {showGrossWeight && calculatedNetWeight !== null && (
+                    <div className="px-4 py-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-md">
+                      <div className="flex items-center justify-between text-sm font-semibold text-green-900 dark:text-green-100">
+                        <div className="text-center flex-1">
+                          <div className="text-[10px] text-gray-500 dark:text-gray-400">
+                            Gross
+                          </div>
+                          <div>{parseFloat(grossWeight).toFixed(2)}</div>
+                        </div>
+
+                        <div className="px-2 text-gray-400">−</div>
+
+                        <div className="text-center flex-1">
+                          <div className="text-[10px] text-gray-500 dark:text-gray-400">
+                            Tare
+                          </div>
+                          <div>{tareWeight.toFixed(2)}</div>
+                        </div>
+
+                        <div className="px-2 text-gray-400">=</div>
+
+                        <div className="text-center flex-1">
+                          <div className="text-[10px] text-gray-500 dark:text-gray-400">
+                            Net
+                          </div>
+                          <div className="text-green-600 dark:text-green-400 text-base font-bold">
+                            {calculatedNetWeight.toFixed(2)}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {showNetWeight && (
+                    <div>
+                      <Label className="flex items-center gap-2 mb-2 text-gray-700 dark:text-gray-300">
+                        <Scale className="w-4 h-4" />
+                        Net Weight (ton) *
+                      </Label>
+
+                      <div className="flex items-center gap-2">
+                        <div className="relative flex-1">
+                          <Input
+                            type="text"
+                            inputMode="decimal"
+                            value={displayWeight}
+                            onChange={(e) =>
+                              handleManualWeightChange(e.target.value)
+                            }
+                            placeholder="0.00"
+                            disabled={isSubmitting}
+                            readOnly={!canEditWeight}
+                            className={`${errors.net_weight ? "border-red-500 dark:border-red-400" : ""} ${
+                              manualEditMode
+                                ? "bg-yellow-50 dark:bg-yellow-900/20 border-yellow-400 dark:border-yellow-600 font-bold"
+                                : insertedWeight !== null
+                                  ? "bg-green-50 dark:bg-green-900/20 border-green-400 dark:border-green-600 font-bold"
+                                  : wsConnected
+                                    ? "bg-blue-50 dark:bg-blue-900/20 border-blue-300 dark:border-blue-600"
+                                    : "bg-white dark:bg-gray-900"
+                            } border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500`}
+                          />
+
+                          <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                            {manualEditMode ? (
+                              <Edit2 className="w-4 h-4 text-yellow-600 dark:text-yellow-400" />
+                            ) : insertedWeight !== null ? (
+                              <Download className="w-4 h-4 text-green-600 dark:text-green-400" />
+                            ) : wsConnected ? (
+                              <Radio className="w-4 h-4 text-blue-600 dark:text-blue-400 animate-pulse" />
+                            ) : (
+                              <WifiOff className="w-4 h-4 text-gray-400 dark:text-gray-500" />
+                            )}
+                          </div>
+                        </div>
+
+                        {!wsConnected && (
+                          <Button
+                            type="button"
+                            onClick={handleToggleManualEdit}
+                            className={`gap-1 shrink-0 ${
+                              manualEditMode
+                                ? "bg-yellow-600 hover:bg-yellow-700 dark:bg-yellow-500 dark:hover:bg-yellow-600"
+                                : "bg-gray-600 hover:bg-gray-700 dark:bg-gray-500 dark:hover:bg-gray-600"
+                            } text-white`}
+                            size="default"
+                          >
+                            {manualEditMode ? (
+                              <>
+                                <Wifi className="w-4 h-4" />
+                                <span className="hidden sm:inline">Auto</span>
+                              </>
+                            ) : (
+                              <>
+                                <Edit2 className="w-4 h-4" />
+                                <span className="hidden sm:inline">Manual</span>
+                              </>
+                            )}
+                          </Button>
+                        )}
+
+                        {wsConnected && !manualEditMode && (
+                          <Button
+                            type="button"
+                            onClick={handleInsert}
+                            disabled={
+                              !wsConnected ||
+                              !currentWeight ||
+                              !isWeightStable ||
+                              waitingForFirstData
+                            }
+                            className={`gap-1 shrink-0 ${
+                              insertedWeight !== null
+                                ? "bg-green-600 hover:bg-green-700 dark:bg-green-500 dark:hover:bg-green-600"
+                                : "bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
+                            } text-white`}
+                            size="default"
+                          >
+                            <Download className="w-4 h-4" />
+                            <span className="hidden sm:inline">
+                              {insertedWeight !== null ? "Re-Insert" : "Insert"}
+                            </span>
+                          </Button>
+                        )}
+                      </div>
+
+                      {errors.net_weight && (
+                        <p className="text-sm text-red-500 dark:text-red-400 mt-1">
+                          {errors.net_weight}
+                        </p>
+                      )}
+
+                      <div className="space-y-1">
+                        {manualEditMode && (
+                          <div className="flex items-center gap-1 mt-2 text-xs text-yellow-600 dark:text-yellow-400">
+                            <Edit2 className="w-3 h-3" />
+                            <span>Mode manual</span>
+                          </div>
+                        )}
+
+                        {!manualEditMode &&
+                          insertedWeight !== null &&
+                          insertedTime && (
+                            <div className="flex items-center gap-1 text-xs text-green-600 dark:text-green-400">
+                              <Download className="w-3 h-3" />
+                              <span>
+                                Locked: {insertedWeight.toFixed(2)} ton -{" "}
+                                {format(insertedTime, "HH:mm:ss")}
+                              </span>
+                            </div>
+                          )}
+
+                        {!manualEditMode &&
+                          insertedWeight === null &&
+                          wsConnected &&
+                          !waitingForFirstData &&
+                          !isWeightStable && (
+                            <div className="flex items-center gap-1 text-xs text-blue-600 dark:text-blue-400">
+                              <Radio className="w-3 h-3 animate-pulse" />
+                              <span>
+                                Menunggu stabil... ({stableWeightCount}/10)
+                              </span>
+                            </div>
+                          )}
+
+                        {!manualEditMode &&
+                          insertedWeight === null &&
+                          wsConnected &&
+                          !waitingForFirstData &&
+                          isWeightStable && (
+                            <div className="flex items-center gap-1 text-xs text-green-600 dark:text-green-400">
+                              <CheckCircle2 className="w-3 h-3" />
+                              <span>Berat stabil - Siap insert</span>
+                            </div>
+                          )}
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+
+              {!showWeightFields && selectedFleet && (
+                <Alert className="border-purple-200 dark:border-purple-800 bg-purple-50 dark:bg-purple-900/20">
+                  <Info className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                  <AlertDescription className="text-sm text-purple-900 dark:text-purple-200">
+                    Mode <strong>{measurementType}</strong> - Hanya memerlukan nomor
+                    lambung. Klik simpan untuk melanjutkan.
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              <div className="flex items-center justify-end gap-2 py-4 border-t border-gray-200 dark:border-gray-700">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleClose}
+                  disabled={isSubmitting}
+                  className="border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300"
+                >
+                  <X className="w-4 h-4 mr-2" />
+                  Batal
+                </Button>
+
+                <Button
+                  type="submit"
+                  disabled={
+                    isSubmitting ||
+                    !hullNo ||
+                    !selectedFleet ||
+                    fleetConfigs.length === 0 ||
+                    (!manualEditMode &&
+                      wsConnected &&
+                      showWeightFields &&
+                      insertedWeight === null)
+                  }
+                  className="min-w-32 bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white"
+                >
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Menyimpan...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="w-4 h-4 mr-2" />
+                      Simpan
+                    </>
+                  )}
+                </Button>
+              </div>
+            </form>
           </div>
         </div>
-
-        <form onSubmit={handleSubmit} className="space-y-4 mx-6">
-          {/* No Fleet Warning */}
-          {fleetConfigs.length === 0 && (
-            <Alert
-              variant="destructive"
-              className="bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800"
-            >
-              <AlertCircle className="w-4 h-4 text-red-600 dark:text-red-400" />
-              <AlertDescription className="text-red-800 dark:text-red-200">
-                Tidak ada fleet yang terdaftar. Silakan hubungi administrator.
-              </AlertDescription>
-            </Alert>
-          )}
-
-          {/* Hull Number Input */}
-          <div>
-            <Label className="flex items-center gap-2 my-2 text-gray-700 dark:text-gray-300">
-              <Truck className="w-4 h-4" />
-              Nomor Lambung / Nomor DT *
-            </Label>
-            <SearchableSelect
-              items={hullNoOptions}
-              value={hullNo}
-              onChange={handleHullNoChange}
-              placeholder="Pilih atau ketik nomor lambung..."
-              error={!!errors.hull_no}
-              disabled={isSubmitting || fleetConfigs.length === 0}
-            />
-            {errors.hull_no && (
-              <p className="text-sm text-red-500 dark:text-red-400 mt-1">
-                {errors.hull_no}
-              </p>
-            )}
-          </div>
-
-          {/* Fleet Info Display */}
-          {selectedFleet && (
-            <Alert className="border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/20">
-              <CheckCircle2 className="w-4 h-4 text-green-600 dark:text-green-400" />
-              <AlertDescription>
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium text-green-900 dark:text-green-200">
-                      Fleet Ditemukan:
-                    </span>
-                    <Badge
-                      className={`${getMeasurementTypeBadge(measurementType)} text-white`}
-                    >
-                      {measurementType}
-                    </Badge>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-2 text-sm">
-                    <div>
-                      <span className="text-gray-600 dark:text-gray-400">
-                        Excavator:
-                      </span>
-                      <span className="ml-2 font-medium text-gray-900 dark:text-gray-100">
-                        {selectedFleet.excavator}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-gray-600 dark:text-gray-400">
-                        Loading:
-                      </span>
-                      <span className="ml-2 font-medium text-gray-900 dark:text-gray-100">
-                        {selectedFleet.loadingLocation}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-gray-600 dark:text-gray-400">
-                        Dumping:
-                      </span>
-                      <span className="ml-2 font-medium text-gray-900 dark:text-gray-100">
-                        {selectedFleet.dumpingLocation}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-gray-600 dark:text-gray-400">
-                        Distance:
-                      </span>
-                      <span className="ml-2 font-medium text-gray-900 dark:text-gray-100">
-                        {selectedFleet.distance} m
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </AlertDescription>
-            </Alert>
-          )}
-
-          {/* Error for fleet not found */}
-          {errors.fleet && (
-            <Alert
-              variant="destructive"
-              className="bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800"
-            >
-              <AlertCircle className="w-4 h-4 text-red-600 dark:text-red-400" />
-              <AlertDescription className="text-red-800 dark:text-red-200">
-                {errors.fleet}
-              </AlertDescription>
-            </Alert>
-          )}
-
-          {/* Weight Input - Conditional based on measurement type */}
-          {showWeightFields && selectedFleet && (
-            <>
-              {showGrossWeight && (
-                <div>
-                  <Label className="flex items-center gap-2 mb-2 text-gray-700 dark:text-gray-300">
-                    <Weight className="w-4 h-4" />
-                    Gross Weight (ton) *
-                  </Label>
-
-                  <div className="flex items-center gap-2">
-                    <div className="relative flex-1">
-                      <Input
-                        type="text"
-                        inputMode="decimal"
-                        value={displayWeight}
-                        onChange={(e) =>
-                          handleManualWeightChange(e.target.value)
-                        }
-                        placeholder="0.00"
-                        disabled={isSubmitting}
-                        readOnly={!canEditWeight}
-                        className={`${errors.gross_weight ? "border-red-500 dark:border-red-400" : ""} ${
-                          manualEditMode
-                            ? "bg-yellow-50 dark:bg-yellow-900/20 border-yellow-400 dark:border-yellow-600 font-bold"
-                            : insertedWeight !== null
-                              ? "bg-green-50 dark:bg-green-900/20 border-green-400 dark:border-green-600 font-bold"
-                              : wsConnected
-                                ? "bg-blue-50 dark:bg-blue-900/20 border-blue-300 dark:border-blue-600"
-                                : "bg-white dark:bg-gray-900"
-                        } border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500`}
-                      />
-                      <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                        {manualEditMode ? (
-                          <Edit2 className="w-4 h-4 text-yellow-600 dark:text-yellow-400" />
-                        ) : insertedWeight !== null ? (
-                          <Download className="w-4 h-4 text-green-600 dark:text-green-400" />
-                        ) : wsConnected ? (
-                          <Radio className="w-4 h-4 text-blue-600 dark:text-blue-400 animate-pulse" />
-                        ) : (
-                          <WifiOff className="w-4 h-4 text-gray-400 dark:text-gray-500" />
-                        )}
-                      </div>
-                    </div>
-
-                    {!wsConnected && (
-                      <Button
-                        type="button"
-                        onClick={handleToggleManualEdit}
-                        className={`gap-1 shrink-0 ${
-                          manualEditMode
-                            ? "bg-yellow-600 hover:bg-yellow-700 dark:bg-yellow-500 dark:hover:bg-yellow-600"
-                            : "bg-gray-600 hover:bg-gray-700 dark:bg-gray-500 dark:hover:bg-gray-600"
-                        } text-white`}
-                        size="default"
-                      >
-                        {manualEditMode ? (
-                          <>
-                            <Wifi className="w-4 h-4" />
-                            <span className="hidden sm:inline">Auto</span>
-                          </>
-                        ) : (
-                          <>
-                            <Edit2 className="w-4 h-4" />
-                            <span className="hidden sm:inline">Manual</span>
-                          </>
-                        )}
-                      </Button>
-                    )}
-
-                    {wsConnected && !manualEditMode && (
-                      <Button
-                        type="button"
-                        onClick={handleInsert}
-                        disabled={
-                          !wsConnected ||
-                          !currentWeight ||
-                          !isWeightStable ||
-                          waitingForFirstData
-                        }
-                        className={`gap-1 shrink-0 ${
-                          insertedWeight !== null
-                            ? "bg-green-600 hover:bg-green-700 dark:bg-green-500 dark:hover:bg-green-600"
-                            : "bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
-                        } text-white`}
-                        size="default"
-                      >
-                        <Download className="w-4 h-4" />
-                        <span className="hidden sm:inline">
-                          {insertedWeight !== null ? "Re-Insert" : "Insert"}
-                        </span>
-                      </Button>
-                    )}
-                  </div>
-
-                  {errors.gross_weight && (
-                    <p className="text-sm text-red-500 dark:text-red-400 mt-1">
-                      {errors.gross_weight}
-                    </p>
-                  )}
-
-                  <div className="space-y-1">
-                    {manualEditMode && (
-                      <div className="flex items-center gap-1 mt-2 text-xs text-yellow-600 dark:text-yellow-400">
-                        <Edit2 className="w-3 h-3" />
-                        <span>Mode manual</span>
-                      </div>
-                    )}
-
-                    {!manualEditMode &&
-                      insertedWeight !== null &&
-                      insertedTime && (
-                        <div className="flex items-center gap-1 text-xs text-green-600 dark:text-green-400">
-                          <Download className="w-3 h-3" />
-                          <span>
-                            Locked: {insertedWeight.toFixed(2)} ton -{" "}
-                            {format(insertedTime, "HH:mm:ss")}
-                          </span>
-                        </div>
-                      )}
-
-                    {!manualEditMode &&
-                      insertedWeight === null &&
-                      wsConnected &&
-                      !waitingForFirstData &&
-                      !isWeightStable && (
-                        <div className="flex items-center gap-1 text-xs text-blue-600 dark:text-blue-400">
-                          <Radio className="w-3 h-3 animate-pulse" />
-                          <span>
-                            Menunggu stabil... ({stableWeightCount}/10)
-                          </span>
-                        </div>
-                      )}
-
-                    {!manualEditMode &&
-                      insertedWeight === null &&
-                      wsConnected &&
-                      !waitingForFirstData &&
-                      isWeightStable && (
-                        <div className="flex items-center gap-1 text-xs text-green-600 dark:text-green-400">
-                          <CheckCircle2 className="w-3 h-3" />
-                          <span>Berat stabil - Siap insert</span>
-                        </div>
-                      )}
-                  </div>
-                </div>
-              )}
-
-              {showGrossWeight && calculatedNetWeight !== null && (
-                <div className="px-4 py-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-md">
-                  <div className="flex items-center justify-between text-sm font-semibold text-green-900 dark:text-green-100">
-                    <div className="text-center flex-1">
-                      <div className="text-[10px] text-gray-500 dark:text-gray-400">
-                        Gross
-                      </div>
-                      <div>{parseFloat(grossWeight).toFixed(2)}</div>
-                    </div>
-
-                    <div className="px-2 text-gray-400">−</div>
-
-                    <div className="text-center flex-1">
-                      <div className="text-[10px] text-gray-500 dark:text-gray-400">
-                        Tare
-                      </div>
-                      <div>{tareWeight.toFixed(2)}</div>
-                    </div>
-
-                    <div className="px-2 text-gray-400">=</div>
-
-                    <div className="text-center flex-1">
-                      <div className="text-[10px] text-gray-500 dark:text-gray-400">
-                        Net
-                      </div>
-                      <div className="text-green-600 dark:text-green-400 text-base font-bold">
-                        {calculatedNetWeight.toFixed(2)}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {showNetWeight && (
-                <div>
-                  <Label className="flex items-center gap-2 mb-2 text-gray-700 dark:text-gray-300">
-                    <Scale className="w-4 h-4" />
-                    Net Weight (ton) *
-                  </Label>
-
-                  <div className="flex items-center gap-2">
-                    <div className="relative flex-1">
-                      <Input
-                        type="text"
-                        inputMode="decimal"
-                        value={displayWeight}
-                        onChange={(e) =>
-                          handleManualWeightChange(e.target.value)
-                        }
-                        placeholder="0.00"
-                        disabled={isSubmitting}
-                        readOnly={!canEditWeight}
-                        className={`${errors.net_weight ? "border-red-500 dark:border-red-400" : ""} ${
-                          manualEditMode
-                            ? "bg-yellow-50 dark:bg-yellow-900/20 border-yellow-400 dark:border-yellow-600 font-bold"
-                            : insertedWeight !== null
-                              ? "bg-green-50 dark:bg-green-900/20 border-green-400 dark:border-green-600 font-bold"
-                              : wsConnected
-                                ? "bg-blue-50 dark:bg-blue-900/20 border-blue-300 dark:border-blue-600"
-                                : "bg-white dark:bg-gray-900"
-                        } border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500`}
-                      />
-
-                      <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                        {manualEditMode ? (
-                          <Edit2 className="w-4 h-4 text-yellow-600 dark:text-yellow-400" />
-                        ) : insertedWeight !== null ? (
-                          <Download className="w-4 h-4 text-green-600 dark:text-green-400" />
-                        ) : wsConnected ? (
-                          <Radio className="w-4 h-4 text-blue-600 dark:text-blue-400 animate-pulse" />
-                        ) : (
-                          <WifiOff className="w-4 h-4 text-gray-400 dark:text-gray-500" />
-                        )}
-                      </div>
-                    </div>
-
-                    {!wsConnected && (
-                      <Button
-                        type="button"
-                        onClick={handleToggleManualEdit}
-                        className={`gap-1 shrink-0 ${
-                          manualEditMode
-                            ? "bg-yellow-600 hover:bg-yellow-700 dark:bg-yellow-500 dark:hover:bg-yellow-600"
-                            : "bg-gray-600 hover:bg-gray-700 dark:bg-gray-500 dark:hover:bg-gray-600"
-                        } text-white`}
-                        size="default"
-                      >
-                        {manualEditMode ? (
-                          <>
-                            <Wifi className="w-4 h-4" />
-                            <span className="hidden sm:inline">Auto</span>
-                          </>
-                        ) : (
-                          <>
-                            <Edit2 className="w-4 h-4" />
-                            <span className="hidden sm:inline">Manual</span>
-                          </>
-                        )}
-                      </Button>
-                    )}
-
-                    {wsConnected && !manualEditMode && (
-                      <Button
-                        type="button"
-                        onClick={handleInsert}
-                        disabled={
-                          !wsConnected ||
-                          !currentWeight ||
-                          !isWeightStable ||
-                          waitingForFirstData
-                        }
-                        className={`gap-1 shrink-0 ${
-                          insertedWeight !== null
-                            ? "bg-green-600 hover:bg-green-700 dark:bg-green-500 dark:hover:bg-green-600"
-                            : "bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
-                        } text-white`}
-                        size="default"
-                      >
-                        <Download className="w-4 h-4" />
-                        <span className="hidden sm:inline">
-                          {insertedWeight !== null ? "Re-Insert" : "Insert"}
-                        </span>
-                      </Button>
-                    )}
-                  </div>
-
-                  {errors.net_weight && (
-                    <p className="text-sm text-red-500 dark:text-red-400 mt-1">
-                      {errors.net_weight}
-                    </p>
-                  )}
-
-                  <div className="space-y-1">
-                    {manualEditMode && (
-                      <div className="flex items-center gap-1 mt-2 text-xs text-yellow-600 dark:text-yellow-400">
-                        <Edit2 className="w-3 h-3" />
-                        <span>Mode manual</span>
-                      </div>
-                    )}
-
-                    {!manualEditMode &&
-                      insertedWeight !== null &&
-                      insertedTime && (
-                        <div className="flex items-center gap-1 text-xs text-green-600 dark:text-green-400">
-                          <Download className="w-3 h-3" />
-                          <span>
-                            Locked: {insertedWeight.toFixed(2)} ton -{" "}
-                            {format(insertedTime, "HH:mm:ss")}
-                          </span>
-                        </div>
-                      )}
-
-                    {!manualEditMode &&
-                      insertedWeight === null &&
-                      wsConnected &&
-                      !waitingForFirstData &&
-                      !isWeightStable && (
-                        <div className="flex items-center gap-1 text-xs text-blue-600 dark:text-blue-400">
-                          <Radio className="w-3 h-3 animate-pulse" />
-                          <span>
-                            Menunggu stabil... ({stableWeightCount}/10)
-                          </span>
-                        </div>
-                      )}
-
-                    {!manualEditMode &&
-                      insertedWeight === null &&
-                      wsConnected &&
-                      !waitingForFirstData &&
-                      isWeightStable && (
-                        <div className="flex items-center gap-1 text-xs text-green-600 dark:text-green-400">
-                          <CheckCircle2 className="w-3 h-3" />
-                          <span>Berat stabil - Siap insert</span>
-                        </div>
-                      )}
-                  </div>
-                </div>
-              )}
-            </>
-          )}
-
-          {!showWeightFields && selectedFleet && (
-            <Alert className="border-purple-200 dark:border-purple-800 bg-purple-50 dark:bg-purple-900/20">
-              <Info className="w-4 h-4 text-purple-600 dark:text-purple-400" />
-              <AlertDescription className="text-sm text-purple-900 dark:text-purple-200">
-                Mode <strong>{measurementType}</strong> - Hanya memerlukan nomor
-                lambung. Klik simpan untuk melanjutkan.
-              </AlertDescription>
-            </Alert>
-          )}
-
-          <div className="flex items-center justify-end gap-2 py-4 border-t border-gray-200 dark:border-gray-700">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={handleClose}
-              disabled={isSubmitting}
-              className="border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300"
-            >
-              <X className="w-4 h-4 mr-2" />
-              Batal
-            </Button>
-
-            <Button
-              type="submit"
-              disabled={
-                isSubmitting ||
-                !hullNo ||
-                !selectedFleet ||
-                fleetConfigs.length === 0 ||
-                (!manualEditMode &&
-                  wsConnected &&
-                  showWeightFields &&
-                  insertedWeight === null)
-              }
-              className="min-w-32 bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white"
-            >
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Menyimpan...
-                </>
-              ) : (
-                <>
-                  <Save className="w-4 h-4 mr-2" />
-                  Simpan
-                </>
-              )}
-            </Button>
-          </div>
-        </form>
-      </div>
-    </div>
       )}
     </>
   );
 };
+
 export default RitaseInputModal;
