@@ -382,7 +382,6 @@ export const generateRitasePDF = async (data, supervisorName) => {
 };
 
 export const exportToPDF = async (rowData, supervisorName) => {
-  console.log("📄 Generating PDF with data:", rowData);
   
   try {
     // Validasi data

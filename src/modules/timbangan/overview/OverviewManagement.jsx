@@ -213,6 +213,7 @@ const summaryData = useMemo(() => {
     totalTonnage: "0.00",
     shift1Tonnage: "0.00",
     shift2Tonnage: "0.00",
+    shift3Tonnage: "0.00",
     dumptruckBreakdown: [],
     excavatorBreakdown: [],
   };
@@ -229,6 +230,7 @@ const summaryData = useMemo(() => {
       totalTonnage: (cached.totalTonnage || 0).toFixed(2),
       shift1Tonnage: (cached.shift1Tonnage || 0).toFixed(2),
       shift2Tonnage: (cached.shift2Tonnage || 0).toFixed(2),
+      shift3Tonnage: (cached.shift3Tonnage || 0).toFixed(2),
       dumptruckBreakdown: Array.isArray(cached.activeDumptrucks)
         ? cached.activeDumptrucks
         : [],
@@ -252,6 +254,7 @@ const summaryData = useMemo(() => {
     totalTonnage: (hookSummaryData.totalTonnage || 0).toFixed(2),
     shift1Tonnage: (hookSummaryData.shift1Tonnage || 0).toFixed(2),
     shift2Tonnage: (hookSummaryData.shift2Tonnage || 0).toFixed(2),
+    shift3Tonnage: (hookSummaryData.shift3Tonnage || 0).toFixed(2),
     dumptruckBreakdown: Array.isArray(hookSummaryData.activeDumptrucks)
       ? hookSummaryData.activeDumptrucks
       : [],
@@ -432,7 +435,6 @@ const handleCloseSupervisorModal = useCallback(() => {
       selectedDumpPoints,
     ],
   );
-
   return (
     <div className="space-y-6 p-4 md:p-6 min-h-screen">
       {/* ✅ Summary Cards - Loading indicator di header card, tidak menutupi konten */}
@@ -537,6 +539,14 @@ const handleCloseSupervisorModal = useCallback(() => {
           </span>
           <span className="font-medium">
             {summaryData.shift2Tonnage} Ton
+          </span>
+        </div>
+        <div className="flex items-center justify-between text-xs">
+          <span className="text-gray-600 dark:text-gray-400">
+            Shift 3:
+          </span>
+          <span className="font-medium">
+            {summaryData.shift3Tonnage} Ton
           </span>
         </div>
       </div>
