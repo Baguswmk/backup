@@ -30,14 +30,14 @@ async getDashboardDaily(params = {}) {
     queryParams.append("startDate", startDate);
     queryParams.append("endDate", endDate);
     
-    if (shift && shift !== "All") {
+    if (shift) {
       queryParams.append("shift", shift);
     }
 
       const cacheKey = buildCacheKey("dashboard_daily", {
         start: startDate,
         end: endDate,
-        shift: shift && shift !== "All" ? shift : undefined,
+        shift: shift,
       });
 
       logger.info("📊 Fetching dashboard daily data", {

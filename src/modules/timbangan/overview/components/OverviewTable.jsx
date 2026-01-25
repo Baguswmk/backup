@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo } from "react";
 import {
   Card,
   CardContent,
@@ -27,6 +27,25 @@ import Pagination from "@/shared/components/Pagination";
 import TableToolbar from "@/shared/components/TableToolbar";
 import AdvancedFilter from "@/shared/components/AdvancedFilter";
 
+// Helper function untuk mendapatkan jam berdasarkan shift
+const getHoursByShift = (shift) => {
+  switch (shift) {
+    case "Shift 1":
+      // 22:00 - 05:59:59 (8 jam)
+      return [22, 23, 0, 1, 2, 3, 4, 5];
+    case "Shift 2":
+      // 06:00 - 13:59:59 (8 jam)
+      return [6, 7, 8, 9, 10, 11, 12, 13];
+    case "Shift 3":
+      // 14:00 - 21:59:59 (8 jam)
+      return [14, 15, 16, 17, 18, 19, 20, 21];
+    case "All":
+    default:
+      // 06:00 - 05:59:59 hari berikutnya (24 jam)
+      return [6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 0, 1, 2, 3, 4, 5];
+  }
+};
+
 const OverviewTable = ({
   data,
   currentPage,
@@ -54,6 +73,11 @@ const OverviewTable = ({
   onSearchChange,
   searchPlaceholder = "Cari excavator, loading, dumping...",
 }) => {
+  // Mendapatkan jam-jam yang harus ditampilkan berdasarkan shift
+  const displayHours = useMemo(() => {
+    return getHoursByShift(shift);
+  }, [shift]);
+
   const getUniqueDates = (ritases) => {
     if (!ritases || ritases.length === 0) return "-";
     const dates = [...new Set(ritases.map((r) => r.date).filter(Boolean))];
@@ -77,6 +101,12 @@ const OverviewTable = ({
             )}
           </div>
           <div className="flex items-center gap-3">
+            <Badge
+              variant="secondary"
+              className="dark:bg-gray-700 dark:text-gray-200"
+            >
+              {shift === "All" ? "Semua Shift" : shift} ({displayHours.length} jam)
+            </Badge>
             <Badge
               variant="secondary"
               className="dark:bg-gray-700 dark:text-gray-200"
@@ -134,8 +164,8 @@ const OverviewTable = ({
                   </div>
                 </th>
 
-                {/* Hourly Columns - 6:00 sampai 23:00 */}
-                {Array.from({ length: 18 }, (_, i) => i + 6).map((hour) => (
+                {/* Hourly Columns - Dynamic based on shift */}
+                {displayHours.map((hour) => (
                   <th
                     key={hour}
                     className="px-3 py-3 text-center font-semibold text-xs min-w-17.5 border-r border-gray-200 dark:border-gray-700"
@@ -145,7 +175,7 @@ const OverviewTable = ({
                 ))}
 
                 <th
-                  className="px-3 py-3 text-center font-semibold cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 bg-blue-50 dark:bg-blue-900/30 min-w-25border-r border-gray-200 dark:border-gray-700"
+                  className="px-3 py-3 text-center font-semibold cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 bg-blue-50 dark:bg-blue-900/30 min-w-25 border-r border-gray-200 dark:border-gray-700"
                   onClick={() => onSort("totalTonase")}
                 >
                   <div className="flex items-center justify-center gap-1">
@@ -177,7 +207,7 @@ const OverviewTable = ({
                     <td className="px-3 py-3">
                       <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-24"></div>
                     </td>
-                    {Array.from({ length: 18 }).map((_, i) => (
+                    {displayHours.map((_, i) => (
                       <td key={i} className="px-3 py-3 text-center">
                         <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded w-12 mx-auto"></div>
                       </td>
@@ -198,7 +228,7 @@ const OverviewTable = ({
                 ))
               ) : data.length === 0 && !isLoading ? (
                 <tr>
-                  <td colSpan="26" className="px-3 py-8 text-center">
+                  <td colSpan={6 + displayHours.length} className="px-3 py-8 text-center">
                     <div className="flex flex-col items-center justify-center gap-2">
                       <svg
                         className="w-12 h-12 text-gray-300 dark:text-gray-600"
@@ -249,8 +279,8 @@ const OverviewTable = ({
                       </div>
                     </td>
 
-                    {/* Hourly Data */}
-                    {Array.from({ length: 18 }, (_, i) => i + 6).map((hour) => {
+                    {/* Hourly Data - Dynamic based on shift */}
+                    {displayHours.map((hour) => {
                       const hourKey = `${hour.toString().padStart(2, "0")}:00`;
                       const value = row.hourlyData?.[hourKey] || 0;
                       const hasData = value > 0;
