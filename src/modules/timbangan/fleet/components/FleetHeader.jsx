@@ -46,21 +46,6 @@ const FleetHeader = ({
 
       {/* Right: Action Buttons */}
       <div className="flex items-center gap-2 w-full sm:w-auto flex-wrap">
-        {/* Refresh */}
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={onRefresh}
-          disabled={isRefreshing || !canRead}
-          title={!canRead ? getDisabledMessage("read") : ""}
-          className="flex-1 sm:flex-none cursor-pointer hover:bg-gray-200 disabled:cursor-not-allowed dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600 dark:hover:bg-gray-600"
-        >
-          <RefreshCw
-            className={`w-4 h-4 mr-2 ${isRefreshing ? "animate-spin" : ""}`}
-          />
-          Refresh
-        </Button>
-
         {/* Create */}
         {shouldShowButton("create") && (
           <Button

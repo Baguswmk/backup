@@ -20,7 +20,7 @@ import {
   CARD_TITLES,
   VALIDATION_MESSAGES,
 } from "@/modules/timbangan/fleet/constant/fleetConstants";
-import { logger } from "@/shared/services/log";
+
 const MEASUREMENT_TYPE_OPTIONS = [
   { value: "Timbangan", label: "Timbangan" },
   { value: "Bypass", label: "Bypass" },
@@ -57,8 +57,8 @@ const FleetModal = ({
   const [errors, setErrors] = useState({});
   const [isSaving, setIsSaving] = useState(false);
   const [distanceText, setDistanceText] = useState("");
-const [inspectorIds, setInspectorIds] = useState([]); // CHANGED: from inspectorId
-const [checkerIds, setCheckerIds] = useState([]); // CHANGED: from checkerId
+  const [inspectorIds, setInspectorIds] = useState([]);
+  const [checkerIds, setCheckerIds] = useState([]);
 
   const [selectedUnits, setSelectedUnits] = useState([]);
   const [unitOperators, setUnitOperators] = useState({});
@@ -104,190 +104,191 @@ const [checkerIds, setCheckerIds] = useState([]); // CHANGED: from checkerId
     },
     [masters?.excavators, masterUnits],
   );
-useEffect(() => {
-  if (!isOpen) return;
+  
+  useEffect(() => {
+    if (!isOpen) return;
 
-  const initializeModalData = async () => {
-    if (editingConfig) {
-      
-      const initialData = {
-        excavator: editingConfig.excavatorId || "",
-        loadingLocation: editingConfig.loadingLocationId || "",
-        dumpingLocation: editingConfig.dumpingLocationId || "",
-        coalType: editingConfig.coalTypeId || "",
-        distance: editingConfig.distance ?? 0,
-        workUnit: editingConfig.workUnitId || "",
-        measurementType: editingConfig.measurementType || fleetType,
-      };
+    const initializeModalData = async () => {
+      if (editingConfig) {
+        const initialData = {
+          excavator: editingConfig.excavatorId || "",
+          loadingLocation: editingConfig.loadingLocationId || "",
+          dumpingLocation: editingConfig.dumpingLocationId || "",
+          coalType: editingConfig.coalTypeId || "",
+          distance: editingConfig.distance ?? 0,
+          workUnit: editingConfig.workUnitId || "",
+          measurementType: editingConfig.measurementType || fleetType,
+        };
 
-      setFleetData(initialData);
-      setDistanceText(
-        editingConfig.distance != null && editingConfig.distance !== ""
-          ? String(editingConfig.distance)
-          : "",
-      );
-      
-      // FIXED: Better handling untuk inspectors
-      let inspectorIdsToSet = [];
-      
-      if (Array.isArray(editingConfig.inspectorIds) && editingConfig.inspectorIds.length > 0) {
-        // Format baru: array of IDs
-        inspectorIdsToSet = editingConfig.inspectorIds.map(String);
-      } else if (Array.isArray(editingConfig.inspectors) && editingConfig.inspectors.length > 0) {
-        // Format baru: array of objects { id, name }
-        inspectorIdsToSet = editingConfig.inspectors.map(i => String(i.id)).filter(Boolean);
-      } else if (editingConfig.inspectorId) {
-        // Format lama: single ID
-        inspectorIdsToSet = [String(editingConfig.inspectorId)];
-      }
-      
-      setInspectorIds(inspectorIdsToSet);
-      
-      // FIXED: Better handling untuk checkers
-      let checkerIdsToSet = [];
-      
-      if (Array.isArray(editingConfig.checkerIds) && editingConfig.checkerIds.length > 0) {
-        // Format baru: array of IDs
-        checkerIdsToSet = editingConfig.checkerIds.map(String);
-      } else if (Array.isArray(editingConfig.checkers) && editingConfig.checkers.length > 0) {
-        // Format baru: array of objects { id, name }
-        checkerIdsToSet = editingConfig.checkers.map(c => String(c.id)).filter(Boolean);
-      } else if (editingConfig.checkerId) {
-        // Format lama: single ID
-        checkerIdsToSet = [String(editingConfig.checkerId)];
-      }
-      
-      setCheckerIds(checkerIdsToSet);
+        setFleetData(initialData);
+        setDistanceText(
+          editingConfig.distance != null && editingConfig.distance !== ""
+            ? String(editingConfig.distance)
+            : "",
+        );
 
-      if (editingConfig.units) {
-        const existingUnits = editingConfig.units.map((unit) => ({
-          id: String(unit.id || unit.dumpTruckId),
-          hull_no: unit.hull_no || "-",
-          company: unit.company || "-",
-          workUnit: unit.workUnit || "-",
-          type: "DUMP_TRUCK",
-          companyId: unit.companyId,
-          workUnitId: unit.workUnitId,
-        }));
+        let inspectorIdsToSet = [];
 
-        setSelectedUnits(existingUnits);
-
-        const initialOperators = {};
-        editingConfig.units.forEach((unit) => {
-          const unitId = String(unit.id || unit.dumpTruckId);
-          if (unit.operatorId) {
-            initialOperators[unitId] = String(unit.operatorId);
-          }
-        });
-        setUnitOperators(initialOperators);
-      }
-
-      if (editingConfig.excavatorId) {
-        setIsLoadingFilteredUnits(true);
-        try {
-          const filtered = await filterUnitsByExcavator(
-            String(editingConfig.excavatorId),
-          );
-          setFleetFilteredUnits(filtered);
-        } catch (error) {
-          console.error("❌ Failed to load filtered units:", error);
-          setFleetFilteredUnits([]);
-        } finally {
-          setIsLoadingFilteredUnits(false);
+        if (
+          Array.isArray(editingConfig.inspectorIds) &&
+          editingConfig.inspectorIds.length > 0
+        ) {
+          inspectorIdsToSet = editingConfig.inspectorIds.map(String);
+        } else if (
+          Array.isArray(editingConfig.inspectors) &&
+          editingConfig.inspectors.length > 0
+        ) {
+          inspectorIdsToSet = editingConfig.inspectors
+            .map((i) => String(i.id))
+            .filter(Boolean);
+        } else if (editingConfig.inspectorId) {
+          inspectorIdsToSet = [String(editingConfig.inspectorId)];
         }
+
+        setInspectorIds(inspectorIdsToSet);
+
+        let checkerIdsToSet = [];
+
+        if (
+          Array.isArray(editingConfig.checkerIds) &&
+          editingConfig.checkerIds.length > 0
+        ) {
+          checkerIdsToSet = editingConfig.checkerIds.map(String);
+        } else if (
+          Array.isArray(editingConfig.checkers) &&
+          editingConfig.checkers.length > 0
+        ) {
+          checkerIdsToSet = editingConfig.checkers
+            .map((c) => String(c.id))
+            .filter(Boolean);
+        } else if (editingConfig.checkerId) {
+          checkerIdsToSet = [String(editingConfig.checkerId)];
+        }
+
+        setCheckerIds(checkerIdsToSet);
+
+        if (editingConfig.units) {
+          const existingUnits = editingConfig.units.map((unit) => ({
+            id: String(unit.id || unit.dumpTruckId),
+            hull_no: unit.hull_no || "-",
+            company: unit.company || "-",
+            workUnit: unit.workUnit || "-",
+            type: "DUMP_TRUCK",
+            companyId: unit.companyId,
+            workUnitId: unit.workUnitId,
+          }));
+
+          setSelectedUnits(existingUnits);
+
+          const initialOperators = {};
+          editingConfig.units.forEach((unit) => {
+            const unitId = String(unit.id || unit.dumpTruckId);
+            if (unit.operatorId) {
+              initialOperators[unitId] = String(unit.operatorId);
+            }
+          });
+          setUnitOperators(initialOperators);
+        }
+
+        if (editingConfig.excavatorId) {
+          setIsLoadingFilteredUnits(true);
+          try {
+            const filtered = await filterUnitsByExcavator(
+              String(editingConfig.excavatorId),
+            );
+            setFleetFilteredUnits(filtered);
+          } catch (error) {
+            console.error("❌ Failed to load filtered units:", error);
+            setFleetFilteredUnits([]);
+          } finally {
+            setIsLoadingFilteredUnits(false);
+          }
+        }
+      } else {
+        const measurementTypeMap = {
+          Timbangan: "Timbangan",
+          Bypass: "Bypass",
+          Beltscale: "Beltscale",
+        };
+
+        const defaultMeasurementType =
+          measurementTypeMap[fleetType] || "Timbangan";
+
+        const newData = {
+          excavator: "",
+          loadingLocation: "",
+          dumpingLocation: "",
+          coalType: "",
+          distance: 0,
+          workUnit: "",
+          measurementType: defaultMeasurementType,
+        };
+
+        setFleetData(newData);
+        setDistanceText("");
+        setInspectorIds([]);
+        setCheckerIds([]);
+        setSelectedUnits([]);
+        setUnitOperators({});
+        setFleetFilteredUnits([]);
       }
-    } else {
-      // NEW MODE
-      
-      const measurementTypeMap = {
-        Timbangan: "Timbangan",
-        Bypass: "Bypass",
-        Beltscale: "Beltscale",
-      };
 
-      const defaultMeasurementType =
-        measurementTypeMap[fleetType] || "Timbangan";
+      setSearchQuery("");
+      setShowAllUnits(false);
+      setErrors({});
+    };
 
-      const newData = {
-        excavator: "",
-        loadingLocation: "",
-        dumpingLocation: "",
-        coalType: "",
-        distance: 0,
-        workUnit: "",
-        measurementType: defaultMeasurementType,
-      };
-
-      setFleetData(newData);
-      setDistanceText("");
-      setInspectorIds([]); 
-      setCheckerIds([]);
-      setSelectedUnits([]);
-      setUnitOperators({});
-      setFleetFilteredUnits([]);
-    }
-
-    setSearchQuery("");
-    setShowAllUnits(false);
-    setErrors({});
-  };
-
-  initializeModalData();
-}, [isOpen, editingConfig, fleetType, filterUnitsByExcavator]);
-
+    initializeModalData();
+  }, [isOpen, editingConfig, fleetType, filterUnitsByExcavator]);
 
   const selectedOperatorIds = useMemo(() => {
     return Object.values(unitOperators).filter(Boolean);
   }, [unitOperators]);
+  
+  const handleExcavatorChange = useCallback(
+    async (excavatorId) => {
+      setFleetData((p) => ({ ...p, excavator: excavatorId || "" }));
 
-const handleExcavatorChange = useCallback(
-  async (excavatorId) => {
-    setFleetData((p) => ({ ...p, excavator: excavatorId || "" }));
+      if (!isEdit) {
+        setSelectedUnits([]);
+        setUnitOperators({});
+      }
 
-    // FIXED: Hanya reset units jika excavator BENAR-BENAR berubah, bukan saat edit
-    if (!isEdit || (isEdit && excavatorId !== editingConfig?.excavatorId)) {
-      setSelectedUnits([]);
-      setUnitOperators({});
-    }
+      setErrors((prev) => {
+        const e = { ...prev };
+        delete e.excavator;
+        return e;
+      });
 
-    // HAPUS baris ini yang menyebabkan bug:
-    // setShowAllUnits(false); // ❌ INI PENYEBAB BUG!
+      if (excavatorId) {
+        setIsLoadingFilteredUnits(true);
+        try {
+          const filtered = await filterUnitsByExcavator(String(excavatorId));
+          setFleetFilteredUnits(filtered);
 
-    setErrors((prev) => {
-      const e = { ...prev };
-      delete e.excavator;
-      return e;
-    });
-
-    if (excavatorId) {
-      setIsLoadingFilteredUnits(true);
-      try {
-        const filtered = await filterUnitsByExcavator(String(excavatorId));
-        setFleetFilteredUnits(filtered);
-
-        if (filtered.length === 0) {
+          if (filtered.length === 0) {
+            setErrors((prev) => ({
+              ...prev,
+              units: "Tidak ada dump truck tersedia untuk excavator ini",
+            }));
+          }
+        } catch (error) {
+          console.error("Failed to load filtered units:", error);
           setErrors((prev) => ({
             ...prev,
-            units: "Tidak ada dump truck tersedia untuk excavator ini",
+            units: "Gagal memuat dump truck",
           }));
+          setFleetFilteredUnits([]);
+        } finally {
+          setIsLoadingFilteredUnits(false);
         }
-      } catch (error) {
-        console.error("Failed to load filtered units:", error);
-        setErrors((prev) => ({
-          ...prev,
-          units: "Gagal memuat dump truck",
-        }));
+      } else {
         setFleetFilteredUnits([]);
-      } finally {
-        setIsLoadingFilteredUnits(false);
       }
-    } else {
-      setFleetFilteredUnits([]);
-    }
-  },
-  [filterUnitsByExcavator, isEdit, editingConfig],
-);
-
+    },
+    [filterUnitsByExcavator, isEdit],
+  );
+  
   const filteredUnits = useMemo(() => {
     let units = [];
 
@@ -322,7 +323,6 @@ const handleExcavatorChange = useCallback(
           (u) => String(u.id || u.dumpTruckId) === String(unit.id),
         );
         if (isCurrentSettingUnit) {
-          ("✅ Keeping current fleet unit:", unit.hull_no);
           return true;
         }
       }
@@ -363,132 +363,168 @@ const handleExcavatorChange = useCallback(
     showAllUnits,
   ]);
 
+  // ✅ UPDATED: Only move to top if unit is selected AND has operator
+  const { selectedUnitsList, unselectedUnitsList } = useMemo(() => {
+    const selected = [];
+    const unselected = [];
+
+    filteredUnits.forEach((unit) => {
+      const isSelected = selectedUnits.some(
+        (u) => String(u.id) === String(unit.id),
+      );
+      const hasOperator = unitOperators[unit.id]; // Check if operator assigned
+      
+      // Only put in "selected" section if checked AND has operator
+      if (isSelected && hasOperator) {
+        selected.push(unit);
+      } else {
+        unselected.push(unit);
+      }
+    });
+
+    return {
+      selectedUnitsList: selected,
+      unselectedUnitsList: unselected,
+    };
+  }, [filteredUnits, selectedUnits, unitOperators]);
+
   const allUnitsHaveOperators = useMemo(() => {
     if (selectedUnits.length === 0) return false;
     return selectedUnits.every((unit) => unitOperators[unit.id]);
   }, [selectedUnits, unitOperators]);
 
-const validate = useCallback(() => {
-  const e = {};
+  const validate = useCallback(() => {
+    const e = {};
 
-  if (!fleetData.excavator) e.excavator = "Pilih excavator";
-  if (!fleetData.loadingLocation) e.loadingLocation = "Pilih lokasi loading";
-  if (!fleetData.dumpingLocation) e.dumpingLocation = "Pilih lokasi dumping";
-  if (!fleetData.coalType) e.coalType = "Pilih coal type";
-  if (!fleetData.workUnit) e.workUnit = "Pilih work unit";
-  if (!fleetData.measurementType) e.measurementType = "Pilih measurement type";
+    if (!fleetData.excavator) e.excavator = "Pilih excavator";
+    if (!fleetData.loadingLocation) e.loadingLocation = "Pilih lokasi loading";
+    if (!fleetData.dumpingLocation) e.dumpingLocation = "Pilih lokasi dumping";
+    if (!fleetData.coalType) e.coalType = "Pilih coal type";
+    if (!fleetData.workUnit) e.workUnit = "Pilih work unit";
+    if (!fleetData.measurementType)
+      e.measurementType = "Pilih measurement type";
 
-  const cleaned = (distanceText || "").trim().replace(",", ".");
-  const distNum =
-    cleaned === ""
-      ? 0
-      : Number.isFinite(parseFloat(cleaned))
-        ? parseFloat(cleaned)
-        : NaN;
-  if (!Number.isFinite(distNum) || distNum < 0) {
-    e.distance = "Distance harus angka valid (≥ 0)";
-  }
-
-  // FIXED: Validate with better logging
-  if (!inspectorIds || inspectorIds.length === 0) {
-    e.inspector = "Pilih minimal 1 inspector";
-  }
-  
-  if (!checkerIds || checkerIds.length === 0) {
-    e.checker = "Pilih minimal 1 checker";
-  }
-
-  if (selectedUnits.length === 0) {
-    e.units = VALIDATION_MESSAGES.REQUIRED_UNITS;
-  }
-
-  selectedUnits.forEach((unit) => {
-    if (!unitOperators[unit.id]) {
-      e[`operator_${unit.id}`] = VALIDATION_MESSAGES.REQUIRED_OPERATOR;
-      e.operators = VALIDATION_MESSAGES.ALL_OPERATORS_REQUIRED;
-    }
-  });
-
-  setErrors(e);
-  return Object.keys(e).length === 0;
-}, [
-  fleetData,
-  distanceText,
-  inspectorIds,
-  checkerIds,
-  selectedUnits,
-  unitOperators,
-]);
-
-const handleSave = useCallback(async () => {
-  if (!validate()) {
-    showToast.error("Mohon lengkapi semua field yang wajib diisi");
-    return;
-  }
-
-  setIsSaving(true);
-
-  try {
     const cleaned = (distanceText || "").trim().replace(",", ".");
-    let dist = cleaned === "" ? 0 : parseFloat(cleaned);
-    if (!Number.isFinite(dist) || dist < 0) dist = 0;
-
-    const basePayload = {
-      excavatorId: fleetData.excavator,
-      loadingLocationId: fleetData.loadingLocation,
-      dumpingLocationId: fleetData.dumpingLocation,
-      coalTypeId: fleetData.coalType,
-      distance: dist,
-      workUnitId: fleetData.workUnit,
-      inspectorIds: inspectorIds.map(id => parseInt(id)),
-      checkerIds: checkerIds.map(id => parseInt(id)),
-      measurement_type: fleetData.measurementType,
-    };
-
-    const pairDtOp = selectedUnits.map((unit) => ({
-      truckId: parseInt(unit.id),
-      operatorId: parseInt(unitOperators[unit.id]),
-    }));
-
-    basePayload.pairDtOp = pairDtOp;
-
-    const result = await onSave(basePayload);
-
-    if (result?.success) {
-      setFleetData((p) => ({ ...p, distance: dist }));
-      onClose();
+    const distNum =
+      cleaned === ""
+        ? 0
+        : Number.isFinite(parseFloat(cleaned))
+          ? parseFloat(cleaned)
+          : NaN;
+    if (!Number.isFinite(distNum) || distNum < 0) {
+      e.distance = "Distance harus angka valid (≥ 0)";
     }
-  } catch (err) {
-    console.error("❌ Fleet save error:", err);
 
-    const isQueued =
-      err?.queued || err?.message?.includes("queued for offline sync");
-    const isValidation =
-      err?.validationError ||
-      (err?.response?.status >= 400 && err?.response?.status < 500);
+    if (!inspectorIds || inspectorIds.length === 0) {
+      e.inspector = "Pilih minimal 1 inspector";
+    }
 
-    if (isQueued) {
-      setErrors((p) => ({ ...p, submit: null }));
-      showToast.info(
-        "📤 Data disimpan di queue dan akan otomatis tersinkron saat online",
-        { duration: 4000 },
-      );
-      setTimeout(() => onClose(), 1000);
-    } else if (isValidation) {
-      setErrors((p) => ({
-        ...p,
-        submit: err?.message || "Validasi gagal. Periksa input Anda.",
+    if (!checkerIds || checkerIds.length === 0) {
+      e.checker = "Pilih minimal 1 checker";
+    }
+
+    if (selectedUnits.length === 0) {
+      e.units = VALIDATION_MESSAGES.REQUIRED_UNITS;
+    }
+
+    selectedUnits.forEach((unit) => {
+      if (!unitOperators[unit.id]) {
+        e[`operator_${unit.id}`] = VALIDATION_MESSAGES.REQUIRED_OPERATOR;
+        e.operators = VALIDATION_MESSAGES.ALL_OPERATORS_REQUIRED;
+      }
+    });
+
+    setErrors(e);
+    return Object.keys(e).length === 0;
+  }, [
+    fleetData,
+    distanceText,
+    inspectorIds,
+    checkerIds,
+    selectedUnits,
+    unitOperators,
+  ]);
+
+  const handleSave = useCallback(async () => {
+    if (!validate()) {
+      showToast.error("Mohon lengkapi semua field yang wajib diisi");
+      return;
+    }
+
+    setIsSaving(true);
+
+    try {
+      const cleaned = (distanceText || "").trim().replace(",", ".");
+      let dist = cleaned === "" ? 0 : parseFloat(cleaned);
+      if (!Number.isFinite(dist) || dist < 0) dist = 0;
+
+      const basePayload = {
+        excavatorId: fleetData.excavator,
+        loadingLocationId: fleetData.loadingLocation,
+        dumpingLocationId: fleetData.dumpingLocation,
+        coalTypeId: fleetData.coalType,
+        distance: dist,
+        workUnitId: fleetData.workUnit,
+        inspectorIds: inspectorIds.map((id) => parseInt(id)),
+        checkerIds: checkerIds.map((id) => parseInt(id)),
+        measurement_type: fleetData.measurementType,
+      };
+
+      const pairDtOp = selectedUnits.map((unit) => ({
+        truckId: parseInt(unit.id),
+        operatorId: parseInt(unitOperators[unit.id]),
       }));
-      showToast.error(err?.message || "Validasi gagal");
-    } else {
-      const errorMsg = err?.message || "Gagal menyimpan data";
-      setErrors((p) => ({ ...p, submit: errorMsg }));
-      showToast.error(errorMsg);
+
+      basePayload.pairDtOp = pairDtOp;
+
+      const result = await onSave(basePayload);
+
+      if (result?.success) {
+        setFleetData((p) => ({ ...p, distance: dist }));
+        onClose();
+      }
+    } catch (err) {
+      console.error("❌ Fleet save error:", err);
+
+      const isQueued =
+        err?.queued || err?.message?.includes("queued for offline sync");
+      const isValidation =
+        err?.validationError ||
+        (err?.response?.status >= 400 && err?.response?.status < 500);
+
+      if (isQueued) {
+        setErrors((p) => ({ ...p, submit: null }));
+        showToast.info(
+          "📤 Data disimpan di queue dan akan otomatis tersinkron saat online",
+          { duration: 4000 },
+        );
+        setTimeout(() => onClose(), 1000);
+      } else if (isValidation) {
+        setErrors((p) => ({
+          ...p,
+          submit: err?.message || "Validasi gagal. Periksa input Anda.",
+        }));
+        showToast.error(err?.message || "Validasi gagal");
+      } else {
+        const errorMsg = err?.message || "Gagal menyimpan data";
+        setErrors((p) => ({ ...p, submit: errorMsg }));
+        showToast.error(errorMsg);
+      }
+    } finally {
+      setIsSaving(false);
     }
-  } finally {
-    setIsSaving(false);
-  }
-}, [validate, distanceText, fleetData, inspectorIds, checkerIds, selectedUnits, unitOperators, onSave, onClose]);
+  }, [
+    validate,
+    distanceText,
+    fleetData,
+    inspectorIds,
+    checkerIds,
+    selectedUnits,
+    unitOperators,
+    onSave,
+    onClose,
+  ]);
+  
   const excaItems = useMemo(
     () =>
       (masters?.excavators || []).map((e) => ({
@@ -855,57 +891,57 @@ const handleSave = useCallback(async () => {
               </div>
             </InfoCard>
 
-<InfoCard
-  title="Inspector & Checker"
-  variant="primary"
-  className="border-none"
->
-  <div className="space-y-2">
-    <Label className="dark:text-gray-300">Inspector *</Label>
-    <MultiSearchableSelect
-      items={inspectorItems}
-      values={inspectorIds}
-      onChange={setInspectorIds}
-      placeholder="Pilih inspector (bisa pilih banyak)"
-      emptyText="Inspector tidak ditemukan"
-      disabled={isSaving}
-      error={!!errors.inspector}
-    />
-    {errors.inspector && (
-      <p className="text-sm text-red-500 dark:text-red-400">
-        {errors.inspector}
-      </p>
-    )}
-    {inspectorIds.length > 0 && (
-      <p className="text-xs text-blue-600 dark:text-blue-400">
-        {inspectorIds.length} inspector dipilih
-      </p>
-    )}
-  </div>
+            <InfoCard
+              title="Inspector & Checker"
+              variant="primary"
+              className="border-none"
+            >
+              <div className="space-y-2">
+                <Label className="dark:text-gray-300">Inspector *</Label>
+                <MultiSearchableSelect
+                  items={inspectorItems}
+                  values={inspectorIds}
+                  onChange={setInspectorIds}
+                  placeholder="Pilih inspector (bisa pilih banyak)"
+                  emptyText="Inspector tidak ditemukan"
+                  disabled={isSaving}
+                  error={!!errors.inspector}
+                />
+                {errors.inspector && (
+                  <p className="text-sm text-red-500 dark:text-red-400">
+                    {errors.inspector}
+                  </p>
+                )}
+                {inspectorIds.length > 0 && (
+                  <p className="text-xs text-blue-600 dark:text-blue-400">
+                    {inspectorIds.length} inspector dipilih
+                  </p>
+                )}
+              </div>
 
-  <div className="space-y-2">
-    <Label className="dark:text-gray-300">Checker *</Label>
-    <MultiSearchableSelect
-      items={checkerItems}
-      values={checkerIds}
-      onChange={setCheckerIds}
-      placeholder="Pilih checker (bisa pilih banyak)"
-      emptyText="Checker tidak ditemukan"
-      error={!!errors.checker}
-      disabled={isSaving}
-    />
-    {errors.checker && (
-      <p className="text-sm text-red-500 dark:text-red-400">
-        {errors.checker}
-      </p>
-    )}
-    {checkerIds.length > 0 && (
-      <p className="text-xs text-blue-600 dark:text-blue-400">
-        {checkerIds.length} checker dipilih
-      </p>
-    )}
-  </div>
-</InfoCard>
+              <div className="space-y-2">
+                <Label className="dark:text-gray-300">Checker *</Label>
+                <MultiSearchableSelect
+                  items={checkerItems}
+                  values={checkerIds}
+                  onChange={setCheckerIds}
+                  placeholder="Pilih checker (bisa pilih banyak)"
+                  emptyText="Checker tidak ditemukan"
+                  error={!!errors.checker}
+                  disabled={isSaving}
+                />
+                {errors.checker && (
+                  <p className="text-sm text-red-500 dark:text-red-400">
+                    {errors.checker}
+                  </p>
+                )}
+                {checkerIds.length > 0 && (
+                  <p className="text-xs text-blue-600 dark:text-blue-400">
+                    {checkerIds.length} checker dipilih
+                  </p>
+                )}
+              </div>
+            </InfoCard>
 
             {fleetData.excavator && (
               <InfoCard
@@ -965,116 +1001,263 @@ const handleSave = useCallback(async () => {
                     </div>
                   )}
 
+                  {/* ✅ UPDATED: Selected units on top, available units below */}
                   {!isLoadingFilteredUnits && filteredUnits.length > 0 && (
                     <div className="rounded-lg max-h-96 overflow-y-auto">
-                      {filteredUnits.map((unit) => {
-                        const isSelected = selectedUnits.some(
-                          (u) => String(u.id) === String(unit.id),
-                        );
-                        const hasOperatorError = errors[`operator_${unit.id}`];
+                      {/* Selected Units Section */}
+                      {selectedUnitsList.length > 0 && (
+                        <div className="mb-4">
+                          <div className="flex items-center gap-2 px-3 py-2 bg-blue-100 dark:bg-blue-900/30 rounded-t-lg border-b-2 border-blue-300 dark:border-blue-700">
+                            <Truck className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                            <span className="text-sm font-semibold text-blue-900 dark:text-blue-200">
+                              Dump Truck Terpilih ({selectedUnitsList.length})
+                            </span>
+                          </div>
+                          {selectedUnitsList.map((unit) => {
+                            const hasOperatorError = errors[`operator_${unit.id}`];
 
-                        return (
-                          <div
-                            key={unit.id}
-                            className={`p-3 transition-colors ${
-                              isSelected
-                                ? "bg-blue-50 dark:bg-blue-900/20"
-                                : "hover:bg-gray-50 dark:hover:bg-gray-700"
-                            }`}
-                          >
-                            <div className="flex items-start gap-3">
-                              <div className="pt-1">
-                                <Checkbox
-                                  checked={isSelected}
-                                  onCheckedChange={() => handleUnitToggle(unit)}
-                                  disabled={isSaving}
-                                  className="dark:text-gray-200"
-                                />
-                              </div>
-                              <Truck className="w-4 h-4 text-gray-400 dark:text-gray-500 mt-1" />
-                              <div className="flex-1 space-y-2">
-                                <div className="flex items-start justify-between">
-                                  <div
-                                    className="cursor-pointer"
-                                    onClick={() => {
-                                      if (!isSaving) {
-                                        handleUnitToggle(unit);
-                                      }
-                                    }}
-                                  >
-                                    <p className="font-medium text-sm dark:text-gray-200">
-                                      {unit.hull_no}
-                                    </p>
-                                    <p className="text-xs text-gray-500 dark:text-gray-400">
-                                      {unit.company} • {unit.workUnit}
-                                    </p>
+                            const currentExcavator = masters?.excavators?.find(
+                              (e) => String(e.id) === String(fleetData.excavator),
+                            );
+                            const isDifferentCompany =
+                              isEdit &&
+                              currentExcavator &&
+                              String(unit.companyId) !==
+                                String(currentExcavator.companyId);
+
+                            return (
+                              <div
+                                key={unit.id}
+                                className={`p-3 transition-colors ${
+                                  isDifferentCompany
+                                    ? "bg-yellow-50 dark:bg-yellow-900/20 border-l-4 border-yellow-500"
+                                    : "bg-blue-50 dark:bg-blue-900/20"
+                                }`}
+                              >
+                                <div className="flex items-start gap-3">
+                                  <div className="pt-1">
+                                    <Checkbox
+                                      checked={true}
+                                      onCheckedChange={() => handleUnitToggle(unit)}
+                                      disabled={isSaving}
+                                      className="dark:text-gray-200"
+                                    />
+                                  </div>
+                                  <Truck className="w-4 h-4 text-blue-600 dark:text-blue-400 mt-1" />
+                                  <div className="flex-1 space-y-2">
+                                    <div className="flex items-start justify-between">
+                                      <div
+                                        className="cursor-pointer flex-1"
+                                        onClick={() => {
+                                          if (!isSaving) {
+                                            handleUnitToggle(unit);
+                                          }
+                                        }}
+                                      >
+                                        <div className="flex items-center gap-2">
+                                          <p className="font-medium text-sm dark:text-gray-200">
+                                            {unit.hull_no}
+                                          </p>
+                                          {isDifferentCompany && (
+                                            <span className="text-xs bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 px-2 py-0.5 rounded">
+                                              ⚠️ Beda Company
+                                            </span>
+                                          )}
+                                        </div>
+                                        <p className="text-xs text-gray-500 dark:text-gray-400">
+                                          {unit.company} • {unit.workUnit}
+                                        </p>
+                                      </div>
+                                    </div>
+
+                                    <div className="space-y-1">
+                                      <Label className="text-xs flex items-center gap-1 dark:text-gray-300">
+                                        <User className="w-3 h-3" />
+                                        Operator *
+                                        {unit.company && (
+                                          <span className="text-gray-500">
+                                            ({unit.company})
+                                          </span>
+                                        )}
+                                      </Label>
+
+                                      <SearchableSelect
+                                        items={getOperatorOptionsForUnit(unit)}
+                                        value={unitOperators[unit.id] || ""}
+                                        onChange={(operatorId) =>
+                                          handleOperatorChange(
+                                            unit.id,
+                                            operatorId,
+                                          )
+                                        }
+                                        placeholder="Pilih operator"
+                                        emptyText={
+                                          getAvailableOperatorCount(unit) === 0
+                                            ? `Semua operator ${unit.company} sudah dipilih`
+                                            : `Tidak ada operator untuk ${unit.company || "company ini"}`
+                                        }
+                                        disabled={
+                                          isSaving ||
+                                          getAvailableOperatorCount(unit) === 0
+                                        }
+                                        error={!!hasOperatorError}
+                                      />
+
+                                      {getAvailableOperatorCount(unit) > 0 &&
+                                        !unitOperators[unit.id] && (
+                                          <p className="text-xs text-blue-600 dark:text-blue-400">
+                                            {getAvailableOperatorCount(unit)}{" "}
+                                            operator tersedia
+                                          </p>
+                                        )}
+
+                                      {getAvailableOperatorCount(unit) === 0 &&
+                                        !unitOperators[unit.id] && (
+                                          <p className="text-xs text-orange-600 dark:text-orange-400">
+                                            ⚠️ Semua operator sudah dipilih di DT
+                                            lain
+                                          </p>
+                                        )}
+
+                                      {hasOperatorError && (
+                                        <p className="text-xs text-red-500 dark:text-red-400">
+                                          {hasOperatorError}
+                                        </p>
+                                      )}
+                                    </div>
                                   </div>
                                 </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
 
-                                {isSelected && (
-                                  <div className="space-y-1">
-                                    <Label className="text-xs flex items-center gap-1 dark:text-gray-300">
-                                      <User className="w-3 h-3" />
-                                      Operator *
-                                      {unit.company && (
-                                        <span className="text-gray-500">
-                                          ({unit.company})
-                                        </span>
-                                      )}
-                                    </Label>
-
-                                    <SearchableSelect
-                                      items={getOperatorOptionsForUnit(unit)}
-                                      value={unitOperators[unit.id] || ""}
-                                      onChange={(operatorId) =>
-                                        handleOperatorChange(
-                                          unit.id,
-                                          operatorId,
-                                        )
-                                      }
-                                      placeholder="Pilih operator"
-                                      emptyText={
-                                        getAvailableOperatorCount(unit) === 0
-                                          ? `Semua operator ${unit.company} sudah dipilih`
-                                          : `Tidak ada operator untuk ${unit.company || "company ini"}`
-                                      }
-                                      disabled={
-                                        isSaving ||
-                                        getAvailableOperatorCount(unit) === 0
-                                      }
-                                      error={!!hasOperatorError}
+                      {/* Available Units Section */}
+                      {unselectedUnitsList.length > 0 && (
+                        <div>
+                          {selectedUnitsList.length > 0 && (
+                            <div className="flex items-center gap-2 px-3 py-2 bg-gray-100 dark:bg-gray-700/50 rounded-t-lg border-b border-gray-300 dark:border-gray-600">
+                              <Truck className="w-4 h-4 text-gray-600 dark:text-gray-400" />
+                              <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                                Dump Truck Tersedia ({unselectedUnitsList.length})
+                              </span>
+                            </div>
+                          )}
+                          {unselectedUnitsList.map((unit) => {
+                            const isSelected = selectedUnits.some(
+                              (u) => String(u.id) === String(unit.id),
+                            );
+                            const hasOperatorError = errors[`operator_${unit.id}`];
+                            
+                            return (
+                              <div
+                                key={unit.id}
+                                className={`p-3 transition-colors ${
+                                  isSelected 
+                                    ? "bg-yellow-50 dark:bg-yellow-900/20 border-l-4 border-yellow-500" 
+                                    : "hover:bg-gray-50 dark:hover:bg-gray-700"
+                                }`}
+                              >
+                                <div className="flex items-start gap-3">
+                                  <div className="pt-1">
+                                    <Checkbox
+                                      checked={isSelected}
+                                      onCheckedChange={() => handleUnitToggle(unit)}
+                                      disabled={isSaving}
+                                      className="dark:text-gray-200"
                                     />
-
-                                    {/* Show available operator count */}
-                                    {getAvailableOperatorCount(unit) > 0 &&
-                                      !unitOperators[unit.id] && (
-                                        <p className="text-xs text-blue-600 dark:text-blue-400">
-                                          {getAvailableOperatorCount(unit)}{" "}
-                                          operator tersedia
+                                  </div>
+                                  <Truck className={`w-4 h-4 mt-1 ${isSelected ? 'text-yellow-600 dark:text-yellow-400' : 'text-gray-400 dark:text-gray-500'}`} />
+                                  <div className="flex-1 space-y-2">
+                                    <div
+                                      className="cursor-pointer"
+                                      onClick={() => {
+                                        if (!isSaving) {
+                                          handleUnitToggle(unit);
+                                        }
+                                      }}
+                                    >
+                                      <div className="flex items-center gap-2">
+                                        <p className="font-medium text-sm dark:text-gray-200">
+                                          {unit.hull_no}
                                         </p>
-                                      )}
-
-                                    {/* Warning if no operators available */}
-                                    {getAvailableOperatorCount(unit) === 0 &&
-                                      !unitOperators[unit.id] && (
-                                        <p className="text-xs text-orange-600 dark:text-orange-400">
-                                          ⚠️ Semua operator sudah dipilih di DT
-                                          lain
-                                        </p>
-                                      )}
-
-                                    {hasOperatorError && (
-                                      <p className="text-xs text-red-500 dark:text-red-400">
-                                        {hasOperatorError}
+                                        {isSelected && (
+                                          <span className="text-xs bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 px-2 py-0.5 rounded">
+                                            ⚠️ Pilih Operator
+                                          </span>
+                                        )}
+                                      </div>
+                                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                                        {unit.company} • {unit.workUnit}
                                       </p>
+                                    </div>
+
+                                    {/* Show operator selector if unit is checked */}
+                                    {isSelected && (
+                                      <div className="space-y-1">
+                                        <Label className="text-xs flex items-center gap-1 dark:text-gray-300">
+                                          <User className="w-3 h-3" />
+                                          Operator *
+                                          {unit.company && (
+                                            <span className="text-gray-500">
+                                              ({unit.company})
+                                            </span>
+                                          )}
+                                        </Label>
+
+                                        <SearchableSelect
+                                          items={getOperatorOptionsForUnit(unit)}
+                                          value={unitOperators[unit.id] || ""}
+                                          onChange={(operatorId) =>
+                                            handleOperatorChange(
+                                              unit.id,
+                                              operatorId,
+                                            )
+                                          }
+                                          placeholder="Pilih operator"
+                                          emptyText={
+                                            getAvailableOperatorCount(unit) === 0
+                                              ? `Semua operator ${unit.company} sudah dipilih`
+                                              : `Tidak ada operator untuk ${unit.company || "company ini"}`
+                                          }
+                                          disabled={
+                                            isSaving ||
+                                            getAvailableOperatorCount(unit) === 0
+                                          }
+                                          error={!!hasOperatorError}
+                                        />
+
+                                        {getAvailableOperatorCount(unit) > 0 &&
+                                          !unitOperators[unit.id] && (
+                                            <p className="text-xs text-blue-600 dark:text-blue-400">
+                                              {getAvailableOperatorCount(unit)}{" "}
+                                              operator tersedia
+                                            </p>
+                                          )}
+
+                                        {getAvailableOperatorCount(unit) === 0 &&
+                                          !unitOperators[unit.id] && (
+                                            <p className="text-xs text-orange-600 dark:text-orange-400">
+                                              ⚠️ Semua operator sudah dipilih di DT
+                                              lain
+                                            </p>
+                                          )}
+
+                                        {hasOperatorError && (
+                                          <p className="text-xs text-red-500 dark:text-red-400">
+                                            {hasOperatorError}
+                                          </p>
+                                        )}
+                                      </div>
                                     )}
                                   </div>
-                                )}
+                                </div>
                               </div>
-                            </div>
-                          </div>
-                        );
-                      })}
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
