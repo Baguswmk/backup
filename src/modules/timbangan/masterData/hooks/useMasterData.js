@@ -8,6 +8,7 @@ export const useMasterData = (category) => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const [isDataLoaded, setIsDataLoaded] = useState(false);
+  const [isRefreshingMasterData, setIsRefreshingMasterData] = useState(false);
 
   const [companies, setCompanies] = useState([]);
   const [workUnits, setWorkUnits] = useState([]);
@@ -16,11 +17,12 @@ export const useMasterData = (category) => {
 
   const { user } = useAuthStore();
   const userRole = user?.role;
-  const userCompanyId = user?.company?.id; // ✅ Ambil company ID dari user
+  const userCompanyId = user?.company?.id;
 
   const initialLoadAttemptedRef = useRef(false);
   const pendingRequestRef = useRef(null);
   const isMountedRef = useRef(true);
+  const lastRefreshTimeRef = useRef(0);
 
   const masterDataLoadedRef = useRef({
     companies: false,
@@ -32,52 +34,42 @@ export const useMasterData = (category) => {
   const loadAllMasterData = useCallback(async () => {
     if (!isMountedRef.current) return;
 
+    // ✅ Check apakah sudah ada yang di-load
+    const alreadyLoaded = 
+      masterDataLoadedRef.current.companies &&
+      masterDataLoadedRef.current.workUnits &&
+      masterDataLoadedRef.current.locations &&
+      masterDataLoadedRef.current.users;
+
+    if (alreadyLoaded) {
+      return; // Skip jika semua sudah loaded
+    }
+
     try {
-      if (!masterDataLoadedRef.current.companies) {
-        const companiesData = await masterDataService.fetchCompanies({
-          forceRefresh: false,
-        });
-        if (isMountedRef.current) {
-          setCompanies(companiesData);
-          masterDataLoadedRef.current.companies = true;
-        }
-      }
+      // ✅ OPTIMIZED: Gunakan fetchAllMasters
+      const allMasters = await masterDataService.fetchAllMasters({
+        forceRefresh: false,
+        userRole,
+        userCompanyId,
+      });
 
-      if (!masterDataLoadedRef.current.workUnits) {
-        const workUnitsData = await masterDataService.fetchWorkUnits({
-          forceRefresh: false,
-          userRole,
-        });
-        if (isMountedRef.current) {
-          setWorkUnits(workUnitsData);
-          masterDataLoadedRef.current.workUnits = true;
-        }
-      }
+      if (isMountedRef.current) {
+        setCompanies(allMasters.companies);
+        setWorkUnits(allMasters.workUnits);
+        setLocations(allMasters.locations);
+        setUsers(allMasters.users);
 
-      if (!masterDataLoadedRef.current.locations) {
-        const locationsData = await masterDataService.fetchLocations({
-          forceRefresh: false,
-          userRole,
-        });
-        if (isMountedRef.current) {
-          setLocations(locationsData);
-          masterDataLoadedRef.current.locations = true;
-        }
-      }
-
-      if (!masterDataLoadedRef.current.users) {
-        const usersData = await masterDataService.fetchUsers({
-          forceRefresh: false,
-        });
-        if (isMountedRef.current) {
-          setUsers(usersData);
-          masterDataLoadedRef.current.users = true;
-        }
+        masterDataLoadedRef.current = {
+          companies: true,
+          workUnits: true,
+          locations: true,
+          users: true,
+        };
       }
     } catch (err) {
       console.error("❌ Failed to load master data:", err);
     }
-  }, [userRole]);
+  }, [userRole, userCompanyId]);
 
   const loadData = useCallback(
     async (forceRefresh = false) => {
@@ -98,7 +90,7 @@ export const useMasterData = (category) => {
           const fetchOptions = {
             forceRefresh,
             userRole: userRole,
-            userCompanyId: userCompanyId, // ✅ Kirim company ID
+            userCompanyId: userCompanyId,
           };
 
           if (userRole === "operator_jt" && category === "units") {
@@ -153,28 +145,45 @@ export const useMasterData = (category) => {
       pendingRequestRef.current = requestPromise;
       return requestPromise;
     },
-    [category, userRole, userCompanyId], // ✅ Tambahkan userCompanyId ke dependency
+    [category, userRole, userCompanyId],
   );
 
   const refresh = useCallback(async () => {
     return await loadData(true);
   }, [loadData]);
 
+  /**
+   * ✅ BARU: Refresh ALL master data dengan debounce protection
+   * Mencegah spam refresh dalam 2 detik
+   */
   const refreshAllMasterData = useCallback(async () => {
+    const now = Date.now();
+    const timeSinceLastRefresh = now - lastRefreshTimeRef.current;
+    const DEBOUNCE_TIME = 2000; // 2 detik
+
+    // ✅ Debounce: Cegah spam refresh
+    if (timeSinceLastRefresh < DEBOUNCE_TIME) {
+      const remainingTime = Math.ceil((DEBOUNCE_TIME - timeSinceLastRefresh) / 1000);
+      showToast.info(`Tunggu ${remainingTime} detik untuk refresh lagi`);
+      return;
+    }
+
     try {
-      const [companiesData, workUnitsData, locationsData, usersData] =
-        await Promise.all([
-          masterDataService.fetchCompanies({ forceRefresh: true }),
-          masterDataService.fetchWorkUnits({ forceRefresh: true, userRole }),
-          masterDataService.fetchLocations({ forceRefresh: true, userRole }),
-          masterDataService.fetchUsers({ forceRefresh: true }),
-        ]);
+      setIsRefreshingMasterData(true);
+      lastRefreshTimeRef.current = now;
+
+      // ✅ OPTIMIZED: Gunakan fetchAllMasters untuk efficiency
+      const allMasters = await masterDataService.fetchAllMasters({
+        forceRefresh: true,
+        userRole,
+        userCompanyId,
+      });
 
       if (isMountedRef.current) {
-        setCompanies(companiesData);
-        setWorkUnits(workUnitsData);
-        setLocations(locationsData);
-        setUsers(usersData);
+        setCompanies(allMasters.companies);
+        setWorkUnits(allMasters.workUnits);
+        setLocations(allMasters.locations);
+        setUsers(allMasters.users);
 
         masterDataLoadedRef.current = {
           companies: true,
@@ -182,11 +191,18 @@ export const useMasterData = (category) => {
           locations: true,
           users: true,
         };
+
+        showToast.success("Master data berhasil di-refresh!");
       }
     } catch (err) {
       console.error("❌ Failed to refresh master data:", err);
+      showToast.error("Gagal refresh master data");
+    } finally {
+      if (isMountedRef.current) {
+        setIsRefreshingMasterData(false);
+      }
     }
-  }, [userRole]);
+  }, [userRole, userCompanyId]);
 
   const createItem = useCallback(
     async (formData) => {
@@ -313,6 +329,7 @@ export const useMasterData = (category) => {
     loadData,
     clearCache,
     refreshAllMasterData,
+    isRefreshingMasterData, // ✅ BARU: Export loading state
 
     companies,
     workUnits,

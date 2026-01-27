@@ -14,6 +14,16 @@ const MASTER_DATA_CACHE = {
     users: 5 * 60 * 1000,
   },
 
+  //   TTL: {
+  //   units: 15 * 1000,              // 15 detik 
+  //   operators: 15 * 1000,          // 15 detik
+  //   companies: 30 * 1000,          // 30 detik
+  //   locations: 30 * 1000,          // 30 detik
+  //   "work-units": 15 * 1000,       // 15 detik
+  //   "coal-types": 30 * 1000,       // 30 detik
+  //   "weigh-bridge": 30 * 1000,     // 30 detik
+  //   users: 15 * 1000,              // 15 detik
+  // },
   isValid(category) {
     const cached = this.data[category];
     if (!cached) return false;
