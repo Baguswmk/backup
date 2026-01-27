@@ -26,7 +26,6 @@ import {
   Download,
   Edit2,
   Radio,
-  Clock,
   Wifi,
 } from "lucide-react";
 import { showToast } from "@/shared/utils/toast";
@@ -44,8 +43,7 @@ const MEASUREMENT_TYPES = {
   CHECKPOINT: "Checkpoint",
 };
 
-// Konstanta untuk durasi hidden (10 menit dalam milidetik)
-const HIDDEN_DURATION_MS = 10 * 60 * 1000; // 10 menit
+const HIDDEN_DURATION_MS = 10 * 60 * 1000;
 
 const RitaseInputModal = ({
   isOpen,
@@ -82,11 +80,9 @@ const RitaseInputModal = ({
   const connectionTimeoutRef = useRef(null);
   const autoUnhideTimerRef = useRef(null);
 
-  // Zustand store actions
   const hiddenDumptrucks = useRitaseStore((state) => state.hiddenDumptrucks);
   const hideDumptruck = useRitaseStore((state) => state.hideDumptruck);
   const unhideDumptruck = useRitaseStore((state) => state.unhideDumptruck);
-  const isHiddenDumptruck = useRitaseStore((state) => state.isHiddenDumptruck);
 
   const {
     isConnected: wsConnected,
@@ -99,34 +95,29 @@ const RitaseInputModal = ({
     error: scaleError,
   } = useWebSerialScale();
 
-  // Auto-unhide timer - check setiap 30 detik
   useEffect(() => {
     if (!isOpen) return;
 
     const checkAndUnhideExpired = () => {
       const now = Date.now();
-      
+
       Object.entries(hiddenDumptrucks).forEach(([key, data]) => {
         const hiddenTime = new Date(data.timestamp).getTime();
         const elapsed = now - hiddenTime;
-        
-        // Jika sudah lebih dari 10 menit, unhide
+
         if (elapsed >= HIDDEN_DURATION_MS) {
-          console.log(`⏰ Auto-unhiding ${data.originalHullNo} after 10 minutes`);
           unhideDumptruck(data.originalHullNo);
-          
+
           showToast.info(
             `${data.originalHullNo} sudah tersedia kembali setelah 10 menit`,
-            { duration: 3000 }
+            { duration: 3000 },
           );
         }
       });
     };
 
-    // Check immediately on mount
     checkAndUnhideExpired();
 
-    // Set interval untuk check setiap 30 detik
     autoUnhideTimerRef.current = setInterval(checkAndUnhideExpired, 30000);
 
     return () => {
@@ -135,6 +126,18 @@ const RitaseInputModal = ({
       }
     };
   }, [isOpen, hiddenDumptrucks, unhideDumptruck]);
+
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "unset";
+    }
+
+    return () => {
+      document.body.style.overflow = "unset";
+    };
+  }, [isOpen]);
 
   useEffect(() => {
     const measurementType =
@@ -364,29 +367,30 @@ const RitaseInputModal = ({
     return () => clearTimeout(timeoutId);
   }, [currentWeight, wsConnected, manualEditMode, insertedWeight]);
 
-  // Fungsi untuk menghitung sisa waktu hidden
-  const getRemainingHiddenTime = useCallback((hullNo) => {
-    // Normalize hull number untuk konsistensi dengan store
-    const normalizedHull = String(hullNo)
-      .replace(/[\s\-_]+/g, "")
-      .toUpperCase()
-      .slice(0, 50);
-    
-    const hiddenData = hiddenDumptrucks[normalizedHull];
-    if (!hiddenData) return null;
+  const getRemainingHiddenTime = useCallback(
+    (hullNo) => {
+      const normalizedHull = String(hullNo)
+        .replace(/[\s\-_]+/g, "")
+        .toUpperCase()
+        .slice(0, 50);
 
-    const hiddenTime = new Date(hiddenData.timestamp).getTime();
-    const now = Date.now();
-    const elapsed = now - hiddenTime;
-    const remaining = HIDDEN_DURATION_MS - elapsed;
+      const hiddenData = hiddenDumptrucks[normalizedHull];
+      if (!hiddenData) return null;
 
-    if (remaining <= 0) return null;
+      const hiddenTime = new Date(hiddenData.timestamp).getTime();
+      const now = Date.now();
+      const elapsed = now - hiddenTime;
+      const remaining = HIDDEN_DURATION_MS - elapsed;
 
-    const minutes = Math.floor(remaining / 60000);
-    const seconds = Math.floor((remaining % 60000) / 1000);
+      if (remaining <= 0) return null;
 
-    return { minutes, seconds, total: remaining };
-  }, [hiddenDumptrucks]);
+      const minutes = Math.floor(remaining / 60000);
+      const seconds = Math.floor((remaining % 60000) / 1000);
+
+      return { minutes, seconds, total: remaining };
+    },
+    [hiddenDumptrucks],
+  );
 
   const hullNoOptions = useMemo(() => {
     const hullNos = new Map();
@@ -398,32 +402,26 @@ const RitaseInputModal = ({
         const hull = dt.hull_no || dt.hullNo;
         if (!hull) return;
 
-        // Normalize hull number untuk pengecekan hidden
         const normalizedHull = String(hull)
           .replace(/[\s\-_]+/g, "")
           .toUpperCase()
           .slice(0, 50);
-        
-        // Check if hidden and if still within 10 minutes
+
         const hiddenData = hiddenDumptrucks[normalizedHull];
-        
+
         if (hiddenData) {
           const hiddenTime = new Date(hiddenData.timestamp).getTime();
           const elapsed = now - hiddenTime;
-          
-          // Skip jika masih dalam periode hidden (< 10 menit)
+
           if (elapsed < HIDDEN_DURATION_MS) {
             const remaining = getRemainingHiddenTime(normalizedHull);
-            console.log(`⏳ ${hull} still hidden for ${remaining?.minutes}m ${remaining?.seconds}s`);
-            return; // Skip dumptruck ini, jangan masukkan ke options
+
+            return;
           } else {
-            // Sudah lewat 10 menit, unhide otomatis
-            console.log(`⏰ Auto-unhiding ${hull} (elapsed: ${Math.floor(elapsed / 60000)}m)`);
             unhideDumptruck(hull);
           }
         }
 
-        // Tambahkan ke options jika tidak hidden atau sudah expired
         hullNos.set(hull, {
           value: hull,
           label: hull,
@@ -433,7 +431,6 @@ const RitaseInputModal = ({
     });
 
     const options = Array.from(hullNos.values());
-    console.log(`📋 Hull options: ${options.length} available, ${Object.keys(hiddenDumptrucks).length} hidden`);
     return options;
   }, [fleetConfigs, hiddenDumptrucks, getRemainingHiddenTime, unhideDumptruck]);
 
@@ -536,43 +533,39 @@ const RitaseInputModal = ({
     }
   }, [manualEditMode, wsConnected, currentWeight]);
 
-const handleManualWeightChange = useCallback(
+  const handleManualWeightChange = useCallback(
     (value) => {
       const canEdit = manualEditMode || insertedWeight !== null;
 
       if (canEdit) {
-        // Auto-replace koma dengan titik
-        let formattedValue = value.replace(/,/g, '.');
-        
+        let formattedValue = value.replace(/,/g, ".");
+
         const measurementType =
           selectedFleet?.measurement_type ||
           selectedFleet?.measurementType ||
           MEASUREMENT_TYPES.TIMBANGAN;
         const hasWeighBridge = user?.weigh_bridge != null;
 
-        // Validasi berdasarkan tipe measurement
-        const isGrossWeight = measurementType === MEASUREMENT_TYPES.TIMBANGAN && hasWeighBridge;
-        const isNetWeight = (measurementType === MEASUREMENT_TYPES.TIMBANGAN && !hasWeighBridge) || measurementType === MEASUREMENT_TYPES.BYPASS;
+        const isGrossWeight =
+          measurementType === MEASUREMENT_TYPES.TIMBANGAN && hasWeighBridge;
+        const isNetWeight =
+          (measurementType === MEASUREMENT_TYPES.TIMBANGAN &&
+            !hasWeighBridge) ||
+          measurementType === MEASUREMENT_TYPES.BYPASS;
 
-        // Regex untuk validasi format
-        // Net: max 99.99 (2 digit sebelum titik, 2 digit setelah titik)
-        // Gross: max 199.99 (3 digit sebelum titik, 2 digit setelah titik)
         const netWeightRegex = /^\d{0,2}(\.\d{0,2})?$/;
         const grossWeightRegex = /^\d{0,3}(\.\d{0,2})?$/;
 
-        // Validasi format dan batas maksimal
         let isValid = false;
         if (formattedValue === "") {
           isValid = true;
         } else if (isGrossWeight) {
-          // Gross weight: max 199.99 ton
           isValid = grossWeightRegex.test(formattedValue);
           const numValue = parseFloat(formattedValue);
           if (!isNaN(numValue) && numValue > 199.99) {
             isValid = false;
           }
         } else if (isNetWeight) {
-          // Net weight: max 99.99 ton
           isValid = netWeightRegex.test(formattedValue);
           const numValue = parseFloat(formattedValue);
           if (!isNaN(numValue) && numValue > 99.99) {
@@ -709,10 +702,9 @@ const handleManualWeightChange = useCallback(
 
       if (result.queued) {
         showToast.success("Data disimpan offline dan akan tersinkron otomatis");
-        
-        // Hide dumptruck untuk 10 menit
+
         hideDumptruck(hullNo, "submitted");
-        
+
         resetForm();
         if (onSubmit) {
           onSubmit({
@@ -727,9 +719,9 @@ const handleManualWeightChange = useCallback(
 
       if (result.success && result.data) {
         showToast.success("Data berhasil disimpan");
-        
+
         hideDumptruck(hullNo, "submitted");
-        
+
         resetForm();
         if (onSubmit) {
           onSubmit({ success: true, data: result.data, shouldClose: true });
@@ -791,12 +783,11 @@ const handleManualWeightChange = useCallback(
   const showWeightFields = showGrossWeight || showNetWeight;
   const canEditWeight = manualEditMode || insertedWeight !== null;
 
-  // Hitung total hidden dumptrucks yang masih aktif
   const activeHiddenCount = useMemo(() => {
     const now = Date.now();
-    return Object.values(hiddenDumptrucks).filter(data => {
+    return Object.values(hiddenDumptrucks).filter((data) => {
       const hiddenTime = new Date(data.timestamp).getTime();
-      return (now - hiddenTime) < HIDDEN_DURATION_MS;
+      return now - hiddenTime < HIDDEN_DURATION_MS;
     }).length;
   }, [hiddenDumptrucks]);
 
@@ -862,7 +853,8 @@ const handleManualWeightChange = useCallback(
                 >
                   <AlertCircle className="w-4 h-4 text-red-600 dark:text-red-400" />
                   <AlertDescription className="text-red-800 dark:text-red-200">
-                    Tidak ada fleet yang terdaftar. Silakan hubungi administrator.
+                    Tidak ada fleet yang terdaftar. Silakan hubungi
+                    administrator.
                   </AlertDescription>
                 </Alert>
               )}
@@ -1290,8 +1282,8 @@ const handleManualWeightChange = useCallback(
                 <Alert className="border-purple-200 dark:border-purple-800 bg-purple-50 dark:bg-purple-900/20">
                   <Info className="w-4 h-4 text-purple-600 dark:text-purple-400" />
                   <AlertDescription className="text-sm text-purple-900 dark:text-purple-200">
-                    Mode <strong>{measurementType}</strong> - Hanya memerlukan nomor
-                    lambung. Klik simpan untuk melanjutkan.
+                    Mode <strong>{measurementType}</strong> - Hanya memerlukan
+                    nomor lambung. Klik simpan untuk melanjutkan.
                   </AlertDescription>
                 </Alert>
               )}

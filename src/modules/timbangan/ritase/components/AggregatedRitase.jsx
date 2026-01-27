@@ -6,6 +6,7 @@ import {
   CardTitle,
 } from "@/shared/components/ui/card";
 import { Badge } from "@/shared/components/ui/badge";
+import { Button } from "@/shared/components/ui/button";
 import {
   Tabs,
   TabsContent,
@@ -24,13 +25,14 @@ import {
   Eye,
   MoreVertical,
   Trash2,
-  UserCheck,
   MapPin,
   Upload,
   Building2,
   List,
   ChevronDown,
   ChevronUp,
+  Plus,
+  UserCheck,
 } from "lucide-react";
 import {
   Table,
@@ -53,12 +55,12 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from "@/shared/components/ui/dropdown-menu";
-import { Button } from "@/shared/components/ui/button";
 import Pagination from "@/shared/components/Pagination";
 import RitaseList from "@/modules/timbangan/ritase/components/RitaseList";
+import AggregatedInputModal from "./AggregatedInputModal";
+import KertasCheckerDialog from "./KertasCheckerDialog";
 import { format } from "date-fns";
 import { id as localeId } from "date-fns/locale";
-import KertasCheckerDialog from "./KertasCheckerDialog";
 
 const ITEMS_PER_PAGE = 10;
 
@@ -87,6 +89,11 @@ const AggregatedRitase = ({
   ritaseFilterOptions,
   onResetRitaseFilters,
   hasActiveRitaseFilters,
+  onCreateRitase, 
+  fleetConfigs = [], 
+  onUpdateRitase,
+          onDeleteRitase,
+          onDuplicateRitase,
 }) => {
   const [selectedDetail, setSelectedDetail] = useState(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -99,6 +106,9 @@ const AggregatedRitase = ({
   const [detailTrips, setDetailTrips] = useState([]);
   const [isLoadingTrips, setIsLoadingTrips] = useState(false);
 
+  const [showInputModal, setShowInputModal] = useState(false);
+  const [selectedFleetForInput, setSelectedFleetForInput] = useState(null);
+
   const groupedData = useMemo(() => {
     if (activeTab === "excavator") {
       return aggregatedData;
@@ -109,7 +119,6 @@ const AggregatedRitase = ({
       let key;
       switch (activeTab) {
         case "checker":
-          // ✅ FIXED: Cek kedua kemungkinan properti
           key = item.checker || item.unit_exca || "Unknown Checker";
           break;
         case "dumping":
@@ -119,7 +128,6 @@ const AggregatedRitase = ({
           key = item.loading_location || "Unknown Loading";
           break;
         case "mitra":
-          // ✅ FIXED: Cek kedua kemungkinan properti
           key = item.company || item.unit_exca || "Unknown Company";
           break;
         default:
@@ -136,11 +144,10 @@ const AggregatedRitase = ({
       }
 
       grouped[key].items.push(item);
-      
-      // ✅ FIXED: Gunakan properti yang benar dari data
+
       const weight = item.totalWeight || item.total_tonase || 0;
       const trips = item.tripCount || item.total_ritase || 0;
-      
+
       grouped[key].totalWeight += parseFloat(weight);
       grouped[key].totalTrips += parseInt(trips);
     });
@@ -160,6 +167,38 @@ const AggregatedRitase = ({
   const totalPages = useMemo(() => {
     return Math.ceil(groupedData.length / ITEMS_PER_PAGE);
   }, [groupedData]);
+
+  
+  const handleAddRitaseFromItem = (item) => {
+    
+    const matchingFleet = fleetConfigs.find(
+      (fleet) =>
+        fleet.excavatorId === item.excavatorId &&
+        fleet.loadingLocationId === item.loadingLocationId &&
+        fleet.dumpingLocationId === item.dumpingLocationId,
+    );
+
+    if (matchingFleet) {
+      setSelectedFleetForInput(matchingFleet);
+      setShowInputModal(true);
+    } else {
+      console.warn("⚠️ No matching fleet config found for:", item);
+      
+      setShowInputModal(true);
+    }
+  };
+  
+  const handleSubmitRitase = async (ritaseData) => {
+    if (onCreateRitase) {
+      const result = await onCreateRitase(ritaseData);
+      if (result?.success) {
+        setShowInputModal(false);
+        setSelectedFleetForInput(null);
+      }
+      return result;
+    }
+    return { success: false, error: "onCreateRitase not provided" };
+  };
 
   const handleDetailClick = async (item) => {
     setSelectedDetail(item);
@@ -184,6 +223,54 @@ const AggregatedRitase = ({
     }
   };
 
+  const handleCheckerClick = async (item) => {
+    try {
+      const matchingTrips = Array.isArray(filteredRitaseData)
+        ? filteredRitaseData.filter(
+            (ritase) =>
+              ritase.unit_exca === item.unit_exca &&
+              ritase.loading_location === item.loading_location &&
+              ritase.dumping_location === item.dumping_location &&
+              ritase.measurement_type === item.measurement_type,
+          )
+        : [];
+
+      const formattedTrips = matchingTrips.map((trip) => ({
+        hull_no: trip.unit_dump_truck || "-",
+        weight:
+          trip.measurement_type === "bypass" ||
+          trip.measurement_type === "manual"
+            ? trip.net_weight
+            : trip.gross_weight,
+        time: trip.createdAt || trip.date,
+        shift: trip.shift || "-",
+      }));
+
+      setSelectedChecker({
+        excavator: item.unit_exca,
+        loading_location: item.loading_location,
+        dumping_location: item.dumping_location,
+        measurement_type: item.measurement_type,
+        tripCount: getTripCount(item),
+        totalWeight: getTotalWeight(item),
+        trips: formattedTrips,
+      });
+      setIsCheckerDialogOpen(true);
+    } catch (error) {
+      console.error("Error preparing checker data:", error);
+      setSelectedChecker({
+        excavator: item.unit_exca || "-",
+        loading_location: item.loading_location || "-",
+        dumping_location: item.dumping_location || "-",
+        measurement_type: item.measurement_type || "-",
+        tripCount: 0,
+        totalWeight: 0,
+        trips: [],
+      });
+      setIsCheckerDialogOpen(true);
+    }
+  };
+
   const formatDate = (dateString) => {
     if (!dateString) return "-";
     try {
@@ -202,7 +289,6 @@ const AggregatedRitase = ({
     }
   };
 
-  // ✅ FIXED: Helper function untuk mendapatkan nilai dengan fallback
   const getTripCount = (item) => {
     return item.tripCount || item.total_ritase || 0;
   };
@@ -351,6 +437,7 @@ const AggregatedRitase = ({
                                 align="end"
                                 className="w-40 sm:w-48 bg-neutral-50 dark:bg-slate-800 dark:text-neutral-50 border-none shadow-sm shadow-slate-700"
                               >
+                               
                                 <DropdownMenuItem
                                   onClick={() => handleDetailClick(item)}
                                   className="cursor-pointer hover:bg-gray-200 dark:hover:bg-slate-700 text-xs sm:text-sm"
@@ -360,18 +447,13 @@ const AggregatedRitase = ({
                                 </DropdownMenuItem>
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem
-                                  onClick={() => {
-                                    setSelectedChecker(item);
-                                    setIsCheckerDialogOpen(true);
-                                  }}
+                                  onClick={() => handleCheckerClick(item)}
                                   className="cursor-pointer hover:bg-gray-200 dark:hover:bg-slate-700 text-xs sm:text-sm"
                                 >
                                   <Eye className="mr-2 h-3 w-3 sm:h-4 sm:w-4" />
                                   Lihat Kertas Checker
                                 </DropdownMenuItem>
-                                <DropdownMenuItem
-                                  className="cursor-pointer text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-slate-700 text-xs sm:text-sm"
-                                >
+                                <DropdownMenuItem className="cursor-pointer text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-slate-700 text-xs sm:text-sm">
                                   <Trash2 className="mr-2 h-3 w-3 sm:h-4 sm:w-4" />
                                   Delete
                                 </DropdownMenuItem>
@@ -405,12 +487,25 @@ const AggregatedRitase = ({
                 Ringkasan Ritase per Excavator
               </span>
             </div>
-            <Badge
-              variant="secondary"
-              className="bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 w-fit text-xs sm:text-sm"
-            >
-              {aggregatedData.length} excavator
-            </Badge>
+            <div className="flex items-center gap-2">
+              <Badge
+                variant="secondary"
+                className="bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 w-fit text-xs sm:text-sm"
+              >
+                {aggregatedData.length} excavator
+              </Badge>
+              {isCCR && (
+              <Button
+                onClick={() => setShowInputModal(true)}
+                size="sm"
+                className="bg-blue-600 hover:bg-blue-700 text-white dark:bg-blue-600 dark:hover:bg-blue-700"
+              >
+                <Plus className="w-4 h-4 mr-1" />
+                <span className="hidden sm:inline">Tambah Ritase</span>
+                <span className="sm:hidden">Add</span>
+              </Button>
+              )}
+            </div>
           </CardTitle>
         </CardHeader>
 
@@ -432,7 +527,6 @@ const AggregatedRitase = ({
                       All
                     </TabsTrigger>
                   )}
-
                   <TabsTrigger
                     value="checker"
                     className="data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 cursor-pointer text-xs px-3 py-2 whitespace-nowrap shrink-0"
@@ -440,7 +534,6 @@ const AggregatedRitase = ({
                     <UserCheck className="w-3 h-3 mr-1" />
                     Checker
                   </TabsTrigger>
-
                   <TabsTrigger
                     value="dumping"
                     className="data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 cursor-pointer text-xs px-3 py-2 whitespace-nowrap shrink-0"
@@ -448,7 +541,6 @@ const AggregatedRitase = ({
                     <MapPin className="w-3 h-3 mr-1" />
                     Dumping
                   </TabsTrigger>
-
                   <TabsTrigger
                     value="loading"
                     className="data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 cursor-pointer text-xs px-3 py-2 whitespace-nowrap shrink-0"
@@ -456,7 +548,6 @@ const AggregatedRitase = ({
                     <Upload className="w-3 h-3 mr-1" />
                     Loading
                   </TabsTrigger>
-
                   <TabsTrigger
                     value="mitra"
                     className="data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 cursor-pointer text-xs px-3 py-2 whitespace-nowrap shrink-0"
@@ -480,7 +571,6 @@ const AggregatedRitase = ({
                       All Shipment
                     </TabsTrigger>
                   )}
-
                   <TabsTrigger
                     value="checker"
                     className="data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 cursor-pointer text-sm px-4"
@@ -488,7 +578,6 @@ const AggregatedRitase = ({
                     <UserCheck className="w-4 h-4 mr-2" />
                     Checker
                   </TabsTrigger>
-
                   <TabsTrigger
                     value="dumping"
                     className="data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 cursor-pointer text-sm px-4"
@@ -496,7 +585,6 @@ const AggregatedRitase = ({
                     <MapPin className="w-4 h-4 mr-2" />
                     Dumping Point
                   </TabsTrigger>
-
                   <TabsTrigger
                     value="loading"
                     className="data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 cursor-pointer text-sm px-4"
@@ -504,7 +592,6 @@ const AggregatedRitase = ({
                     <Upload className="w-4 h-4 mr-2" />
                     Loading Point
                   </TabsTrigger>
-
                   <TabsTrigger
                     value="mitra"
                     className="data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 cursor-pointer text-sm px-4"
@@ -540,6 +627,9 @@ const AggregatedRitase = ({
                   filterOptions={ritaseFilterOptions}
                   onResetFilters={onResetRitaseFilters}
                   hasActiveFilters={hasActiveRitaseFilters}
+                   onUpdateRitase={onUpdateRitase}
+          onDeleteRitase={onDeleteRitase}
+          onDuplicateRitase={onDuplicateRitase}  
                 />
               </TabsContent>
             )}
@@ -617,8 +707,8 @@ const AggregatedRitase = ({
           <DialogHeader>
             <DialogTitle className="flex flex-col sm:flex-row sm:items-center gap-2">
               <div className="sticky top-0 z-10 bg-neutral-50 dark:bg-slate-800 p-4 sm:p-6">
-                <Badge className="bg-blue-600 dark:bg-blue-500 text-white w-fit text-xs sm:text-sm">
-                  {selectedDetail?.excavator}
+                <Badge className="bg-blue-600 mr-2 dark:bg-blue-500 text-white w-fit text-xs sm:text-sm">
+                  {selectedDetail?.unit_exca}
                 </Badge>
                 <span className="text-gray-700 dark:text-gray-300 text-sm sm:text-base">
                   {selectedDetail?.loading_location} →{" "}
@@ -769,6 +859,16 @@ const AggregatedRitase = ({
         isOpen={isCheckerDialogOpen}
         onClose={() => setIsCheckerDialogOpen(false)}
         data={selectedChecker}
+      />
+
+      <AggregatedInputModal
+        isOpen={showInputModal}
+        onClose={() => {
+          setShowInputModal(false);
+          setSelectedFleetForInput(null);
+        }}
+        onSave={handleSubmitRitase}
+        selectedFleetConfig={selectedFleetForInput}
       />
 
       <style jsx>{`

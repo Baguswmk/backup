@@ -28,118 +28,6 @@ const validateDateRange = (filters) => {
   return { valid: true, days: diffDays };
 };
 
-const buildFilters = (options = {}) => {
-  const { user, dateRange, measurementType } = options;
-  const filters = {};
-  const role = user?.role?.toLowerCase();
-
-  if (!user) {
-    logger.warn("⚠️ No user provided for filter");
-    return filters;
-  }
-
-  logger.info("🔒 Building ritase filters", {
-    role,
-    userId: user.id,
-    measurementType,
-  });
-
-  if (measurementType) {
-    filters.measurement_type = { $eq: measurementType };
-    logger.info("📊 Measurement type filter applied", { measurementType });
-  }
-
-  switch (role) {
-    case "operator_jt":
-      if (user.weigh_bridge?.id) {
-        filters.weigh_bridge = {
-          id: { $eq: parseInt(user.weigh_bridge.id) },
-        };
-        logger.info("⚖️ Weigh_bridge filter applied (operator_jt)", {
-          weighBridgeId: user.weigh_bridge.id,
-        });
-      }
-
-      if (!measurementType) {
-        filters.measurement_type = { $eq: "Timbangan" };
-        logger.info("📊 Auto measurement_type: Timbangan (operator_jt)");
-      }
-      break;
-
-    case "ccr": {
-      const subsatker = user?.work_unit?.subsatker;
-      if (subsatker) {
-        filters.pic_work_unit = {
-          subsatker: { $eq: subsatker },
-        };
-        logger.info("🏢 Subsatker filter applied (CCR)", { subsatker });
-      }
-      break;
-    }
-
-    case "pengawas":
-    case "evaluator":
-    case "pic":
-      if (user.work_unit?.subsatker) {
-        filters.pic_work_unit = {
-          subsatker: { $eq: user.work_unit.subsatker },
-        };
-        logger.info("🏢 Subsatker filter applied", {
-          role,
-          subsatker: user.work_unit.subsatker,
-        });
-      }
-      break;
-
-    case "mitra":
-    case "checker":
-    case "admin":
-      if (user.company?.id) {
-        filters.unit_dump_truck = {
-          company: {
-            id: { $eq: parseInt(user.company.id) },
-          },
-        };
-        logger.info("🏢 Company filter applied (from dump truck)", {
-          role,
-          companyId: user.company.id,
-        });
-      }
-      break;
-
-    case "super_admin":
-      logger.info("👑 Super Admin - minimal role-specific filters");
-      break;
-
-    default:
-      logger.warn("⚠️ Unknown role, returning current filters", { role });
-      break;
-  }
-
-  if (dateRange?.from && dateRange?.to) {
-    const validation = validateDateRange(dateRange);
-
-    if (!validation.valid) {
-      logger.warn("⚠️ Invalid date range", { error: validation.error });
-      return filters;
-    }
-
-    filters.date = {
-      $gte: dateRange.from,
-      $lte: dateRange.to,
-    };
-
-    logger.info("📅 Date range filter applied to ritase", {
-      from: dateRange.from,
-      to: dateRange.to,
-    });
-  }
-
-  logger.info("🔍 Final ritase filters", JSON.stringify(filters, null, 2));
-
-  return filters;
-};
-
 export const ritaseServices = {
   async fetchSummaryFleetByRitases(options = {}) {
     try {
@@ -737,6 +625,155 @@ export const ritaseServices = {
         success: false,
         data: [],
         error: error.response?.data?.message || error.message,
+      };
+    }
+  },
+
+  async createManualRitase(data) {
+    try {
+      const payload = {
+        date: data.date,
+        shift: data.shift,
+
+        checker: data.checker ? parseInt(data.checker) : null,
+        inspector: data.inspector ? parseInt(data.inspector) : null,
+
+        // Backend expects these exact field names:
+        loading_location: parseInt(data.loading_location),
+        dumping_location: parseInt(data.dumping_location),
+        unit_exca: parseInt(data.unit_exca),
+        measurement_type: data.measurement_type,
+        distance: parseFloat(data.distance) || 0,
+        coal_type: parseInt(data.coal_type),
+        pic_work_unit: parseInt(data.pic_work_unit),
+        unit_dump_truck: parseInt(data.unit_dump_truck),
+        operator: data.operator ? parseInt(data.operator) : null,
+      };
+
+      // Handle weight based on measurement type
+      if (data.measurement_type === "Bypass") {
+        if (data.gross_weight) {
+          payload.gross_weight = parseFloat(data.gross_weight);
+        }
+      } else {
+        // For Timbangan
+        if (data.gross_weight) {
+          payload.gross_weight = parseFloat(data.gross_weight);
+        } else if (data.net_weight) {
+          payload.net_weight = parseFloat(data.net_weight);
+        }
+      }
+
+      logger.info("📤 CREATE Manual Ritase Payload:", payload);
+
+      const response = await offlineService.post(
+        "/v1/custom/ritase/manual",
+        payload,
+      );
+
+      const serverData = response.data || {};
+
+      logger.info("✅ Manual Ritase Created:", serverData);
+
+      return {
+        success: true,
+        data: {
+          id: serverData.id?.toString(),
+          ...serverData,
+        },
+        message: "Data ritase berhasil ditambahkan",
+      };
+    } catch (error) {
+      const errorMessage =
+        error.response?.data?.message ||
+        error.response?.data?.error?.message ||
+        error.message ||
+        "Gagal menyimpan data ritase";
+
+      logger.error("❌ Failed to create manual ritase", {
+        error: errorMessage,
+        details: error.response?.data,
+      });
+
+      return {
+        success: false,
+        error: errorMessage,
+      };
+    }
+  },
+  async duplicateRitase(data) {
+    try {
+      const payload = {
+        data: {
+          unit_dump_truck: data.unit_dump_truck,
+          operator: data.operator,
+          date: data.date,
+          shift: data.shift,
+          company:data.company,
+          tare_weight:data.tare_weight,
+          pic_dumping_point: data.pic_dumping_point,
+          pic_loading_point: data.pic_loading_point,
+          unit_exca: data.unit_exca,
+          loading_location: data.loading_location,
+          dumping_location: data.dumping_location,
+          measurement_type: data.measurement_type,
+          coal_type: data.coal_type,
+          pic_work_unit: data.pic_work_unit,
+          checker: data.checker,
+          inspector: data.inspector,
+
+          distance: parseFloat(data.distance) || 0,
+
+          id_setting_fleet: data.id_setting_fleet || null,
+          weigh_bridge: data.weigh_bridge || null,
+          spph: data.spph || null,
+        },
+      };
+
+      if (data.measurement_type === "Timbangan") {
+        if (data.gross_weight !== undefined && data.gross_weight !== null) {
+          payload.data.gross_weight = parseFloat(data.gross_weight);
+        }
+        if (data.net_weight !== undefined && data.net_weight !== null) {
+          payload.data.net_weight = parseFloat(data.net_weight);
+        }
+      }
+
+      logger.info("📤 DUPLICATE Ritase Payload:", payload);
+
+      const response = await offlineService.post("/ritases", payload);
+
+      const serverData = response.data || {};
+
+      logger.info("✅ Ritase Duplicated:", serverData);
+
+      // Clear cache untuk refresh data
+      await offlineService.clearCache("ritases_");
+      await offlineService.clearCache("summary_fleet_");
+
+      return {
+        success: true,
+        data: {
+          id: serverData.id?.toString(),
+          ...serverData,
+        },
+        message: "Data ritase berhasil diduplikasi",
+      };
+    } catch (error) {
+      const errorMessage =
+        error.response?.data?.message ||
+        error.response?.data?.error?.message ||
+        error.message ||
+        "Gagal menduplikasi data ritase";
+
+      logger.error("❌ Failed to duplicate ritase", {
+        error: errorMessage,
+        details: error.response?.data,
+      });
+
+      return {
+        success: false,
+        error: errorMessage,
       };
     }
   },

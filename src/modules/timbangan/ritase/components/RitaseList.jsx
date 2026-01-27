@@ -21,6 +21,7 @@ import {
   Edit2,
   Trash2,
   MoreVertical,
+  Copy,
 } from "lucide-react";
 import {
   Table,
@@ -50,6 +51,7 @@ import { format } from "date-fns";
 import { id as localeId } from "date-fns/locale";
 import { USER_ROLES } from "@/modules/timbangan/ritase/constant/ritaseConstants";
 import RitaseEditForm from "@/modules/timbangan/ritase/components/RitaseEditForm";
+import RitaseDuplicateForm from "@/modules/timbangan/ritase/components/RitaseDuplicateForm";
 
 const ITEMS_PER_PAGE = 10;
 
@@ -65,13 +67,14 @@ const RitaseList = ({
   onPrintTicket,
   onUpdateRitase,
   onDeleteRitase,
+  onDuplicateRitase, 
 }) => {
   const [selectedRitase, setSelectedRitase] = useState(null);
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isDuplicateModalOpen, setIsDuplicateModalOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isDeletingRitase, setIsDeletingRitase] = useState(false);
-
   const getInputButtonText = () => {
     return userRole === USER_ROLES.OPERATOR_JT ? "Timbang" : "Input Data";
   };
@@ -98,6 +101,11 @@ const RitaseList = ({
   const handleEdit = (ritase) => {
     setSelectedRitase(ritase);
     setIsEditModalOpen(true);
+  };
+
+  const handleDuplicate = (ritase) => {
+    setSelectedRitase(ritase);
+    setIsDuplicateModalOpen(true);
   };
 
   const handleDelete = (ritase) => {
@@ -129,6 +137,18 @@ const RitaseList = ({
       if (onUpdateRitase) {
         await onUpdateRitase(result.data);
       }
+    }
+  };
+
+  const handleDuplicateSubmit = async (duplicatedData) => {
+    try {
+      if (onDuplicateRitase) {
+        await onDuplicateRitase(duplicatedData);
+      }
+      setIsDuplicateModalOpen(false);
+      setSelectedRitase(null);
+    } catch (error) {
+      console.error("Error duplicating ritase:", error);
     }
   };
 
@@ -187,6 +207,12 @@ const RitaseList = ({
                       <TableHead className="text-gray-700 dark:text-gray-300 font-semibold w-16">
                         No
                       </TableHead>
+                       <TableHead className="text-gray-700 dark:text-gray-300 font-semibold">
+                        Date
+                      </TableHead>
+                      <TableHead className="text-gray-700 dark:text-gray-300 font-semibold">
+                        Shift
+                      </TableHead>
                       <TableHead className="text-gray-700 dark:text-gray-300 font-semibold">
                         Hull No
                       </TableHead>
@@ -225,6 +251,14 @@ const RitaseList = ({
                         <TableCell className="text-gray-700 dark:text-gray-300 text-sm">
                           {(currentPage - 1) * ITEMS_PER_PAGE + index + 1}
                         </TableCell>
+                        <TableCell className="text-sm text-gray-600 dark:text-gray-400">
+                          {ritase.date ? format(new Date(ritase.date), "dd MMM yyyy", { locale: localeId }) : "-"}
+                        </TableCell>
+                        <TableCell className="text-sm text-gray-600 dark:text-gray-400">
+                          <Badge variant="outline" className="text-xs border-gray-300 dark:border-gray-600">
+                            {ritase.shift || "-"}
+                          </Badge>
+                        </TableCell>
                         <TableCell className="font-medium">
                           <Badge className="bg-blue-600 dark:bg-blue-500 text-white">
                             {ritase.unit_dump_truck}
@@ -255,10 +289,11 @@ const RitaseList = ({
                         <TableCell className="text-right">
                           <div className="flex flex-col items-end">
                             <span className="font-bold text-green-600 dark:text-green-400">
-                              {ritase.measurement_type === "bypass" ||
+                              {/* {ritase.measurement_type === "bypass" ||
                               ritase.measurement_type === "manual"
                                 ? ritase.net_weight || "-"
-                                : ritase.gross_weight || "-"}
+                                : ritase.gross_weight || "-"} */}
+                                {ritase.net_weight}
                             </span>
                             <span className="text-xs text-gray-500 dark:text-gray-400">
                               ton
@@ -268,7 +303,7 @@ const RitaseList = ({
                         <TableCell className="text-sm text-gray-600 dark:text-gray-400">
                           {format(
                             new Date(ritase.createdAt || ritase.date),
-                            "dd MMM yyyy HH:mm",
+                            "HH:mm",
                             { locale: localeId },
                           )}
                         </TableCell>
@@ -302,6 +337,13 @@ const RitaseList = ({
                                 Cetak Karcis
                               </DropdownMenuItem>
                               <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                onClick={() => handleDuplicate(ritase)}
+                                className="cursor-pointer hover:bg-gray-200 dark:hover:bg-slate-700"
+                              >
+                                <Copy className="mr-2 h-4 w-4" />
+                                Duplikat
+                              </DropdownMenuItem>
                               <DropdownMenuItem
                                 onClick={() => handleEdit(ritase)}
                                 className="cursor-pointer hover:bg-gray-200 dark:hover:bg-slate-700"
@@ -476,9 +518,25 @@ const RitaseList = ({
                     {selectedRitase.distance || "0"} m
                   </div>
                 </div>
+                <div>
+                  <div className="text-sm text-gray-500 dark:text-gray-400 mb-1">
+                    Date
+                  </div>
+                  <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                    {selectedRitase.date ? format(new Date(selectedRitase.date), "dd MMMM yyyy", { locale: localeId }) : "-"}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-sm text-gray-500 dark:text-gray-400 mb-1">
+                    Shift
+                  </div>
+                  <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                    {selectedRitase.shift || "-"}
+                  </div>
+                </div>
                 <div className="col-span-2">
                   <div className="text-sm text-gray-500 dark:text-gray-400 mb-1">
-                    Waktu
+                    Waktu Input
                   </div>
                   <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
                     {format(
@@ -530,6 +588,28 @@ const RitaseList = ({
               onSubmit={handleEditSubmit}
               onCancel={() => {
                 setIsEditModalOpen(false);
+                setSelectedRitase(null);
+              }}
+            />
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Duplicate Modal */}
+      {selectedRitase && (
+        <Dialog open={isDuplicateModalOpen} onOpenChange={setIsDuplicateModalOpen}>
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto dark:bg-slate-900">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 dark:text-neutral-50">
+                <Copy className="w-5 h-5" />
+                Duplikat Data Ritase
+              </DialogTitle>
+            </DialogHeader>
+            <RitaseDuplicateForm
+              sourceRitase={selectedRitase}
+              onSubmit={handleDuplicateSubmit}
+              onCancel={() => {
+                setIsDuplicateModalOpen(false);
                 setSelectedRitase(null);
               }}
             />

@@ -1,6 +1,6 @@
 import React from "react";
 import { Button } from "@/shared/components/ui/button";
-import { Plus, RefreshCw } from "lucide-react";
+import { Plus, RefreshCw, Database } from "lucide-react";
 import { USER_ROLES } from "@/modules/timbangan/ritase/constant/ritaseConstants";
 
 const RitaseHeader = ({
@@ -11,6 +11,9 @@ const RitaseHeader = ({
   isInitialLoading,
   onRefresh,
   onOpenInputModal,
+  // ✅ BARU: Props untuk refresh master data
+  onRefreshMasterData,
+  isRefreshingMasterData,
 }) => {
   const getInputButtonText = () => {
     return userRole === USER_ROLES.OPERATOR_JT ? "Timbang" : "Input Data";
@@ -21,6 +24,7 @@ const RitaseHeader = ({
   };
 
   const isCCR = userRole.toLowerCase().includes("ccr");
+  
   return (
     <div className="space-y-4 flex justify-between items-center">
       {/* Header Title & User Info */}
@@ -45,11 +49,26 @@ const RitaseHeader = ({
 
       {/* Action Buttons */}
       <div className="flex items-center gap-2 sm:gap-3">
-        {/* Refresh Button */}
+        {/* ✅ BARU: Refresh Master Data Button */}
+        <Button
+          onClick={onRefreshMasterData}
+          variant="outline"
+          disabled={isRefreshingMasterData}
+          title="Refresh Master Data (Unit, Operator, dll)"
+          className="flex-1 sm:flex-none gap-2 border-green-300 dark:border-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 text-green-700 dark:text-green-400"
+        >
+          <Database
+            className={`w-4 h-4 ${isRefreshingMasterData ? "animate-spin" : ""}`}
+          />
+          <span className="hidden sm:inline">Master</span>
+        </Button>
+
+        {/* Refresh Ritase Button */}
         <Button
           onClick={onRefresh}
           variant="outline"
           disabled={isRefreshing}
+          title="Refresh Data Ritase"
           className="flex-1 sm:flex-none gap-2 border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300"
         >
           <RefreshCw
