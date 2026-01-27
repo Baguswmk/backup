@@ -1,11 +1,58 @@
 import { offlineService } from "@/shared/services/offlineService";
 import { logger } from "@/shared/services/log";
 
+/**
+ * Transform response from custom API
+ */
+const transformCustomResponse = (data) => {
+  if (!data) return null;
+  return data;
+};
+
 export const hindranceService = {
   /**
+   * GET Hindrance Categories with Items
+   */
+  async getHindranceCategories() {
+    try {
+      logger.info("📋 Fetching hindrance categories");
+
+      const response = await offlineService.get(
+        "/hindrances",
+        {
+          params:{
+            populate:[ "hindrance_category" ],
+          },
+          ttl: 5 * 60 * 1000,
+        }
+      );
+
+       
+      logger.info("✅ Hindrance categories fetched", {
+        count: response.data?.length || 0,
+      });
+
+      return {
+        success: true,
+        data: response.data || [],
+        message: "Data kategori kendala berhasil dimuat",
+      };
+    } catch (error) {
+      logger.error("❌ Failed to fetch hindrance categories", {
+        error: error?.response?.data?.message || error.message,
+      });
+
+      throw new Error(
+        error?.response?.data?.message ||
+          error.message ||
+          "Gagal mengambil data kategori kendala"
+      );
+    }
+  },
+
+  /**
    * GET Hindrance Details
-   * @param {Object} params - { exca_hull_no, date }
-   * @returns {Promise<Object>} List of hindrance details
+   * Endpoint: GET /v1/custom/hindrance-detail?exca_hull_no=XXX&date=YYYY-MM-DD
    */
   async getHindranceDetails(params = {}) {
     try {
@@ -16,16 +63,15 @@ export const hindranceService = {
       }
 
       const queryParams = new URLSearchParams();
-      
+
       if (Array.isArray(exca_hull_no)) {
-        exca_hull_no.forEach(exca => {
-          queryParams.append("exca_hull_no", exca);
-        });
+        queryParams.append("exca_hull_no", exca_hull_no.join(","));
       } else {
         queryParams.append("exca_hull_no", exca_hull_no);
       }
-      
+
       queryParams.append("date", date);
+
       logger.info("📋 Fetching hindrance details", {
         exca_hull_no,
         date,
@@ -34,10 +80,11 @@ export const hindranceService = {
       const response = await offlineService.get(
         `/v1/custom/hindrance-detail?${queryParams.toString()}`,
         {
-          ttl: 1 * 60 * 1000, 
+          ttl: 1 * 60 * 1000,
         }
       );
 
+      // Response structure: Array of { [exca_hull_no]: [{ [hour]: [...data] }] }
       logger.info("✅ Hindrance details fetched", {
         count: response.data?.length || 0,
       });
@@ -62,46 +109,8 @@ export const hindranceService = {
   },
 
   /**
-   * GET Hindrance Categories with Items
-   * @returns {Promise<Object>} List of categories with hindrance items
-   */
-  async getHindranceCategories() {
-    try {
-      logger.info("📋 Fetching hindrance categories");
-
-      const response = await offlineService.get(
-        "/v1/custom/hindrance-category",
-        {
-          ttl: 5 * 60 * 1000, // Cache 5 menit (data jarang berubah)
-        }
-      );
-
-      logger.info("✅ Hindrance categories fetched", {
-        count: response.data?.length || 0,
-      });
-
-      return {
-        success: true,
-        data: response.data || [],
-        message: "Data kategori kendala berhasil dimuat",
-      };
-    } catch (error) {
-      logger.error("❌ Failed to fetch hindrance categories", {
-        error: error?.response?.data?.message || error.message,
-      });
-
-      throw new Error(
-        error?.response?.data?.message ||
-          error.message ||
-          "Gagal mengambil data kategori kendala"
-      );
-    }
-  },
-
-  /**
    * POST Create Hindrance Detail
-   * @param {Object} data - Hindrance data
-   * @returns {Promise<Object>} Created hindrance detail
+   * Endpoint: POST /v1/custom/hindrance-detail
    */
   async createHindrance(data) {
     try {
@@ -109,21 +118,24 @@ export const hindranceService = {
         hindrance_category,
         hindrance,
         description,
-        evidence, // Array of media IDs
+        evidence,
         exca_hull_no,
         shift,
         date,
         start_time,
         end_time,
-        hour_date,
+        hour_data,
       } = data;
 
-      // Validasi required fields sesuai schema
       if (!hindrance_category || !hindrance) {
-        throw new Error("Kategori dan deskripsi kendala harus diisi");
+        throw new Error("Kategori dan kendala harus diisi");
       }
-
-      if (!exca_hull_no || !date || !shift || !start_time || !end_time || !hour_date) {
+      if (
+        !exca_hull_no ||
+        !date ||
+        !shift ||
+        !hour_data
+      ) {
         throw new Error("Data wajib tidak lengkap");
       }
 
@@ -135,28 +147,27 @@ export const hindranceService = {
         hindrance_category,
         exca_hull_no,
         date,
-        hour_date,
+        hour_data,
       });
 
       const payload = {
         hindrance_category,
         hindrance,
         description: description || "",
-        evidence, // Array of media IDs, bukan URLs
+        evidence,
         exca_hull_no,
         shift,
         date,
         start_time,
         end_time,
-        hour_data: hour_date,
-        // company, satker, sub_satker akan diisi otomatis di BE dari user context
+        hour_data,
       };
 
       const response = await offlineService.post(
         "/v1/custom/hindrance-detail",
         payload,
         {
-          invalidateCache: true, // Clear cache setelah create
+          invalidateCache: true,
         }
       );
 
@@ -185,9 +196,7 @@ export const hindranceService = {
 
   /**
    * PUT Update Hindrance Detail
-   * @param {number} id - Hindrance ID
-   * @param {Object} data - Updated hindrance data
-   * @returns {Promise<Object>} Updated hindrance detail
+   * Endpoint: PUT /v1/custom/hindrance-detail/:id
    */
   async updateHindrance(id, data) {
     try {
@@ -230,9 +239,8 @@ export const hindranceService = {
   },
 
   /**
-   * DELETE Hindrance Detail (Soft Delete)
-   * @param {number} id - Hindrance ID
-   * @returns {Promise<Object>} Deletion result
+   * DELETE Hindrance Detail
+   * Endpoint: DELETE /v1/custom/hindrance-detail/:id
    */
   async deleteHindrance(id) {
     try {
@@ -271,10 +279,98 @@ export const hindranceService = {
   },
 
   /**
-   * Upload Evidence/Photo for Hindrance
-   * Returns media ID yang harus digunakan untuk evidence field
-   * @param {File} file - Image file
-   * @returns {Promise<Object>} Upload result with ID and URL
+   * PUT Update Approval Status (Bulk)
+   * Endpoint: PUT /v1/custom/hindrance-detail/approval-status
+   */
+  async updateApprovalStatus(ids, payload) {
+    try {
+      if (!ids || ids.length === 0) {
+        throw new Error("ID kendala harus diisi");
+      }
+
+      logger.info("📝 Updating approval status", {
+        ids,
+        payload,
+      });
+
+      const response = await offlineService.put(
+        "/v1/custom/hindrance-detail/approval-status",
+        {
+          ids,
+          ...payload,
+        },
+        {
+          invalidateCache: true,
+        }
+      );
+
+      logger.info("✅ Approval status updated");
+
+      return {
+        success: true,
+        data: response.data,
+        message: "Status persetujuan berhasil diperbarui",
+      };
+    } catch (error) {
+      logger.error("❌ Failed to update approval status", {
+        error: error?.response?.data?.message || error.message,
+      });
+
+      throw new Error(
+        error?.response?.data?.message ||
+          error.message ||
+          "Gagal memperbarui status persetujuan"
+      );
+    }
+  },
+
+  /**
+   * PUT Update Revision
+   * Endpoint: PUT /v1/custom/hindrance-detail/revisi/:id
+   */
+  async updateRevision(id, data) {
+    try {
+      if (!id) {
+        throw new Error("ID kendala harus diisi");
+      }
+
+      logger.info("📝 Updating revision", {
+        id,
+        updates: Object.keys(data),
+      });
+
+      const response = await offlineService.put(
+        `/v1/custom/hindrance-detail/revisi/${id}`,
+        data,
+        {
+          invalidateCache: true,
+        }
+      );
+
+      logger.info("✅ Revision updated", { id });
+
+      return {
+        success: true,
+        data: response.data,
+        message: "Revisi berhasil diperbarui",
+      };
+    } catch (error) {
+      logger.error("❌ Failed to update revision", {
+        error: error?.response?.data?.message || error.message,
+        id,
+      });
+
+      throw new Error(
+        error?.response?.data?.message ||
+          error.message ||
+          "Gagal memperbarui revisi"
+      );
+    }
+  },
+
+  /**
+   * Upload Evidence/Photo
+   * Strapi upload endpoint returns ARRAY directly, not wrapped in {data: [...]}
    */
   async uploadEvidence(file) {
     try {
@@ -282,13 +378,11 @@ export const hindranceService = {
         throw new Error("File tidak boleh kosong");
       }
 
-      // Validasi tipe file
       const validTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
       if (!validTypes.includes(file.type)) {
         throw new Error("Hanya file JPG, PNG, dan WebP yang diperbolehkan");
       }
 
-      // Validasi ukuran (max 5MB)
       if (file.size > 5 * 1024 * 1024) {
         throw new Error("Ukuran file maksimal 5MB");
       }
@@ -308,44 +402,53 @@ export const hindranceService = {
         },
       });
 
-      // Response bisa berupa array langsung atau wrapped
-      let uploadedFile;
+      // Debug: Log full response structure
+
+      // Strapi upload response bisa dalam beberapa format:
+      // 1. Direct array: [{id: 5, url: "...", ...}]
+      // 2. Wrapped in data: {data: [{id: 5, url: "...", ...}]}
+      // 3. Wrapped with single object: {data: {id: 5, url: "...", ...}}
       
-      if (Array.isArray(response.data)) {
-        // Direct array response
+      let uploadedFile = null;
+
+      // Case 1: Response is direct array
+      if (Array.isArray(response)) {
+        uploadedFile = response[0];
+      }
+      // Case 2: Response has data property that is array
+      else if (response.data && Array.isArray(response.data)) {
         uploadedFile = response.data[0];
-      } else if (response.data && typeof response.data === 'object') {
-        // Check if it's wrapped in a data property
-        if (Array.isArray(response.data.data)) {
-          uploadedFile = response.data.data[0];
-        } else if (response.data.id) {
-          // Single file object
-          uploadedFile = response.data;
-        } else {
-          // Fallback: use entire response
-          uploadedFile = response[0] || response;
-        }
-      } else {
-        // Last resort: check if response itself is an array
-        uploadedFile = Array.isArray(response) ? response[0] : response;
+      }
+      // Case 3: Response has data property that is object
+      else if (response.data && typeof response.data === 'object') {
+        uploadedFile = response.data;
+      }
+      // Case 4: Response is direct object
+      else if (response.id) {
+        uploadedFile = response;
       }
 
-      if (!uploadedFile?.id) {
-        console.error("❌ Full response structure:", JSON.stringify(response, null, 2));
-        throw new Error("Upload berhasil tetapi ID tidak ditemukan dalam response");
+      // Validate uploadedFile
+      if (!uploadedFile || !uploadedFile.id) {
+        console.error("❌ Upload response structure:", JSON.stringify(response, null, 2));
+        throw new Error(
+          "Upload berhasil tetapi ID tidak ditemukan dalam response. Periksa struktur response API."
+        );
       }
 
       logger.info("✅ Evidence uploaded", {
         id: uploadedFile.id,
         url: uploadedFile.url,
+        name: uploadedFile.name,
       });
 
       return {
         success: true,
         data: {
-          id: uploadedFile.id, // ID untuk evidence field
-          url: uploadedFile.url, // URL untuk preview
+          id: uploadedFile.id,
+          url: `${import.meta.env.VITE_API_URL}${uploadedFile.url}`, // Adjust base path as needed
           name: uploadedFile.name,
+          formats: uploadedFile.formats || null, // Include formats for thumbnail/preview
         },
         message: "Foto berhasil diupload",
       };

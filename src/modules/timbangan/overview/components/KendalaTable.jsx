@@ -1,4 +1,4 @@
-// KendalaTable.jsx - Updated dengan Edit & Delete actions
+// KendalaTable.jsx - Updated dengan Edit & Delete actions dan handling evidence yang benar
 import React, { useState } from 'react';
 import { AlertTriangle, FileText, Image, MoreVertical, Edit, Trash2 } from 'lucide-react';
 import { Badge } from '@/shared/components/ui/badge';
@@ -36,6 +36,32 @@ const KendalaTable = ({ kendalaList, isLoading, onEdit, onDelete }) => {
   const handleDelete = (kendala) => {
     onDelete?.(kendala);
     setActionMenuOpen(null);
+  };
+
+  /**
+   * Parse evidence dari berbagai format yang mungkin
+   * Backend mengirim array of media IDs, tapi bisa juga string JSON
+   */
+  const parseEvidence = (evidence) => {
+    if (!evidence) return [];
+
+    // Jika sudah array
+    if (Array.isArray(evidence)) {
+      return evidence;
+    }
+
+    // Jika string, coba parse
+    if (typeof evidence === 'string') {
+      try {
+        const parsed = JSON.parse(evidence);
+        return Array.isArray(parsed) ? parsed : [];
+      } catch (e) {
+        console.error('Failed to parse evidence:', e);
+        return [];
+      }
+    }
+
+    return [];
   };
 
   return (
@@ -77,26 +103,17 @@ const KendalaTable = ({ kendalaList, isLoading, onEdit, onDelete }) => {
                 Bukti
               </th>
               <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+                Status
+              </th>
+              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
                 Actions
               </th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
             {kendalaList.map((kendala, index) => {
-              // Parse evidence photos
-              let photos = [];
-              if (kendala.evidence) {
-                if (typeof kendala.evidence === 'string') {
-                  try {
-                    const parsed = JSON.parse(kendala.evidence);
-                    photos = Array.isArray(parsed) ? parsed : [];
-                  } catch (e) {
-                    photos = [];
-                  }
-                } else if (Array.isArray(kendala.evidence)) {
-                  photos = kendala.evidence;
-                }
-              }
+              // Parse evidence - backend returns array of media IDs
+              const evidenceIds = parseEvidence(kendala.evidence);
 
               return (
                 <tr 
@@ -141,39 +158,46 @@ const KendalaTable = ({ kendalaList, isLoading, onEdit, onDelete }) => {
                     </Badge>
                   </td>
                   <td className="px-4 py-3">
-                    {photos.length > 0 ? (
+                    {evidenceIds.length > 0 ? (
                       <div className="flex items-center gap-2">
                         <Image className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                         <span className="text-sm text-blue-600 dark:text-blue-400 font-medium">
-                          {photos.length} foto
+                          {evidenceIds.length} foto
                         </span>
-                        <div className="flex gap-1 ml-2">
-                          {photos.slice(0, 3).map((photo, idx) => (
-                            <div
-                              key={idx}
-                              className="relative w-10 h-10 rounded border border-gray-300 dark:border-gray-600 overflow-hidden cursor-pointer hover:opacity-80 transition-opacity"
-                              onClick={() => window.open(photo.url || photo, '_blank')}
-                            >
-                              <img
-                                src={photo.url || photo}
-                                alt={`Bukti ${idx + 1}`}
-                                className="w-full h-full object-cover"
-                              />
-                            </div>
-                          ))}
-                          {photos.length > 3 && (
-                            <div className="w-10 h-10 rounded border border-gray-300 dark:border-gray-600 bg-gray-100 dark:bg-gray-700 flex items-center justify-center">
-                              <span className="text-xs font-medium text-gray-600 dark:text-gray-400">
-                                +{photos.length - 3}
-                              </span>
-                            </div>
-                          )}
-                        </div>
+                        {/* Note: We're showing IDs count here, not actual images 
+                            since backend returns IDs. To show actual images, 
+                            you'd need to fetch the media URLs separately */}
                       </div>
                     ) : (
                       <span className="text-sm text-gray-400 dark:text-gray-500">
                         Tidak ada
                       </span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3">
+                    {kendala.approval_status && (
+                      <Badge
+                        variant="outline"
+                        className={
+                          kendala.approval_status === 'approved'
+                            ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200 border-green-300 dark:border-green-700'
+                            : kendala.approval_status === 'rejected'
+                            ? 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200 border-red-300 dark:border-red-700'
+                            : 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-200 border-yellow-300 dark:border-yellow-700'
+                        }
+                      >
+                        {kendala.approval_status === 'approved' && 'Disetujui'}
+                        {kendala.approval_status === 'rejected' && 'Ditolak'}
+                        {kendala.approval_status === 'pending' && 'Menunggu'}
+                      </Badge>
+                    )}
+                    {kendala.revision_status === 'needs_update' && (
+                      <Badge
+                        variant="outline"
+                        className="ml-1 bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-200 border-orange-300 dark:border-orange-700"
+                      >
+                        Perlu Revisi
+                      </Badge>
                     )}
                   </td>
                   <td className="px-4 py-3">
@@ -190,10 +214,11 @@ const KendalaTable = ({ kendalaList, isLoading, onEdit, onDelete }) => {
                           <MoreVertical className="h-4 w-4" />
                         </Button>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-40 dark:bg-slate-800  border-none">
+                      <DropdownMenuContent align="end" className="w-40 dark:bg-slate-800 border-none">
                         <DropdownMenuItem
                           onClick={() => handleEdit(kendala)}
                           className="cursor-pointer dark:text-neutral-50"
+                          disabled={kendala.approval_status === 'approved'}
                         >
                           <Edit className="mr-2 h-4 w-4" />
                           Edit
@@ -201,6 +226,7 @@ const KendalaTable = ({ kendalaList, isLoading, onEdit, onDelete }) => {
                         <DropdownMenuItem
                           onClick={() => handleDelete(kendala)}
                           className="cursor-pointer text-red-600 dark:text-red-400 focus:text-red-600 dark:focus:text-red-400"
+                          disabled={kendala.approval_status === 'approved'}
                         >
                           <Trash2 className="mr-2 h-4 w-4" />
                           Hapus
