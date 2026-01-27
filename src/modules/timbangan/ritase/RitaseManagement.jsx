@@ -370,7 +370,6 @@ const RitaseManagement = () => {
           return { success: true, data: result.data };
         }
 
-        showToast.error(result.error || TOAST_MESSAGES.ERROR.CREATE);
         return { success: false, error: result.error };
       } catch (error) {
         console.error("❌ Submit ritase error:", error);
