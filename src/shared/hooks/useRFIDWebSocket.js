@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { io } from "socket.io-client";
 import { showToast } from "@/shared/utils/toast";
 
-const RFID_SOCKET_URL = "ws://192.168.1.54:9999";
+const RFID_SOCKET_URL = "ws://192.168.1.39:9999";
 const RECONNECT_DELAY = 5000;
 const MAX_RECONNECT_ATTEMPTS = 3;
 const CONNECTION_TIMEOUT = 5000;
@@ -215,17 +215,18 @@ export const useRFIDWebSocket = (options = {}) => {
     };
   }, [cleanupSocket]);
 
-  return {
-    isConnected,
-    isConnecting,
-    lastScan,
-    error,
-    reconnectAttempt,
+return {
+  isConnected,
+  isConnecting,
+  lastScan,
+  error,
+  reconnectAttempt,
 
-    connect,
-    disconnect,
-    reconnect,
-    sendWeightStable,
-    clearLastScan,
-  };
+  connect,
+  disconnect,
+  reconnect,
+  sendWeightStable,
+  clearLastScan,
+  enableScanning: sendWeightStable, 
+};
 };

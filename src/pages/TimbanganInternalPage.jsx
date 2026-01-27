@@ -104,13 +104,13 @@ const TimbanganInternalPage = () => {
       {
         name: "Overview",
         icon: BarChart3,
-        roles: ["admin", "super_admin","ccr", "checker","pengawas",],
+        roles: ["admin", "super_admin","ccr", "pengawas",],
         locationId: "overview",
       },
       {
         name: "Laporan",
         icon: BarChart3,
-        roles: ["admin", "super_admin", "ccr", "checker","pengawas",],
+        roles: ["admin", "super_admin", "ccr", "pengawas",],
         locationId: "laporan",
       },
       {

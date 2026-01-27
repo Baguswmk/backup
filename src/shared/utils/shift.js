@@ -27,8 +27,10 @@ export const getCurrentShift = () => {
     return "Shift 1";
   } else if (currentHour >= 6 && currentHour < 14) {
     return "Shift 2";
-  } else {
+  } else if (currentHour >= 14 && currentHour < 22) {
     return "Shift 3";
+  } else {
+    return "All"
   }
 };
 
