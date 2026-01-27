@@ -40,7 +40,7 @@ export const generatePDF_SPPH = (data, params) => {
     item.unit_exca || "-",
     item.grup || "-",
     item.status || "-",
-    item.input || "-",
+    item.input_type || "-",
   ]);
 
   autoTable(doc, {
@@ -126,7 +126,7 @@ export const generatePDF_DumpTruck = (data, params) => {
     item.coal_type || "-",
     item.grup || "-",
     item.status || "-",
-    item.input || "-",
+    item.input_type || "-",
     item.input_by || "-",
     item.nama_operator || "-",
     item.lokasi || "-",
@@ -474,7 +474,10 @@ export const generateFile = (data, format, params, reportType = "spph") => {
     throw new Error("Tidak ada data untuk diexport");
   }
 
-  if (reportType === "dump-truck") {
+  // ✅ Perbaikan: cek jika reportType mengandung "dump-truck"
+  const isDumpTruckReport = reportType.includes("dump-truck");
+
+  if (isDumpTruckReport) {
     switch (format) {
       case "pdf":
         return generatePDF_DumpTruck(data, params);

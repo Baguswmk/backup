@@ -5,6 +5,7 @@ import {
   Package,
   BarChart3,
   File,
+  RefreshCw,
 } from "lucide-react";
 
 export const LAPORAN_CONFIG = [
@@ -39,6 +40,7 @@ export const LAPORAN_CONFIG = [
           "bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-800",
       },
     ],
+    excludeForRehandling: true,
   },
   {
     id: "laporan-dump-truck",
@@ -71,6 +73,78 @@ export const LAPORAN_CONFIG = [
           "bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-800",
       },
     ],
+    excludeForRehandling: true,
+  },
+
+  {
+    id: "laporan-spph-rehandling",
+    type: "spph-rehandling",
+    title: "Laporan Tonase SPPH Rehandling",
+    description:
+      "Laporan tonase produksi SPPH rehandling per tanggal dan shift",
+    icon: Package,
+    iconBgColor: "bg-purple-100 dark:bg-purple-900/30",
+    iconColor: "text-purple-600 dark:text-purple-400",
+    downloadFormats: [
+      {
+        value: "pdf",
+        label: "PDF",
+        icon: FileText,
+        color:
+          "bg-red-600 hover:bg-red-700 dark:bg-red-700 dark:hover:bg-red-800",
+      },
+      {
+        value: "excel",
+        label: "Excel",
+        icon: FileSpreadsheet,
+        color:
+          "bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-800",
+      },
+      {
+        value: "csv",
+        label: "CSV",
+        icon: File,
+        color:
+          "bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-800",
+      },
+    ],
+    onlyForRehandling: true,
+    rehandlingType: "Coal Rehandling",
+  },
+  {
+    id: "laporan-dump-truck-rehandling",
+    type: "dump-truck-rehandling",
+    title: "Laporan Tonase Dump Truck Rehandling",
+    description:
+      "Laporan tonase pengiriman dump truck rehandling per tanggal dan shift",
+    icon: RefreshCw,
+    iconBgColor: "bg-teal-100 dark:bg-teal-900/30",
+    iconColor: "text-teal-600 dark:text-teal-400",
+    downloadFormats: [
+      {
+        value: "pdf",
+        label: "PDF",
+        icon: FileText,
+        color:
+          "bg-red-600 hover:bg-red-700 dark:bg-red-700 dark:hover:bg-red-800",
+      },
+      {
+        value: "excel",
+        label: "Excel",
+        icon: FileSpreadsheet,
+        color:
+          "bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-800",
+      },
+      {
+        value: "csv",
+        label: "CSV",
+        icon: File,
+        color:
+          "bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-800",
+      },
+    ],
+    onlyForRehandling: true,
+    rehandlingType: "Coal Rehandling",
   },
 ];
 
@@ -80,4 +154,14 @@ export const getLaporanConfig = (type) => {
 
 export const getLaporanTypes = () => {
   return LAPORAN_CONFIG.map((config) => config.type);
+};
+
+export const getFilteredLaporanConfig = (isRehandling) => {
+  return LAPORAN_CONFIG.filter((config) => {
+    if (isRehandling) {
+      return config.onlyForRehandling === true;
+    } else {
+      return !config.onlyForRehandling;
+    }
+  });
 };

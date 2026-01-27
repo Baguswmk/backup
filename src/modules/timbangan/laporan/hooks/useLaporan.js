@@ -8,7 +8,15 @@ export const useLaporan = () => {
   const [downloadFormat, setDownloadFormat] = useState(null);
 
   const downloadLaporan = useCallback(async (type, params) => {
-    const { startDate, endDate, shift, format, spph, unit_dump_truck } = params;
+    const {
+      startDate,
+      endDate,
+      shift,
+      format,
+      spph,
+      unit_dump_truck,
+      type: payloadType,
+    } = params;
 
     if (!startDate) {
       showToast.error("Tanggal mulai harus dipilih");
@@ -39,8 +47,10 @@ export const useLaporan = () => {
     setDownloadType(type);
     setDownloadFormat(format);
 
+    const typeLabel =
+      payloadType === "Coal Rehandling" ? `${type} (Rehandling)` : type;
     const loadingToast = showToast.loading(
-      `Mengunduh laporan ${type} (${format.toUpperCase()})...`,
+      `Mengunduh laporan ${typeLabel} (${format.toUpperCase()})...`,
     );
 
     try {
@@ -69,6 +79,30 @@ export const useLaporan = () => {
           });
           break;
 
+        case "spph-rehandling":
+          result = await laporanService.downloadLaporanSPPHRehandling({
+            startDate,
+            endDate,
+            shift,
+            format,
+            spph,
+            unit_dump_truck,
+            type: payloadType,
+          });
+          break;
+
+        case "dump-truck-rehandling":
+          result = await laporanService.downloadLaporanDumpTruckRehandling({
+            startDate,
+            endDate,
+            shift,
+            format,
+            spph,
+            unit_dump_truck,
+            type: payloadType,
+          });
+          break;
+
         default:
           result = await laporanService.downloadLaporan({
             startDate,
@@ -77,6 +111,7 @@ export const useLaporan = () => {
             format,
             spph,
             unit_dump_truck,
+            type: payloadType,
           });
       }
 
@@ -86,7 +121,7 @@ export const useLaporan = () => {
       return result;
     } catch (error) {
       showToast.safeDismiss(loadingToast);
-      showToast.error(error.message || `Gagal mengunduh laporan ${type}`);
+      showToast.error(error.message || `Gagal mengunduh laporan ${typeLabel}`);
       throw error;
     } finally {
       setIsDownloading(false);
@@ -105,6 +140,20 @@ export const useLaporan = () => {
   const downloadLaporanDumpTruck = useCallback(
     async (params) => {
       return downloadLaporan("dump-truck", params);
+    },
+    [downloadLaporan],
+  );
+
+  const downloadLaporanSPPHRehandling = useCallback(
+    async (params) => {
+      return downloadLaporan("spph-rehandling", params);
+    },
+    [downloadLaporan],
+  );
+
+  const downloadLaporanDumpTruckRehandling = useCallback(
+    async (params) => {
+      return downloadLaporan("dump-truck-rehandling", params);
     },
     [downloadLaporan],
   );
@@ -132,6 +181,8 @@ export const useLaporan = () => {
     downloadLaporan,
     downloadLaporanSPPH,
     downloadLaporanDumpTruck,
+    downloadLaporanSPPHRehandling,
+    downloadLaporanDumpTruckRehandling,
     isTypeDownloading,
     isFormatDownloading,
   };

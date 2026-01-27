@@ -29,15 +29,16 @@ const fetchDataAndGenerateFile = async (endpoint, params, reportType) => {
   try {
     validateDownloadParams(params);
 
-    const { startDate, endDate, shift, format, spph, unit_dump_truck } = params;
+    const { startDate, endDate, shift, format, spph, unit_dump_truck, type } = params;
 
-    logger.info(`📥 Fetching report data from ${endpoint}`, {
+    logger.info(`🔥 Fetching report data from ${endpoint}`, {
       startDate,
       endDate,
       shift,
       format,
       spph,
       unit_dump_truck,
+      type,
       reportType,
     });
 
@@ -53,6 +54,10 @@ const fetchDataAndGenerateFile = async (endpoint, params, reportType) => {
 
     if (unit_dump_truck) {
       queryParams.unit_dump_truck = unit_dump_truck;
+    }
+
+    if (type) {
+      queryParams.type = type;
     }
 
     const response = await offlineService.get(endpoint, {
@@ -77,14 +82,16 @@ const fetchDataAndGenerateFile = async (endpoint, params, reportType) => {
         shift,
         spph,
         unit_dump_truck,
+        type, 
       },
-      reportType // 👈 Ini yang membedakan struktur laporan
+      reportType 
     );
 
     logger.info(`✅ File generated successfully`, {
       filename: result.filename,
       format,
       reportType,
+      type: type || 'regular',
     });
 
     return {
@@ -122,9 +129,17 @@ const laporanService = {
     return fetchDataAndGenerateFile("/v1/custom/report", params, "dump-truck");
   },
 
+  downloadLaporanSPPHRehandling: async (params) => {
+    return fetchDataAndGenerateFile("/v1/custom/report", params, "spph-rehandling");
+  },
+
+  downloadLaporanDumpTruckRehandling: async (params) => {
+    return fetchDataAndGenerateFile("/v1/custom/report", params, "dump-truck-rehandling");
+  },
+
   previewLaporan: async (params) => {
     try {
-      const { startDate, endDate, shift, spph, unit_dump_truck } = params;
+      const { startDate, endDate, shift, spph, unit_dump_truck, type } = params;
 
       logger.info(`👁️ Previewing laporan`, {
         startDate,
@@ -132,6 +147,7 @@ const laporanService = {
         shift,
         spph,
         unit_dump_truck,
+        type,
       });
 
       const queryParams = {
@@ -142,6 +158,7 @@ const laporanService = {
 
       if (spph) queryParams.spph = spph;
       if (unit_dump_truck) queryParams.unit_dump_truck = unit_dump_truck;
+      if (type) queryParams.type = type;
 
       const response = await offlineService.get("/v1/custom/report", {
         params: queryParams,
