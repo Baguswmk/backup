@@ -763,7 +763,7 @@ async fetchSummaryFleetByRitases(options = {}) {
           pic_work_unit: data.pic_work_unit,
           checker: data.checker,
           inspector: data.inspector,
-
+          created_by_user: data.created_by_user,
           distance: parseFloat(data.distance) || 0,
 
           id_setting_fleet: data.id_setting_fleet || null,

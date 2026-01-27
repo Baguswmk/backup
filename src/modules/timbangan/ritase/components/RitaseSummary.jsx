@@ -37,7 +37,6 @@ const totalTonase = summaryData.summaries.reduce(
       };
     }, [summaryData]);
 
-    console.log(stats)
     
   const statCards = [
     {

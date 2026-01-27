@@ -25,10 +25,10 @@ const RitaseDuplicateForm = ({ sourceRitase, onSubmit, onCancel }) => {
     date: new Date().toISOString().split('T')[0],
     shift: sourceRitase.shift || "Shift 1",
     checker: sourceRitase.checker,
-    inspector:sourceRitase.inspector
+    inspector:sourceRitase.inspector,
+    created_by_user: sourceRitase.created_by_user.id
   });
 
-  
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 const [submitError, setSubmitError] = useState(null);
@@ -184,6 +184,7 @@ const [submitError, setSubmitError] = useState(null);
         date: formData.date,
         shift: formData.shift,
         company:selectedDumpTruck?.company,
+        created_by_user: sourceRitase.created_by_user.id,
         tare_weight: selectedDumpTruck.tare_weight,
         unit_exca: sourceRitase.unit_exca,
         loading_location: sourceRitase.loading_location,
