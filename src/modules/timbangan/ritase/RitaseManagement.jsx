@@ -15,7 +15,7 @@ import RitaseList from "@/modules/timbangan/ritase/components/RitaseList";
 import RitaseSummary from "@/modules/timbangan/ritase/components/RitaseSummary";
 
 import RitaseInputModal from "@/modules/timbangan/ritase/components/RitaseInputModal";
-import RitaseInputModalRFID from "@/modules/timbangan/ritase/components/RitaseInputModalRFID";
+// import RitaseInputModalRFID from "@/modules/timbangan/ritase/components/RitaseInputModalRFID";
 import LoadingOverlay from "@/shared/components/LoadingOverlay";
 
 import { useRitaseStore } from "@/modules/timbangan/ritase/store/ritaseStore";
@@ -29,15 +29,13 @@ import { useMasterData } from "@/modules/timbangan/masterData/hooks/useMasterDat
 import {
   TOAST_MESSAGES,
   USER_ROLES,
-  TIMBANGAN_TYPES,
 } from "@/modules/timbangan/ritase/constant/ritaseConstants";
-import RitaseInputModalWebSocket from "./components/RitaseInputModalWebSocket";
+// import RitaseInputModalWebSocket from "./components/RitaseInputModalWebSocket";
 
 const RitaseManagement = () => {
   const { user } = useAuthStore();
   const userRole = user?.role;
 
-  // ✅ BARU: Tambah hook untuk master data refresh
   const { 
     refreshAllMasterData, 
     isRefreshingMasterData 
