@@ -313,6 +313,7 @@ const handleSave = useCallback(async () => {
         payload.net_weight = parseFloat(ritaseData.weight);
       }
     }
+
     const result = await onSave(payload);
 
     if (result?.success) {
@@ -658,7 +659,7 @@ const inspectorItems = useMemo(() => {
                   onChange={(e) =>
                     setRitaseData((p) => ({ ...p, date: e.target.value }))
                   }
-                  max={new Date().toISOString().split("T")[0]}
+                 max={new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split("T")[0]}
                   disabled={isSaving}
                   className="border-none dark:text-gray-300 dark:bg-gray-700"
                 />

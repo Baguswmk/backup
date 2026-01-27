@@ -89,11 +89,11 @@ const AggregatedRitase = ({
   ritaseFilterOptions,
   onResetRitaseFilters,
   hasActiveRitaseFilters,
-  onCreateRitase, 
-  fleetConfigs = [], 
+  onCreateRitase,
+  fleetConfigs = [],
   onUpdateRitase,
-          onDeleteRitase,
-          onDuplicateRitase,
+  onDeleteRitase,
+  onDuplicateRitase,
 }) => {
   const [selectedDetail, setSelectedDetail] = useState(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -113,7 +113,7 @@ const AggregatedRitase = ({
     if (activeTab === "excavator") {
       return aggregatedData;
     }
-    
+
     const grouped = {};
     aggregatedData.forEach((item) => {
       let key;
@@ -167,9 +167,7 @@ const AggregatedRitase = ({
     return Math.ceil(groupedData.length / ITEMS_PER_PAGE);
   }, [groupedData]);
 
-  
   const handleAddRitaseFromItem = (item) => {
-    
     const matchingFleet = fleetConfigs.find(
       (fleet) =>
         fleet.excavatorId === item.excavatorId &&
@@ -182,11 +180,11 @@ const AggregatedRitase = ({
       setShowInputModal(true);
     } else {
       console.warn("⚠️ No matching fleet config found for:", item);
-      
+
       setShowInputModal(true);
     }
   };
-  
+
   const handleSubmitRitase = async (ritaseData) => {
     if (onCreateRitase) {
       const result = await onCreateRitase(ritaseData);
@@ -436,7 +434,6 @@ const AggregatedRitase = ({
                                 align="end"
                                 className="w-40 sm:w-48 bg-neutral-50 dark:bg-slate-800 dark:text-neutral-50 border-none shadow-sm shadow-slate-700"
                               >
-                               
                                 <DropdownMenuItem
                                   onClick={() => handleDetailClick(item)}
                                   className="cursor-pointer hover:bg-gray-200 dark:hover:bg-slate-700 text-xs sm:text-sm"
@@ -494,15 +491,15 @@ const AggregatedRitase = ({
                 {aggregatedData.length} excavator
               </Badge>
               {isCCR && (
-              <Button
-                onClick={() => setShowInputModal(true)}
-                size="sm"
-                className="bg-blue-600 hover:bg-blue-700 text-white dark:bg-blue-600 dark:hover:bg-blue-700"
-              >
-                <Plus className="w-4 h-4 mr-1" />
-                <span className="hidden sm:inline">Tambah Ritase</span>
-                <span className="sm:hidden">Add</span>
-              </Button>
+                <Button
+                  onClick={() => setShowInputModal(true)}
+                  size="sm"
+                  className="bg-blue-600 hover:bg-blue-700 text-white dark:bg-blue-600 dark:hover:bg-blue-700"
+                >
+                  <Plus className="w-4 h-4 mr-1" />
+                  <span className="hidden sm:inline">Tambah Ritase</span>
+                  <span className="sm:hidden">Add</span>
+                </Button>
               )}
             </div>
           </CardTitle>
@@ -626,9 +623,9 @@ const AggregatedRitase = ({
                   filterOptions={ritaseFilterOptions}
                   onResetFilters={onResetRitaseFilters}
                   hasActiveFilters={hasActiveRitaseFilters}
-                   onUpdateRitase={onUpdateRitase}
-          onDeleteRitase={onDeleteRitase}
-          onDuplicateRitase={onDuplicateRitase}  
+                  onUpdateRitase={onUpdateRitase}
+                  onDeleteRitase={onDeleteRitase}
+                  onDuplicateRitase={onDuplicateRitase}
                 />
               </TabsContent>
             )}

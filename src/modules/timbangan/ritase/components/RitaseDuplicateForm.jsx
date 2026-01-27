@@ -178,7 +178,6 @@ const [submitError, setSubmitError] = useState(null);
       );
       
       const tare_weight = selectedDumpTruck?.tare_weight || 0;
-      
       const duplicatedData = {
         unit_dump_truck: selectedDumpTruck?.hull_no || selectedDumpTruck?.name || "",
         operator: selectedOperator?.name || "",
@@ -353,7 +352,8 @@ const [submitError, setSubmitError] = useState(null);
             type="date"
             value={formData.date}
             onChange={(e) => handleChange("date", e.target.value)}
-            max={new Date().toISOString().split("T")[0]}
+                             max={new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split("T")[0]}
+
             disabled={isSubmitting}
             className={`dark:bg-slate-800 dark:text-gray-100 ${
               errors.date ? "border-red-500" : ""
