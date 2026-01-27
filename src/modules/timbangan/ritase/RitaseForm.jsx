@@ -405,8 +405,8 @@ const RitaseForm = ({
 
   const workUnitOptions = useMemo(() => {
     return (masters.workUnits || []).map((wu) => ({
-      value: wu.subsatker,
-      label: wu.subsatker,
+      value: wu.satker || wu.subsatker,
+      label: wu.satker || wu.subsatker,
       hint: wu.satker,
     }));
   }, [masters.workUnits]);

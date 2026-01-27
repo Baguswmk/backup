@@ -533,67 +533,67 @@ const RitaseInputModal = ({
     }
   }, [manualEditMode, wsConnected, currentWeight]);
 
-  const handleManualWeightChange = useCallback(
-    (value) => {
-      const canEdit = manualEditMode || insertedWeight !== null;
+    const handleManualWeightChange = useCallback(
+      (value) => {
+        const canEdit = manualEditMode || insertedWeight !== null;
 
-      if (canEdit) {
-        let formattedValue = value.replace(/,/g, ".");
+        if (canEdit) {
+          let formattedValue = value.replace(/,/g, ".");
 
-        const measurementType =
-          selectedFleet?.measurement_type ||
-          selectedFleet?.measurementType ||
-          MEASUREMENT_TYPES.TIMBANGAN;
-        const hasWeighBridge = user?.weigh_bridge != null;
+          const measurementType =
+            selectedFleet?.measurement_type ||
+            selectedFleet?.measurementType ||
+            MEASUREMENT_TYPES.TIMBANGAN;
+          const hasWeighBridge = user?.weigh_bridge != null;
 
-        const isGrossWeight =
-          measurementType === MEASUREMENT_TYPES.TIMBANGAN && hasWeighBridge;
-        const isNetWeight =
-          (measurementType === MEASUREMENT_TYPES.TIMBANGAN &&
-            !hasWeighBridge) ||
-          measurementType === MEASUREMENT_TYPES.BYPASS;
+          const isGrossWeight =
+            measurementType === MEASUREMENT_TYPES.TIMBANGAN && hasWeighBridge;
+          const isNetWeight =
+            (measurementType === MEASUREMENT_TYPES.TIMBANGAN &&
+              !hasWeighBridge) ||
+            measurementType === MEASUREMENT_TYPES.BYPASS;
 
-        const netWeightRegex = /^\d{0,2}(\.\d{0,2})?$/;
-        const grossWeightRegex = /^\d{0,3}(\.\d{0,2})?$/;
+          const netWeightRegex = /^\d{0,2}(\.\d{0,2})?$/;
+          const grossWeightRegex = /^\d{0,3}(\.\d{0,2})?$/;
 
-        let isValid = false;
-        if (formattedValue === "") {
-          isValid = true;
-        } else if (isGrossWeight) {
-          isValid = grossWeightRegex.test(formattedValue);
-          const numValue = parseFloat(formattedValue);
-          if (!isNaN(numValue) && numValue > 199.99) {
-            isValid = false;
-          }
-        } else if (isNetWeight) {
-          isValid = netWeightRegex.test(formattedValue);
-          const numValue = parseFloat(formattedValue);
-          if (!isNaN(numValue) && numValue > 99.99) {
-            isValid = false;
-          }
-        }
-
-        if (isValid) {
-          setDisplayWeight(formattedValue);
-
-          if (isGrossWeight) {
-            setGrossWeight(formattedValue);
-            setErrors((prev) => ({ ...prev, gross_weight: null }));
+          let isValid = false;
+          if (formattedValue === "") {
+            isValid = true;
+          } else if (isGrossWeight) {
+            isValid = grossWeightRegex.test(formattedValue);
+            const numValue = parseFloat(formattedValue);
+            if (!isNaN(numValue) && numValue > 199.99) {
+              isValid = false;
+            }
           } else if (isNetWeight) {
-            setNetWeight(formattedValue);
-            setErrors((prev) => ({ ...prev, net_weight: null }));
+            isValid = netWeightRegex.test(formattedValue);
+            const numValue = parseFloat(formattedValue);
+            if (!isNaN(numValue) && numValue > 99.99) {
+              isValid = false;
+            }
           }
 
-          if (insertedWeight !== null) {
-            setInsertedWeight(null);
-            setInsertedTime(null);
-            setIsWeightStable(false);
+          if (isValid) {
+            setDisplayWeight(formattedValue);
+
+            if (isGrossWeight) {
+              setGrossWeight(formattedValue);
+              setErrors((prev) => ({ ...prev, gross_weight: null }));
+            } else if (isNetWeight) {
+              setNetWeight(formattedValue);
+              setErrors((prev) => ({ ...prev, net_weight: null }));
+            }
+
+            if (insertedWeight !== null) {
+              setInsertedWeight(null);
+              setInsertedTime(null);
+              setIsWeightStable(false);
+            }
           }
         }
-      }
-    },
-    [manualEditMode, insertedWeight, selectedFleet, user],
-  );
+      },
+      [manualEditMode, insertedWeight, selectedFleet, user],
+    );
 
   const validateForm = useCallback(() => {
     const newErrors = {};

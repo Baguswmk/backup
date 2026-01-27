@@ -350,9 +350,9 @@ export const filterDataByRole = (data, userRole, user) => {
 
   switch (filterType) {
     case "subsatker": {
-      const userSubsatker = user?.work_unit?.subsatker || user?.subsatker;
+      const userSubsatker =  user?.subsatker ||user?.work_unit?.subsatker ;
       if (!userSubsatker) {
-        console.warn(`⚠️ ${roleLower}: User subsatker not found`);
+        console.warn(`⚠️ ${roleLower}: User satker not found`);
         return [];
       }
 
@@ -417,7 +417,7 @@ export const getFilterDescription = (userRole, user) => {
     case "weigh_bridge":
       return `Timbangan: ${user?.weigh_bridge?.name || "Not configured"}`;
     case "subsatker":
-      return `Subsatker: ${user?.work_unit?.subsatker || "Not configured"}`;
+      return `Subsatker: ${user?.work_unit?.satker ||user?.work_unit?.subsatker || "Not configured"}`;
     case "company":
       return `Company: ${user?.company?.name || "Not configured"}`;
     default:

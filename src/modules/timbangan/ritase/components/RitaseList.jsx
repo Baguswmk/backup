@@ -342,7 +342,7 @@ const RitaseList = ({
                                 className="cursor-pointer hover:bg-gray-200 dark:hover:bg-slate-700"
                               >
                                 <Copy className="mr-2 h-4 w-4" />
-                                Duplikat
+                                Tambah Ritase
                               </DropdownMenuItem>
                               <DropdownMenuItem
                                 onClick={() => handleEdit(ritase)}
@@ -602,7 +602,7 @@ const RitaseList = ({
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2 dark:text-neutral-50">
                 <Copy className="w-5 h-5" />
-                Duplikat Data Ritase
+                Tambah Data Ritase
               </DialogTitle>
             </DialogHeader>
             <RitaseDuplicateForm

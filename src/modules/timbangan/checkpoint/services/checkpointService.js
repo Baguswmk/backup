@@ -63,12 +63,12 @@ const buildFilters = (options = {}) => {
       break;
 
     case "ccr": {
-      const subsatker = user?.work_unit?.subsatker;
-      if (subsatker) {
+      const satker = user?.work_unit?.satker;
+      if (satker) {
         filters.pic_work_unit = {
-          $eq: subsatker,
+          $eq: satker,
         };
-        logger.info("🏢 Subsatker filter applied (CCR)", { subsatker });
+        logger.info("🏢 Satker filter applied (CCR)", { satker });
       }
       break;
     }
@@ -76,13 +76,13 @@ const buildFilters = (options = {}) => {
     case "pengawas":
     case "evaluator":
     case "pic":
-      if (user.work_unit?.subsatker) {
+      if (user.work_unit?.satker) {
         filters.pic_work_unit = {
-          $eq: user.work_unit.subsatker,
+          $eq: user.work_unit.satker,
         };
-        logger.info("🏢 Subsatker filter applied", {
+        logger.info("🏢 Satker filter applied", {
           role,
-          subsatker: user.work_unit.subsatker,
+          satker: user.work_unit.satker,
         });
       }
       break;
@@ -464,6 +464,7 @@ export const checkpointService = {
 
           pic_work_unit: attr.pic_work_unit || "-",
           fleet_work_unit:
+            fleetAttr?.pic_work_unit?.data?.attributes?.satker ||
             fleetAttr?.pic_work_unit?.data?.attributes?.subsatker ||
             attr.pic_work_unit ||
             null,

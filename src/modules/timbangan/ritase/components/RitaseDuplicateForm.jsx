@@ -437,7 +437,7 @@ const [submitError, setSubmitError] = useState(null);
           disabled={isSubmitting || mastersLoading}
           className="flex-1 bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white"
         >
-          {isSubmitting ? "Menyimpan..." : "Simpan Duplikat"}
+          {isSubmitting ? "Menyimpan..." : "Simpan Ritase"}
         </Button>
         <Button
           type="button"

@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useCallback } from "react";
 import { useRitaseForm } from "@/modules/timbangan/ritase/hooks/useRitaseForm";
 import {
   Card,
@@ -15,7 +15,6 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/shared/components/ui/popover";
-import { Badge } from "@/shared/components/ui/badge";
 import SearchableSelect from "@/shared/components/SearchableSelect";
 import {
   Truck,
@@ -35,6 +34,12 @@ import useAuthStore from "@/modules/auth/store/authStore";
 import { Calendar } from "@/shared/components/ui/calendar";
 import { showToast } from "@/shared/utils/toast";
 
+const SHIFT_OPTIONS = [
+  { value: "Shift 1", label: "Shift 1 (22:00 - 06:00)" },
+  { value: "Shift 2", label: "Shift 2 (06:00 - 14:00)" },
+  { value: "Shift 3", label: "Shift 3 (14:00 - 22:00)" },
+];
+
 const RitaseEditForm = ({
   editingItem,
   onSubmit,
@@ -53,6 +58,36 @@ const RitaseEditForm = ({
     validateField,
     handleSubmit,
   } = useRitaseForm(editingItem, "edit", masters);
+
+  const useNetWeight = useMemo(() => {
+    if (!editingItem?.checker) return false;
+
+    const checkerLower = editingItem.checker.toLowerCase();
+
+    if (/timbangan/i.test(checkerLower)) {
+      return false;
+    }
+
+    if (/checker/i.test(checkerLower)) {
+      return true;
+    }
+
+    return true;
+  }, [editingItem?.checker]);
+
+  const weightFieldLabel = useMemo(() => {
+    if (useNetWeight) {
+      return "Net Weight (ton)";
+    }
+    return "Gross Weight (ton)";
+  }, [useNetWeight]);
+
+  const weightFieldName = useMemo(() => {
+    if (useNetWeight) {
+      return "net_weight";
+    }
+    return "gross_weight";
+  }, [useNetWeight]);
 
   const loadingLocationOptions = useMemo(() => {
     return (masters.loadingLocations || []).map((loc) => ({
@@ -86,14 +121,6 @@ const RitaseEditForm = ({
     }));
   }, [masters.excavators]);
 
-  const shiftOptions = useMemo(() => {
-    return (masters.shifts || []).map((s) => ({
-      value: s.name,
-      label: s.name,
-      hint: s.hours,
-    }));
-  }, [masters.shifts]);
-
   const coalTypeOptions = useMemo(() => {
     return (masters.coalTypes || []).map((ct) => ({
       value: ct.name,
@@ -104,8 +131,8 @@ const RitaseEditForm = ({
 
   const workUnitOptions = useMemo(() => {
     return (masters.workUnits || []).map((wu) => ({
-      value: wu.subsatker,
-      label: wu.subsatker,
+      value: wu.satker || wu.subsatker,
+      label: wu.satker || wu.subsatker,
       hint: wu.satker,
     }));
   }, [masters.workUnits]);
@@ -139,6 +166,41 @@ const RitaseEditForm = ({
       }
     }
   };
+
+  const handleWeightChange = useCallback(
+    (value) => {
+      let formattedValue = value.replace(/,/g, ".");
+
+      const isNetWeight = useNetWeight;
+      const isGrossWeight = !useNetWeight;
+
+      const netWeightRegex = /^\d{0,2}(\.\d{0,2})?$/;
+      const grossWeightRegex = /^\d{0,3}(\.\d{0,2})?$/;
+
+      let isValid = false;
+
+      if (formattedValue === "") {
+        isValid = true;
+      } else if (isGrossWeight) {
+        isValid = grossWeightRegex.test(formattedValue);
+        const numValue = parseFloat(formattedValue);
+        if (!isNaN(numValue) && numValue > 199.99) {
+          isValid = false;
+        }
+      } else if (isNetWeight) {
+        isValid = netWeightRegex.test(formattedValue);
+        const numValue = parseFloat(formattedValue);
+        if (!isNaN(numValue) && numValue > 99.99) {
+          isValid = false;
+        }
+      }
+
+      if (isValid) {
+        updateField(weightFieldName, formattedValue);
+      }
+    },
+    [useNetWeight, weightFieldName, updateField],
+  );
 
   return (
     <div className="w-full mx-auto space-y-4">
@@ -175,6 +237,14 @@ const RitaseEditForm = ({
                   {editingItem?.date || "-"}
                 </span>
               </div>
+              <div>
+                <span className="text-gray-600 dark:text-gray-400">
+                  Checker:
+                </span>
+                <span className="font-medium ml-2 dark:text-gray-200">
+                  {editingItem?.checker || "-"}
+                </span>
+              </div>
             </div>
           </div>
         </CardContent>
@@ -193,42 +263,38 @@ const RitaseEditForm = ({
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <Label
-                  htmlFor="gross_weight_edit"
+                  htmlFor="weight_edit"
                   className="pb-2 dark:text-gray-300"
                 >
-                  Gross Weight (ton) *
+                  {weightFieldLabel} *
                 </Label>
                 <Input
-                  id="gross_weight_edit"
+                  id="weight_edit"
                   type="text"
                   inputMode="decimal"
-                  value={formData.gross_weight}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    if (value === "") {
-                      updateField("gross_weight", value);
-                      return;
-                    }
-                    const regex = /^\d*\.?\d{0,2}$/;
-                    if (!regex.test(value)) return;
-                    const numValue = parseFloat(value);
-                    if (!isNaN(numValue) && numValue > 999.99) return;
-                    updateField("gross_weight", value);
-                  }}
-                  onBlur={() => validateField("gross_weight")}
+                  value={formData[weightFieldName] || ""}
+                  onChange={(e) => handleWeightChange(e.target.value)}
+                  onBlur={() => validateField(weightFieldName)}
                   className={`dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600 ${
-                    errors.gross_weight ? "border-red-500" : ""
+                    errors[weightFieldName] ? "border-red-500" : ""
                   }`}
                   placeholder="0.00"
                 />
-                {errors.gross_weight && (
+                {errors[weightFieldName] && (
                   <p className="text-sm text-red-500 mt-1">
-                    {errors.gross_weight}
+                    {errors[weightFieldName]}
                   </p>
                 )}
                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                  Maksimal 999.99 ton
+                  {useNetWeight
+                    ? "Maksimal 99.99 ton (Net Weight)"
+                    : "Maksimal 199.99 ton (Gross Weight)"}
                 </p>
+                {errors[weightFieldName] && (
+                  <p className="text-sm text-red-500 mt-1">
+                    {errors[weightFieldName]}
+                  </p>
+                )}
               </div>
             </div>
           </CardContent>
@@ -360,6 +426,59 @@ const RitaseEditForm = ({
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <Label className="pb-2 dark:text-gray-300">Date *</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={`w-full justify-start text-left font-normal dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600 ${
+                        !formData.date ? "text-muted-foreground" : ""
+                      } ${errors.date ? "border-red-500" : ""}`}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {formData.date ? (
+                        format(new Date(formData.date), "dd MMMM yyyy", {
+                          locale: localeId,
+                        })
+                      ) : (
+                        <span>Pilih tanggal</span>
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={formData.date ? new Date(formData.date) : null}
+                      onSelect={(date) => {
+                        if (date) {
+                          updateField("date", format(date, "yyyy-MM-dd"));
+                        }
+                      }}
+                      locale={localeId}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+                {errors.date && (
+                  <p className="text-sm text-red-500 mt-1">{errors.date}</p>
+                )}
+              </div>
+
+              <div>
+                <Label className="pb-2 dark:text-gray-300">Shift *</Label>
+                <SearchableSelect
+                  items={SHIFT_OPTIONS}
+                  value={formData.shift}
+                  onChange={(value) => updateField("shift", value)}
+                  placeholder="Pilih shift..."
+                  error={!!errors.shift}
+                />
+                {errors.shift && (
+                  <p className="text-sm text-red-500 mt-1">{errors.shift}</p>
+                )}
+              </div>
+
               <div>
                 <Label className="pb-2 dark:text-gray-300" htmlFor="distance">
                   Distance (m) *

@@ -20,7 +20,7 @@ const LaporanManagement = () => {
   }, [loadUnits]);
 
   const isRehandling = useMemo(() => {
-    return user?.work_unit?.subsatker === "Coal Rehandling";
+    return user?.work_unit?.satker === "Mine-Mouth Coal Transportation";
   }, [user]);
 
 

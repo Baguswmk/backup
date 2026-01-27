@@ -226,7 +226,7 @@ const FleetManagement = ({ Type }) => {
       workUnits: (masters?.workUnits || EMPTY_ARRAY).map((wu) => ({
         value: String(wu.id),
         label: wu.subsatker,
-        hint: wu.satker || "-",
+        hint: wu.subsatker || "-",
       })),
       loadingLocations: (masters?.loadingLocations || EMPTY_ARRAY).map(
         (loc) => ({
@@ -321,7 +321,7 @@ const FleetManagement = ({ Type }) => {
         showToast.error(getDisabledMessage("update"));
         return;
       }
-      if (!checkDataAccess(config.workUnit || config.subsatker)) {
+      if (!checkDataAccess(config.workUnit || config.satker|| config.subsatker)) {
         showToast.error(TOAST_MESSAGES.WARNING.NO_ACCESS);
         return;
       }
@@ -373,7 +373,7 @@ const FleetManagement = ({ Type }) => {
         showToast.error(getDisabledMessage("delete"));
         return;
       }
-      if (!checkDataAccess(config.workUnit || config.subsatker)) {
+      if (!checkDataAccess(config.workUnit|| config.satker || config.subsatker)) {
         showToast.error(TOAST_MESSAGES.WARNING.NO_ACCESS);
         return;
       }
@@ -610,7 +610,7 @@ const handleSaveConfig = async (configData) => {
           userRole={userRole}
           isSatkerRestricted={!!filterType}
           userSatker={
-            filterType === "subsatker"
+            filterType === "satker"
               ? userSatker
               : filterType === "company"
                 ? userCompany?.name
@@ -642,7 +642,7 @@ const handleSaveConfig = async (configData) => {
         userRole={userRole}
         isSatkerRestricted={!!filterType}
         userSatker={
-          filterType === "subsatker"
+          filterType === "satker"
             ? userSatker
             : filterType === "company"
               ? userCompany?.name
@@ -668,7 +668,7 @@ const handleSaveConfig = async (configData) => {
           <AlertDescription>
             <p className="text-sm text-red-900 dark:text-red-300">
               <strong>Perhatian:</strong> Data tidak dapat difilter karena
-              subsatker tidak ditemukan pada akun Anda. Silakan hubungi admin
+              satker tidak ditemukan pada akun Anda. Silakan hubungi admin
               untuk mengatur work unit Anda.
             </p>
           </AlertDescription>
@@ -724,6 +724,8 @@ const handleSaveConfig = async (configData) => {
               pageSize={10}
               enableBulkActions={true}
               onBulkDelete={handleBulkDelete}
+              enableCollapsibleView={true}      
+              defaultViewMode="collapsible"
             />
           </div>
         </div>

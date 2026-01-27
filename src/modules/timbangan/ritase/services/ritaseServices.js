@@ -28,100 +28,142 @@ const validateDateRange = (filters) => {
   return { valid: true, days: diffDays };
 };
 
+const getWorkShiftInfo = ()=> {
+  const now = new Date();
+  const currentHour = now.getHours();
+  let workDate = new Date(now);
+  let shift;
+  
+  if (currentHour >= 22 || currentHour < 6) {
+    shift = "Shift 1";
+    if (currentHour >= 22) {
+      workDate.setDate(workDate.getDate() + 1);
+    }
+  } else if (currentHour >= 6 && currentHour < 14) {
+    shift = "Shift 2";
+  } else {
+    shift = "Shift 3";
+  }
+  
+  // Format tanggal ke 'YYYY-MM-DD'
+  const year = workDate.getFullYear();
+  const month = String(workDate.getMonth() + 1).padStart(2, "0");
+  const day = String(workDate.getDate()).padStart(2, "0");
+  const formattedDate = `${year}-${month}-${day}`;
+  
+  return {
+    date: formattedDate,
+    shift: shift,
+  };
+}
+
 export const ritaseServices = {
-  async fetchSummaryFleetByRitases(options = {}) {
-    try {
-      const { user, dateRange, shift, forceRefresh = false } = options;
+async fetchSummaryFleetByRitases(options = {}) {
+  try {
+    const { user, dateRange, shift, forceRefresh = false } = options;
+    // Gunakan getWorkShiftInfo untuk mendapatkan tanggal dan shift default
+    const workShiftInfo = await getWorkShiftInfo();
+    
+    const effectiveDateRange = dateRange || {
+      from: workShiftInfo.date,
+      to: workShiftInfo.date
+    };
+    const effectiveShift = shift || workShiftInfo.shift;
 
-      const effectiveDateRange = dateRange || getTodayDateRange();
-      const effectiveShift = shift || getCurrentShift();
+    const queryParams = {
+      startDate: effectiveDateRange.from,
+      endDate: effectiveDateRange.to,
+      shift: effectiveShift,
+    };
 
-      const queryParams = {
-        startDate: effectiveDateRange.from,
-        endDate: effectiveDateRange.to,
-        shift: effectiveShift,
-      };
+    const cacheKey = `summary_fleet_${queryParams.startDate}_${queryParams.endDate}_${queryParams.shift}_${user?.id || "guest"}`;
 
-      const cacheKey = `summary_fleet_${queryParams.startDate}_${queryParams.endDate}_${queryParams.shift}_${user?.id || "guest"}`;
+    // Cek apakah tanggal yang digunakan adalah tanggal kerja hari ini
+    const isToday = effectiveDateRange.from === workShiftInfo.date;
+    const ttl = isToday
+      ? offlineService.CACHE_CONFIG.SHORT
+      : offlineService.CACHE_CONFIG.MEDIUM;
 
-      const isToday = effectiveDateRange.from === getTodayDateRange().from;
-      const ttl = isToday
-        ? offlineService.CACHE_CONFIG.SHORT
-        : offlineService.CACHE_CONFIG.MEDIUM;
+    logger.info("📊 Fetching summary fleet by ritases", {
+      queryParams,
+      cacheKey,
+      ttl: `${ttl / 1000}s`,
+      forceRefresh,
+      isToday,
+      workShiftInfo, // Log info shift kerja
+    });
 
-      logger.info("📊 Fetching summary fleet by ritases", {
-        queryParams,
-        cacheKey,
-        ttl: `${ttl / 1000}s`,
-        forceRefresh,
-        isToday,
-      });
-
-      if (!forceRefresh) {
-        const cached = await offlineService.getCache(cacheKey);
-        if (cached) {
-          logger.info("✅ Summary fleet loaded from cache", {
-            summariesCount: cached.summaries?.length || 0,
-            ritasesCount: cached.ritases?.length || 0,
-          });
-          return {
-            success: true,
-            data: cached,
-            fromCache: true,
-          };
-        }
-      }
-
-      const response = await offlineService.get("/v1/custom/ritase/summaries", {
-        params: queryParams,
-        cacheKey,
-        ttl,
-        forceRefresh,
-      });
-
-      const data = {
-        summaries: response.data?.summaries || [],
-        ritases: response.data?.ritases || [],
-      };
-
-      logger.info("✅ Summary fleet fetched from API", {
-        summariesCount: data.summaries.length,
-        ritasesCount: data.ritases.length,
-        dateRange: effectiveDateRange,
-        shift: effectiveShift,
-      });
-
-      return {
-        success: true,
-        data,
-        fromCache: false,
-      };
-    } catch (error) {
-      logger.error("❌ Failed to fetch summary fleet", {
-        error: error.message,
-        details: error.response?.data,
-      });
-
-      const cacheKey = `summary_fleet_${options.dateRange?.from || getTodayDateRange().from}_${options.dateRange?.to || getTodayDateRange().to}_${options.shift || getCurrentShift()}_${options.user?.id || "guest"}`;
-      const stale = await offlineService.getCache(cacheKey, true);
-
-      if (stale) {
-        logger.warn("⚠️ Returning stale cache due to API error");
+    if (!forceRefresh) {
+      const cached = await offlineService.getCache(cacheKey);
+      if (cached) {
+        logger.info("✅ Summary fleet loaded from cache", {
+          summariesCount: cached.summaries?.length || 0,
+          ritasesCount: cached.ritases?.length || 0,
+        });
         return {
           success: true,
-          data: stale,
+          data: cached,
           fromCache: true,
-          offline: true,
         };
       }
+    }
 
+    const response = await offlineService.get("/v1/custom/ritase/summaries", {
+      params: queryParams,
+      cacheKey,
+      ttl,
+      forceRefresh,
+    });
+
+    const data = {
+      summaries: response.data?.summaries || [],
+      ritases: response.data?.ritases || [],
+    };
+
+    logger.info("✅ Summary fleet fetched from API", {
+      summariesCount: data.summaries.length,
+      ritasesCount: data.ritases.length,
+      dateRange: effectiveDateRange,
+      shift: effectiveShift,
+    });
+
+    return {
+      success: true,
+      data,
+      fromCache: false,
+    };
+  } catch (error) {
+    logger.error("❌ Failed to fetch summary fleet", {
+      error: error.message,
+      details: error.response?.data,
+    });
+
+    // Gunakan getWorkShiftInfo untuk fallback cache key
+    const workShiftInfo = await getWorkShiftInfo();
+    const fallbackDate = options.dateRange?.from || workShiftInfo.date;
+    const fallbackDateTo = options.dateRange?.to || workShiftInfo.date;
+    const fallbackShift = options.shift || workShiftInfo.shift;
+    
+    const cacheKey = `summary_fleet_${fallbackDate}_${fallbackDateTo}_${fallbackShift}_${options.user?.id || "guest"}`;
+    const stale = await offlineService.getCache(cacheKey, true);
+
+    if (stale) {
+      logger.warn("⚠️ Returning stale cache due to API error");
       return {
-        success: false,
-        data: { summaries: [], ritases: [] },
-        error: error.response?.data?.message || error.message,
+        success: true,
+        data: stale,
+        fromCache: true,
+        offline: true,
       };
     }
-  },
+
+    return {
+      success: false,
+      data: { summaries: [], ritases: [] },
+      error: error.response?.data?.message || error.message,
+    };
+  }
+},
 
   async fetchMasters(options = {}) {
     try {
@@ -385,7 +427,7 @@ export const ritaseServices = {
           distance: item.attributes.distance || 0,
           status: item.attributes.status || "INACTIVE",
           workUnit:
-            item.attributes.pic_work_unit?.data?.attributes?.subsatker || "",
+            item.attributes.pic_work_unit?.data?.attributes?.satker ||item.attributes.pic_work_unit?.data?.attributes?.subsatker || "",
           workUnitId: item.attributes.pic_work_unit?.data?.id?.toString() || "",
           dumptruck:
             item.attributes.setting_dump_truck?.data?.attributes?.unit_dump_trucks?.data?.map(
@@ -397,7 +439,7 @@ export const ritaseServices = {
                   unit.attributes?.company?.data?.attributes?.name || "-",
                 companyId: unit.attributes?.company?.data?.id?.toString() || "",
                 workUnit:
-                  unit.attributes?.work_unit?.data?.attributes?.subsatker ||
+                  item.attributes.pic_work_unit?.data?.attributes?.satker ||unit.attributes?.work_unit?.data?.attributes?.subsatker ||
                   "-",
                 workUnitId:
                   unit.attributes?.work_unit?.data?.id?.toString() || "",
@@ -982,118 +1024,134 @@ export const ritaseServices = {
     }
   },
 
-  async editTimbanganForm(formData, editId) {
-    try {
+async editTimbanganForm(formData, editId) {
+  try {
+    const payload = {
+      unit_dump_truck: formData.unit_dump_truck,
+      unit_exca: formData.unit_exca,
+      loading_location: formData.loading_location,
+      dumping_location: formData.dumping_location,
+      shift: formData.shift,
+      date: formData.date,
+      distance: parseFloat(formData.distance),
+      coal_type: formData.coal_type,
+      pic_work_unit: formData.pic_work_unit,
+      updated_by_user: formData.updated_by_user || null,
+    };
+
+    // Handle weight based on which field is provided
+    if (formData.gross_weight !== undefined && formData.gross_weight !== null) {
       const grossWeight = formatWeight(formData.gross_weight);
-
-      const payload = {
-        gross_weight: grossWeight,
-        unit_dump_truck: formData.unit_dump_truck,
-        unit_exca: formData.unit_exca,
-        loading_location: formData.loading_location,
-        dumping_location: formData.dumping_location,
-        shift: formData.shift,
-        date: formData.date,
-        distance: parseFloat(formData.distance),
-        coal_type: formData.coal_type,
-        pic_work_unit: formData.pic_work_unit,
-        updated_by_user: formData.updated_by_user || null,
-      };
-
-      if (formData.operator) {
-        payload.operator = formData.operator;
-      }
-
-      if (!payload.unit_dump_truck) throw new Error("Dump truck wajib dipilih");
-      if (!payload.unit_exca) throw new Error("Excavator wajib dipilih");
-      if (!payload.loading_location)
-        throw new Error("Loading location wajib dipilih");
-      if (!payload.dumping_location)
-        throw new Error("Dumping location wajib dipilih");
-      if (!payload.shift) throw new Error("Shift wajib dipilih");
-      if (!payload.date) throw new Error("Date wajib diisi");
-      if (!payload.coal_type) throw new Error("Coal type wajib dipilih");
-      if (!payload.pic_work_unit) throw new Error("Work unit wajib dipilih");
-      if (payload.gross_weight <= 0)
+      payload.gross_weight = parseFloat(grossWeight);
+      
+      if (payload.gross_weight <= 0) {
         throw new Error("Gross weight harus lebih dari 0");
-
-      logger.info("📤 EDIT Ritase Payload (with LABELS):", {
-        id: editId,
-        payload,
-      });
-
-      const response = await offlineService.put(
-        `/v1/custom/ritase/${editId}`,
-        payload,
-      );
-
-      const result = {
-        id: response.data?.id?.toString() || editId,
-        net_weight: response.data?.attributes?.net_weight || 0,
-        tare_weight: response.data?.attributes?.tare_weight || 0,
-        gross_weight: response.data?.attributes?.gross_weight,
-
-        hull_no:
-          response.data?.attributes?.unit_dump_truck || payload.unit_dump_truck,
-        unit_dump_truck:
-          response.data?.attributes?.unit_dump_truck || payload.unit_dump_truck,
-        dumptruck:
-          response.data?.attributes?.unit_dump_truck || payload.unit_dump_truck,
-        unit_exca: response.data?.attributes?.unit_exca || payload.unit_exca,
-        excavator: response.data?.attributes?.unit_exca || payload.unit_exca,
-        loading_location:
-          response.data?.attributes?.loading_location ||
-          payload.loading_location,
-        dumping_location:
-          response.data?.attributes?.dumping_location ||
-          payload.dumping_location,
-        shift: response.data?.attributes?.shift || payload.shift,
-        date: response.data?.attributes?.date || payload.date,
-        distance: response.data?.attributes?.distance || payload.distance || 0,
-        coal_type: response.data?.attributes?.coal_type || payload.coal_type,
-        pic_work_unit:
-          response.data?.attributes?.pic_work_unit || payload.pic_work_unit,
-        operator:
-          response.data?.attributes?.operator || payload.operator || null,
-        checker: response.data?.attributes?.checker || null,
-        inspector: response.data?.attributes?.inspector || null,
-        weigh_bridge: response.data?.attributes?.weigh_bridge || null,
-        updatedAt:
-          response.data?.attributes?.updatedAt || new Date().toISOString(),
-        updated_by_user: payload.updated_by_user,
-      };
-
-      logger.info("✅ Ritase updated successfully", {
-        id: result.id,
-        hull_no: result.hull_no,
-        net_weight: result.net_weight,
-      });
-
-      return {
-        success: true,
-        data: result,
-        message: "Data berhasil diperbarui",
-      };
-    } catch (error) {
-      const errorMessage =
-        error.response?.data?.message ||
-        error.response?.data?.error?.message ||
-        error.response?.data?.error ||
-        error.message ||
-        "Gagal memperbarui data";
-
-      logger.error("Failed to update ritase", {
-        error: errorMessage,
-        details: error.response?.data,
-        editId,
-      });
-
-      const enhancedError = new Error(errorMessage);
-      enhancedError.response = error.response;
-      enhancedError.originalError = error;
-      throw enhancedError;
+      }
     }
-  },
+    
+    if (formData.net_weight !== undefined && formData.net_weight !== null) {
+      const netWeight = formatWeight(formData.net_weight);
+      payload.net_weight = parseFloat(netWeight);
+      
+      if (payload.net_weight <= 0) {
+        throw new Error("Net weight harus lebih dari 0");
+      }
+    }
+
+    if (formData.operator) {
+      payload.operator = formData.operator;
+    }
+
+    // Validations
+    if (!payload.unit_dump_truck) throw new Error("Dump truck wajib dipilih");
+    if (!payload.unit_exca) throw new Error("Excavator wajib dipilih");
+    if (!payload.loading_location)
+      throw new Error("Loading location wajib dipilih");
+    if (!payload.dumping_location)
+      throw new Error("Dumping location wajib dipilih");
+    if (!payload.shift) throw new Error("Shift wajib dipilih");
+    if (!payload.date) throw new Error("Date wajib diisi");
+    if (!payload.coal_type) throw new Error("Coal type wajib dipilih");
+    if (!payload.pic_work_unit) throw new Error("Work unit wajib dipilih");
+
+    logger.info("📤 EDIT Ritase Payload (with LABELS):", {
+      id: editId,
+      payload,
+    });
+
+    const response = await offlineService.put(
+      `/v1/custom/ritase/${editId}`,
+      payload,
+    );
+
+    const result = {
+      id: response.data?.id?.toString() || editId,
+      net_weight: response.data?.attributes?.net_weight || 0,
+      tare_weight: response.data?.attributes?.tare_weight || 0,
+      gross_weight: response.data?.attributes?.gross_weight || 0,
+
+      hull_no:
+        response.data?.attributes?.unit_dump_truck || payload.unit_dump_truck,
+      unit_dump_truck:
+        response.data?.attributes?.unit_dump_truck || payload.unit_dump_truck,
+      dumptruck:
+        response.data?.attributes?.unit_dump_truck || payload.unit_dump_truck,
+      unit_exca: response.data?.attributes?.unit_exca || payload.unit_exca,
+      excavator: response.data?.attributes?.unit_exca || payload.unit_exca,
+      loading_location:
+        response.data?.attributes?.loading_location ||
+        payload.loading_location,
+      dumping_location:
+        response.data?.attributes?.dumping_location ||
+        payload.dumping_location,
+      shift: response.data?.attributes?.shift || payload.shift,
+      date: response.data?.attributes?.date || payload.date,
+      distance: response.data?.attributes?.distance || payload.distance || 0,
+      coal_type: response.data?.attributes?.coal_type || payload.coal_type,
+      pic_work_unit:
+        response.data?.attributes?.pic_work_unit || payload.pic_work_unit,
+      operator:
+        response.data?.attributes?.operator || payload.operator || null,
+      checker: response.data?.attributes?.checker || null,
+      inspector: response.data?.attributes?.inspector || null,
+      weigh_bridge: response.data?.attributes?.weigh_bridge || null,
+      updatedAt:
+        response.data?.attributes?.updatedAt || new Date().toISOString(),
+      updated_by_user: payload.updated_by_user,
+    };
+
+    logger.info("✅ Ritase updated successfully", {
+      id: result.id,
+      hull_no: result.hull_no,
+      net_weight: result.net_weight,
+      gross_weight: result.gross_weight,
+    });
+
+    return {
+      success: true,
+      data: result,
+      message: "Data berhasil diperbarui",
+    };
+  } catch (error) {
+    const errorMessage =
+      error.response?.data?.message ||
+      error.response?.data?.error?.message ||
+      error.response?.data?.error ||
+      error.message ||
+      "Gagal memperbarui data";
+
+    logger.error("Failed to update ritase", {
+      error: errorMessage,
+      details: error.response?.data,
+      editId,
+    });
+
+    const enhancedError = new Error(errorMessage);
+    enhancedError.response = error.response;
+    enhancedError.originalError = error;
+    throw enhancedError;
+  }
+},
 
   async deleteTimbanganEntry(id) {
     try {

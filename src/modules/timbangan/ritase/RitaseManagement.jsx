@@ -22,8 +22,11 @@ import { useRitaseStore } from "@/modules/timbangan/ritase/store/ritaseStore";
 import { showToast } from "@/shared/utils/toast";
 import useAuthStore from "@/modules/auth/store/authStore";
 import { ritaseServices } from "@/modules/timbangan/ritase/services/ritaseServices";
-import { getTodayDateRange } from "@/shared/utils/date";
-import { getCurrentShift } from "@/shared/utils/shift";
+import { 
+  getWorkShiftInfo, 
+  getTodayDateRange, 
+  getCurrentShift 
+} from "@/shared/utils/date";
 import { useMasterData } from "@/modules/timbangan/masterData/hooks/useMasterData";
 
 import {
@@ -62,8 +65,14 @@ const RitaseManagement = () => {
     summaries: [],
     ritases: [],
   });
-  const [currentDateRange] = useState(getTodayDateRange());
-  const [currentShift] = useState(getCurrentShift());
+  
+  // Inisialisasi dengan work shift info yang benar
+  const initialWorkShiftInfo = getWorkShiftInfo();
+  const [currentDateRange] = useState({
+    from: initialWorkShiftInfo.date,
+    to: initialWorkShiftInfo.date,
+  });
+  const [currentShift] = useState(initialWorkShiftInfo.shift);
 
   const [selectedFleetCompanies] = useState([]);
   const [selectedFleetLoadingPoints] = useState([]);
@@ -138,7 +147,6 @@ const RitaseManagement = () => {
 
     initializeData();
   }, []);
-
   const filteredFleetConfigs = useMemo(() => {
     let filtered = fleetConfigs;
 
@@ -285,60 +293,45 @@ const RitaseManagement = () => {
     };
   }, [summaryData.ritases]);
 
-  const handleAggregatedPageChange = useCallback((page) => {
-    setCurrentAggregatedPage(page);
-  }, []);
-
-  const handleRitasePageChange = useCallback((page) => {
-    setCurrentRitasePage(page);
-  }, []);
-
   const handleResetRitaseFilters = useCallback(() => {
     setSelectedRitaseExcavators([]);
     setSelectedRitaseCompanies([]);
     setSelectedRitaseLoadingPoints([]);
     setSelectedRitaseDumpingPoints([]);
-    setCurrentRitasePage(1);
   }, []);
 
-  const handleOpenInputModal = useCallback(() => {
-    if (filteredFleetConfigs.length === 0) {
-      showToast.warning(
-        "Tidak ada fleet yang tersedia untuk input data ritase.",
-      );
-      return;
+  const handleAggregatedPageChange = useCallback((newPage) => {
+    setCurrentAggregatedPage(newPage);
+  }, []);
+
+  const handleRitasePageChange = useCallback((newPage) => {
+    setCurrentRitasePage(newPage);
+  }, []);
+
+  const handleRefresh = useCallback(async () => {
+    setIsRefreshing(true);
+    try {
+      await Promise.all([
+        loadFleetConfigsFromAPI(true, null),
+        loadSummaryData(true),
+        loadRitaseDataFromAPI(null, true),
+      ]);
+      showToast.success(TOAST_MESSAGES.SUCCESS.REFRESH);
+    } catch (error) {
+      console.error("❌ Refresh error:", error);
+      showToast.error(TOAST_MESSAGES.ERROR.REFRESH_FAILED);
+    } finally {
+      setIsRefreshing(false);
     }
+  }, [loadFleetConfigsFromAPI, loadSummaryData, loadRitaseDataFromAPI]);
+
+  const handleOpenInputModal = useCallback(() => {
     setShowInputModal(true);
-  }, [filteredFleetConfigs]);
+  }, []);
 
   const handleCloseInputModal = useCallback(() => {
     setShowInputModal(false);
   }, []);
-
-  const handleRefresh = useCallback(async () => {
-    if (isRefreshing) return;
-
-    setIsRefreshing(true);
-    try {
-      await Promise.all([
-        loadSummaryData(true),
-        loadRitaseDataFromAPI(null, true),
-        loadFleetConfigsFromAPI(true, null),
-      ]);
-
-      showToast.success(TOAST_MESSAGES.SUCCESS.REFRESH);
-    } catch (error) {
-      console.error("❌ Refresh error:", error);
-      showToast.error(TOAST_MESSAGES.ERROR.LOAD_FAILED);
-    } finally {
-      setIsRefreshing(false);
-    }
-  }, [
-    isRefreshing,
-    loadSummaryData,
-    loadRitaseDataFromAPI,
-    loadFleetConfigsFromAPI,
-  ]);
 
   const handleSubmitRitase = useCallback(
     async (ritaseData) => {
@@ -346,7 +339,7 @@ const RitaseManagement = () => {
         const result = await ritaseServices.createRitase(ritaseData);
 
         if (result.success) {
-          showToast.success(TOAST_MESSAGES.SUCCESS.CREATE);
+          showToast.success("Data berhasil disimpan");
           setShowInputModal(false);
 
           setTimeout(async () => {
@@ -356,18 +349,18 @@ const RitaseManagement = () => {
                 loadRitaseDataFromAPI(null, true),
               ]);
             } catch (error) {
-              console.error("❌ Gagal reload data setelah submit:", error);
+              console.error("❌ Gagal reload data:", error);
             }
           }, 100);
 
           return { success: true, data: result.data };
         }
 
-        showToast.error(result.error || TOAST_MESSAGES.ERROR.CREATE);
+        showToast.error(result.error || "Gagal menyimpan data");
         return { success: false, error: result.error };
       } catch (error) {
         console.error("❌ Submit ritase error:", error);
-        showToast.error(TOAST_MESSAGES.ERROR.CREATE);
+        showToast.error("Gagal menyimpan data");
         return { success: false, error: error.message };
       }
     },
@@ -375,12 +368,22 @@ const RitaseManagement = () => {
   );
 
   const handleCreateRitaseFromAggregated = useCallback(
-    async (ritaseData) => {
+    async (aggregatedRow) => {
       try {
-        const result = await ritaseServices.createRitase(ritaseData);
+        const newRitaseData = {
+          unit_dt: aggregatedRow.unit_dt,
+          unit_exca: aggregatedRow.unit_exca,
+          loading_location: aggregatedRow.loading_location,
+          dumping_location: aggregatedRow.dumping_location,
+          company: aggregatedRow.company,
+          shift: currentShift,
+          date: currentDateRange.from,
+        };
+
+        const result = await ritaseServices.createRitase(newRitaseData);
 
         if (result.success) {
-          showToast.success("Data ritase berhasil ditambahkan");
+          showToast.success("Ritase baru berhasil dibuat");
 
           setTimeout(async () => {
             try {
@@ -389,36 +392,42 @@ const RitaseManagement = () => {
                 loadRitaseDataFromAPI(null, true),
               ]);
             } catch (error) {
-              console.error("❌ Gagal reload data setelah create:", error);
+              console.error("❌ Gagal reload data:", error);
             }
           }, 100);
 
           return { success: true, data: result.data };
         }
 
-        showToast.error(result.error || "Gagal menambahkan data");
+        showToast.error(result.error || "Gagal membuat ritase baru");
         return { success: false, error: result.error };
       } catch (error) {
         console.error("❌ Create ritase error:", error);
-        showToast.error("Gagal menambahkan data");
+        showToast.error("Gagal membuat ritase baru");
         return { success: false, error: error.message };
       }
     },
-    [loadSummaryData, loadRitaseDataFromAPI],
+    [currentShift, currentDateRange, loadSummaryData, loadRitaseDataFromAPI],
   );
 
   const handleDuplicateRitase = useCallback(
-    async (originalRitase) => {
+    async (ritaseData) => {
       try {
+        console.log("🔄 [1] Starting duplicate process...", {
+          originalId: ritaseData.id,
+          shift: currentShift,
+        });
+
         const duplicateData = {
-          fleetConfigId: originalRitase.fleet_config,
-          timbanganType: originalRitase.timbangan_type,
-          tonase: originalRitase.tonase,
-          remarks: originalRitase.remarks || "",
-          user: user?.id,
+          ...ritaseData,
+          shift: currentShift,
         };
+        delete duplicateData.id;
+
+        console.log("📝 [2] Duplicate data prepared:", duplicateData);
 
         const result = await ritaseServices.createRitase(duplicateData);
+        console.log("✅ [3] API response:", result);
 
         if (result.success) {
           showToast.success("Data berhasil diduplikasi");
@@ -430,7 +439,7 @@ const RitaseManagement = () => {
                 loadRitaseDataFromAPI(null, true),
               ]);
             } catch (error) {
-              console.error("❌ Gagal reload data setelah duplikasi:", error);
+              console.error("❌ [6] Gagal reload data:", error);
             }
           }, 100);
 
@@ -446,7 +455,7 @@ const RitaseManagement = () => {
         return { success: false, error: error.message };
       }
     },
-    [loadSummaryData, loadRitaseDataFromAPI],
+    [currentShift, loadSummaryData, loadRitaseDataFromAPI],
   );
 
   const handleUpdateRitase = useCallback(

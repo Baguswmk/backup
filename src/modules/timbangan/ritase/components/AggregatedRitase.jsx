@@ -113,7 +113,7 @@ const AggregatedRitase = ({
     if (activeTab === "excavator") {
       return aggregatedData;
     }
-
+    
     const grouped = {};
     aggregatedData.forEach((item) => {
       let key;
@@ -144,7 +144,6 @@ const AggregatedRitase = ({
       }
 
       grouped[key].items.push(item);
-
       const weight = item.totalWeight || item.total_tonase || 0;
       const trips = item.tripCount || item.total_ritase || 0;
 
@@ -516,7 +515,7 @@ const AggregatedRitase = ({
             className="w-full"
           >
             <div className="mb-4 sm:mb-6">
-              <div className="block sm:hidden overflow-x-auto scrollbar-hide -mx-2 px-2">
+              <div className="block md:hidden overflow-x-auto scrollbar-hide -mx-2 px-2">
                 <TabsList className="inline-flex w-auto min-w-full bg-gray-100 dark:bg-gray-800 dark:text-neutral-50 p-1 gap-1">
                   {isCCR && (
                     <TabsTrigger
@@ -558,7 +557,7 @@ const AggregatedRitase = ({
                 </TabsList>
               </div>
 
-              <div className="hidden sm:block">
+              <div className="hidden md:block">
                 <TabsList
                   className={`grid w-full ${isCCR ? "grid-cols-5" : "grid-cols-4"} bg-gray-100 dark:bg-gray-800 dark:text-neutral-50`}
                 >

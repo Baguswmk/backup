@@ -36,6 +36,8 @@ const totalTonase = summaryData.summaries.reduce(
         uniqueExcavators,
       };
     }, [summaryData]);
+
+    console.log(stats)
     
   const statCards = [
     {

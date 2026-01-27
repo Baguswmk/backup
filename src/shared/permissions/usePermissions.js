@@ -23,8 +23,8 @@ export const usePermissions = (module = "timbangan") => {
 
   const userRole = user?.role;
   const userSatker =
+  user?.work_unit?.satker ||
     user?.work_unit?.subsatker ||
-    user?.work_unit?.satker ||
     (typeof user?.work_unit === "string" ? user?.work_unit : null);
 
   const userCompany = user?.company;

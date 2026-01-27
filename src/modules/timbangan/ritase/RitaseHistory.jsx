@@ -13,7 +13,7 @@ import { useRitaseStore } from "@/modules/timbangan/ritase/store/ritaseStore";
 import { showToast } from "@/shared/utils/toast";
 import useAuthStore from "@/modules/auth/store/authStore";
 import { ritaseServices } from "@/modules/timbangan/ritase/services/ritaseServices";
-import { getTodayDateRange } from "@/shared/utils/date";
+import { getWorkShiftInfo } from "@/shared/utils/date";
 import { getCurrentShift } from "@/shared/utils/shift";
 
 import {
@@ -37,7 +37,7 @@ const RitaseHistory = () => {
     summaries: [],
     ritases: [],
   });
-  const [currentDateRange, setCurrentDateRange] = useState(getTodayDateRange());
+  const [currentDateRange, setCurrentDateRange] = useState(getWorkShiftInfo());
   const [viewingShift, setViewingShift] = useState(getCurrentShift());
   const currentShift = getCurrentShift();
 

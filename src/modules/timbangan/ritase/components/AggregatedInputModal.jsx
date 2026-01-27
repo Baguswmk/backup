@@ -372,8 +372,8 @@ const handleSave = useCallback(async () => {
     () =>
       (masters?.workUnits || []).map((wu) => ({
         value: String(wu.id),
-        label: wu.subsatker || wu.name || `Work Unit #${wu.id}`,
-        hint: wu.name && wu.subsatker !== wu.name ? wu.name : undefined,
+        label: wu.satker || wu.subsatker || wu.name || `Work Unit #${wu.id}`,
+        hint: wu.name && wu.satker !== wu.name ? wu.name : undefined,
       })),
     [masters?.workUnits],
   );

@@ -1,7 +1,8 @@
 import React, { useState, useMemo, useCallback, useEffect } from "react";
 import { Button } from "@/shared/components/ui/button";
-import { Download, Upload, RefreshCw } from "lucide-react";
+import { Download, Upload, RefreshCw, LayoutGrid, LayoutList } from "lucide-react";
 import FleetTable from "@/modules/timbangan/fleet/components/FleetTable";
+import FleetTableCollapsible from "@/modules/timbangan/fleet/components/FleetTableCollapsible";
 import FleetBulkOperations from "@/modules/timbangan/fleet/components/FleetBulkOperations";
 import {
   PAGE_SIZE,
@@ -48,8 +49,13 @@ const FleetTableContainer = ({
   enableExport = false,
   onExport,
   onImport,
+
+  // New props for collapsible view
+  enableCollapsibleView = false, // Enable/disable collapsible view toggle
+  defaultViewMode = "normal", // "normal" or "collapsible"
 }) => {
   const [selectedIds, setSelectedIds] = useState([]);
+  const [viewMode, setViewMode] = useState(defaultViewMode);
 
   const totalPages = useMemo(() => {
     if (providedTotalPages !== undefined) {
@@ -140,10 +146,16 @@ const FleetTableContainer = ({
     }
   }, [onExport, filteredConfigs, selectedIds]);
 
+  const toggleViewMode = useCallback(() => {
+    setViewMode((prev) => (prev === "normal" ? "collapsible" : "normal"));
+    setSelectedIds([]); // Reset selections when switching views
+    onPageChange(1); // Reset to first page
+  }, [onPageChange]);
+
   return (
     <div className="space-y-4">
       {/* Quick Actions Toolbar */}
-      {hasData && (enableBulkActions || enableExport) && (
+      {hasData && (enableBulkActions || enableExport || enableCollapsibleView) && (
         <div className="flex items-center justify-between px-2">
           <div className="flex items-center gap-2">
             {/* Export Button */}
@@ -200,11 +212,34 @@ const FleetTableContainer = ({
               </button>
             )}
           </div>
+
+          {/* View Mode Toggle */}
+          {enableCollapsibleView && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={toggleViewMode}
+              disabled={isLoading || isRefreshing}
+              className="cursor-pointer disabled:cursor-not-allowed dark:bg-gray-800 dark:text-gray-200 dark:border-gray-600 dark:hover:bg-gray-700"
+            >
+              {viewMode === "normal" ? (
+                <>
+                  <LayoutGrid className="w-4 h-4 mr-2" />
+                  Group View
+                </>
+              ) : (
+                <>
+                  <LayoutList className="w-4 h-4 mr-2" />
+                  List View
+                </>
+              )}
+            </Button>
+          )}
         </div>
       )}
 
-      {/* Bulk Actions Component */}
-      {enableBulkActions && hasData && (
+      {/* Bulk Actions Component - Only show in normal view */}
+      {enableBulkActions && hasData && viewMode === "normal" && (
         <FleetBulkOperations
           fleets={paginatedConfigs}
           selectedIds={selectedIds}
@@ -216,54 +251,75 @@ const FleetTableContainer = ({
         />
       )}
 
-      {/* Fleet Table */}
-      <FleetTable
-        configs={filteredConfigs}
-        paginatedConfigs={paginatedConfigs}
-        isLoading={isLoading}
-        hasActiveFilters={hasActiveFilters}
-        onResetFilters={onResetFilters}
-        isRefreshing={isRefreshing}
-        isSaving={isSaving}
-        onViewConfig={canRead ? onViewConfig : undefined}
-        onEditConfig={canUpdate ? onEditConfig : undefined}
-        onDeleteConfig={canDelete ? onDeleteConfig : undefined}
-        onStatusChange={canUpdate ? onStatusChange : undefined}
-        getDumptruckCount={getDumptruckCount}
-        getDumptruckList={getDumptruckList}
-        currentPage={currentPage}
-        pageSize={pageSize}
-        totalPages={totalPages}
-        onPageChange={handlePageChange}
-        updatingStatusId={updatingStatusId}
-        isHistoryMode={false}
-        isPickingMode={enableBulkActions}
-        selectedIds={selectedIds}
-        onToggleSelect={(id) => {
-          setSelectedIds((prev) =>
-            prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id],
-          );
-        }}
-        allPageSelected={
-          paginatedConfigs.length > 0 &&
-          paginatedConfigs.every((c) => selectedIds.includes(c.id))
-        }
-        onSelectAllPage={() => {
-          const pageIds = paginatedConfigs.map((c) => c.id);
-          const allSelected = pageIds.every((id) => selectedIds.includes(id));
-
-          if (allSelected) {
+      {/* Fleet Table - Conditional Rendering */}
+      {viewMode === "collapsible" ? (
+        <FleetTableCollapsible
+          configs={filteredConfigs}
+          isLoading={isLoading}
+          hasActiveFilters={hasActiveFilters}
+          isRefreshing={isRefreshing}
+          isSaving={isSaving}
+          onViewConfig={canRead ? onViewConfig : undefined}
+          onEditConfig={canUpdate ? onEditConfig : undefined}
+          onDeleteConfig={canDelete ? onDeleteConfig : undefined}
+          getDumptruckCount={getDumptruckCount}
+          getDumptruckList={getDumptruckList}
+          currentPage={currentPage}
+          onPageChange={handlePageChange}
+          isHistoryMode={false}
+          isPickingMode={false} // Disable picking in collapsible view
+          selectedIds={[]}
+          onToggleSelect={() => {}}
+        />
+      ) : (
+        <FleetTable
+          configs={filteredConfigs}
+          paginatedConfigs={paginatedConfigs}
+          isLoading={isLoading}
+          hasActiveFilters={hasActiveFilters}
+          onResetFilters={onResetFilters}
+          isRefreshing={isRefreshing}
+          isSaving={isSaving}
+          onViewConfig={canRead ? onViewConfig : undefined}
+          onEditConfig={canUpdate ? onEditConfig : undefined}
+          onDeleteConfig={canDelete ? onDeleteConfig : undefined}
+          onStatusChange={canUpdate ? onStatusChange : undefined}
+          getDumptruckCount={getDumptruckCount}
+          getDumptruckList={getDumptruckList}
+          currentPage={currentPage}
+          pageSize={pageSize}
+          totalPages={totalPages}
+          onPageChange={handlePageChange}
+          updatingStatusId={updatingStatusId}
+          isHistoryMode={false}
+          isPickingMode={enableBulkActions}
+          selectedIds={selectedIds}
+          onToggleSelect={(id) => {
             setSelectedIds((prev) =>
-              prev.filter((id) => !pageIds.includes(id)),
+              prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id],
             );
-          } else {
-            setSelectedIds((prev) => [...new Set([...prev, ...pageIds])]);
+          }}
+          allPageSelected={
+            paginatedConfigs.length > 0 &&
+            paginatedConfigs.every((c) => selectedIds.includes(c.id))
           }
-        }}
-      />
+          onSelectAllPage={() => {
+            const pageIds = paginatedConfigs.map((c) => c.id);
+            const allSelected = pageIds.every((id) => selectedIds.includes(id));
+
+            if (allSelected) {
+              setSelectedIds((prev) =>
+                prev.filter((id) => !pageIds.includes(id)),
+              );
+            } else {
+              setSelectedIds((prev) => [...new Set([...prev, ...pageIds])]);
+            }
+          }}
+        />
+      )}
 
       {/* Bottom Page Info */}
-      {hasData && totalPages > 1 && (
+      {hasData && totalPages > 1 && viewMode === "normal" && (
         <div className="flex flex-col sm:flex-row items-center justify-between px-2 pt-4 border-t dark:border-gray-700 gap-2">
           <p className="text-sm text-gray-600 dark:text-gray-400">
             Showing {pageInfo.start}-{pageInfo.end} of {pageInfo.total} entries

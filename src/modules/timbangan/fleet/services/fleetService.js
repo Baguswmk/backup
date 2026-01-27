@@ -836,7 +836,7 @@ _transformFleetConfig(apiResponse) {
       coalTypeId: attr.coal_type?.data?.id?.toString() || "",
       distance: attr.distance || 0,
 
-      workUnit: attr.pic_work_unit?.data?.attributes?.subsatker || "",
+      workUnit: attr.pic_work_unit?.data?.attributes?.satker ||attr.pic_work_unit?.data?.attributes?.subsatker || "",
       workUnitId: attr.pic_work_unit?.data?.id?.toString() || "",
 
       weightBridgeId: attr.weigh_bridge?.data?.id?.toString() || "",

@@ -367,7 +367,6 @@ async fetchUnits(filters = {}) {
     params.pagination.pageSize = 200;
   }
 
-  // ✅ FILTER BY COMPANY
   if (shouldFilterByCompany(userRole) && userCompanyId) {
     params.filters = {
       ...params.filters,
@@ -388,7 +387,7 @@ async fetchUnits(filters = {}) {
     type: item.attributes.type,
     company: item.attributes.company?.data?.attributes?.name || "-",
     companyId: item.attributes.company?.data?.id,
-    workUnit: item.attributes.work_unit?.data?.attributes?.subsatker || "-",
+    workUnit: item.attributes.work_unit?.data?.attributes?.satker || item.attributes.work_unit?.data?.attributes?.subsatker || "-",
     workUnitId: item.attributes.work_unit?.data?.id,
     settingDumpTruckId: item.attributes.setting_dump_truck?.data?.id,
     tare_weight: item.attributes.tare_weight || null,
