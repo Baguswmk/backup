@@ -38,9 +38,9 @@ export const generatePDF_SPPH = (data, params) => {
     item.distance || "-",
     item.jumlah_dt || "-",
     item.unit_exca || "-",
-    item.grup || "-",
+    item.group || "-",
     item.status || "-",
-    item.input_type || "-",
+    item.input_by || "-",
   ]);
 
   autoTable(doc, {
@@ -124,9 +124,9 @@ export const generatePDF_DumpTruck = (data, params) => {
     item.distance || "-",
     item.measurement_type || "-",
     item.coal_type || "-",
-    item.grup || "-",
+    item.group || "-",
     item.status || "-",
-    item.input_type || "-",
+    item.input_by || "-",
     item.input_by || "-",
     item.nama_operator || "-",
     item.lokasi || "-",
@@ -237,9 +237,9 @@ export const generateExcel_SPPH = (data, params) => {
       item.distance || 0,
       item.measurement_type || "-",
       item.coal_type || "-",
-      item.grup || "-",
+      item.group || "-",
       item.status || "-",
-      item.input || "-",
+      item.input_by || "-",
     ]);
   };
 
@@ -332,9 +332,9 @@ export const generateExcel_DumpTruck = (data, params) => {
       item.distance || 0,
       item.measurement_type || "-",
       item.coal_type || "-",
-      item.grup || "-",
+      item.group || "-",
       item.status || "-",
-      item.input || "-",
+      item.input_by || "-",
       item.input_by || "-",
       item.nama_operator || "-",
       item.lokasi || "-",
@@ -400,9 +400,9 @@ export const generateCSV_SPPH = (data, params) => {
     "Jarak (m)": item.distance || 0,
     Pengukuran: item.measurement_type || "-",
     "Jenis BB": item.coal_type || "-",
-    Group: item.grup || "-",
+    Group: item.group || "-",
     Status: item.status || "-",
-    "Input Type": item.input || "-",
+    "Input Type": item.input_by || "-",
   }));
 
   const csv = Papa.unparse(csvData);
@@ -439,9 +439,9 @@ export const generateCSV_DumpTruck = (data, params) => {
     "Jarak (m)": item.distance || 0,
     Pengukuran: item.measurement_type || "-",
     "Jenis BB": item.coal_type || "-",
-    Group: item.grup || "-",
+    Group: item.group || "-",
     Status: item.status || "-",
-    "Input Type": item.input || "-",
+    "Input Type": item.input_by || "-",
     "Input By": item.input_by || "-",
     "Nama Operator": item.nama_operator || "-",
     Lokasi: item.lokasi || "-",
