@@ -109,7 +109,7 @@ export const LAPORAN_CONFIG = [
       },
     ],
     onlyForRehandling: true,
-    rehandlingType: "Coal Rehandling",
+    rehandlingType: "Mine-Mouth Coal Transportation",
   },
   {
     id: "laporan-dump-truck-rehandling",
@@ -144,7 +144,7 @@ export const LAPORAN_CONFIG = [
       },
     ],
     onlyForRehandling: true,
-    rehandlingType: "Coal Rehandling",
+    rehandlingType: "Mine-Mouth Coal Transportation",
   },
 ];
 

@@ -18,7 +18,6 @@ import { getCurrentShift } from "@/shared/utils/shift";
 
 import {
   USER_ROLES,
-  TIMBANGAN_TYPES,
 } from "@/modules/timbangan/ritase/constant/ritaseConstants";
 
 const RitaseHistory = () => {

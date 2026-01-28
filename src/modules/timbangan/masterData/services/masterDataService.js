@@ -239,7 +239,7 @@ export const masterDataService = {
           sort: "username:asc",
         },
         cacheKey: "users",
-        ttl: 30 * 60 * 1000,
+        ttl: 2 * 60 * 1000,
         forceRefresh,
       });
 
@@ -377,7 +377,7 @@ async fetchUnits(filters = {}) {
   const response = await offlineService.get("/units", {
     params,
     cacheKey,
-    ttl: 30 * 60 * 1000,
+    ttl: 2 * 60 * 1000,
     forceRefresh,
   });
 
@@ -535,7 +535,7 @@ async fetchUnits(filters = {}) {
     const response = await offlineService.get("/operators", {
       params,
       cacheKey,
-      ttl: 30 * 60 * 1000,
+      ttl: 2 * 60 * 1000,
       forceRefresh,
     });
 

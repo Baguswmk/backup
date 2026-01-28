@@ -48,14 +48,14 @@ export const useLaporan = () => {
     setDownloadFormat(format);
 
     const typeLabel =
-      payloadType === "Coal Rehandling" ? `${type} (Rehandling)` : type;
+      payloadType === "Mine-Mouth Coal Transportation" ? `${type} (Rehandling)` : type;
     const loadingToast = showToast.loading(
       `Mengunduh laporan ${typeLabel} (${format.toUpperCase()})...`,
     );
 
     try {
       let result;
-
+      
       switch (type) {
         case "spph":
           result = await laporanService.downloadLaporanSPPH({
