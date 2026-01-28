@@ -46,6 +46,7 @@ const fetchDataAndGenerateFile = async (endpoint, params, reportType) => {
       startDate,
       endDate,
       shift,
+      type_report: "SPPH"
     };
 
     if (spph) {
@@ -72,7 +73,6 @@ const fetchDataAndGenerateFile = async (endpoint, params, reportType) => {
 
     logger.info(`✅ Data fetched: ${data.length} records`);
 
-    // Pass reportType ke generateFile
     const result = generateFile(
       data,
       format,

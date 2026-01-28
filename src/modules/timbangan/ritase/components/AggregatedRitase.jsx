@@ -33,6 +33,8 @@ import {
   ChevronUp,
   Plus,
   UserCheck,
+  Copy,
+  Edit2
 } from "lucide-react";
 import {
   Table,
@@ -61,7 +63,9 @@ import AggregatedInputModal from "./AggregatedInputModal";
 import KertasCheckerDialog from "./KertasCheckerDialog";
 import { format } from "date-fns";
 import { id as localeId } from "date-fns/locale";
-
+import RitaseEditForm from  "@/modules/timbangan/ritase/components/RitaseEditForm";
+import RitaseDuplicateForm from  "@/modules/timbangan/ritase/components/RitaseDuplicateForm";
+import DeleteConfirmDialog from "@/shared/components/DeleteConfirmDialog"
 const ITEMS_PER_PAGE = 10;
 
 const AggregatedRitase = ({
@@ -108,7 +112,11 @@ const AggregatedRitase = ({
 
   const [showInputModal, setShowInputModal] = useState(false);
   const [selectedFleetForInput, setSelectedFleetForInput] = useState(null);
-
+  const [selectedRitase, setSelectedRitase] = useState(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isDuplicateModalOpen, setIsDuplicateModalOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isDeletingRitase, setIsDeletingRitase] = useState(false);
   const groupedData = useMemo(() => {
     if (activeTab === "excavator") {
       return aggregatedData;
@@ -166,21 +174,53 @@ const AggregatedRitase = ({
     return Math.ceil(groupedData.length / ITEMS_PER_PAGE);
   }, [groupedData]);
 
-  const handleAddRitaseFromItem = (item) => {
-    const matchingFleet = fleetConfigs.find(
-      (fleet) =>
-        fleet.excavatorId === item.excavatorId &&
-        fleet.loadingLocationId === item.loadingLocationId &&
-        fleet.dumpingLocationId === item.dumpingLocationId,
-    );
 
-    if (matchingFleet) {
-      setSelectedFleetForInput(matchingFleet);
-      setShowInputModal(true);
-    } else {
-      console.warn("⚠️ No matching fleet config found for:", item);
+    const handleEdit = (ritase) => {
+    setSelectedRitase(ritase);
+    setIsEditModalOpen(true);
+  };
 
-      setShowInputModal(true);
+  const handleDuplicate = (ritase) => {
+    setSelectedRitase(ritase);
+    setIsDuplicateModalOpen(true);
+  };
+
+    const handleConfirmDelete = async () => {
+    if (!selectedRitase || isDeletingRitase) return;
+
+    setIsDeletingRitase(true);
+    try {
+      if (onDeleteRitase) {
+        await onDeleteRitase(selectedRitase);
+      }
+      setIsDeleteDialogOpen(false);
+      setSelectedRitase(null);
+    } catch (error) {
+      console.error("Error deleting ritase:", error);
+    } finally {
+      setIsDeletingRitase(false);
+    }
+  };
+
+  const handleEditSubmit = async (result) => {
+    if (result.success) {
+      setIsEditModalOpen(false);
+      setSelectedRitase(null);
+      if (onUpdateRitase) {
+        await onUpdateRitase(result.data);
+      }
+    }
+  };
+
+  const handleDuplicateSubmit = async (duplicatedData) => {
+    try {
+      if (onDuplicateRitase) {
+        await onDuplicateRitase(duplicatedData);
+      }
+      setIsDuplicateModalOpen(false);
+      setSelectedRitase(null);
+    } catch (error) {
+      console.error("Error duplicating ritase:", error);
     }
   };
 
@@ -444,6 +484,20 @@ const AggregatedRitase = ({
                                   <Eye className="mr-2 h-3 w-3 sm:h-4 sm:w-4" />
                                   Lihat Kertas Checker
                                 </DropdownMenuItem>
+                                         <DropdownMenuItem
+                                onClick={() => handleDuplicate(item)}
+                                className="cursor-pointer hover:bg-gray-200 dark:hover:bg-slate-700"
+                              >
+                                <Copy className="mr-2 h-4 w-4" />
+                                Tambah Ritase
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => handleEdit(item)}
+                                className="cursor-pointer hover:bg-gray-200 dark:hover:bg-slate-700"
+                              >
+                                <Edit2 className="mr-2 h-4 w-4" />
+                                Edit
+                              </DropdownMenuItem>
                                 <DropdownMenuItem className="cursor-pointer text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-slate-700 text-xs sm:text-sm">
                                   <Trash2 className="mr-2 h-3 w-3 sm:h-4 sm:w-4" />
                                   Delete
@@ -845,6 +899,75 @@ const AggregatedRitase = ({
           </div>
         </DialogContent>
       </Dialog>
+      
+
+       {/* Edit Modal */}
+      {selectedRitase && (
+        <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
+          <DialogContent className="max-w-4xl lg:min-w-4xl max-h-[90vh] overflow-y-auto dark:bg-slate-900">
+            <DialogHeader>
+              <DialogTitle className="dark:text-neutral-50">
+                Edit Data Ritase
+              </DialogTitle>
+            </DialogHeader>
+            <RitaseEditForm
+              editingItem={selectedRitase}
+              onSubmit={handleEditSubmit}
+              onCancel={() => {
+                setIsEditModalOpen(false);
+                setSelectedRitase(null);
+              }}
+            />
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Duplicate Modal */}
+      {selectedRitase && (
+        <Dialog open={isDuplicateModalOpen} onOpenChange={setIsDuplicateModalOpen}>
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto dark:bg-slate-900">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 dark:text-neutral-50">
+                <Copy className="w-5 h-5" />
+                Tambah Data Ritase
+              </DialogTitle>
+            </DialogHeader>
+            <RitaseDuplicateForm
+              sourceRitase={selectedRitase}
+              onSubmit={handleDuplicateSubmit}
+              onCancel={() => {
+                setIsDuplicateModalOpen(false);
+                setSelectedRitase(null);
+              }}
+            />
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Delete Confirmation Dialog */}
+      {selectedRitase && (
+        <DeleteConfirmDialog
+          isOpen={isDeleteDialogOpen}
+          onClose={() => {
+            setIsDeleteDialogOpen(false);
+            setSelectedRitase(null);
+          }}
+          onConfirm={handleConfirmDelete}
+          target={{
+            hull_no: selectedRitase.hull_no,
+            excavator: selectedRitase.unit_exca,
+            loadingLocation: selectedRitase.loading_location,
+            dumpingLocation: selectedRitase.dumping_location,
+            weight:
+              selectedRitase.measurement_type === "bypass" ||
+              selectedRitase.measurement_type === "manual"
+                ? selectedRitase.net_weight
+                : selectedRitase.gross_weight,
+            measurement_type: selectedRitase.measurement_type,
+          }}
+          isProcessing={isDeletingRitase}
+        />
+      )}
 
       <KertasCheckerDialog
         isOpen={isCheckerDialogOpen}

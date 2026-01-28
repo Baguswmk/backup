@@ -4,7 +4,7 @@ import { Package, Scale, Truck, TrendingUp } from "lucide-react";
 
 const RitaseSummary = ({ summaryData, isLoading = false }) => {
   const stats = useMemo(() => {
-    if (!summaryData?.summaries || summaryData.summaries.length === 0) {
+   if (!summaryData?.summaries?.data || summaryData.summaries.data.length === 0) {
       return {
         totalRitase: 0,
         totalTonase: 0,
@@ -13,20 +13,20 @@ const RitaseSummary = ({ summaryData, isLoading = false }) => {
       };
     }
 
-    const totalRitase = summaryData.summaries.reduce(
+    const totalRitase = summaryData.summaries.data.reduce(
       (sum, item) => sum + (item.total_ritase || 0),
       0,
     );
-const totalTonase = summaryData.summaries.reduce(
+const totalTonase = summaryData.summaries.data.reduce(
     (sum, item) => sum + (item.total_tonase || 0),
     0,
 );
-      const totalActiveDT = summaryData.summaries.reduce(
+      const totalActiveDT = summaryData.summaries.data.reduce(
         (sum, item) => sum + (item.total_active_dt || 0),
         0,
       );
       const uniqueExcavators = new Set(
-        summaryData.summaries.map((item) => item.unit_exca),
+        summaryData.summaries.data.map((item) => item.unit_exca),
       ).size;
       
       return {

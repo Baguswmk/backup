@@ -17,21 +17,42 @@ const SHIFT_OPTIONS = [
 const RitaseDuplicateForm = ({ sourceRitase, onSubmit, onCancel }) => {
   const { user } = useAuthStore();
   const { masters, mastersLoading } = useFleet(user ? { user } : null, null);
+  
+  // Safe access to created_by_user - handle both object and direct ID
+  const getCreatedByUserId = () => {
+    if (!sourceRitase) return null;
+    
+    // If created_by_user is an object with id property
+    if (sourceRitase.created_by_user && typeof sourceRitase.created_by_user === 'object') {
+      return sourceRitase.created_by_user.id;
+    }
+    
+    // If created_by_user is already an ID (number or string)
+    if (sourceRitase.created_by_user && 
+        (typeof sourceRitase.created_by_user === 'number' || 
+         typeof sourceRitase.created_by_user === 'string')) {
+      return sourceRitase.created_by_user;
+    }
+    
+    // Fallback to current user's ID
+    return user?.id || null;
+  };
+
   const [formData, setFormData] = useState({
     unit_dump_truck: "",
     gross_weight: "",
     net_weight: "",
     operator: "",
     date: new Date().toISOString().split('T')[0],
-    shift: sourceRitase.shift || "Shift 1",
-    checker: sourceRitase.checker,
-    inspector:sourceRitase.inspector,
-    created_by_user: sourceRitase.created_by_user.id
+    shift: sourceRitase?.shift || "Shift 1",
+    checker: sourceRitase?.checker || "",
+    inspector: sourceRitase?.inspector || "",
+    created_by_user: getCreatedByUserId()
   });
 
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
-const [submitError, setSubmitError] = useState(null);
+  const [submitError, setSubmitError] = useState(null);
 
   const dumpTruckItems = useMemo(
     () =>
@@ -59,7 +80,7 @@ const [submitError, setSubmitError] = useState(null);
     }
   };
 
-  const measurementType = sourceRitase.measurement_type || sourceRitase.measurementType;
+  const measurementType = sourceRitase?.measurement_type || sourceRitase?.measurementType;
   const hasWeighBridge = user?.weigh_bridge != null;
   
   const needsGrossWeight = measurementType === "Timbangan" && hasWeighBridge;
@@ -183,25 +204,25 @@ const [submitError, setSubmitError] = useState(null);
         operator: selectedOperator?.name || "",
         date: formData.date,
         shift: formData.shift,
-        company:selectedDumpTruck?.company,
-        created_by_user: sourceRitase.created_by_user.id,
-        tare_weight: selectedDumpTruck.tare_weight,
-        unit_exca: sourceRitase.unit_exca,
-        loading_location: sourceRitase.loading_location,
-        dumping_location: sourceRitase.dumping_location,
+        company: selectedDumpTruck?.company,
+        created_by_user: getCreatedByUserId(),
+        tare_weight: selectedDumpTruck?.tare_weight || 0,
+        unit_exca: sourceRitase?.unit_exca,
+        loading_location: sourceRitase?.loading_location,
+        dumping_location: sourceRitase?.dumping_location,
         measurement_type: measurementType,
-        distance: parseFloat(sourceRitase.distance) || 0,
-        coal_type: sourceRitase.coal_type,
-        pic_work_unit: sourceRitase.pic_work_unit,
-        pic_dumping_point: sourceRitase.pic_dumping_point,
-        pic_loading_point: sourceRitase.pic_loading_point,
-        checker: sourceRitase.checker,
-        inspector: sourceRitase.inspector,
+        distance: parseFloat(sourceRitase?.distance || 0),
+        coal_type: sourceRitase?.coal_type,
+        pic_work_unit: sourceRitase?.pic_work_unit,
+        pic_dumping_point: sourceRitase?.pic_dumping_point,
+        pic_loading_point: sourceRitase?.pic_loading_point,
+        checker: sourceRitase?.checker,
+        inspector: sourceRitase?.inspector,
         
         // Field opsional
-        id_setting_fleet: sourceRitase.id_setting_fleet || null,
-        weigh_bridge: sourceRitase.weigh_bridge || null,
-        spph: sourceRitase.spph || null,
+        id_setting_fleet: sourceRitase?.id_setting_fleet || null,
+        weigh_bridge: sourceRitase?.weigh_bridge || null,
+        spph: sourceRitase?.spph || null,
       };
 
       if (measurementType === "Timbangan") {
@@ -218,24 +239,21 @@ const [submitError, setSubmitError] = useState(null);
           duplicatedData.net_weight = netWeight;
           duplicatedData.gross_weight = grossWeight;
         }
+      } else {
+        duplicatedData.net_weight = selectedDumpTruck?.avg_tonnage || 0;
+        duplicatedData.gross_weight = 
+          (selectedDumpTruck?.avg_tonnage || 0) + tare_weight;
       }
 
-      if (typeof onSubmit === 'function') {
-        await onSubmit(duplicatedData);
-      } else {
-        console.error("❌ [9] onSubmit bukan function!", typeof onSubmit);
-      }
-      
+      await onSubmit(duplicatedData);
+      setIsSubmitting(false);
     } catch (error) {
-      console.error("❌ [ERROR] Exception di RitaseDuplicateForm:", error);
-      console.error("❌ Error stack:", error.stack);
+      console.error("❌ Error saat duplicate ritase:", error);
       setSubmitError(error.message || "Terjadi kesalahan saat menyimpan data");
-    } finally {
       setIsSubmitting(false);
     }
   };
 
-  // Determine label dan max value untuk weight field
   const weightLabel = needsGrossWeight
     ? "Berat Kotor (ton)"
     : needsNetWeight
@@ -353,8 +371,7 @@ const [submitError, setSubmitError] = useState(null);
             type="date"
             value={formData.date}
             onChange={(e) => handleChange("date", e.target.value)}
-                             max={new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split("T")[0]}
-
+            max={new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split("T")[0]}
             disabled={isSubmitting}
             className={`dark:bg-slate-800 dark:text-gray-100 ${
               errors.date ? "border-red-500" : ""
@@ -394,41 +411,47 @@ const [submitError, setSubmitError] = useState(null);
           <div>
             <span className="text-gray-500 dark:text-gray-400">Excavator:</span>
             <span className="ml-2 text-gray-900 dark:text-gray-100">
-              {sourceRitase.unit_exca}
+              {sourceRitase?.unit_exca || "-"}
             </span>
           </div>
           <div>
             <span className="text-gray-500 dark:text-gray-400">Company:</span>
             <span className="ml-2 text-gray-900 dark:text-gray-100">
-              {sourceRitase.company}
+              {sourceRitase?.company || "-"}
             </span>
           </div>
           <div>
             <span className="text-gray-500 dark:text-gray-400">Loading:</span>
             <span className="ml-2 text-gray-900 dark:text-gray-100">
-              {sourceRitase.loading_location}
+              {sourceRitase?.loading_location || "-"}
             </span>
           </div>
           <div>
             <span className="text-gray-500 dark:text-gray-400">Dumping:</span>
             <span className="ml-2 text-gray-900 dark:text-gray-100">
-              {sourceRitase.dumping_location}
+              {sourceRitase?.dumping_location || "-"}
             </span>
           </div>
           <div>
             <span className="text-gray-500 dark:text-gray-400">Type:</span>
             <span className="ml-2 text-gray-900 dark:text-gray-100">
-              {measurementType}
+              {measurementType || "-"}
             </span>
           </div>
           <div>
             <span className="text-gray-500 dark:text-gray-400">Distance:</span>
             <span className="ml-2 text-gray-900 dark:text-gray-100">
-              {sourceRitase.distance} m
+              {sourceRitase?.distance || 0} m
             </span>
           </div>
         </div>
       </div>
+
+      {submitError && (
+        <Alert variant="destructive">
+          <AlertDescription>{submitError}</AlertDescription>
+        </Alert>
+      )}
 
       {/* Action Buttons */}
       <div className="flex gap-3 pt-4">

@@ -20,6 +20,10 @@ import {
   CARD_TITLES,
   VALIDATION_MESSAGES,
 } from "@/modules/timbangan/fleet/constant/fleetConstants";
+import {
+  createUsedDumptrucksMap,
+  filterAvailableDumptrucks,
+} from "@/modules/timbangan/fleet/utils/FleetDumptruckHelper";
 
 const MEASUREMENT_TYPE_OPTIONS = [
   { value: "Timbangan", label: "Timbangan" },
@@ -37,7 +41,6 @@ const FleetModal = ({
 }) => {
   const { user } = useAuthStore();
   const isEdit = !!editingConfig;
-
   const { masters, mastersLoading } = useFleet(user ? { user } : null, null);
   const { data: masterUnits, isLoading: masterUnitsLoading } =
     useMasterData("units");
@@ -66,6 +69,10 @@ const FleetModal = ({
   const [showAllUnits, setShowAllUnits] = useState(false);
   const [fleetFilteredUnits, setFleetFilteredUnits] = useState([]);
   const [isLoadingFilteredUnits, setIsLoadingFilteredUnits] = useState(false);
+
+  const usedDumptrucksMap = useMemo(() => {
+  return createUsedDumptrucksMap(availableDumptruckSettings);
+}, [availableDumptruckSettings]);
 
   useEffect(() => {
     if (isOpen) {
@@ -298,6 +305,7 @@ const FleetModal = ({
       units = [...fleetFilteredUnits];
     }
 
+    // Tambahkan existing units saat edit
     if (isEdit && editingConfig?.units) {
       editingConfig.units.forEach((existingUnit) => {
         const unitId = String(existingUnit.id || existingUnit.dumpTruckId);
@@ -317,31 +325,14 @@ const FleetModal = ({
       });
     }
 
-    units = units.filter((unit) => {
-      if (isEdit && editingConfig) {
-        const isCurrentSettingUnit = (editingConfig.units || []).some(
-          (u) => String(u.id || u.dumpTruckId) === String(unit.id),
-        );
-        if (isCurrentSettingUnit) {
-          return true;
-        }
-      }
+    // ✅ GANTI: Code filter yang lama dengan yang baru
+    units = filterAvailableDumptrucks(
+      units,
+      usedDumptrucksMap,
+      isEdit ? editingConfig?.id : null
+    );
 
-      const isAssignedToOtherFleet = (availableDumptruckSettings || []).some(
-        (setting) => {
-          if (isEdit && editingConfig && setting.id === editingConfig.id) {
-            return false;
-          }
-
-          return (setting.units || []).some(
-            (u) => String(u.id) === String(unit.id),
-          );
-        },
-      );
-
-      return !isAssignedToOtherFleet;
-    });
-
+    // Search filter tetap sama
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
       units = units.filter(
@@ -357,13 +348,12 @@ const FleetModal = ({
     fleetFilteredUnits,
     masterUnits,
     searchQuery,
-    availableDumptruckSettings,
     editingConfig,
     isEdit,
     showAllUnits,
+    usedDumptrucksMap,
   ]);
 
-  // ✅ UPDATED: Only move to top if unit is selected AND has operator
   const { selectedUnitsList, unselectedUnitsList } = useMemo(() => {
     const selected = [];
     const unselected = [];
@@ -372,9 +362,8 @@ const FleetModal = ({
       const isSelected = selectedUnits.some(
         (u) => String(u.id) === String(unit.id),
       );
-      const hasOperator = unitOperators[unit.id]; // Check if operator assigned
+      const hasOperator = unitOperators[unit.id]; 
       
-      // Only put in "selected" section if checked AND has operator
       if (isSelected && hasOperator) {
         selected.push(unit);
       } else {

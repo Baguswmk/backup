@@ -61,7 +61,7 @@ const FleetTableCollapsible = ({
   allPageSelected = false,
   onSelectAllPage,
 }) => {
-  const [activeTab, setActiveTab] = useState("all");
+  const [activeTab, setActiveTab] = useState("excavator");
   const [expandedGroups, setExpandedGroups] = useState({});
 
   // Toggle group expansion
@@ -170,7 +170,7 @@ const FleetTableCollapsible = ({
           </td>
         )}
         <td className="px-4 py-3 text-sm font-medium dark:text-gray-300">
-          {index + 1}
+          {index}
         </td>
         <td className="px-4 py-3 text-sm font-medium dark:text-gray-200">
           {config.excavator}
@@ -461,41 +461,41 @@ const FleetTableCollapsible = ({
         }}
         className="w-full"
       >
-       <TabsList className="grid w-full grid-cols-5 mb-4 bg-gray-100 dark:bg-gray-800">
-          <TabsTrigger 
-            value="all" 
-            className="flex items-center gap-2 dark:text-neutral-50 data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 data-[state=active]:text-gray-900 dark:data-[state=active]:text-gray-100"
-          >
-            <Settings className="w-4 h-4" />
-            <span className="hidden sm:inline">All</span>
-          </TabsTrigger>
+       <TabsList className="grid w-full grid-cols-5 mb-4 gap-2 bg-gray-100 dark:bg-gray-800">
           <TabsTrigger 
             value="excavator" 
-            className="flex items-center gap-2 dark:text-neutral-50 data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 data-[state=active]:text-gray-900 dark:data-[state=active]:text-gray-100"
+            className="flex items-center cursor-pointer dark:hover:bg-slate-900 gap-2 dark:text-neutral-50 data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 data-[state=active]:text-gray-900 dark:data-[state=active]:text-gray-100"
           >
             <Truck className="w-4 h-4" />
             <span className="hidden sm:inline">Excavator</span>
           </TabsTrigger>
           <TabsTrigger 
             value="loading" 
-            className="flex items-center gap-2 dark:text-neutral-50 data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 data-[state=active]:text-gray-900 dark:data-[state=active]:text-gray-100"
+            className="flex items-center cursor-pointer dark:hover:bg-slate-900 gap-2 dark:text-neutral-50 data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 data-[state=active]:text-gray-900 dark:data-[state=active]:text-gray-100"
           >
             <MapPin className="w-4 h-4" />
             <span className="hidden sm:inline">Loading</span>
           </TabsTrigger>
           <TabsTrigger 
             value="dumping" 
-            className="flex items-center gap-2 dark:text-neutral-50 data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 data-[state=active]:text-gray-900 dark:data-[state=active]:text-gray-100"
+            className="flex items-center cursor-pointer dark:hover:bg-slate-900 gap-2 dark:text-neutral-50 data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 data-[state=active]:text-gray-900 dark:data-[state=active]:text-gray-100"
           >
             <MapPin className="w-4 h-4" />
             <span className="hidden sm:inline">Dumping</span>
           </TabsTrigger>
           <TabsTrigger 
             value="mitra" 
-            className="flex items-center gap-2 dark:text-neutral-50 data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 data-[state=active]:text-gray-900 dark:data-[state=active]:text-gray-100"
+            className="flex items-center cursor-pointer dark:hover:bg-slate-900 gap-2 dark:text-neutral-50 data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 data-[state=active]:text-gray-900 dark:data-[state=active]:text-gray-100"
           >
             <Building2 className="w-4 h-4" />
             <span className="hidden sm:inline">Mitra</span>
+          </TabsTrigger>
+          <TabsTrigger 
+            value="all" 
+            className="flex items-center cursor-pointer dark:hover:bg-slate-900 gap-2 dark:text-neutral-50 data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 data-[state=active]:text-gray-900 dark:data-[state=active]:text-gray-100"
+          >
+            <Settings className="w-4 h-4" />
+            <span className="hidden sm:inline">All</span>
           </TabsTrigger>
         </TabsList>
 

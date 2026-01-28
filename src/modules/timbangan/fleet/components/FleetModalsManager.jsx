@@ -14,7 +14,7 @@ const FleetModalsManager = ({
   masters,
   canUpdate,
   fleetType,
-
+  availableDumptruckSettings, 
   showDetailModal,
   onCloseDetailModal,
   selectedDetailConfig,
@@ -45,6 +45,7 @@ const FleetModalsManager = ({
           masters={masters}
           mastersLoading={false}
           fleetType={fleetType}
+          availableDumptruckSettings={availableDumptruckSettings}
         />
       )}
 

@@ -246,9 +246,8 @@ const RitaseManagement = () => {
   ]);
 
   const aggregatedRitaseData = useMemo(() => {
-    if (!summaryData.summaries) return [];
-
-    const aggregated = summaryData.summaries.map((summary) => {
+  if (!summaryData?.summaries?.data) return [];
+const aggregated = summaryData.summaries.data.map((summary) => {
       const matchingRitases = filteredRitaseData.filter(
         (r) =>
           r.unit_exca === summary.unit_exca &&

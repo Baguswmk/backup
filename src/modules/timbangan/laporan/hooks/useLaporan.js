@@ -86,6 +86,7 @@ export const useLaporan = () => {
             shift,
             format,
             spph,
+            type_report: "SPPH",
             unit_dump_truck,
             type: payloadType,
           });

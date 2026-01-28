@@ -69,6 +69,7 @@ const FleetManagement = ({ Type }) => {
   const setSelectedFleets = useRitaseStore((state) => state.setSelectedFleets);
 
   const {
+    fleetConfigs,
     isLoading: fleetLoading,
     isRefreshing: fleetRefreshing,
     createFleetConfig,
@@ -519,7 +520,6 @@ const handleSaveConfig = async (configData) => {
     },
     [setSelectedFleets],
   );
-
   const handleBulkDelete = useCallback(
     async (fleetIds) => {
       if (!canDeletePerm) {
@@ -757,6 +757,7 @@ const handleSaveConfig = async (configData) => {
         deleteTarget={getModalState("delete").data}
         getDumptruckCount={getFleetDumptruckCount}
         isSaving={isSaving}
+        availableDumptruckSettings={fleetConfigs}
       />
     </div>
   );
