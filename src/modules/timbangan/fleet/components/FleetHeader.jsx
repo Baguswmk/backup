@@ -1,8 +1,8 @@
 import React from "react";
 import { Button } from "@/shared/components/ui/button";
 import { Badge } from "@/shared/components/ui/badge";
-import { Settings, Plus, RefreshCw, Lock } from "lucide-react";
-
+import { Settings, Plus, Database, Lock } from "lucide-react";
+import { useMasterData } from "../../masterData/hooks/useMasterData";
 const FleetHeader = ({
   type,
   userRole,
@@ -18,6 +18,11 @@ const FleetHeader = ({
   onManageFleet,
   fleetCounts,
 }) => {
+
+    const { 
+      refreshAllMasterData, 
+      isRefreshingMasterData 
+    } = useMasterData();
   return (
     <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
       {/* Left: Title & Role Info */}
@@ -46,6 +51,21 @@ const FleetHeader = ({
 
       {/* Right: Action Buttons */}
       <div className="flex items-center gap-2 w-full sm:w-auto flex-wrap">
+
+         <Button
+          onClick={refreshAllMasterData}
+          variant="outline"
+          disabled={isRefreshingMasterData}
+          title="Refresh Master Data (Unit, Operator, dll)"
+          className="flex-1 sm:flex-none gap-2 border-green-300 dark:border-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 text-green-700 dark:text-green-400"
+        >
+          <Database
+            className={`w-4 h-4 ${isRefreshingMasterData ? "animate-spin" : ""}`}
+          />
+          <span className="hidden sm:inline">Master</span>
+        </Button>
+
+
         {/* Create */}
         {shouldShowButton("create") && (
           <Button
