@@ -113,7 +113,6 @@ const AggregatedRitase = ({
     if (activeTab === "excavator") {
       return aggregatedData;
     }
-
     const grouped = {};
     aggregatedData.forEach((item) => {
       let key;
@@ -234,11 +233,7 @@ const AggregatedRitase = ({
 
       const formattedTrips = matchingTrips.map((trip) => ({
         hull_no: trip.unit_dump_truck || "-",
-        weight:
-          trip.measurement_type === "bypass" ||
-          trip.measurement_type === "manual"
-            ? trip.net_weight
-            : trip.gross_weight,
+        weight:trip.net_weight,
         time: trip.createdAt || trip.date,
         shift: trip.shift || "-",
       }));

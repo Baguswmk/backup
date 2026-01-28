@@ -342,7 +342,7 @@ const KertasCheckerDialog = ({ isOpen, onClose, data, onAddDT }) => {
                         })}
                         <td className="px-2 sm:px-4 py-2 sm:py-3 text-center font-bold bg-slate-700 print:bg-gray-200 print:border-black">
                           <div className="text-green-400 text-xs sm:text-sm print:text-black">
-                            {truckTotals[truckId].weight.toFixed(1)} Ton
+                            {truckTotals[truckId].weight.toFixed(2)} Ton
                           </div>
                           <div className="text-[10px] sm:text-xs text-slate-400 print:text-gray-600">
                             ({truckTotals[truckId].count} rit)
@@ -369,7 +369,7 @@ const KertasCheckerDialog = ({ isOpen, onClose, data, onAddDT }) => {
                             {slotData.count > 0 ? (
                               <div>
                                 <div className="text-red-400 text-xs sm:text-sm print:text-black">
-                                  {slotData.weight.toFixed(1)} Ton
+                                  {slotData.weight.toFixed(2)} Ton
                                 </div>
                                 <div className="text-[10px] sm:text-xs text-slate-300 print:text-gray-600">
                                   ({slotData.count} Rit)
@@ -385,7 +385,7 @@ const KertasCheckerDialog = ({ isOpen, onClose, data, onAddDT }) => {
                       })}
                       <td className="px-2 sm:px-4 py-2 sm:py-3 text-center bg-slate-500 print:bg-gray-400 print:border-black">
                         <div className="text-base sm:text-lg text-green-300 print:text-black">
-                          {grandTotal.weight.toFixed(1)} Ton
+                          {grandTotal.weight.toFixed(2)} Ton
                         </div>
                         <div className="text-[10px] sm:text-xs text-slate-300 print:text-gray-700">
                           ({grandTotal.count} rit)
