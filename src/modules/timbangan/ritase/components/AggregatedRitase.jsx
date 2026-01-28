@@ -100,7 +100,7 @@ const AggregatedRitase = ({
   const [selectedChecker, setSelectedChecker] = useState(null);
   const [isCheckerDialogOpen, setIsCheckerDialogOpen] = useState(false);
   const [activeTab, setActiveTab] = useState(
-    isCCR ? "all-shipment" : "checker",
+    isCCR ? "checker" : "checker",
   );
   const [expandedGroups, setExpandedGroups] = useState({});
   const [detailTrips, setDetailTrips] = useState([]);
@@ -514,15 +514,6 @@ const AggregatedRitase = ({
             <div className="mb-4 sm:mb-6">
               <div className="block md:hidden overflow-x-auto scrollbar-hide -mx-2 px-2">
                 <TabsList className="inline-flex w-auto min-w-full bg-gray-100 dark:bg-gray-800 dark:text-neutral-50 p-1 gap-1">
-                  {isCCR && (
-                    <TabsTrigger
-                      value="all-shipment"
-                      className="data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 cursor-pointer text-xs px-3 py-2 whitespace-nowrap shrink-0"
-                    >
-                      <List className="w-3 h-3 mr-1" />
-                      All
-                    </TabsTrigger>
-                  )}
                   <TabsTrigger
                     value="checker"
                     className="data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 cursor-pointer text-xs px-3 py-2 whitespace-nowrap shrink-0"
@@ -540,17 +531,26 @@ const AggregatedRitase = ({
                   <TabsTrigger
                     value="loading"
                     className="data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 cursor-pointer text-xs px-3 py-2 whitespace-nowrap shrink-0"
-                  >
+                    >
                     <Upload className="w-3 h-3 mr-1" />
                     Loading
                   </TabsTrigger>
                   <TabsTrigger
                     value="mitra"
                     className="data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 cursor-pointer text-xs px-3 py-2 whitespace-nowrap shrink-0"
-                  >
+                    >
                     <Building2 className="w-3 h-3 mr-1" />
                     Mitra
                   </TabsTrigger>
+                    {isCCR && (
+                      <TabsTrigger
+                        value="all-shipment"
+                        className="data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 cursor-pointer text-xs px-3 py-2 whitespace-nowrap shrink-0"
+                      >
+                        <List className="w-3 h-3 mr-1" />
+                        All
+                      </TabsTrigger>
+                    )}
                 </TabsList>
               </div>
 
@@ -558,15 +558,6 @@ const AggregatedRitase = ({
                 <TabsList
                   className={`grid w-full ${isCCR ? "grid-cols-5" : "grid-cols-4"} bg-gray-100 dark:bg-gray-800 dark:text-neutral-50`}
                 >
-                  {isCCR && (
-                    <TabsTrigger
-                      value="all-shipment"
-                      className="data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 cursor-pointer text-sm px-4"
-                    >
-                      <List className="w-4 h-4 mr-2" />
-                      All Shipment
-                    </TabsTrigger>
-                  )}
                   <TabsTrigger
                     value="checker"
                     className="data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 cursor-pointer text-sm px-4"
@@ -591,10 +582,19 @@ const AggregatedRitase = ({
                   <TabsTrigger
                     value="mitra"
                     className="data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 cursor-pointer text-sm px-4"
-                  >
+                    >
                     <Building2 className="w-4 h-4 mr-2" />
                     Mitra
                   </TabsTrigger>
+                    {isCCR && (
+                      <TabsTrigger
+                        value="all-shipment"
+                        className="data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 cursor-pointer text-sm px-4"
+                      >
+                        <List className="w-4 h-4 mr-2" />
+                        All Shipment
+                      </TabsTrigger>
+                    )}
                 </TabsList>
               </div>
             </div>
