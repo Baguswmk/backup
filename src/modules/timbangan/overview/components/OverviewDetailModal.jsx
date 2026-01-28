@@ -1,3 +1,4 @@
+import React from "react"
 import { Card, CardContent } from "@/shared/components/ui/card";
 import { Badge } from "@/shared/components/ui/badge";
 import { MapPin, Weight, Clock, Briefcase, AlertTriangle, Image as ImageIcon } from "lucide-react";
