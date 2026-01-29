@@ -325,10 +325,32 @@ const OverviewTable = ({
 
                     {/* Loading & Dumping */}
                     <td className="px-3 py-3 text-gray-700 dark:text-gray-300 border-r border-gray-200 dark:border-gray-700">
-                      {row.loading_location}
+                      <div className="space-y-1">
+                        {Array.isArray(row.loading_locations) && row.loading_locations.length > 0 ? (
+                          row.loading_locations.map((location, idx) => (
+                            <div key={idx} className="flex items-start gap-1.5">
+                              <span className="text-blue-500 dark:text-blue-400 text-xs mt-0.5">•</span>
+                              <span className="text-xs leading-relaxed">{location}</span>
+                            </div>
+                          ))
+                        ) : (
+                          <span className="text-gray-400 dark:text-gray-500 text-xs">-</span>
+                        )}
+                      </div>
                     </td>
                     <td className="px-3 py-3 text-gray-700 dark:text-gray-300 border-r border-gray-200 dark:border-gray-700">
-                      {row.dumping_location}
+                      <div className="space-y-1">
+                        {Array.isArray(row.dumping_locations) && row.dumping_locations.length > 0 ? (
+                          row.dumping_locations.map((location, idx) => (
+                            <div key={idx} className="flex items-start gap-1.5">
+                              <span className="text-green-500 dark:text-green-400 text-xs mt-0.5">•</span>
+                              <span className="text-xs leading-relaxed">{location}</span>
+                            </div>
+                          ))
+                        ) : (
+                          <span className="text-gray-400 dark:text-gray-500 text-xs">-</span>
+                        )}
+                      </div>
                     </td>
 
                     {/* Action Menu */}

@@ -12,6 +12,17 @@ export const generateRitasePDF = async (data, supervisorName) => {
     pic_work_unit,
   } = data;
 
+  // Format locations - handle both array and string
+  const formatLocations = (locations) => {
+    if (Array.isArray(locations)) {
+      return locations.join(', ');
+    }
+    return locations || '-';
+  };
+
+  const formattedLoadingLocations = formatLocations(loading_location);
+  const formattedDumpingLocations = formatLocations(dumping_location);
+
   // Validasi data
   if (!ritases || ritases.length === 0) {
     throw new Error("Tidak ada data ritase untuk digenerate PDF");
@@ -296,8 +307,8 @@ export const generateRitasePDF = async (data, supervisorName) => {
     <div class="info-row"><strong>Shift:</strong> <span>${shift}</span></div>
     <div class="info-row"><strong>PIC Unit Kerja:</strong> <span>${pic_work_unit}</span></div>
     <div class="info-row"><strong>Mitra:</strong> <span>${company}</span></div>
-    <div class="info-row"><strong>Loading Point:</strong> <span>${loading_location}</span></div>
-    <div class="info-row"><strong>Dumping Point:</strong> <span>${dumping_location}</span></div>
+    <div class="info-row"><strong>Loading Point:</strong> <span>${formattedLoadingLocations}</span></div>
+    <div class="info-row"><strong>Dumping Point:</strong> <span>${formattedDumpingLocations}</span></div>
   </div>
   
   <table>
@@ -392,8 +403,8 @@ export const exportToPDF = async (rowData, supervisorName) => {
     const htmlContent = await generateRitasePDF({
       unit_exca: rowData.unit_exca,
       company: rowData.company,
-      loading_location: rowData.loading_location,
-      dumping_location: rowData.dumping_location,
+      loading_location: rowData.loading_locations,
+      dumping_location: rowData.dumping_locations,
       ritases: rowData.ritases,
       totalTonase: rowData.totalTonase,
       pic_work_unit: rowData.pic_work_unit,

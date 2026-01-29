@@ -106,8 +106,6 @@ const AggregatedRitase = ({
     isCCR ? "checker" : "checker",
   );
 
-  console.log("AggregatedData:", aggregatedData);
-  console.log("Summary Detail:", aggregatedData?.summaries?.summary_detail);
   const [expandedGroups, setExpandedGroups] = useState({});
   const [detailTrips, setDetailTrips] = useState([]);
   const [isLoadingTrips, setIsLoadingTrips] = useState(false);

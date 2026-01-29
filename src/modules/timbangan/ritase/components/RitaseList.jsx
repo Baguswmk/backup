@@ -7,7 +7,6 @@ import {
 } from "@/shared/components/ui/card";
 import { Button } from "@/shared/components/ui/button";
 import { Badge } from "@/shared/components/ui/badge";
-import { Input } from "@/shared/components/ui/input";
 import {
   BarChart3,
   RefreshCw,
@@ -23,8 +22,6 @@ import {
   Trash2,
   MoreVertical,
   Copy,
-  Search,
-  X,
 } from "lucide-react";
 import {
   Table,
@@ -73,7 +70,6 @@ const RitaseList = ({
   onDuplicateRitase, 
 }) => {
   const [selectedRitase, setSelectedRitase] = useState(null);
-  const [searchQuery, setSearchQuery] = useState("");
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDuplicateModalOpen, setIsDuplicateModalOpen] = useState(false);
@@ -83,41 +79,15 @@ const RitaseList = ({
     return userRole === USER_ROLES.OPERATOR_JT ? "Timbang" : "Input Data";
   };
 
-  // Filter data berdasarkan search query
-  const searchedData = useMemo(() => {
-    if (!searchQuery.trim()) return filteredRitaseData;
-    
-    const lowerQuery = searchQuery.toLowerCase().trim();
-    
-    return filteredRitaseData.filter((ritase) => {
-      // Gabungkan semua field yang bisa dicari menjadi satu string
-      const searchableText = [
-        ritase.hull_no,
-        ritase.unit_exca,
-        ritase.company,
-        ritase.operator,
-        ritase.loading_location,
-        ritase.dumping_location,
-        ritase.shift,
-        ritase.date,
-      ]
-        .filter(Boolean) // Hapus nilai null/undefined
-        .join(' ') // Gabungkan dengan spasi
-        .toLowerCase();
-      
-      return searchableText.includes(lowerQuery);
-    });
-  }, [filteredRitaseData, searchQuery]);
-
   const paginatedData = useMemo(() => {
     const startIdx = (currentPage - 1) * ITEMS_PER_PAGE;
     const endIdx = startIdx + ITEMS_PER_PAGE;
-    return searchedData.slice(startIdx, endIdx);
-  }, [searchedData, currentPage]);
+    return filteredRitaseData.slice(startIdx, endIdx);
+  }, [filteredRitaseData, currentPage]);
 
   const totalPages = useMemo(() => {
-    return Math.ceil(searchedData.length / ITEMS_PER_PAGE);
-  }, [searchedData]);
+    return Math.ceil(filteredRitaseData.length / ITEMS_PER_PAGE);
+  }, [filteredRitaseData]);
 
   const handleViewDetail = (ritase) => {
     setSelectedRitase(ritase);
@@ -189,7 +159,7 @@ const RitaseList = ({
         className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700"
       >
         <CardHeader className="border-b border-gray-200 dark:border-gray-700">
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center justify-between">
             <CardTitle className="flex items-center gap-2 text-gray-900 dark:text-white">
               <BarChart3 className="w-5 h-5" />
               Daftar Ritase Detail
@@ -199,29 +169,9 @@ const RitaseList = ({
                 variant="secondary"
                 className="bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300"
               >
-                {searchedData.length} dari {filteredRitaseData.length} total
+                {filteredRitaseData.length} total
               </Badge>
             </div>
-          </div>
-          
-          {/* Search Bar */}
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-gray-500" />
-            <Input
-              type="text"
-              placeholder="Cari berdasarkan Hull No, Unit, Company, Operator, Location, atau Shift..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 pr-10 bg-white dark:bg-gray-900 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100 placeholder:text-gray-500 dark:placeholder:text-gray-400"
-            />
-            {searchQuery && (
-              <button
-                onClick={() => setSearchQuery("")}
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            )}
           </div>
         </CardHeader>
         <CardContent className="pt-6">
@@ -231,21 +181,6 @@ const RitaseList = ({
               <p className="text-sm text-gray-500 dark:text-gray-400 mt-4">
                 Memuat data...
               </p>
-            </div>
-          ) : searchedData.length === 0 && searchQuery ? (
-            <div className="text-center py-12">
-              <Search className="w-12 h-12 mx-auto text-gray-300 dark:text-gray-600" />
-              <p className="text-sm text-gray-500 dark:text-gray-400 mt-4">
-                Tidak ada data yang sesuai dengan pencarian "{searchQuery}"
-              </p>
-              <Button
-                onClick={() => setSearchQuery("")}
-                variant="outline"
-                className="mt-4 border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300"
-              >
-                <X className="w-4 h-4 mr-2" />
-                Reset Pencarian
-              </Button>
             </div>
           ) : filteredRitaseData.length === 0 ? (
             <div className="text-center py-12">

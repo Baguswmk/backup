@@ -3,7 +3,6 @@ import { Card, CardContent } from "@/shared/components/ui/card";
 import { Package, Scale, Truck, TrendingUp } from "lucide-react";
 
 const RitaseSummary = ({ summaryData, isLoading = false }) => {
-  console.log(summaryData);
   
   const stats = useMemo(() => {
     if (!summaryData?.summaries?.data || summaryData.summaries.data.length === 0) {

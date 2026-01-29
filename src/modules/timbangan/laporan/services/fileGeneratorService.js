@@ -195,7 +195,6 @@ export const generatePDF_DumpTruck = (data, params) => {
 
 export const generateExcel_SPPH = (data, params) => {
   const { startDate, endDate, shift } = params;
-  console.log(data)
   const wb = XLSX.utils.book_new();
 
   const headers = [
