@@ -82,14 +82,14 @@ export const APP_METADATA = {
   },
 
   "timbangan-internal": {
-    name: "Timbangan Internal",
-    description: "Internal Weighing System",
+    name: "Batubara Tracking System", 
+    description: "Internal System Tracking",
     type: "internal",
     url: null,
     path: "/timbangan-internal/apps/",
     icon: "Scale",
     color: "bg-orange-500 hover:bg-orange-600",
-    loadingMessage: "Loading Timbangan Internal...",
+    loadingMessage: "Loading Batubara Tracking System...",
   },
 };
 

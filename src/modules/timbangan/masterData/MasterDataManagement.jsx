@@ -61,7 +61,7 @@ import AdvancedFilter from "@/shared/components/AdvancedFilter";
 const ALL_CATEGORIES = [
   { id: "companies", label: "Companies", icon: Building2, color: "blue" },
   { id: "units", label: "Dump Truck", icon: Truck, color: "green" },
-  { id: "alatLoader", label: "Loader", icon: Wrench, color: "teal" },
+  { id: "alatLoader", label: "Excavator", icon: Wrench, color: "teal" },
   { id: "operators", label: "Operators", icon: User, color: "purple" },
   { id: "locations", label: "Locations", icon: MapPin, color: "orange" },
   { id: "work-units", label: "Work Units", icon: Settings, color: "indigo" },

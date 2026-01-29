@@ -246,8 +246,9 @@ const RitaseManagement = () => {
   ]);
 
   const aggregatedRitaseData = useMemo(() => {
-  if (!summaryData?.summaries?.data) return [];
-const aggregated = summaryData.summaries.data.map((summary) => {
+    if (!summaryData?.summaries?.data) return { summaries: { data: [], summary_detail: {} }, ritases: [] };
+    
+    const aggregated = summaryData.summaries.data.map((summary) => {
       const matchingRitases = filteredRitaseData.filter(
         (r) =>
           r.unit_exca === summary.unit_exca &&
@@ -262,7 +263,14 @@ const aggregated = summaryData.summaries.data.map((summary) => {
       };
     });
 
-    return aggregated;
+    // Return full structure with summaries and summary_detail
+    return {
+      summaries: {
+        data: aggregated,
+        summary_detail: summaryData.summaries.summary_detail || {}
+      },
+      ritases: filteredRitaseData
+    };
   }, [summaryData.summaries, filteredRitaseData]);
 
   const ritaseFilterOptions = useMemo(() => {

@@ -94,7 +94,6 @@ const AggregatedRitase = ({
   onResetRitaseFilters,
   hasActiveRitaseFilters,
   onCreateRitase,
-  fleetConfigs = [],
   onUpdateRitase,
   onDeleteRitase,
   onDuplicateRitase,
@@ -106,6 +105,9 @@ const AggregatedRitase = ({
   const [activeTab, setActiveTab] = useState(
     isCCR ? "checker" : "checker",
   );
+
+  console.log("AggregatedData:", aggregatedData);
+  console.log("Summary Detail:", aggregatedData?.summaries?.summary_detail);
   const [expandedGroups, setExpandedGroups] = useState({});
   const [detailTrips, setDetailTrips] = useState([]);
   const [isLoadingTrips, setIsLoadingTrips] = useState(false);
@@ -118,11 +120,14 @@ const AggregatedRitase = ({
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isDeletingRitase, setIsDeletingRitase] = useState(false);
   const groupedData = useMemo(() => {
+    // Extract summaries data from new structure
+    const summariesData = aggregatedData?.summaries?.data || aggregatedData || [];
+    
     if (activeTab === "excavator") {
-      return aggregatedData;
+      return summariesData;
     }
     const grouped = {};
-    aggregatedData.forEach((item) => {
+    summariesData.forEach((item) => {
       let key;
       switch (activeTab) {
         case "checker":
@@ -147,6 +152,7 @@ const AggregatedRitase = ({
           items: [],
           totalWeight: 0,
           totalTrips: 0,
+          uniqueExcavators: new Set(),
         };
       }
 
@@ -156,11 +162,18 @@ const AggregatedRitase = ({
 
       grouped[key].totalWeight += parseFloat(weight);
       grouped[key].totalTrips += parseInt(trips);
+      
+      // Track unique excavators
+      if (item.unit_exca) {
+        grouped[key].uniqueExcavators.add(item.unit_exca);
+      }
     });
 
     return Object.values(grouped).map((group) => ({
       ...group,
       totalWeight: parseFloat((group.totalWeight || 0).toFixed(2)),
+      excavatorCount: group.uniqueExcavators.size,
+      uniqueExcavators: undefined, // Remove Set from final object
     }));
   }, [aggregatedData, activeTab]);
 
@@ -364,9 +377,6 @@ const AggregatedRitase = ({
                     <Badge className="bg-blue-600 dark:bg-blue-500 text-white text-sm sm:text-base px-2 sm:px-3 py-1">
                       {group.groupKey}
                     </Badge>
-                    <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
-                      {group.items.length} excavator
-                    </div>
                   </div>
                   <div className="flex items-center gap-3 sm:gap-6">
                     <div className="text-left sm:text-right">
@@ -529,16 +539,38 @@ const AggregatedRitase = ({
             <div className="flex items-center gap-2 text-gray-900 dark:text-white text-base sm:text-lg">
               <Scale className="w-4 h-4 sm:w-5 sm:h-5" />
               <span className="text-sm sm:text-base">
-                Ringkasan Ritase per Excavator
+                Ringkasan Ritase
               </span>
             </div>
             <div className="flex items-center gap-2">
-              <Badge
-                variant="secondary"
-                className="bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 w-fit text-xs sm:text-sm"
-              >
-                {aggregatedData.length} excavator
-              </Badge>
+              {/* {aggregatedData?.summaries?.summary_detail && (
+                <div className="flex items-center gap-2 text-xs sm:text-sm">
+                  <Badge
+                    variant="secondary"
+                    className="bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300"
+                  >
+                    {aggregatedData.summaries.summary_detail.total_unique_exca || 0} Exca
+                  </Badge>
+                  <Badge
+                    variant="secondary"
+                    className="bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300"
+                  >
+                    {aggregatedData.summaries.summary_detail.total_unique_dt || 0} DT
+                  </Badge>
+                  <Badge
+                    variant="secondary"
+                    className="bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-300"
+                  >
+                    {aggregatedData.summaries.summary_detail.total_ritase || 0} Rit
+                  </Badge>
+                  <Badge
+                    variant="secondary"
+                    className="bg-orange-100 dark:bg-orange-900 text-orange-700 dark:text-orange-300"
+                  >
+                    {(aggregatedData.summaries.summary_detail.total_tonase || 0).toFixed(2)} Ton
+                  </Badge>
+                </div>
+              )} */}
               {isCCR && (
                 <Button
                   onClick={() => setShowInputModal(true)}

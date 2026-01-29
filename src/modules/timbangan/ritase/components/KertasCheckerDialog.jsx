@@ -11,9 +11,8 @@ import {
 import { Label } from "@/shared/components/ui/label";
 import SearchableSelect from "@/shared/components/SearchableSelect";
 import { format } from "date-fns";
-import { id as localeId } from "date-fns/locale";
 import { showToast } from "@/shared/utils/toast";
-
+import { exportKertasCheckerPDF } from "@/shared/utils/pdf";
 const KertasCheckerDialog = ({ isOpen, onClose, data, onAddDT }) => {
   const [isAddDTDialogOpen, setIsAddDTDialogOpen] = useState(false);
   const [selectedDT, setSelectedDT] = useState("");
@@ -158,10 +157,25 @@ const KertasCheckerDialog = ({ isOpen, onClose, data, onAddDT }) => {
     count: Object.values(truckTotals).reduce((sum, t) => sum + t.count, 0),
   };
 
-  const handlePrint = () => {
-    window.print();
-  };
-
+const handlePrint = async () => {
+  try {
+    await exportKertasCheckerPDF(data, {
+      shiftName,
+      startHour,
+      endHour,
+      timeSlots,
+      groupedData,
+      dumpTrucks,
+      truckTotals,
+      timeSlotTotals,
+      grandTotal,
+    });
+    showToast.success("PDF berhasil diexport!");
+  } catch (error) {
+    console.error("Error exporting PDF:", error);
+    showToast.error("Gagal mengexport PDF");
+  }
+};
   return (
     <>
       <Dialog open={isOpen} onOpenChange={onClose}>

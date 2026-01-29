@@ -3,8 +3,10 @@ import { Card, CardContent } from "@/shared/components/ui/card";
 import { Package, Scale, Truck, TrendingUp } from "lucide-react";
 
 const RitaseSummary = ({ summaryData, isLoading = false }) => {
+  console.log(summaryData);
+  
   const stats = useMemo(() => {
-   if (!summaryData?.summaries?.data || summaryData.summaries.data.length === 0) {
+    if (!summaryData?.summaries?.data || summaryData.summaries.data.length === 0) {
       return {
         totalRitase: 0,
         totalTonase: 0,
@@ -17,27 +19,26 @@ const RitaseSummary = ({ summaryData, isLoading = false }) => {
       (sum, item) => sum + (item.total_ritase || 0),
       0,
     );
-const totalTonase = summaryData.summaries.data.reduce(
-    (sum, item) => sum + (item.total_tonase || 0),
-    0,
-);
-      const totalActiveDT = summaryData.summaries.data.reduce(
-        (sum, item) => sum + (item.total_active_dt || 0),
-        0,
-      );
-      const uniqueExcavators = new Set(
-        summaryData.summaries.data.map((item) => item.unit_exca),
-      ).size;
-      
-      return {
-        totalRitase,
-        totalTonase,
-        totalActiveDT,
-        uniqueExcavators,
-      };
-    }, [summaryData]);
-
     
+    const totalTonase = summaryData.summaries.data.reduce(
+      (sum, item) => sum + (item.total_tonase || 0),
+      0,
+    );
+    
+    // Gunakan total_unique_dt dari summary_detail
+    const totalActiveDT = summaryData.summaries.summary_detail?.total_unique_dt || 0;
+    const uniqueExcavators = summaryData.summaries.summary_detail?.total_unique_exca || 0;
+    
+   
+    
+    return {
+      totalRitase,
+      totalTonase,
+      totalActiveDT,
+      uniqueExcavators,
+    };
+  }, [summaryData]);
+
   const statCards = [
     {
       title: "Total Ritase",
@@ -108,7 +109,7 @@ const totalTonase = summaryData.summaries.data.reduce(
         return (
           <Card
             key={index}
-            className="hover:shadow-lg transition-shadow duration-200 dark:bg-slate-800"
+            className="hover:shadow-lg transition-shadow duration-200 bg-white dark:bg-slate-800"
           >
             <CardContent className="p-6">
               <div className="flex items-center justify-between">

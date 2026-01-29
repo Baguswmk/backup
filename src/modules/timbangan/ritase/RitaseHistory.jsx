@@ -288,29 +288,32 @@ const RitaseHistory = () => {
   }, [summaryData.ritases]);
 
   const aggregatedRitaseData = useMemo(() => {
-    const summaries = summaryData.summaries || [];
-    const ritases = summaryData.ritases || [];
-
-    return summaries.map((summary) => {
-      const matchingRitases = ritases.filter(
+    if (!summaryData?.summaries?.data) return { summaries: { data: [], summary_detail: {} }, ritases: [] };
+    
+    const aggregated = summaryData.summaries.data.map((summary) => {
+      const matchingRitases = filteredRitaseData.filter(
         (r) =>
           r.unit_exca === summary.unit_exca &&
+          r.company === summary.company &&
           r.loading_location === summary.loading_location &&
-          r.dumping_location === summary.dumping_location &&
-          r.measurement_type === summary.measurement_type,
+          r.dumping_location === summary.dumping_location,
       );
-
-      const firstMatch = matchingRitases[0];
 
       return {
         ...summary,
-        checker: firstMatch?.checker || "Unknown Checker",
-        company: firstMatch?.company || "Unknown Company",
-        tripCount: summary.total_ritase,
-        totalWeight: summary.total_tonase,
+        ritases: matchingRitases,
       };
     });
-  }, [summaryData.summaries, summaryData.ritases]);
+
+    // Return full structure with summaries and summary_detail
+    return {
+      summaries: {
+        data: aggregated,
+        summary_detail: summaryData.summaries.summary_detail || {}
+      },
+      ritases: filteredRitaseData
+    };
+  }, [summaryData.summaries, filteredRitaseData]);
 
   const handleRitasePageChange = useCallback((page) => {
     setCurrentRitasePage(page);
