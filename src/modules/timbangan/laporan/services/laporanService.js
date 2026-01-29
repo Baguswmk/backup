@@ -29,7 +29,7 @@ const fetchDataAndGenerateFile = async (endpoint, params, reportType) => {
   try {
     validateDownloadParams(params);
 
-    const { startDate, endDate, shift, format, spph, unit_dump_truck, type } = params;
+    const { startDate, endDate, shift, format, spph,type_report, unit_dump_truck } = params;
 
     logger.info(`🔥 Fetching report data from ${endpoint}`, {
       startDate,
@@ -37,8 +37,8 @@ const fetchDataAndGenerateFile = async (endpoint, params, reportType) => {
       shift,
       format,
       spph,
+      type_report,
       unit_dump_truck,
-      type,
       reportType,
     });
 
@@ -46,19 +46,18 @@ const fetchDataAndGenerateFile = async (endpoint, params, reportType) => {
       startDate,
       endDate,
       shift,
-      type_report: "SPPH"
     };
 
     if (spph) {
       queryParams.spph = spph;
     }
 
-    if (unit_dump_truck) {
-      queryParams.unit_dump_truck = unit_dump_truck;
+    if(type_report){
+      queryParams.type_report= type_report;
     }
 
-    if (type) {
-      queryParams.type = type;
+    if (unit_dump_truck) {
+      queryParams.unit_dump_truck = unit_dump_truck;
     }
 
     const response = await offlineService.get(endpoint, {
@@ -82,7 +81,6 @@ const fetchDataAndGenerateFile = async (endpoint, params, reportType) => {
         shift,
         spph,
         unit_dump_truck,
-        type, 
       },
       reportType 
     );
@@ -91,7 +89,6 @@ const fetchDataAndGenerateFile = async (endpoint, params, reportType) => {
       filename: result.filename,
       format,
       reportType,
-      type: type || 'regular',
     });
 
     return {

@@ -195,7 +195,7 @@ export const generatePDF_DumpTruck = (data, params) => {
 
 export const generateExcel_SPPH = (data, params) => {
   const { startDate, endDate, shift } = params;
-
+  console.log(data)
   const wb = XLSX.utils.book_new();
 
   const headers = [
@@ -223,23 +223,30 @@ export const generateExcel_SPPH = (data, params) => {
   ];
 
   const transformData = (items) => {
-    return items.map((item) => [
-      item.date || "-",
-      item.shift || "-",
-      item.contract || "-",
-      item.loading_location || "-",
-      item.dumping_location || "-",
-      item.coal_type || "-",
-      item.measurement_type || "-",
-      item.tonnage || 0,
-      item.ritase || 0,
-      item.distance || 0,
-      item.total_dump_truck || 0,
-      item.unit_exca || "-",
-      item.group || "-",
-      item.status || "-",
-      item.input_by || "-",
-    ]);
+    const rows = [];
+    items.forEach((item) => {
+      // Loop through details array untuk setiap item
+      item.details.forEach((detail) => {
+        rows.push([
+          item.date || "-",
+          item.shift || "-",
+          item.contract || "-",
+          detail.loading_location || "-",
+          detail.dumping_location || "-",
+          detail.coal_type || "-",
+          detail.measurement_type || "-",
+          detail.tonnage || 0,
+          detail.ritase || 0,
+          detail.distance || 0,
+          item.total_dump_truck || 0,
+          item.unit_exca || "-",
+          item.group || "-",
+          detail.status || "-",
+          detail.input_by || "-",
+        ]);
+      });
+    });
+    return rows;
   };
 
   // Sheet ALL
@@ -300,19 +307,16 @@ export const generateExcel_DumpTruck = (data, params) => {
     "Group",
     "Status",
     "Input Type",
-    "Input By",
     "Nama Operator",
-    "Lokasi",
     "Tonase Adjustment",
-    "Contract",
     "Kategori Jam",
   ];
 
   const columnWidths = [
     { wch: 12 }, { wch: 8 }, { wch: 15 }, { wch: 15 }, { wch: 12 },
     { wch: 10 }, { wch: 15 }, { wch: 25 }, { wch: 25 }, { wch: 10 },
-    { wch: 12 }, { wch: 12 }, { wch: 10 }, { wch: 10 }, { wch: 12 },
-    { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 },
+    { wch: 12 }, { wch: 12 }, { wch: 10 }, { wch: 25 }, { wch: 12 },
+     { wch: 15 },  { wch: 15 }, 
     { wch: 12 },
   ];
 
@@ -334,11 +338,8 @@ export const generateExcel_DumpTruck = (data, params) => {
       item.group || "-",
       item.status || "-",
       item.input_by || "-",
-      item.input_by || "-",
-      item.nama_operator || "-",
-      item.lokasi || "-",
+      item.operator || "-",
       item.tonase_adjustment || 0,
-      item.contract || "-",
       item.kategori_jam || "-",
     ]);
   };

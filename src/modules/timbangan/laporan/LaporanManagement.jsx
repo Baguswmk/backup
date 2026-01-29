@@ -96,6 +96,8 @@ const LaporanManagement = () => {
             iconColor={laporan.iconColor}
             downloadFormats={laporan.downloadFormats}
             dumpTruckOptions={dumpTruckOptions}
+            showSpphFilter={laporan.showSpphFilter}
+            showDumpTruckFilter={laporan.showDumpTruckFilter}
             onDownload={(format, params) =>
               handleDownload(laporan.type, format, params, laporan.rehandlingType)
             }

@@ -46,8 +46,9 @@ const LaporanCard = ({
         "bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-800",
     },
   ],
-
   dumpTruckOptions = [],
+  showSpphFilter = false,
+  showDumpTruckFilter = false,
 }) => {
   const today = getTodayDateRange();
   const [dateRange, setDateRange] = useState({
@@ -77,11 +78,11 @@ const LaporanCard = ({
         shift: selectedShift,
       };
 
-      if (spphFilter.trim()) {
+      if (showSpphFilter && spphFilter.trim()) {
         params.spph = spphFilter.trim();
       }
 
-      if (selectedUnit) {
+      if (showDumpTruckFilter && selectedUnit) {
         params.unit_dump_truck = selectedUnit;
       }
 
@@ -121,34 +122,38 @@ const LaporanCard = ({
           />
         </div>
 
-        {/* ✅ SPPH Filter - Free Text Input */}
-        <div>
-          <Label className="mb-2 text-gray-700 dark:text-gray-300">
-            Filter SPPH (opsional)
-          </Label>
-          <Input
-            type="text"
-            placeholder="Masukkan nomor SPPH..."
-            value={spphFilter}
-            onChange={(e) => setSpphFilter(e.target.value)}
-            className="w-full bg-gray-100 dark:bg-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600"
-          />
-        </div>
+        {/* ✅ SPPH Filter - Hanya muncul untuk laporan SPPH */}
+        {showSpphFilter && (
+          <div>
+            <Label className="mb-2 text-gray-700 dark:text-gray-300">
+              Filter SPPH (opsional)
+            </Label>
+            <Input
+              type="text"
+              placeholder="Masukkan nomor SPPH..."
+              value={spphFilter}
+              onChange={(e) => setSpphFilter(e.target.value)}
+              className="w-full bg-gray-100 dark:bg-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600"
+            />
+          </div>
+        )}
 
-        {/* ✅ Unit Dump Truck Filter - SearchableSelect */}
-        <div>
-          <Label className="mb-2 text-gray-700 dark:text-gray-300">
-            Filter Unit Dump Truck (opsional)
-          </Label>
-          <SearchableSelect
-            items={dumpTruckOptions}
-            value={selectedUnit}
-            onChange={setSelectedUnit}
-            placeholder="Pilih Unit Dump Truck"
-            emptyText="Tidak ada unit tersedia"
-            allowClear={true}
-          />
-        </div>
+        {/* ✅ Unit Dump Truck Filter - Hanya muncul untuk laporan Dump Truck */}
+        {showDumpTruckFilter && (
+          <div>
+            <Label className="mb-2 text-gray-700 dark:text-gray-300">
+              Filter Unit Dump Truck (opsional)
+            </Label>
+            <SearchableSelect
+              items={dumpTruckOptions}
+              value={selectedUnit}
+              onChange={setSelectedUnit}
+              placeholder="Pilih Unit Dump Truck"
+              emptyText="Tidak ada unit tersedia"
+              allowClear={true}
+            />
+          </div>
+        )}
 
         {/* Download Buttons */}
         <div className="space-y-2">

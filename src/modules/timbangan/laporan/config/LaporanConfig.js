@@ -41,6 +41,8 @@ export const LAPORAN_CONFIG = [
       },
     ],
     excludeForRehandling: true,
+    showSpphFilter: true,
+    showDumpTruckFilter: false,
   },
   {
     id: "laporan-dump-truck",
@@ -74,6 +76,8 @@ export const LAPORAN_CONFIG = [
       },
     ],
     excludeForRehandling: true,
+    showSpphFilter: false,
+    showDumpTruckFilter: true,
   },
 
   {
@@ -110,6 +114,8 @@ export const LAPORAN_CONFIG = [
     ],
     onlyForRehandling: true,
     rehandlingType: "Mine-Mouth Coal Transportation",
+    showSpphFilter: true,
+    showDumpTruckFilter: false,
   },
   {
     id: "laporan-dump-truck-rehandling",
@@ -145,6 +151,8 @@ export const LAPORAN_CONFIG = [
     ],
     onlyForRehandling: true,
     rehandlingType: "Mine-Mouth Coal Transportation",
+    showSpphFilter: false,
+    showDumpTruckFilter: true,
   },
 ];
 
