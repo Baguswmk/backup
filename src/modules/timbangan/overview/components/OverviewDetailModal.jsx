@@ -12,6 +12,13 @@ const parseMySQLDateTime = (dateString) => {
   return new Date(year, month - 1, day, hour, minute, second);
 };
 
+const formatLocations = (locations) => {
+  if (Array.isArray(locations)) {
+    return locations.join(',');
+  }
+  return locations || '-';
+};
+
 const OverviewDetailModal = ({ isOpen, data, onClose }) => {
   if (!isOpen || !data) return null;
 
@@ -35,7 +42,7 @@ const OverviewDetailModal = ({ isOpen, data, onClose }) => {
                     Loading:
                   </span>
                   <span className="font-medium dark:text-gray-200">
-                    {data.loading_location}
+                    {formatLocations(data.loading_locations)}
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
@@ -44,7 +51,7 @@ const OverviewDetailModal = ({ isOpen, data, onClose }) => {
                     Dumping:
                   </span>
                   <span className="font-medium dark:text-gray-200">
-                    {data.dumping_location}
+                    {formatLocations(data.dumping_locations)}
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
