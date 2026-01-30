@@ -329,7 +329,6 @@ const RitaseManagement = () => {
         loadFleetConfigsFromAPI(true, null),
         loadSummaryData(true),
       ]);
-      showToast.success(TOAST_MESSAGES.SUCCESS.REFRESH_SUCCESS);
     } catch (error) {
       console.error("⚠️ Refresh error:", error);
       showToast.error(TOAST_MESSAGES.ERROR.REFRESH_FAILED);
