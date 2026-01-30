@@ -15,17 +15,14 @@ import RitaseList from "@/modules/timbangan/ritase/components/RitaseList";
 import RitaseSummary from "@/modules/timbangan/ritase/components/RitaseSummary";
 
 import RitaseInputModal from "@/modules/timbangan/ritase/components/RitaseInputModal";
-// import RitaseInputModalRFID from "@/modules/timbangan/ritase/components/RitaseInputModalRFID";
 import LoadingOverlay from "@/shared/components/LoadingOverlay";
 
 import { useRitaseStore } from "@/modules/timbangan/ritase/store/ritaseStore";
 import { showToast } from "@/shared/utils/toast";
 import useAuthStore from "@/modules/auth/store/authStore";
 import { ritaseServices } from "@/modules/timbangan/ritase/services/ritaseServices";
-import { 
-  getWorkShiftInfo, 
-  getTodayDateRange, 
-  getCurrentShift 
+import {
+  getWorkShiftInfo,
 } from "@/shared/utils/date";
 import { useMasterData } from "@/modules/timbangan/masterData/hooks/useMasterData";
 
@@ -33,16 +30,12 @@ import {
   TOAST_MESSAGES,
   USER_ROLES,
 } from "@/modules/timbangan/ritase/constant/ritaseConstants";
-// import RitaseInputModalWebSocket from "./components/RitaseInputModalWebSocket";
 
 const RitaseManagement = () => {
   const { user } = useAuthStore();
   const userRole = user?.role;
 
-  const { 
-    refreshAllMasterData, 
-    isRefreshingMasterData 
-  } = useMasterData();
+  const { refreshAllMasterData, isRefreshingMasterData } = useMasterData();
 
   const error = useRitaseStore((state) => state.error);
   const fleetConfigs = useRitaseStore((state) => state.fleetConfigs);
@@ -60,13 +53,12 @@ const RitaseManagement = () => {
   const [currentRitasePage, setCurrentRitasePage] = useState(1);
   const [_, setCurrentFleetPage] = useState(1);
   const [currentAggregatedPage, setCurrentAggregatedPage] = useState(1);
-
+  const refreshButtonRef = useRef(null);
   const [summaryData, setSummaryData] = useState({
     summaries: [],
     ritases: [],
   });
-  
-  // Inisialisasi dengan work shift info yang benar
+
   const initialWorkShiftInfo = getWorkShiftInfo();
   const [currentDateRange] = useState({
     from: initialWorkShiftInfo.date,
@@ -147,6 +139,7 @@ const RitaseManagement = () => {
 
     initializeData();
   }, []);
+
   const filteredFleetConfigs = useMemo(() => {
     let filtered = fleetConfigs;
 
@@ -246,50 +239,52 @@ const RitaseManagement = () => {
   ]);
 
   const aggregatedRitaseData = useMemo(() => {
-    if (!summaryData?.summaries?.data) return { summaries: { data: [], summary_detail: {} }, ritases: [] };
-    
-    const aggregated = summaryData.summaries.data.map((summary) => {
-      const matchingRitases = filteredRitaseData.filter(
+    if (!summaryData.summaries || summaryData.summaries.length === 0) {
+      return [];
+    }
+
+    return summaryData.summaries.data.map((summary) => {
+      const relevantRitases = summaryData.ritases.filter(
         (r) =>
           r.unit_exca === summary.unit_exca &&
-          r.company === summary.company &&
           r.loading_location === summary.loading_location &&
           r.dumping_location === summary.dumping_location,
       );
 
       return {
         ...summary,
-        ritases: matchingRitases,
+        ritases: relevantRitases,
       };
     });
-
-    // Return full structure with summaries and summary_detail
-    return {
-      summaries: {
-        data: aggregated,
-        summary_detail: summaryData.summaries.summary_detail || {}
-      },
-      ritases: filteredRitaseData
-    };
-  }, [summaryData.summaries, filteredRitaseData]);
+  }, [summaryData]);
 
   const ritaseFilterOptions = useMemo(() => {
-    const ritases = summaryData.ritases || [];
-
     const excavators = [
-      ...new Set(ritases.map((r) => r.unit_exca).filter(Boolean)),
+      ...new Set(
+        (summaryData.ritases || []).map((r) => r.unit_exca).filter(Boolean),
+      ),
     ].sort();
 
     const companies = [
-      ...new Set(ritases.map((r) => r.company).filter(Boolean)),
+      ...new Set(
+        (summaryData.ritases || []).map((r) => r.company).filter(Boolean),
+      ),
     ].sort();
 
     const loadingPoints = [
-      ...new Set(ritases.map((r) => r.loading_location).filter(Boolean)),
+      ...new Set(
+        (summaryData.ritases || [])
+          .map((r) => r.loading_location)
+          .filter(Boolean),
+      ),
     ].sort();
 
     const dumpingPoints = [
-      ...new Set(ritases.map((r) => r.dumping_location).filter(Boolean)),
+      ...new Set(
+        (summaryData.ritases || [])
+          .map((r) => r.dumping_location)
+          .filter(Boolean),
+      ),
     ].sort();
 
     return {
@@ -300,13 +295,6 @@ const RitaseManagement = () => {
     };
   }, [summaryData.ritases]);
 
-  const handleResetRitaseFilters = useCallback(() => {
-    setSelectedRitaseExcavators([]);
-    setSelectedRitaseCompanies([]);
-    setSelectedRitaseLoadingPoints([]);
-    setSelectedRitaseDumpingPoints([]);
-  }, []);
-
   const handleAggregatedPageChange = useCallback((page) => {
     setCurrentAggregatedPage(page);
   }, []);
@@ -315,11 +303,16 @@ const RitaseManagement = () => {
     setCurrentRitasePage(page);
   }, []);
 
+  const handleResetRitaseFilters = useCallback(() => {
+    setSelectedRitaseExcavators([]);
+    setSelectedRitaseCompanies([]);
+    setSelectedRitaseLoadingPoints([]);
+    setSelectedRitaseDumpingPoints([]);
+  }, []);
+
   const handleOpenInputModal = useCallback(() => {
     if (filteredFleetConfigs.length === 0) {
-      showToast.warning(
-        "Tidak ada fleet yang tersedia untuk input data ritase.",
-      );
+      showToast.error(TOAST_MESSAGES.ERROR.NO_FLEET_CONFIGS);
       return;
     }
     setShowInputModal(true);
@@ -330,70 +323,50 @@ const RitaseManagement = () => {
   }, []);
 
   const handleRefresh = useCallback(async () => {
-    if (isRefreshing) return;
-
     setIsRefreshing(true);
     try {
       await Promise.all([
-        loadSummaryData(true),
-        loadRitaseDataFromAPI(null, true),
         loadFleetConfigsFromAPI(true, null),
+        loadSummaryData(true),
       ]);
-
-      showToast.success(TOAST_MESSAGES.SUCCESS.REFRESH);
+      showToast.success(TOAST_MESSAGES.SUCCESS.REFRESH_SUCCESS);
     } catch (error) {
-      console.error("❌ Refresh error:", error);
-      showToast.error(TOAST_MESSAGES.ERROR.LOAD_FAILED);
+      console.error("⚠️ Refresh error:", error);
+      showToast.error(TOAST_MESSAGES.ERROR.REFRESH_FAILED);
     } finally {
       setIsRefreshing(false);
     }
-  }, [
-    isRefreshing,
-    loadSummaryData,
-    loadRitaseDataFromAPI,
-    loadFleetConfigsFromAPI,
-  ]);
+  }, [loadFleetConfigsFromAPI, loadSummaryData]);
 
   const handleSubmitRitase = useCallback(
-    async (ritaseData) => {
+    async (data) => {
       try {
-        const result = await ritaseServices.submitTimbanganForm(ritaseData);
+        await Promise.all([
+          loadFleetConfigsFromAPI(true, null),
+          loadSummaryData(true),
+        ]);
 
-        if (result.success) {
-          showToast.success(TOAST_MESSAGES.SUCCESS.CREATE);
-          setShowInputModal(false);
-
-          setTimeout(async () => {
-            try {
-              await Promise.all([
-                loadSummaryData(true),
-                loadRitaseDataFromAPI(null, true),
-              ]);
-            } catch (error) {
-              console.error("❌ Gagal reload data setelah submit:", error);
-            }
-          }, 100);
-
-          return { success: true, data: result.data };
-        }
-
-        return { success: false, error: result.error };
+        setShowInputModal(false);
+        return { success: true };
       } catch (error) {
         console.error("❌ Submit ritase error:", error);
-        showToast.error(TOAST_MESSAGES.ERROR.CREATE);
         return { success: false, error: error.message };
       }
     },
-    [loadSummaryData, loadRitaseDataFromAPI],
+    [loadFleetConfigsFromAPI, loadSummaryData],
   );
 
   const handleCreateRitaseFromAggregated = useCallback(
-    async (ritaseData) => {
+    async (fleetData) => {
       try {
-        const result = await ritaseServices.createManualRitase(ritaseData);
+        const result = await ritaseServices.submitTimbanganForm({
+          ...fleetData,
+          created_by_user: user?.id || null,
+          clientCreatedAt: new Date().toISOString(),
+        });
 
         if (result.success) {
-          showToast.success("Data ritase berhasil ditambahkan");
+          showToast.success("Data berhasil ditambahkan");
 
           setTimeout(async () => {
             try {
@@ -417,13 +390,19 @@ const RitaseManagement = () => {
         return { success: false, error: error.message };
       }
     },
-    [loadSummaryData, loadRitaseDataFromAPI],
+    [user, loadSummaryData, loadRitaseDataFromAPI],
   );
 
   const handleDuplicateRitase = useCallback(
-    async (originalRitase) => {
+    async (duplicatedData) => {
       try {
-        const result = await ritaseServices.duplicateRitase(originalRitase);
+
+        const result = await ritaseServices.submitTimbanganForm({
+          ...duplicatedData,
+          created_by_user: user?.id || null,
+          clientCreatedAt: new Date().toISOString(),
+        });
+
 
         if (result.success) {
           showToast.success("Data berhasil diduplikasi");
@@ -454,52 +433,58 @@ const RitaseManagement = () => {
     [loadSummaryData, loadRitaseDataFromAPI],
   );
 
-
-  const handleUpdateRitase = useCallback(
-    async (updatedData) => {
-      try {
-        const result = await ritaseServices.updateRitase(
-          updatedData.id,
-          updatedData,
-        );
-
-        if (result.success) {
-          showToast.success("Data berhasil diupdate");
-
-          setTimeout(async () => {
-            try {
-              await Promise.all([
-                loadSummaryData(true),
-                loadRitaseDataFromAPI(null, true),
-              ]);
-            } catch (error) {
-              console.error("❌ Gagal reload data setelah update:", error);
-            }
-          }, 100);
-
-          return { success: true, data: result.data };
+  
+  const updateRitaseOptimistically = useCallback((id, updatedData) => {
+    setSummaryData((prev) => ({
+      ...prev,
+      ritases: prev.ritases.map((item) =>
+        item.id === id
+          ? { ...item, ...updatedData, updatedAt: new Date().toISOString() }
+          : item,
+      ),
+      summaries: prev.summaries.map((summary) => {
+        
+        const oldRitase = prev.ritases.find((r) => r.id === id);
+        if (oldRitase?.unit_exca !== updatedData.unit_exca) {
+          
+          return summary;
         }
+        return summary;
+      }),
+    }));
+  }, []);
 
-        showToast.error(result.error || "Gagal mengupdate data");
-        return { success: false, error: result.error };
+  const handleRefreshAfterEdit = useCallback(
+    async (id, updatedData) => {
+
+
+      
+      if (id && updatedData) {
+        updateRitaseOptimistically(id, updatedData);
+      }
+
+      
+      try {
+        await Promise.all([
+          loadSummaryData(true),
+          loadRitaseDataFromAPI(null, true),
+        ]);
       } catch (error) {
-        console.error("❌ Update ritase error:", error);
-        showToast.error("Gagal mengupdate data");
-        return { success: false, error: error.message };
+        console.error("❌ Gagal reload data setelah edit:", error);
+        
       }
     },
-    [loadSummaryData, loadRitaseDataFromAPI],
+    [loadSummaryData, loadRitaseDataFromAPI, updateRitaseOptimistically],
   );
 
   const handleDeleteRitase = useCallback(
     async (ritaseData) => {
       try {
-        const result = await ritaseServices.deleteRitase(ritaseData.id);
+        const result = await ritaseServices.deleteTimbanganEntry(ritaseData.id);
 
         if (result.success) {
           showToast.success("Data berhasil dihapus");
 
-          setTimeout(async () => {
             try {
               await Promise.all([
                 loadSummaryData(true),
@@ -508,7 +493,6 @@ const RitaseManagement = () => {
             } catch (error) {
               console.error("❌ Gagal reload data setelah delete:", error);
             }
-          }, 100);
 
           return { success: true };
         }
@@ -548,6 +532,7 @@ const RitaseManagement = () => {
           onOpenInputModal={handleOpenInputModal}
           onRefreshMasterData={refreshAllMasterData}
           isRefreshingMasterData={isRefreshingMasterData}
+          refreshButtonRef={refreshButtonRef}
         />
 
         {/* Error Alert */}
@@ -572,7 +557,7 @@ const RitaseManagement = () => {
 
         <RitaseSummary summaryData={summaryData} isLoading={isInitialLoading} />
 
-        {/* Aggregated Ritase - Always shown */}
+        {/* Aggregated Ritase */}
         <AggregatedRitase
           aggregatedData={aggregatedRitaseData}
           isInitialLoading={isInitialLoading}
@@ -600,9 +585,11 @@ const RitaseManagement = () => {
           hasActiveRitaseFilters={hasActiveRitaseFilters}
           onCreateRitase={handleCreateRitaseFromAggregated}
           fleetConfigs={filteredFleetConfigs}
-          onUpdateRitase={handleUpdateRitase}
+          onRefresh={handleRefresh}
+          onUpdateRitase={handleRefreshAfterEdit} 
           onDeleteRitase={handleDeleteRitase}
           onDuplicateRitase={handleDuplicateRitase}
+          refreshButtonRef={refreshButtonRef}
         />
 
         {/* Ritase List - Only shown for non-CCR roles */}
@@ -630,9 +617,11 @@ const RitaseManagement = () => {
             onResetFilters={handleResetRitaseFilters}
             hasActiveFilters={hasActiveRitaseFilters}
             onPrintTicket={handlePrintTicket}
-            onUpdateRitase={handleUpdateRitase}
+            onRefreshData={handleRefreshAfterEdit}
+            onUpdateRitase={handleRefreshAfterEdit} 
             onDeleteRitase={handleDeleteRitase}
             onDuplicateRitase={handleDuplicateRitase}
+            refreshButtonRef={refreshButtonRef}
           />
         )}
       </div>
@@ -645,20 +634,6 @@ const RitaseManagement = () => {
         fleetConfigs={filteredFleetConfigs}
         userRole={userRole}
       />
-      {/* <RitaseInputModalRFID
-        isOpen={showInputModal}
-        onClose={handleCloseInputModal}
-        onSubmit={handleSubmitRitase}
-        fleetConfigs={filteredFleetConfigs}
-        userRole={userRole}
-      /> */}
-      {/* <RitaseInputModalWebSocket
-        isOpen={showInputModal}
-        onClose={handleCloseInputModal}
-        onSubmit={handleSubmitRitase}
-        fleetConfigs={filteredFleetConfigs}
-        userRole={userRole}
-      /> */}
 
       {/* Loading Overlay */}
       <LoadingOverlay isVisible={isRefreshing} message="Memuat data..." />

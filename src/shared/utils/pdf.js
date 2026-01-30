@@ -696,7 +696,7 @@ export const generateKertasCheckerPDF = async (data, params) => {
     <thead>
       <tr>
         <th class="no-cell">No.</th>
-        <th class="truck-cell">Dump Truck</th>
+        <th >Dump Truck</th>
         ${timeSlots.map((slot) => `<th style="width: 70px;">${slot}</th>`).join("")}
         <th style="width: 100px;">Total</th>
       </tr>

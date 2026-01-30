@@ -209,7 +209,7 @@ const PrintTicketButton = forwardRef(
           variant={variant}
           size={size}
           onClick={handlePrint}
-          className={`flex items-center cursor-pointer gap-2 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600 ${className}`}
+          className={`flex items-center cursor-pointer gap-2 hover:bg-gray-200  dark:text-gray-200 dark:hover:bg-gray-600 ${className}`}
         >
           <Printer className="w-4 h-4" />
           {children || "Cetak Karcis"}

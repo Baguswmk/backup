@@ -94,9 +94,11 @@ const AggregatedRitase = ({
   onResetRitaseFilters,
   hasActiveRitaseFilters,
   onCreateRitase,
+  onRefresh,
   onUpdateRitase,
   onDeleteRitase,
   onDuplicateRitase,
+   refreshButtonRef,
 }) => {
   const [selectedDetail, setSelectedDetail] = useState(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -213,13 +215,16 @@ const AggregatedRitase = ({
     }
   };
 
-  const handleEditSubmit = async (result) => {
+const handleEditSubmit = async (result) => {
     if (result.success) {
       setIsEditModalOpen(false);
       setSelectedRitase(null);
-      if (onUpdateRitase) {
-        await onUpdateRitase(result.data);
-      }
+      
+      setTimeout(() => {
+        if (refreshButtonRef?.current) {
+          refreshButtonRef.current.click();
+        }
+      }, 10);
     }
   };
 
@@ -282,18 +287,21 @@ const AggregatedRitase = ({
           )
         : [];
 
-      const formattedTrips = matchingTrips.map((trip) => ({
-        hull_no: trip.unit_dump_truck || "-",
-        weight:trip.net_weight,
-        time: trip.createdAt || trip.date,
-        shift: trip.shift || "-",
-      }));
+const formattedTrips = matchingTrips.map((trip) => ({
+  ...trip,
+  hull_no: trip.unit_dump_truck || "-",
+  weight: trip.net_weight,
+  time: trip.createdAt || trip.date,
+  shift: trip.shift || "-",
+}));
 
       setSelectedChecker({
         excavator: item.unit_exca,
         loading_location: item.loading_location,
         dumping_location: item.dumping_location,
         measurement_type: item.measurement_type,
+        coal_type: item.coal_type,
+        distance: item.distance,
         tripCount: getTripCount(item),
         totalWeight: getTotalWeight(item),
         trips: formattedTrips,
@@ -331,6 +339,25 @@ const AggregatedRitase = ({
       return "-";
     }
   };
+
+const handleUpdateTripFromChecker = async (updatedTrip) => {
+    if (onUpdateRitase) {
+      await onUpdateRitase(updatedTrip);
+    }
+    
+    setTimeout(() => {
+      if (refreshButtonRef?.current) {
+        refreshButtonRef.current.click();
+      }
+    }, 10);
+  };
+
+// Handler untuk delete trip dari KertasCheckerDialog
+const handleDeleteTripFromChecker = async (trip) => {
+  if (onDeleteRitase) {
+    await onDeleteRitase(trip);
+  }
+};
 
   const getTripCount = (item) => {
     return item.tripCount || item.total_ritase || 0;
@@ -499,7 +526,7 @@ const AggregatedRitase = ({
                                 <Copy className="mr-2 h-4 w-4" />
                                 Tambah Ritase
                               </DropdownMenuItem>
-                              <DropdownMenuItem
+                              {/* <DropdownMenuItem
                                 onClick={() => handleEdit(item)}
                                 className="cursor-pointer hover:bg-gray-200 dark:hover:bg-slate-700"
                               >
@@ -509,7 +536,7 @@ const AggregatedRitase = ({
                                 <DropdownMenuItem className="cursor-pointer text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-slate-700 text-xs sm:text-sm">
                                   <Trash2 className="mr-2 h-3 w-3 sm:h-4 sm:w-4" />
                                   Delete
-                                </DropdownMenuItem>
+                                </DropdownMenuItem> */}
                               </DropdownMenuContent>
                             </DropdownMenu>
                           </TableCell>
@@ -912,11 +939,12 @@ const AggregatedRitase = ({
                               </Badge>
                             </TableCell>
                             <TableCell className="text-right font-semibold text-green-600 dark:text-green-400 text-xs sm:text-sm">
-                              {trip.measurement_type === "bypass" ||
+                              {/* {trip.measurement_type === "bypass" ||
                               trip.measurement_type === "manual"
                                 ? trip.net_weight
-                                : trip.gross_weight}{" "}
-                              ton
+                                : trip.gross_weight}{" "} */}
+
+                                {trip.net_weight} ton
                             </TableCell>
                           </TableRow>
                         ))
@@ -999,11 +1027,15 @@ const AggregatedRitase = ({
         />
       )}
 
-      <KertasCheckerDialog
-        isOpen={isCheckerDialogOpen}
-        onClose={() => setIsCheckerDialogOpen(false)}
-        data={selectedChecker}
-      />
+<KertasCheckerDialog
+  isOpen={isCheckerDialogOpen}
+  onClose={() => setIsCheckerDialogOpen(false)}
+  data={selectedChecker}
+   onRefresh={onRefresh}
+  onUpdateTrip={handleUpdateTripFromChecker}
+  onDeleteTrip={handleDeleteTripFromChecker}
+  refreshButtonRef={refreshButtonRef}
+/>
 
       <AggregatedInputModal
         isOpen={showInputModal}

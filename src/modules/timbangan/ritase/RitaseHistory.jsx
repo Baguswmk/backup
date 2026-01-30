@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback, useEffect } from "react";
+import React, { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { Alert, AlertDescription } from "@/shared/components/ui/alert";
 import { Button } from "@/shared/components/ui/button";
 import { X } from "lucide-react";
@@ -31,6 +31,7 @@ const RitaseHistory = () => {
   const [hasSearched, setHasSearched] = useState(false);
   const [currentRitasePage, setCurrentRitasePage] = useState(1);
   const [currentAggregatedPage, setCurrentAggregatedPage] = useState(1);
+  const refreshButtonRef = useRef(null);
 
   const [summaryData, setSummaryData] = useState({
     summaries: [],
@@ -161,6 +162,21 @@ const RitaseHistory = () => {
       setIsSearching(false);
     }
   }, [user, currentDateRange, viewingShift]);
+
+      const handleRefresh = useCallback(async () => {
+      setIsSearching(true);
+      try {
+        await Promise.all([
+          loadFleetConfigsFromAPI(true, null),
+          loadSummaryData(true),
+        ]);
+      } catch (error) {
+        console.error("⚠️ Refresh error:", error);
+      } finally {
+        setIsSearching(false);
+      }
+    }, [loadFleetConfigsFromAPI, loadSummaryData]);
+  
 
   const handleSearch = useCallback(() => {
     loadSummaryData();
@@ -383,7 +399,6 @@ const RitaseHistory = () => {
         if (result.success) {
           showToast.success("Data berhasil diduplikasi");
 
-          setTimeout(async () => {
             try {
               await Promise.all([
                 loadSummaryData(true),
@@ -392,7 +407,6 @@ const RitaseHistory = () => {
             } catch (error) {
               console.error("❌ [6] Gagal reload data:", error);
             }
-          }, 100);
 
           return { success: true, data: result.data };
         }
@@ -408,6 +422,47 @@ const RitaseHistory = () => {
     },
     [loadSummaryData, loadRitaseDataFromAPI],
   );
+  const updateRitaseOptimistically = useCallback((id, updatedData) => {
+    setSummaryData((prev) => ({
+      ...prev,
+      ritases: prev.ritases.map((item) =>
+        item.id === id
+          ? { ...item, ...updatedData, updatedAt: new Date().toISOString() }
+          : item,
+      ),
+      summaries: prev.summaries.map((summary) => {
+        
+        const oldRitase = prev.ritases.find((r) => r.id === id);
+        if (oldRitase?.unit_exca !== updatedData.unit_exca) {
+          
+          return summary;
+        }
+        return summary;
+      }),
+    }));
+  }, []);
+
+    const handleRefreshAfterEdit = useCallback(
+      async (id, updatedData) => {
+
+        
+        if (id && updatedData) {
+          updateRitaseOptimistically(id, updatedData);
+        }
+  
+        
+        try {
+          await Promise.all([
+            loadSummaryData(true),
+            loadRitaseDataFromAPI(null, true),
+          ]);
+        } catch (error) {
+          console.error("❌ Gagal reload data setelah edit:", error);
+          
+        }
+      },
+      [loadSummaryData, loadRitaseDataFromAPI, updateRitaseOptimistically],
+    );
 
   const handleUpdateRitase = useCallback(
     async (updatedData) => {
@@ -416,7 +471,6 @@ const RitaseHistory = () => {
           updatedData.id,
           updatedData,
         );
-
         if (result.success) {
           showToast.success("Data berhasil diupdate");
 
@@ -448,7 +502,7 @@ const RitaseHistory = () => {
   const handleDeleteRitase = useCallback(
     async (ritaseData) => {
       try {
-        const result = await ritaseServices.deleteRitase(ritaseData.id);
+        const result = await ritaseServices.deleteTimbanganEntry(ritaseData.id);
 
         if (result.success) {
           showToast.success("Data berhasil dihapus");
@@ -462,7 +516,7 @@ const RitaseHistory = () => {
             } catch (error) {
               console.error("❌ Gagal reload data setelah delete:", error);
             }
-          }, 100);
+          }, 10);
 
           return { success: true };
         }
@@ -561,9 +615,11 @@ const RitaseHistory = () => {
           hasActiveRitaseFilters={hasActiveRitaseFilters}
           onCreateRitase={handleCreateRitaseFromAggregated}
           fleetConfigs={filteredFleetConfigs}
-          onUpdateRitase={handleUpdateRitase}
+          onRefresh={handleRefresh}
+          onUpdateRitase={handleRefreshAfterEdit} 
           onDeleteRitase={handleDeleteRitase}
           onDuplicateRitase={handleDuplicateRitase}
+          refreshButtonRef={refreshButtonRef}
         />
 
         {/* Ritase List - Sama persis (untuk non-CCR) */}
@@ -591,9 +647,11 @@ const RitaseHistory = () => {
             onResetFilters={handleResetRitaseFilters}
             hasActiveFilters={hasActiveRitaseFilters}
             onPrintTicket={handlePrintTicket}
-            onUpdateRitase={handleUpdateRitase}
+            onRefreshData={handleRefreshAfterEdit}
+            onUpdateRitase={handleRefreshAfterEdit}   
             onDeleteRitase={handleDeleteRitase}
             onDuplicateRitase={handleDuplicateRitase}
+            refreshButtonRef={refreshButtonRef}
           />
         )}
       </div>

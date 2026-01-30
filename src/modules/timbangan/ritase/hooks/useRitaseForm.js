@@ -5,6 +5,7 @@ import { showToast } from "@/shared/utils/toast";
 import { withErrorHandling } from "@/shared/utils/errorHandler";
 import { getFirstTruthyValue } from "@/shared/utils/object";
 import useAuthStore from "@/modules/auth/store/authStore";
+import { logger } from "@/shared/services/log";
 
 const DEFAULT_FORM_VALUES = {
   hull_no: "",
@@ -605,7 +606,28 @@ const handleSubmit = useCallback(async () => {
     return await withErrorHandling(
       async () => {
         // Determine which weight field to use based on checker
-        const useNetWeight = editingItem?.checker && /checker/i.test(editingItem.checker.toLowerCase());
+        // Logic matches RitaseEditForm.jsx (line 62-76)
+        let useNetWeight = false;
+        
+        if (editingItem?.checker) {
+          const checkerLower = editingItem.checker.toLowerCase();
+          
+          // If checker contains "timbangan", use gross_weight
+          if (/timbangan/i.test(checkerLower)) {
+            useNetWeight = false;
+          }
+          // If checker contains "checker", use net_weight
+          else if (/checker/i.test(checkerLower)) {
+            useNetWeight = true;
+          }
+          // Default to net_weight for other checker names
+          else {
+            useNetWeight = true;
+          }
+        } else {
+          // If no checker info, default to net_weight
+          useNetWeight = true;
+        }
         
         const submissionData = {
           unit_dump_truck: formData.unit_dump_truck,
@@ -626,7 +648,6 @@ const handleSubmit = useCallback(async () => {
         } else {
           submissionData.gross_weight = parseFloat(formData.gross_weight);
         }
-
         if (formData.operator) {
           submissionData.operator = formData.operator;
         }
@@ -641,8 +662,13 @@ const handleSubmit = useCallback(async () => {
           throw new Error("Component unmounted during request");
         }
 
-        const updateRitaseEntry = useRitaseStore.getState().updateRitaseEntry;
-        updateRitaseEntry(editingItem.id, result.data);
+        // Update store if the function exists
+        const storeState = useRitaseStore.getState();
+if (storeState.updateTimbanganEntry && typeof storeState.updateTimbanganEntry === 'function') {
+  storeState.updateTimbanganEntry(editingItem.id, result.data);
+        } else {
+          logger.warn("⚠️ updateTimbanganEntry not found in store, skipping store update");
+        }
 
         return { success: true, data: result.data };
       },
@@ -660,7 +686,7 @@ const handleSubmit = useCallback(async () => {
   } else if (mode === "delete" && editingItem) {
     return await withErrorHandling(
       async () => {
-        await ritaseServices.deleteRitaseEntry(editingItem.id, {
+        await ritaseServices.deleteTimbanganEntry(editingItem.id, {
           signal,
         });
 
@@ -668,9 +694,9 @@ const handleSubmit = useCallback(async () => {
           throw new Error("Component unmounted during request");
         }
 
-        const { deleteRitaseEntry, unhideDumptruck } =
+        const { deleteTimbanganEntry, unhideDumptruck } =
           useRitaseStore.getState();
-        deleteRitaseEntry(editingItem.id);
+        deleteTimbanganEntry(editingItem.id);
 
         if (editingItem.hull_no) {
           unhideDumptruck(editingItem.hull_no);
@@ -737,8 +763,8 @@ const handleSubmit = useCallback(async () => {
         }
 
         if (result.success && result.data) {
-          const { addRitaseEntry, hideDumptruck } = useRitaseStore.getState();
-          addRitaseEntry(result.data);
+          const { addTimbanganEntry, hideDumptruck } = useRitaseStore.getState();
+          addTimbanganEntry(result.data);
           hideDumptruck(editingItem?.hull_no || formData.hull_no);
 
           return {

@@ -45,29 +45,27 @@ import {
   DialogTitle,
 } from "@/shared/components/ui/dialog";
 import Pagination from "@/shared/components/Pagination";
-import AdvancedFilter from "@/shared/components/AdvancedFilter";
 import DeleteConfirmDialog from "@/shared/components/DeleteConfirmDialog";
 import { format } from "date-fns";
 import { id as localeId } from "date-fns/locale";
 import { USER_ROLES } from "@/modules/timbangan/ritase/constant/ritaseConstants";
 import RitaseEditForm from "@/modules/timbangan/ritase/components/RitaseEditForm";
 import RitaseDuplicateForm from "@/modules/timbangan/ritase/components/RitaseDuplicateForm";
-
+import PrintTicketButton from "@/modules/timbangan/ritase/components/PrintTicketButton";
 const ITEMS_PER_PAGE = 10;
 
 const RitaseList = ({
   userRole,
   filteredRitaseData,
   isInitialLoading,
-  isRefreshing,
   currentPage,
   onPageChange,
   onOpenInputModal,
   filteredFleetCount,
   onPrintTicket,
-  onUpdateRitase,
+  onRefreshData,
   onDeleteRitase,
-  onDuplicateRitase, 
+  onDuplicateRitase,
 }) => {
   const [selectedRitase, setSelectedRitase] = useState(null);
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
@@ -75,6 +73,7 @@ const RitaseList = ({
   const [isDuplicateModalOpen, setIsDuplicateModalOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isDeletingRitase, setIsDeletingRitase] = useState(false);
+
   const getInputButtonText = () => {
     return userRole === USER_ROLES.OPERATOR_JT ? "Timbang" : "Input Data";
   };
@@ -130,14 +129,21 @@ const RitaseList = ({
     }
   };
 
-  const handleEditSubmit = async (result) => {
-    if (result.success) {
-      setIsEditModalOpen(false);
-      setSelectedRitase(null);
-      if (onUpdateRitase) {
-        await onUpdateRitase(result.data);
-      }
+  // ✅ FIXED: Simplified handler - callback sudah dipanggil dengan updatedData
+  const handleEditSuccess = async (updatedData) => {
+    // Pastikan callback dipanggil DENGAN data yang benar
+    if (onRefreshData && selectedRitase) {
+      await onRefreshData(selectedRitase.id, updatedData);
+    } else {
+      console.warn("⚠️ onRefreshData not available or selectedRitase is null", {
+        hasCallback: !!onRefreshData,
+        hasSelectedRitase: !!selectedRitase,
+      });
     }
+
+    // Close modal setelah refresh
+    setIsEditModalOpen(false);
+    setSelectedRitase(null);
   };
 
   const handleDuplicateSubmit = async (duplicatedData) => {
@@ -207,14 +213,14 @@ const RitaseList = ({
                       <TableHead className="text-gray-700 dark:text-gray-300 font-semibold w-16">
                         No
                       </TableHead>
-                       <TableHead className="text-gray-700 dark:text-gray-300 font-semibold">
+                      <TableHead className="text-gray-700 dark:text-gray-300 font-semibold">
                         Date
                       </TableHead>
                       <TableHead className="text-gray-700 dark:text-gray-300 font-semibold">
                         Shift
                       </TableHead>
                       <TableHead className="text-gray-700 dark:text-gray-300 font-semibold">
-                        Hull No
+                        DT
                       </TableHead>
                       <TableHead className="text-gray-700 dark:text-gray-300 font-semibold">
                         Excavator
@@ -223,7 +229,7 @@ const RitaseList = ({
                         Company
                       </TableHead>
                       <TableHead className="text-gray-700 dark:text-gray-300 font-semibold">
-                        Type
+                        Measurement
                       </TableHead>
                       <TableHead className="text-gray-700 dark:text-gray-300 font-semibold">
                         Loading
@@ -232,13 +238,10 @@ const RitaseList = ({
                         Dumping
                       </TableHead>
                       <TableHead className="text-right text-gray-700 dark:text-gray-300 font-semibold">
-                        Weight
+                        Net Weight
                       </TableHead>
-                      <TableHead className="text-gray-700 dark:text-gray-300 font-semibold">
-                        Waktu
-                      </TableHead>
-                      <TableHead className="text-center text-gray-700 dark:text-gray-300 font-semibold w-20">
-                        Action
+                      <TableHead className="text-right text-gray-700 dark:text-gray-300 font-semibold">
+                        Actions
                       </TableHead>
                     </TableRow>
                   </TableHeader>
@@ -248,114 +251,100 @@ const RitaseList = ({
                         key={ritase.id || index}
                         className="border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800/50"
                       >
-                        <TableCell className="text-gray-700 dark:text-gray-300 text-sm">
+                        <TableCell className="text-gray-700 dark:text-gray-300">
                           {(currentPage - 1) * ITEMS_PER_PAGE + index + 1}
                         </TableCell>
-                        <TableCell className="text-sm text-gray-600 dark:text-gray-400">
-                          {ritase.date ? format(new Date(ritase.date), "dd MMM yyyy", { locale: localeId }) : "-"}
+                        <TableCell className="text-gray-700 dark:text-gray-300">
+                          {ritase.date
+                            ? format(new Date(ritase.date), "dd MMM yyyy", {
+                                locale: localeId,
+                              })
+                            : "-"}
                         </TableCell>
-                        <TableCell className="text-sm text-gray-600 dark:text-gray-400">
-                          <Badge variant="outline" className="text-xs border-gray-300 dark:border-gray-600">
-                            {ritase.shift || "-"}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="font-medium">
-                          <Badge className="bg-blue-600 dark:bg-blue-500 text-white">
-                            {ritase.unit_dump_truck}
-                          </Badge>
+                        <TableCell className="text-gray-700 dark:text-gray-300">
+                          {ritase.shift || "-"}
                         </TableCell>
                         <TableCell>
-                          <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                            {ritase.unit_exca || "-"}
-                          </span>
+                          <Badge className="bg-blue-600 dark:bg-blue-500 text-white">
+                            {ritase.hull_no || ritase.unit_dump_truck || "-"}
+                          </Badge>
                         </TableCell>
-                        <TableCell className="text-gray-700 dark:text-gray-300 text-sm">
+                        <TableCell className="text-gray-700 dark:text-gray-300">
+                          {ritase.unit_exca || ritase.excavator || "-"}
+                        </TableCell>
+                        <TableCell className="text-gray-700 dark:text-gray-300">
                           {ritase.company || "-"}
                         </TableCell>
                         <TableCell>
                           <Badge
                             variant="outline"
-                            className="text-xs capitalize border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300"
+                            className="capitalize border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300"
                           >
                             {ritase.measurement_type || "timbangan"}
                           </Badge>
                         </TableCell>
-                        <TableCell className="text-gray-700 dark:text-gray-300 text-sm">
+                        <TableCell className="text-gray-700 dark:text-gray-300">
                           {ritase.loading_location || "-"}
                         </TableCell>
-                        <TableCell className="text-gray-700 dark:text-gray-300 text-sm">
+                        <TableCell className="text-gray-700 dark:text-gray-300">
                           {ritase.dumping_location || "-"}
                         </TableCell>
                         <TableCell className="text-right">
-                          <div className="flex flex-col items-end">
-                            <span className="font-bold text-green-600 dark:text-green-400">
-                              {/* {ritase.measurement_type === "bypass" ||
-                              ritase.measurement_type === "manual"
-                                ? ritase.net_weight || "-"
-                                : ritase.gross_weight || "-"} */}
-                                {ritase.net_weight}
-                            </span>
-                            <span className="text-xs text-gray-500 dark:text-gray-400">
-                              ton
-                            </span>
-                          </div>
+                          <Badge
+                            variant="secondary"
+                            className="bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400"
+                          >
+                            {ritase.net_weight || "0"} ton
+                          </Badge>
                         </TableCell>
-                        <TableCell className="text-sm text-gray-600 dark:text-gray-400">
-                          {format(
-                            new Date(ritase.createdAt || ritase.date),
-                            "HH:mm",
-                            { locale: localeId },
-                          )}
-                        </TableCell>
-                        <TableCell className="text-center ">
+                        <TableCell className="text-right">
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                className="h-8 w-8 p-0 hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-neutral-50"
+                                className="h-8 w-8 p-0 dark:hover:bg-gray-700"
                               >
-                                <MoreVertical className="h-4 w-4" />
+                                <MoreVertical className="h-4 w-4 text-gray-500 dark:text-gray-400" />
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent
                               align="end"
-                              className="w-48 bg-neutral-50 dark:bg-slate-800 dark:text-neutral-50 border-none shadow-sm shadow-slate-700"
+                              className="dark:bg-gray-800 dark:border-gray-700"
                             >
                               <DropdownMenuItem
                                 onClick={() => handleViewDetail(ritase)}
-                                className="cursor-pointer hover:bg-gray-200 dark:hover:bg-slate-700"
+                                className="dark:hover:bg-gray-700 dark:text-gray-200"
                               >
-                                <Eye className="mr-2 h-4 w-4" />
+                                <Eye className="w-4 h-4 mr-2" />
                                 Detail
                               </DropdownMenuItem>
-                              <DropdownMenuItem
-                                onClick={() => handlePrintTicket(ritase)}
-                                className="cursor-pointer hover:bg-gray-200 dark:hover:bg-slate-700"
-                              >
-                                <Printer className="mr-2 h-4 w-4" />
-                                Cetak Karcis
-                              </DropdownMenuItem>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem
-                                onClick={() => handleDuplicate(ritase)}
-                                className="cursor-pointer hover:bg-gray-200 dark:hover:bg-slate-700"
-                              >
-                                <Copy className="mr-2 h-4 w-4" />
-                                Tambah Ritase
-                              </DropdownMenuItem>
+                              <PrintTicketButton
+                                data={ritase}
+                                variant="ghost"
+                                size="sm"
+                              />
+                              <DropdownMenuSeparator className="dark:bg-gray-700" />
                               <DropdownMenuItem
                                 onClick={() => handleEdit(ritase)}
-                                className="cursor-pointer hover:bg-gray-200 dark:hover:bg-slate-700"
+                                className="dark:hover:bg-gray-700 dark:text-gray-200"
                               >
-                                <Edit2 className="mr-2 h-4 w-4" />
+                                <Edit2 className="w-4 h-4 mr-2" />
                                 Edit
                               </DropdownMenuItem>
                               <DropdownMenuItem
-                                onClick={() => handleDelete(ritase)}
-                                className="cursor-pointer text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-slate-700"
+                                onClick={() => handleDuplicate(ritase)}
+                                className="dark:hover:bg-gray-700 dark:text-gray-200"
                               >
-                                <Trash2 className="mr-2 h-4 w-4" />
+                                <Copy className="w-4 h-4 mr-2" />
+                                Duplicate
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator className="dark:bg-gray-700" />
+                              <DropdownMenuItem
+                                onClick={() => handleDelete(ritase)}
+                                className="text-red-600 dark:text-red-400 dark:hover:bg-gray-700"
+                              >
+                                <Trash2 className="w-4 h-4 mr-2" />
                                 Delete
                               </DropdownMenuItem>
                             </DropdownMenuContent>
@@ -368,14 +357,12 @@ const RitaseList = ({
               </div>
 
               {totalPages > 1 && (
-                <div className="mt-4">
-                  <Pagination
-                    currentPage={currentPage}
-                    totalPages={totalPages}
-                    onPageChange={onPageChange}
-                    isLoading={isRefreshing}
-                  />
-                </div>
+                <Pagination
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  onPageChange={onPageChange}
+                  isLoading={false}
+                />
               )}
             </>
           )}
@@ -384,41 +371,25 @@ const RitaseList = ({
 
       {/* Detail Dialog */}
       <Dialog open={isDetailDialogOpen} onOpenChange={setIsDetailDialogOpen}>
-        <DialogContent className="max-w-2xl bg-neutral-50 dark:bg-slate-800 ">
+        <DialogContent className="max-w-2xl dark:bg-slate-900 max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 dark:text-gray-200">
-              <Eye className="w-5 h-5" />
+            <DialogTitle className="flex items-center gap-2 dark:text-neutral-50">
+              <CheckCircle2 className="w-5 h-5 text-green-500" />
               Detail Ritase
             </DialogTitle>
           </DialogHeader>
-
           {selectedRitase && (
             <div className="space-y-4">
-              {/* Header Info */}
-              <div className="grid grid-cols-2 gap-4 p-4 bg-gray-50 dark:bg-gray-900/30 rounded-lg">
+              {/* Details Grid */}
+              <div className="grid grid-cols-2 gap-4 pt-4">
                 <div>
-                  <div className="text-sm text-gray-500 dark:text-gray-400">
-                    Hull No
+                  <div className="text-sm text-gray-500 dark:text-gray-400 mb-1">
+                    Hull No (DT)
                   </div>
-                  <Badge className="mt-1 bg-blue-600 dark:bg-blue-500 text-white">
-                    {selectedRitase.unit_dump_truck}
-                  </Badge>
-                </div>
-                <div>
-                  <div className="text-sm text-gray-500 dark:text-gray-400">
-                    Status
-                  </div>
-                  <div className="flex items-center gap-2 mt-1">
-                    <CheckCircle2 className="w-4 h-4 text-green-600 dark:text-green-400" />
-                    <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                      Completed
-                    </span>
+                  <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                    {selectedRitase.hull_no || "-"}
                   </div>
                 </div>
-              </div>
-
-              {/* Detail Information */}
-              <div className="grid grid-cols-2 gap-4">
                 <div>
                   <div className="text-sm text-gray-500 dark:text-gray-400 mb-1">
                     Excavator
@@ -523,7 +494,11 @@ const RitaseList = ({
                     Date
                   </div>
                   <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                    {selectedRitase.date ? format(new Date(selectedRitase.date), "dd MMMM yyyy", { locale: localeId }) : "-"}
+                    {selectedRitase.date
+                      ? format(new Date(selectedRitase.date), "dd MMMM yyyy", {
+                          locale: localeId,
+                        })
+                      : "-"}
                   </div>
                 </div>
                 <div>
@@ -549,14 +524,13 @@ const RitaseList = ({
               </div>
 
               {/* Action Buttons */}
-              <div className="flex gap-2 pt-4 border-t border-gray-200 dark:border-gray-700">
-                <Button
-                  onClick={() => handlePrintTicket(selectedRitase)}
-                  className="flex-1 bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white"
+              <div className="flex justify-between gap-2 pt-4 border-t border-gray-200 dark:border-gray-700">
+                <PrintTicketButton
+                  data={selectedRitase}
+                  variant="ghost"
+                  size="sm"
                 >
-                  <Printer className="w-4 h-4 mr-2" />
-                  Cetak Karcis
-                </Button>
+                </PrintTicketButton>
                 <Button
                   onClick={() => {
                     setIsDetailDialogOpen(false);
@@ -585,7 +559,7 @@ const RitaseList = ({
             </DialogHeader>
             <RitaseEditForm
               editingItem={selectedRitase}
-              onSubmit={handleEditSubmit}
+              onSuccess={handleEditSuccess} // ✅ FIXED: Callback dengan updatedData
               onCancel={() => {
                 setIsEditModalOpen(false);
                 setSelectedRitase(null);
@@ -597,7 +571,10 @@ const RitaseList = ({
 
       {/* Duplicate Modal */}
       {selectedRitase && (
-        <Dialog open={isDuplicateModalOpen} onOpenChange={setIsDuplicateModalOpen}>
+        <Dialog
+          open={isDuplicateModalOpen}
+          onOpenChange={setIsDuplicateModalOpen}
+        >
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto dark:bg-slate-900">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2 dark:text-neutral-50">

@@ -1,7 +1,8 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Button } from "@/shared/components/ui/button";
 import { Plus, RefreshCw, Database } from "lucide-react";
 import { USER_ROLES } from "@/modules/timbangan/ritase/constant/ritaseConstants";
+import { calculateCurrentShiftAndGroup } from "@/shared/utils/group";
 
 const RitaseHeader = ({
   user,
@@ -11,10 +12,24 @@ const RitaseHeader = ({
   isInitialLoading,
   onRefresh,
   onOpenInputModal,
-  // ✅ BARU: Props untuk refresh master data
   onRefreshMasterData,
   isRefreshingMasterData,
+  refreshButtonRef,
 }) => {
+  const [currentTime, setCurrentTime] = useState(new Date());
+  const [shiftInfo, setShiftInfo] = useState(() => calculateCurrentShiftAndGroup());
+
+  // Update waktu dan shift setiap detik
+  useEffect(() => {
+    const timer = setInterval(() => {
+      const now = new Date();
+      setCurrentTime(now);
+      setShiftInfo(calculateCurrentShiftAndGroup(now));
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, []);
+
   const getInputButtonText = () => {
     return userRole === USER_ROLES.OPERATOR_JT ? "Timbang" : "Input Data";
   };
@@ -23,10 +38,27 @@ const RitaseHeader = ({
     return userRole === USER_ROLES.OPERATOR_JT ? "Timbang" : "Input";
   };
 
+  // Format hari dan tanggal (contoh: Jumat, 30 Januari 2026)
+  const formatDayDate = () => {
+    const options = { weekday: "long", year: "numeric", month: "long", day: "numeric" };
+    return currentTime.toLocaleDateString("id-ID", options);
+  };
+
+  // Format jam real-time (HH:MM:SS)
+  const formatTime = () => {
+    const hours = String(currentTime.getHours()).padStart(2, "0");
+    const minutes = String(currentTime.getMinutes()).padStart(2, "0");
+    const seconds = String(currentTime.getSeconds()).padStart(2, "0");
+    return `${hours}:${minutes}:${seconds}`;
+  };
+
   const isCCR = userRole.toLowerCase().includes("ccr");
   
   return (
-    <div className="space-y-4 flex justify-between items-center">
+    <div className="space-y-4">
+      <div className="flex justify-between">
+
+      
       {/* Header Title & User Info */}
       <div className="flex flex-col gap-2">
         <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">
@@ -47,9 +79,28 @@ const RitaseHeader = ({
         </div>
       </div>
 
+      {/* Date, Time, Group, Shift - Minimalist Inline */}
+        <div className="flex flex-wrap items-center gap-2 text-sm sm:text-base">
+          <span className="font-medium text-gray-900 dark:text-white">
+            {formatDayDate()}
+          </span>
+          <span className="text-gray-400 dark:text-gray-500">|</span>
+          <span className="font-semibold text-blue-600 dark:text-blue-400">
+            {formatTime()}
+          </span>
+          <span className="text-gray-400 dark:text-gray-500">|</span>
+          <span className="text-gray-900 dark:text-white">
+            Group <span className="font-semibold">{shiftInfo.activeGroup}</span>
+          </span>
+          <span className="text-gray-400 dark:text-gray-500">|</span>
+          <span className="text-gray-900 dark:text-white">
+            {shiftInfo.currentShift}
+          </span>
+        </div>
+
       {/* Action Buttons */}
       <div className="flex items-center gap-2 sm:gap-3">
-        {/* ✅ BARU: Refresh Master Data Button */}
+        {/* Refresh Master Data Button */}
         <Button
           onClick={onRefreshMasterData}
           variant="outline"
@@ -65,6 +116,7 @@ const RitaseHeader = ({
 
         {/* Refresh Ritase Button */}
         <Button
+          ref={refreshButtonRef}
           onClick={onRefresh}
           variant="outline"
           disabled={isRefreshing}
@@ -90,7 +142,7 @@ const RitaseHeader = ({
             <span className="hidden sm:inline">{getInputButtonText()}</span>
           </Button>
         )}
-      </div>
+      </div></div>
     </div>
   );
 };

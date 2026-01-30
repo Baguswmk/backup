@@ -3,8 +3,6 @@ import { masterDataService } from "@/modules/timbangan/masterData/services/maste
 import { logger } from "@/shared/services/log";
 import { buildDateRangeCacheKey } from "@/shared/utils/cache";
 import { formatWeight } from "@/shared/utils/number";
-import { getTodayDateRange } from "@/shared/utils/date";
-import { getCurrentShift } from "@/shared/utils/shift";
 
 const validateDateRange = (filters) => {
   if (!filters.startDate || !filters.endDate) return { valid: true };
@@ -382,7 +380,7 @@ async fetchSummaryFleetByRitases(options = {}) {
           const userObj = userData.data;
           return {
             name:
-              userObj.attributes?.username || userObj.attributes?.name || null,
+              userObj.username || userObj.attributes?.name || null,
             id: userObj.id ? String(userObj.id) : null,
           };
         }
@@ -743,6 +741,7 @@ async fetchSummaryFleetByRitases(options = {}) {
       };
     }
   },
+
   async duplicateRitase(data) {
     try {
       const payload = {
@@ -1024,134 +1023,134 @@ async fetchSummaryFleetByRitases(options = {}) {
     }
   },
 
-async editTimbanganForm(formData, editId) {
-  try {
-    const payload = {
-      unit_dump_truck: formData.unit_dump_truck,
-      unit_exca: formData.unit_exca,
-      loading_location: formData.loading_location,
-      dumping_location: formData.dumping_location,
-      shift: formData.shift,
-      date: formData.date,
-      distance: parseFloat(formData.distance),
-      coal_type: formData.coal_type,
-      pic_work_unit: formData.pic_work_unit,
-      updated_by_user: formData.updated_by_user || null,
-    };
+  async editTimbanganForm(formData, editId) {
+    try {
+      const payload = {
+        unit_dump_truck: formData.unit_dump_truck,
+        unit_exca: formData.unit_exca,
+        loading_location: formData.loading_location,
+        dumping_location: formData.dumping_location,
+        shift: formData.shift,
+        date: formData.date,
+        distance: parseFloat(formData.distance),
+        coal_type: formData.coal_type,
+        pic_work_unit: formData.pic_work_unit,
+        updated_by_user: formData.updated_by_user || null,
+      };
 
-    // Handle weight based on which field is provided
-    if (formData.gross_weight !== undefined && formData.gross_weight !== null) {
-      const grossWeight = formatWeight(formData.gross_weight);
-      payload.gross_weight = parseFloat(grossWeight);
-      
-      if (payload.gross_weight <= 0) {
-        throw new Error("Gross weight harus lebih dari 0");
+      // Handle weight based on which field is provided
+      if (formData.gross_weight !== undefined && formData.gross_weight !== null) {
+        const grossWeight = formatWeight(formData.gross_weight);
+        payload.gross_weight = parseFloat(grossWeight);
+        
+        if (payload.gross_weight <= 0) {
+          throw new Error("Gross weight harus lebih dari 0");
+        }
       }
-    }
-    
-    if (formData.net_weight !== undefined && formData.net_weight !== null) {
-      const netWeight = formatWeight(formData.net_weight);
-      payload.net_weight = parseFloat(netWeight);
       
-      if (payload.net_weight <= 0) {
-        throw new Error("Net weight harus lebih dari 0");
+      if (formData.net_weight !== undefined && formData.net_weight !== null) {
+        const netWeight = formatWeight(formData.net_weight);
+        payload.net_weight = parseFloat(netWeight);
+        
+        if (payload.net_weight <= 0) {
+          throw new Error("Net weight harus lebih dari 0");
+        }
       }
+
+      if (formData.operator) {
+        payload.operator = formData.operator;
+      }
+
+      // Validations
+      if (!payload.unit_dump_truck) throw new Error("Dump truck wajib dipilih");
+      if (!payload.unit_exca) throw new Error("Excavator wajib dipilih");
+      if (!payload.loading_location)
+        throw new Error("Loading location wajib dipilih");
+      if (!payload.dumping_location)
+        throw new Error("Dumping location wajib dipilih");
+      if (!payload.shift) throw new Error("Shift wajib dipilih");
+      if (!payload.date) throw new Error("Date wajib diisi");
+      if (!payload.coal_type) throw new Error("Coal type wajib dipilih");
+      if (!payload.pic_work_unit) throw new Error("Work unit wajib dipilih");
+
+      logger.info("📤 EDIT Ritase Payload (with LABELS):", {
+        id: editId,
+        payload,
+      });
+
+      const response = await offlineService.put(
+        `/v1/custom/ritase/${editId}`,
+        payload,
+      );
+
+      const result = {
+        id: response.data?.id?.toString() || editId,
+        net_weight: response.data?.net_weight || 0,
+        tare_weight: response.data?.tare_weight || 0,
+        gross_weight: response.data?.gross_weight || 0,
+
+        hull_no:
+          response.data?.unit_dump_truck || payload.unit_dump_truck,
+        unit_dump_truck:
+          response.data?.unit_dump_truck || payload.unit_dump_truck,
+        dumptruck:
+          response.data?.unit_dump_truck || payload.unit_dump_truck,
+        unit_exca: response.data?.unit_exca || payload.unit_exca,
+        excavator: response.data?.unit_exca || payload.unit_exca,
+        loading_location:
+          response.data?.loading_location ||
+          payload.loading_location,
+        dumping_location:
+          response.data?.dumping_location ||
+          payload.dumping_location,
+        shift: response.data?.shift || payload.shift,
+        date: response.data?.date || payload.date,
+        distance: response.data?.distance || payload.distance || 0,
+        coal_type: response.data?.coal_type || payload.coal_type,
+        pic_work_unit:
+          response.data?.pic_work_unit || payload.pic_work_unit,
+        operator:
+          response.data?.operator || payload.operator || null,
+        checker: response.data?.checker || null,
+        inspector: response.data?.inspector || null,
+        weigh_bridge: response.data?.weigh_bridge || null,
+        updatedAt:
+          response.data?.updatedAt || new Date().toISOString(),
+        updated_by_user: payload.updated_by_user,
+      };
+
+      logger.info("✅ Ritase updated successfully", {
+        id: result.id,
+        hull_no: result.hull_no,
+        net_weight: result.net_weight,
+        gross_weight: result.gross_weight,
+      });
+
+      return {
+        success: true,
+        data: result,
+        message: "Data berhasil diperbarui",
+      };
+    } catch (error) {
+      const errorMessage =
+        error.response?.data?.message ||
+        error.response?.data?.error?.message ||
+        error.response?.data?.error ||
+        error.message ||
+        "Gagal memperbarui data";
+
+      logger.error("Failed to update ritase", {
+        error: errorMessage,
+        details: error.response?.data,
+        editId,
+      });
+
+      const enhancedError = new Error(errorMessage);
+      enhancedError.response = error.response;
+      enhancedError.originalError = error;
+      throw enhancedError;
     }
-
-    if (formData.operator) {
-      payload.operator = formData.operator;
-    }
-
-    // Validations
-    if (!payload.unit_dump_truck) throw new Error("Dump truck wajib dipilih");
-    if (!payload.unit_exca) throw new Error("Excavator wajib dipilih");
-    if (!payload.loading_location)
-      throw new Error("Loading location wajib dipilih");
-    if (!payload.dumping_location)
-      throw new Error("Dumping location wajib dipilih");
-    if (!payload.shift) throw new Error("Shift wajib dipilih");
-    if (!payload.date) throw new Error("Date wajib diisi");
-    if (!payload.coal_type) throw new Error("Coal type wajib dipilih");
-    if (!payload.pic_work_unit) throw new Error("Work unit wajib dipilih");
-
-    logger.info("📤 EDIT Ritase Payload (with LABELS):", {
-      id: editId,
-      payload,
-    });
-
-    const response = await offlineService.put(
-      `/v1/custom/ritase/${editId}`,
-      payload,
-    );
-
-    const result = {
-      id: response.data?.id?.toString() || editId,
-      net_weight: response.data?.attributes?.net_weight || 0,
-      tare_weight: response.data?.attributes?.tare_weight || 0,
-      gross_weight: response.data?.attributes?.gross_weight || 0,
-
-      hull_no:
-        response.data?.attributes?.unit_dump_truck || payload.unit_dump_truck,
-      unit_dump_truck:
-        response.data?.attributes?.unit_dump_truck || payload.unit_dump_truck,
-      dumptruck:
-        response.data?.attributes?.unit_dump_truck || payload.unit_dump_truck,
-      unit_exca: response.data?.attributes?.unit_exca || payload.unit_exca,
-      excavator: response.data?.attributes?.unit_exca || payload.unit_exca,
-      loading_location:
-        response.data?.attributes?.loading_location ||
-        payload.loading_location,
-      dumping_location:
-        response.data?.attributes?.dumping_location ||
-        payload.dumping_location,
-      shift: response.data?.attributes?.shift || payload.shift,
-      date: response.data?.attributes?.date || payload.date,
-      distance: response.data?.attributes?.distance || payload.distance || 0,
-      coal_type: response.data?.attributes?.coal_type || payload.coal_type,
-      pic_work_unit:
-        response.data?.attributes?.pic_work_unit || payload.pic_work_unit,
-      operator:
-        response.data?.attributes?.operator || payload.operator || null,
-      checker: response.data?.attributes?.checker || null,
-      inspector: response.data?.attributes?.inspector || null,
-      weigh_bridge: response.data?.attributes?.weigh_bridge || null,
-      updatedAt:
-        response.data?.attributes?.updatedAt || new Date().toISOString(),
-      updated_by_user: payload.updated_by_user,
-    };
-
-    logger.info("✅ Ritase updated successfully", {
-      id: result.id,
-      hull_no: result.hull_no,
-      net_weight: result.net_weight,
-      gross_weight: result.gross_weight,
-    });
-
-    return {
-      success: true,
-      data: result,
-      message: "Data berhasil diperbarui",
-    };
-  } catch (error) {
-    const errorMessage =
-      error.response?.data?.message ||
-      error.response?.data?.error?.message ||
-      error.response?.data?.error ||
-      error.message ||
-      "Gagal memperbarui data";
-
-    logger.error("Failed to update ritase", {
-      error: errorMessage,
-      details: error.response?.data,
-      editId,
-    });
-
-    const enhancedError = new Error(errorMessage);
-    enhancedError.response = error.response;
-    enhancedError.originalError = error;
-    throw enhancedError;
-  }
-},
+  },
 
   async deleteTimbanganEntry(id) {
     try {
@@ -1173,6 +1172,146 @@ async editTimbanganForm(formData, editId) {
       };
     }
   },
+
+async bulkUpdateKertasRitases(kertasData, updates, user) {
+  try {
+    logger.info("🔄 Starting bulk update for kertas ritases", {
+      excavator: kertasData.excavator,
+      totalRitases: kertasData.ritases?.length || 0,
+      updates: Object.keys(updates),
+    });
+
+    if (!kertasData.ritases || kertasData.ritases.length === 0) {
+      return {
+        success: false,
+        error: "Tidak ada ritase yang akan diupdate",
+      };
+    }
+
+    // Validasi updates
+    const allowedFields = [
+      'shift',
+      'excavator',
+      'loading_location',
+      'dumping_location',
+      'measurement_type',
+      'distance'
+    ];
+
+    const invalidFields = Object.keys(updates).filter(
+      field => !allowedFields.includes(field)
+    );
+
+    if (invalidFields.length > 0) {
+      return {
+        success: false,
+        error: `Field tidak valid: ${invalidFields.join(', ')}`,
+      };
+    }
+
+    // Prepare bulk update request
+    const ritaseIds = kertasData.ritases.map(r => r.id);
+    const updatePromises = [];
+
+    // Batch update - update semua ritase dengan field yang sama
+    for (const ritase of kertasData.ritases) {
+      const updatedData = {
+        ...ritase,
+        ...updates,
+        // Preserve fields that shouldn't be changed
+        id: ritase.id,
+        time: ritase.time,
+        weight: ritase.weight,
+        hull_no: ritase.hull_no,
+        operator: ritase.operator,
+        checker: ritase.checker,
+        company: ritase.company,
+        // Update modified metadata
+        modified_by: user?.username || user?.id,
+        modified_at: new Date().toISOString(),
+      };
+
+      updatePromises.push(
+        offlineService.performRequest({
+          endpoint: `/ritase/${ritase.id}`,
+          method: "PUT",
+          body: updatedData,
+          requiresAuth: true,
+          user,
+        })
+      );
+    }
+
+    // Execute all updates
+    const results = await Promise.allSettled(updatePromises);
+
+    // Check results
+    const successCount = results.filter(r => r.status === 'fulfilled').length;
+    const failedCount = results.filter(r => r.status === 'rejected').length;
+
+    logger.info("✅ Bulk update completed", {
+      total: results.length,
+      success: successCount,
+      failed: failedCount,
+    });
+
+    if (failedCount > 0) {
+      const errors = results
+        .filter(r => r.status === 'rejected')
+        .map(r => r.reason?.message || 'Unknown error')
+        .join(', ');
+      
+      if (successCount === 0) {
+        return {
+          success: false,
+          error: `Semua update gagal: ${errors}`,
+        };
+      } else {
+        return {
+          success: true,
+          warning: `${successCount} berhasil, ${failedCount} gagal: ${errors}`,
+          successCount,
+          failedCount,
+        };
+      }
+    }
+
+    await this.invalidateRelatedCaches(kertasData, user);
+
+    return {
+      success: true,
+      message: `Berhasil mengupdate ${successCount} ritase`,
+      successCount,
+    };
+
+  } catch (error) {
+    logger.error("❌ Bulk update failed", error);
+    return {
+      success: false,
+      error: error.message || "Gagal melakukan bulk update",
+    };
+  }
+},
+
+
+async invalidateRelatedCaches(kertasData, user) {
+  try {
+    const workShiftInfo = getWorkShiftInfo();
+    const patterns = [
+      `summary_fleet_`,
+      `ritase_list_`,
+      `aggregated_ritase_`,
+    ];
+
+    for (const pattern of patterns) {
+      await offlineService.invalidateCachePattern(pattern);
+    }
+
+    logger.info("✅ Related caches invalidated after bulk update");
+  } catch (error) {
+    logger.warn("⚠️ Failed to invalidate caches", error);
+  }
+},
 
   async clearCache() {
     try {

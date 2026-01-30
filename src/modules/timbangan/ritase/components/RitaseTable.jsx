@@ -805,7 +805,7 @@ export const RitaseTable = ({
                             <td className="px-4 py-3 text-center">
                               <div className="flex flex-col items-center">
                                 <span className="font-bold text-green-600 text-base">
-                                  {parseFloat(netWeight).toFixed(2)}
+                                  {parseFloat(netWeight).toFixed(3)}
                                 </span>
                               </div>
                             </td>
