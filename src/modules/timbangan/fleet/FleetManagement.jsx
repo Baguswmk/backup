@@ -14,6 +14,7 @@ import FleetSelectionAlert from "@/modules/timbangan/fleet/components/FleetSelec
 import FleetFilterSection from "@/modules/timbangan/fleet/components/FleetFilterSection";
 import FleetTableContainer from "@/modules/timbangan/fleet/components/FleetTableContainer";
 import FleetModalsManager from "@/modules/timbangan/fleet/components/FleetModalsManager";
+import { useFleetWithTransfer } from "@/modules/timbangan/fleet/hooks/useFleetWithTransfer"; 
 import {
   DEBOUNCE_TIME,
   TOAST_MESSAGES,
@@ -78,7 +79,7 @@ const FleetManagement = ({ Type }) => {
     deleteConfig,
     refresh: refreshFleet,
   } = useFleet(user ? { user } : null, measurementType);
-
+const { handleSaveFleet } = useFleetWithTransfer(user);
   const [configSearchInput, setConfigSearchInput] = useState("");
   const configSearch = useDebouncedValue(configSearchInput, DEBOUNCE_TIME);
   const [isSaving, setIsSaving] = useState(false);
@@ -389,79 +390,40 @@ const handleSaveConfig = async (configData) => {
 
   if (isReadOnly) {
     showToast.error("Anda tidak memiliki akses untuk menyimpan fleet");
-    return;
+    return { success: false };
   }
 
   if (selectedConfig && !canUpdate) {
     showToast.error(getDisabledMessage("update"));
-    return;
+    return { success: false };
   }
   if (!selectedConfig && !canCreate) {
     showToast.error(getDisabledMessage("create"));
-    return;
+    return { success: false };
   }
 
   setIsSaving(true);
 
-  return await withErrorHandling(
-    async () => {
-      let result;
+  try {
+    // GUNAKAN handleSaveFleet yang sudah handle transfer dump truck
+    const result = await handleSaveFleet(configData, selectedConfig);
 
-      if (selectedConfig) {
-        // EDIT MODE
-        const updatePayload = {
-          excavatorId: configData.excavatorId,
-          loadingLocationId: configData.loadingLocationId,
-          dumpingLocationId: configData.dumpingLocationId,
-          coalTypeId: configData.coalTypeId,
-          distance: configData.distance,
-          workUnitId: configData.workUnitId,
-          inspectorIds: configData.inspectorIds, // ✅ FIXED: array
-          checkerIds: configData.checkerIds,     // ✅ FIXED: array
-          measurementType: configData.measurement_type,
-          pairDtOp: configData.pairDtOp,
-        };
+    if (result?.success) {
+      closeModal("config");
 
+      setTimeout(() => {
+        refreshFleet();
+      }, 500);
+    }
 
-        result = await updateConfig(selectedConfig.id, updatePayload);
-      } else {
-
-        result = await createFleetConfig(configData);
-      }
-
-      validateResponse(
-        result,
-        selectedConfig ? "update fleet" : "create fleet",
-      );
-      
-      if (result?.success) {
-        closeModal("config");
-
-        setTimeout(() => {
-          refreshFleet();
-        }, 500);
-      }
-
-      return result;
-    },
-    {
-      operation: selectedConfig ? "update fleet" : "create fleet",
-      defaultMessage: TOAST_MESSAGES.ERROR.UPDATE_FAILED,
-      onError: (error) => {
-        console.error("❌ Failed to save fleet:", error);
-        if (!error.message?.includes("wajib") && !error.validationError) {
-          const isQueued =
-            error?.queued ||
-            error?.message?.includes("queued for offline sync");
-          if (!isQueued) {
-            closeModal("config");
-          }
-        }
-      },
-    },
-  ).finally(() => {
+    return result;
+  } catch (error) {
+    console.error("❌ Fleet save error:", error);
+    showToast.error(error.message || "Gagal menyimpan fleet");
+    return { success: false, error: error.message };
+  } finally {
     setIsSaving(false);
-  });
+  }
 };
   const handleConfirmDelete = useCallback(async () => {
     const deleteTarget = getModalState("delete").data;

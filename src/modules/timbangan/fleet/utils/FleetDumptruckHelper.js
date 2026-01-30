@@ -1,93 +1,154 @@
+/**
+ * Helper untuk mengelola status dump truck di fleet
+ */
 
 /**
- * Membuat index/map dari semua DT yang sudah digunakan
- * @param {Array} fleetConfigs - Array of fleet configurations
- * @returns {Object} Map dengan key: dumptruckId, value: fleetId yang menggunakan
+ * Membuat map dari dump truck yang sudah digunakan
+ * @param {Array} availableDumptruckSettings - List semua fleet settings
+ * @returns {Map} Map dengan key: dumpTruckId, value: { fleetId, fleetInfo }
  */
-export const createUsedDumptrucksMap = (fleetConfigs = []) => {
-  const usedDumptrucksMap = {};
+export const createUsedDumptrucksMap = (availableDumptruckSettings = []) => {
+  const map = new Map();
 
-  fleetConfigs.forEach((fleet) => {
+  availableDumptruckSettings.forEach((fleet) => {
     if (fleet.units && Array.isArray(fleet.units)) {
       fleet.units.forEach((unit) => {
-        const dumptruckId = String(unit.id || unit.dumpTruckId);
-        // Simpan info fleet mana yang pakai DT ini
-        usedDumptrucksMap[dumptruckId] = {
+        const dtId = String(unit.id || unit.dumpTruckId);
+        
+        map.set(dtId, {
           fleetId: fleet.id,
-          fleetName: `${fleet.excavator} - ${fleet.loadingLocation}`,
-          assignedAt: unit.assignedAt || fleet.updatedAt,
-        };
+          fleetInfo: {
+            excavator: fleet.excavator,
+            loadingLocation: fleet.loadingLocation,
+            dumpingLocation: fleet.dumpingLocation,
+            coalType: fleet.coalType,
+            measurementType: fleet.measurementType,
+          },
+        });
       });
     }
   });
 
-  return usedDumptrucksMap;
+  return map;
 };
 
 /**
- * Cek apakah dumptruck sedang digunakan di fleet lain
- * @param {string|number} dumptruckId - ID dumptruck yang akan dicek
- * @param {Object} usedDumptrucksMap - Map dari createUsedDumptrucksMap
- * @param {string|number} currentFleetId - ID fleet yang sedang diedit (opsional)
- * @returns {boolean} true jika DT dipakai di fleet lain
+ * Filter dump truck yang available (tidak digunakan di fleet lain saat edit)
+ * @param {Array} units - List dump trucks
+ * @param {Map} usedDumptrucksMap - Map dump truck yang sudah digunakan
+ * @param {string} currentFleetId - ID fleet yang sedang di-edit (null jika create)
+ * @returns {Array} Filtered dump trucks
  */
-export const isDumptruckUsedInOtherFleet = (
-  dumptruckId,
+export const filterAvailableDumptrucks = (
+  units,
   usedDumptrucksMap,
   currentFleetId = null
 ) => {
-  const dtId = String(dumptruckId);
-  const usageInfo = usedDumptrucksMap[dtId];
+  return units.filter((unit) => {
+    const dtId = String(unit.id);
+    const usage = usedDumptrucksMap.get(dtId);
 
-  if (!usageInfo) {
-    return false; // DT belum dipakai sama sekali
-  }
+    // Jika tidak ada di map, berarti available
+    if (!usage) return true;
 
-  // Jika sedang edit dan DT dipakai di fleet yang sama, return false
-  if (currentFleetId && String(usageInfo.fleetId) === String(currentFleetId)) {
-    return false;
-  }
+    // Jika sedang edit dan DT ini milik fleet yang sedang di-edit, tetap tampilkan
+    if (currentFleetId && String(usage.fleetId) === String(currentFleetId)) {
+      return true;
+    }
 
-  return true; // DT dipakai di fleet lain
+    // DT ini digunakan di fleet lain - TETAP TAMPILKAN tapi dengan status berbeda
+    // Status ini akan dihandle di UI untuk menampilkan badge "Digunakan Fleet Lain"
+    return true;
+  });
 };
 
 /**
- * Filter list dumptruck untuk menghilangkan yang sudah digunakan
- * @param {Array} dumptrucks - Array of dumptruck units
- * @param {Object} usedDumptrucksMap - Map dari createUsedDumptrucksMap
- * @param {string|number} currentFleetId - ID fleet yang sedang diedit (opsional)
- * @returns {Array} Filtered dumptrucks
+ * Mengecek apakah dump truck sedang digunakan di fleet lain
+ * @param {string} dumpTruckId - ID dump truck
+ * @param {Map} usedDumptrucksMap - Map dump truck yang sudah digunakan
+ * @param {string} currentFleetId - ID fleet yang sedang di-edit
+ * @returns {Object} { isUsed: boolean, fleetInfo: {...}, fleetId: string|null }
  */
-export const filterAvailableDumptrucks = (
-  dumptrucks = [],
-  usedDumptrucksMap = {},
+export const checkDumptruckUsage = (
+  dumpTruckId,
+  usedDumptrucksMap,
   currentFleetId = null
 ) => {
-  return dumptrucks.filter((dt) => {
-    return !isDumptruckUsedInOtherFleet(dt.id, usedDumptrucksMap, currentFleetId);
-  });
+  const dtId = String(dumpTruckId);
+  const usage = usedDumptrucksMap.get(dtId);
+
+  if (!usage) {
+    return { isUsed: false, fleetInfo: null, fleetId: null };
+  }
+
+  // Jika digunakan di fleet yang sedang di-edit, anggap tidak digunakan
+  if (currentFleetId && String(usage.fleetId) === String(currentFleetId)) {
+    return { isUsed: false, fleetInfo: null, fleetId: null };
+  }
+
+  // Digunakan di fleet lain
+  return {
+    isUsed: true,
+    fleetInfo: usage.fleetInfo,
+    fleetId: usage.fleetId,
+  };
+};
+
+/**
+ * Mendapatkan status dump truck untuk UI badge
+ * @param {string} dumpTruckId - ID dump truck
+ * @param {Array} selectedUnits - List unit yang sudah dipilih di fleet saat ini
+ * @param {Map} usedDumptrucksMap - Map dump truck yang sudah digunakan
+ * @param {string} currentFleetId - ID fleet yang sedang di-edit
+ * @returns {string} 'active' | 'used-other' | 'available'
+ */
+export const getDumptruckStatus = (
+  dumpTruckId,
+  selectedUnits,
+  usedDumptrucksMap,
+  currentFleetId = null
+) => {
+  const dtId = String(dumpTruckId);
+
+  // Cek apakah sudah dipilih di fleet saat ini
+  const isSelected = selectedUnits.some(
+    (u) => String(u.id) === dtId
+  );
+
+  if (isSelected) {
+    return "active";
+  }
+
+  // Cek apakah digunakan di fleet lain
+  const usage = checkDumptruckUsage(dtId, usedDumptrucksMap, currentFleetId);
+
+  if (usage.isUsed) {
+    return "used-other";
+  }
+
+  return "available";
 };
 
 /**
  * Dapatkan info fleet yang menggunakan dumptruck tertentu
  * @param {string|number} dumptruckId - ID dumptruck
- * @param {Object} usedDumptrucksMap - Map dari createUsedDumptrucksMap
+ * @param {Map} usedDumptrucksMap - Map dari createUsedDumptrucksMap
  * @returns {Object|null} Info fleet atau null
  */
 export const getDumptruckUsageInfo = (dumptruckId, usedDumptrucksMap) => {
   const dtId = String(dumptruckId);
-  return usedDumptrucksMap[dtId] || null;
+  return usedDumptrucksMap.get(dtId) || null;
 };
 
 /**
  * Statistik penggunaan dumptruck
  * @param {Array} allDumptrucks - Semua dumptruck available
- * @param {Object} usedDumptrucksMap - Map dari createUsedDumptrucksMap
+ * @param {Map} usedDumptrucksMap - Map dari createUsedDumptrucksMap
  * @returns {Object} Stats
  */
-export const getDumptruckStats = (allDumptrucks = [], usedDumptrucksMap = {}) => {
+export const getDumptruckStats = (allDumptrucks = [], usedDumptrucksMap = new Map()) => {
   const total = allDumptrucks.length;
-  const used = Object.keys(usedDumptrucksMap).length;
+  const used = usedDumptrucksMap.size;
   const available = total - used;
 
   return {
@@ -101,20 +162,22 @@ export const getDumptruckStats = (allDumptrucks = [], usedDumptrucksMap = {}) =>
 /**
  * Validasi apakah DT bisa diassign ke fleet
  * @param {string|number} dumptruckId - ID dumptruck
- * @param {Object} usedDumptrucksMap - Map dari createUsedDumptrucksMap
+ * @param {Map} usedDumptrucksMap - Map dari createUsedDumptrucksMap
  * @param {string|number} currentFleetId - ID fleet yang sedang diedit (opsional)
- * @returns {Object} { valid: boolean, reason: string }
+ * @returns {Object} { valid: boolean, reason: string, usageInfo?: Object }
  */
 export const validateDumptruckAssignment = (
   dumptruckId,
   usedDumptrucksMap,
   currentFleetId = null
 ) => {
-  if (isDumptruckUsedInOtherFleet(dumptruckId, usedDumptrucksMap, currentFleetId)) {
+  const usage = checkDumptruckUsage(dumptruckId, usedDumptrucksMap, currentFleetId);
+  
+  if (usage.isUsed) {
     const usageInfo = getDumptruckUsageInfo(dumptruckId, usedDumptrucksMap);
     return {
       valid: false,
-      reason: `Dumptruck sudah digunakan di fleet: ${usageInfo.fleetName}`,
+      reason: `Dumptruck sudah digunakan di fleet: ${usageInfo?.fleetInfo?.excavator || 'Unknown'}`,
       usageInfo,
     };
   }
@@ -127,8 +190,9 @@ export const validateDumptruckAssignment = (
 
 export default {
   createUsedDumptrucksMap,
-  isDumptruckUsedInOtherFleet,
   filterAvailableDumptrucks,
+  checkDumptruckUsage,
+  getDumptruckStatus,
   getDumptruckUsageInfo,
   getDumptruckStats,
   validateDumptruckAssignment,
