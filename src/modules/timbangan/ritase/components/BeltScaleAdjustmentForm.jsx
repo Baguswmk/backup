@@ -642,7 +642,7 @@ const BeltScaleAdjustmentForm = ({ onSubmit }) => {
                   value={beltscaleWeight}
                   onChange={(e) => {
                     const value = e.target.value;
-                    if (value === "" || /^\d*\.?\d{0,2}$/.test(value)) {
+                    if (value === "" || /^\d*\.?\d{0,3}$/.test(value)) {
                       handleBeltscaleWeightChange(value);
                     }
                   }}
