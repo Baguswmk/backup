@@ -213,7 +213,7 @@ const TareWeightModal = ({
     }
 
     const weightToSave = manualMode ? manualWeight : displayWeight;
-    const weight = parseFloat(weightToSave);
+    const weight = parseFloat(weightToSave) / 1000;
 
     if (!weightToSave || isNaN(weight) || weight <= 0) {
       setError("Berat tidak valid. Harus lebih dari 0 ton");
@@ -464,7 +464,7 @@ const TareWeightModal = ({
                           : "text-blue-900"
                       }`}
                     >
-                      {formatWeight(currentWeight)}
+                      {formatWeight(currentWeight / 1000)}
                     </span>
                     <span
                       className={`text-lg font-medium ${
@@ -521,7 +521,7 @@ const TareWeightModal = ({
                   step="0.01"
                   min="0"
                   max="50"
-                  value={displayWeight}
+                  value={displayWeight / 1000}
                   onChange={(e) => handleManualChange(e.target.value)}
                   className={`${
                     error && (isSelectionMode ? selectedUnitId : true)

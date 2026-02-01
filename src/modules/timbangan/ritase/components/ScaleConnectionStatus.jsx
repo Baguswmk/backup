@@ -100,7 +100,7 @@ const ScaleConnectionStatus = ({
     <div className={colorClasses[statusColor]}>
       {wsConnected && currentWeight && (
         <span className="text-sm font-mono font-medium">
-          {formatWeight(currentWeight)} ton
+          {formatWeight(currentWeight / 1000)} ton
         </span>
       )}
       {renderButton()}

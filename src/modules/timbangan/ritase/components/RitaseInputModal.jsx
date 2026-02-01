@@ -282,7 +282,7 @@ const RitaseInputModal = ({
       return;
     }
 
-    const newWeight = parseFloat(currentWeight);
+    const newWeight = parseFloat(currentWeight / 1000);
     if (isNaN(newWeight) || newWeight < 0) return;
 
     if (waitingForFirstData) {
@@ -358,7 +358,7 @@ const RitaseInputModal = ({
 
     const timeoutId = setTimeout(() => {
       if (wsConnected && currentWeight !== null) {
-        const newWeight = parseFloat(currentWeight);
+        const newWeight = parseFloat(currentWeight/1000);
         if (!isNaN(newWeight) && newWeight >= 0) {
           setDisplayWeight(newWeight.toFixed(2));
         }
@@ -485,7 +485,7 @@ const RitaseInputModal = ({
   const handleInsert = useCallback(() => {
     if (!wsConnected || !currentWeight) return;
 
-    const weight = parseFloat(currentWeight);
+    const weight = parseFloat(currentWeight /1000);
     const formattedWeight = weight.toFixed(2);
     const now = new Date();
 
@@ -527,7 +527,7 @@ const RitaseInputModal = ({
     }
 
     if (!newMode && wsConnected && currentWeight) {
-      const weight = parseFloat(currentWeight);
+      const weight = parseFloat(currentWeight / 1000);
       const formattedWeight = weight.toFixed(2);
       setDisplayWeight(formattedWeight);
     }
