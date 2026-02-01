@@ -68,15 +68,10 @@ const buildFilters = (options = {}) => {
       if (user?.id) {
         filters.$and = [
           { measurement_type: { $eq: "Timbangan" } },
-          {
-            // Filter berdasarkan operator yang ada di dalam pair_dt_op
-            setting_dump_truck: {
-              pair_dt_op: {
-                ops: {
-                  id: {
-                    $in: [parseInt(user.id)], // Harus array
-                  },
-                },
+           {
+            checkers: {
+              id: {
+                $in: [parseInt(user.id)],
               },
             },
           },
