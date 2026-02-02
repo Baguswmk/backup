@@ -299,13 +299,13 @@ const OverviewTable = ({
                                   ? "bg-red-100 dark:bg-red-900/40 text-red-800 dark:text-red-300 border border-red-300 dark:border-red-700 hover:bg-red-200 dark:hover:bg-red-900/60"
                                   : "bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-300 border border-green-300 dark:border-green-700 hover:bg-green-200 dark:hover:bg-green-900/60"
                               }`}
-                              title={`${value.toFixed(1)} ton - ${
+                              title={`${value.toFixed(2)} ton - ${
                                 isBelowThreshold
                                   ? "Di bawah target 250 ton"
                                   : "Mencapai target"
                               } - Klik untuk detail`}
                             >
-                              {formatWeight(value, 1)}
+                              {formatWeight(value, 2)}
                             </button>
                           ) : (
                             <span className="text-gray-300 dark:text-gray-600 font-medium">

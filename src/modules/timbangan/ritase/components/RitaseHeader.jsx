@@ -56,7 +56,7 @@ const RitaseHeader = ({
   
   return (
     <div className="space-y-4">
-      <div className="flex justify-between">
+      <div className="flex flex-col md:flex-row justify-between">
 
       
       {/* Header Title & User Info */}

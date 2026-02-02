@@ -239,7 +239,7 @@ export const masterDataService = {
           sort: "username:asc",
         },
         cacheKey: "users",
-        ttl: 2 * 60 * 1000,
+        ttl: 15 * 60 * 1000,
         forceRefresh,
       });
 
@@ -377,7 +377,7 @@ async fetchUnits(filters = {}) {
   const response = await offlineService.get("/units", {
     params,
     cacheKey,
-    ttl: 2 * 60 * 1000,
+    ttl: 15 * 60 * 1000,
     forceRefresh,
   });
 
@@ -391,6 +391,7 @@ async fetchUnits(filters = {}) {
     workUnitId: item.attributes.work_unit?.data?.id,
     settingDumpTruckId: item.attributes.setting_dump_truck?.data?.id,
     tare_weight: item.attributes.tare_weight || null,
+    tare_weight_updated_date: item.attributes.tare_weight_updated_date || null,
     rfid: item.attributes.rfid || null,
     bypass_tonnage: item.attributes.bypass_tonnage || null,
     updatedAt: item.attributes.updatedAt || null,
@@ -535,7 +536,7 @@ async fetchUnits(filters = {}) {
     const response = await offlineService.get("/operators", {
       params,
       cacheKey,
-      ttl: 2 * 60 * 1000,
+      ttl: 15 * 60 * 1000,
       forceRefresh,
     });
 

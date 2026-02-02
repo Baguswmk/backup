@@ -294,12 +294,12 @@ const MasterDataManagement = () => {
           render: (val, row) => (
             <TareWeightCell
               tareWeight={row.tare_weight}
-              updatedAt={row.updatedAt}
+              tareWeightUpdatedDate={row.tare_weight_updated_date}
             />
           ),
         },
         {
-          key: "updatedAt",
+          key: "tare_weight_updated_date",
           label: "Last Updated",
           render: (val) =>
             val ? new Date(val).toLocaleDateString("id-ID") : "-",

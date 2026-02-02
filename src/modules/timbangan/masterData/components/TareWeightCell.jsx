@@ -1,10 +1,10 @@
 import { Badge } from "@/shared/components/ui/badge";
 import { AlertTriangle, CheckCircle, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
-const TARE_WEIGHT_EXPIRY_DAYS = 7;
+const TARE_WEIGHT_EXPIRY_DAYS = 30; // 1 bulan
 
-const getTareWeightStatus = (tareWeight, updatedAt) => {
-  if (!tareWeight || !updatedAt) {
+const getTareWeightStatus = (tareWeight, tareWeightUpdatedDate) => {
+  if (!tareWeight || !tareWeightUpdatedDate) {
     return {
       status: "missing",
       severity: "error",
@@ -14,7 +14,7 @@ const getTareWeightStatus = (tareWeight, updatedAt) => {
   }
 
   const now = new Date();
-  const updated = new Date(updatedAt);
+  const updated = new Date(tareWeightUpdatedDate);
   const daysDiff = Math.floor((now - updated) / (1000 * 60 * 60 * 24));
   const daysRemaining = TARE_WEIGHT_EXPIRY_DAYS - daysDiff;
 
@@ -25,7 +25,7 @@ const getTareWeightStatus = (tareWeight, updatedAt) => {
       message: `Kadaluarsa ${daysDiff} hari`,
       daysRemaining: 0,
     };
-  } else if (daysRemaining <= 2) {
+  } else if (daysRemaining <= 7) {
     return {
       status: "warning",
       severity: "warning",
@@ -42,7 +42,7 @@ const getTareWeightStatus = (tareWeight, updatedAt) => {
   }
 };
 
-export const TareWeightCell = ({ tareWeight, updatedAt }) => {
+export const TareWeightCell = ({ tareWeight, tareWeightUpdatedDate }) => {
   if (!tareWeight || tareWeight === 0) {
     return (
       <Badge variant="secondary" className="bg-gray-100 text-gray-600">
@@ -52,7 +52,7 @@ export const TareWeightCell = ({ tareWeight, updatedAt }) => {
     );
   }
 
-  const status = getTareWeightStatus(tareWeight, updatedAt);
+  const status = getTareWeightStatus(tareWeight, tareWeightUpdatedDate);
 
   const variantMap = {
     valid: { className: "bg-green-100 text-green-800", icon: CheckCircle },

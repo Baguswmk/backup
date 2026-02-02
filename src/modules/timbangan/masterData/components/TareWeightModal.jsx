@@ -1,26 +1,23 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import {
   Card,
   CardContent,
 } from "@/shared/components/ui/card";
 import { Button } from "@/shared/components/ui/button";
-import { Input } from "@/shared/components/ui/input";
 import { Label } from "@/shared/components/ui/label";
 import { Badge } from "@/shared/components/ui/badge";
 import { Alert, AlertDescription } from "@/shared/components/ui/alert";
 import {
   Scale,
-  X,
   Loader2,
   Save,
   Clock,
   Radio,
   WifiOff,
-  Download,
   AlertTriangle,
   Info,
-  Edit2,
   Wifi,
+  Lock,
 } from "lucide-react";
 import SearchableSelect from "@/shared/components/SearchableSelect";
 import { useWebSerialScale } from "@/shared/hooks/useWebSerialScale";
@@ -28,7 +25,10 @@ import { showToast } from "@/shared/utils/toast";
 import { format } from "date-fns";
 import { formatWeight } from "@/shared/utils/number";
 import ModalHeader from "@/shared/components/ModalHeader";
+
 const TARE_WEIGHT_EXPIRY_DAYS = 7;
+const WEIGHT_STABLE_DURATION = 2000; // 2 seconds
+const WEIGHT_TOLERANCE = 0.01; // 10kg tolerance
 
 const getTareWeightStatus = (tareWeight, updatedAt) => {
   if (!tareWeight || !updatedAt) {
@@ -69,21 +69,6 @@ const getTareWeightStatus = (tareWeight, updatedAt) => {
   }
 };
 
-/**
- * TareWeightModal - Unified modal for tare weight input
- *
- * @param {Object} props
- * @param {boolean} props.isOpen - Modal open state
- * @param {Function} props.onClose - Close handler
- * @param {Object} props.unit - Single unit for direct weighing (optional)
- * @param {Array} props.units - List of units for selection mode (optional)
- * @param {Function} props.onSave - Save handler
- * @param {boolean} props.isSaving - Saving state
- *
- * Mode Selection:
- * - If `unit` is provided → Single Unit Mode (direct weighing)
- * - If `units` is provided → Selection Mode (choose unit first)
- */
 const TareWeightModal = ({
   isOpen,
   onClose,
@@ -94,17 +79,19 @@ const TareWeightModal = ({
 }) => {
   const { isConnected, currentWeight, isSupported, connect } =
     useWebSerialScale();
-
   const isSelectionMode = units !== null && units.length > 0;
   const isSingleUnitMode = unit !== null;
 
   const [selectedUnitId, setSelectedUnitId] = useState(null);
-  const [manualMode, setManualMode] = useState(false);
-  const [manualWeight, setManualWeight] = useState("");
-  const [displayWeight, setDisplayWeight] = useState("");
-  const [insertedWeight, setInsertedWeight] = useState(null);
-  const [insertedTime, setInsertedTime] = useState(null);
+  const [lockedWeight, setLockedWeight] = useState(null);
+  const [lockedTime, setLockedTime] = useState(null);
   const [error, setError] = useState("");
+  const [stabilityProgress, setStabilityProgress] = useState(0);
+
+  // Refs for stability tracking
+  const stabilityTimerRef = useRef(null);
+  const lastWeightRef = useRef(null);
+  const stableStartTimeRef = useRef(null);
 
   const currentUnit = useMemo(() => {
     if (isSingleUnitMode) return unit;
@@ -123,18 +110,24 @@ const TareWeightModal = ({
     }));
   }, [units, isSelectionMode]);
 
+  // Reset state when modal closes
   useEffect(() => {
     if (!isOpen) {
       setSelectedUnitId(null);
-      setManualMode(false);
-      setManualWeight("");
-      setDisplayWeight("");
-      setInsertedWeight(null);
-      setInsertedTime(null);
+      setLockedWeight(null);
+      setLockedTime(null);
       setError("");
+      setStabilityProgress(0);
+      lastWeightRef.current = null;
+      stableStartTimeRef.current = null;
+      if (stabilityTimerRef.current) {
+        clearInterval(stabilityTimerRef.current);
+        stabilityTimerRef.current = null;
+      }
     }
   }, [isOpen]);
 
+  // Handle body overflow
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = "hidden";
@@ -147,75 +140,97 @@ const TareWeightModal = ({
     };
   }, [isOpen]);
 
+  // Auto-lock mechanism when weight is stable for 2 seconds
   useEffect(() => {
-    if (!isOpen || manualMode || insertedWeight !== null) return;
-
-    if (isConnected && currentWeight !== null && currentWeight !== undefined) {
-      const weight = parseFloat(currentWeight);
-      if (!isNaN(weight) && weight >= 0) {
-        setDisplayWeight(weight.toFixed(2));
-        setError("");
+    if (!isOpen || !isConnected || lockedWeight !== null) {
+      // Clear timer if modal closes, disconnects, or weight is already locked
+      if (stabilityTimerRef.current) {
+        clearInterval(stabilityTimerRef.current);
+        stabilityTimerRef.current = null;
       }
+      stableStartTimeRef.current = null;
+      setStabilityProgress(0);
+      return;
     }
-  }, [currentWeight, isConnected, isOpen, manualMode, insertedWeight]);
 
-  const handleInsert = () => {
-    if (!isConnected || !currentWeight) return;
+    if (currentWeight === null || currentWeight === undefined) {
+      return;
+    }
 
     const weight = parseFloat(currentWeight);
-    const formattedWeight = weight.toFixed(2);
-    const now = new Date();
-
-    setInsertedWeight(weight);
-    setInsertedTime(now);
-    setDisplayWeight(formattedWeight);
-    setError("");
-  };
-
-  const handleManualChange = (value) => {
-    setManualWeight(value);
-    setDisplayWeight(value);
-    setError("");
-
-    if (insertedWeight !== null) {
-      setInsertedWeight(null);
-      setInsertedTime(null);
-    }
-  };
-
-  const handleToggleManual = () => {
-    const newMode = !manualMode;
-    setManualMode(newMode);
-
-    if (newMode) {
-      setInsertedWeight(null);
-      setInsertedTime(null);
+    if (isNaN(weight) || weight <= 0) {
+      return;
     }
 
-    if (!newMode && isConnected && currentWeight) {
-      const weight = parseFloat(currentWeight);
-      setDisplayWeight(weight.toFixed(2));
+    // Check if weight is stable (within tolerance)
+    const lastWeight = lastWeightRef.current;
+    const isStable = lastWeight !== null && Math.abs(weight - lastWeight) <= WEIGHT_TOLERANCE * 1000; // Convert to kg
+
+    if (isStable) {
+      // Weight is stable
+      if (stableStartTimeRef.current === null) {
+        // Start tracking stability
+        stableStartTimeRef.current = Date.now();
+        
+        // Start progress timer
+        stabilityTimerRef.current = setInterval(() => {
+          const elapsed = Date.now() - stableStartTimeRef.current;
+          const progress = Math.min((elapsed / WEIGHT_STABLE_DURATION) * 100, 100);
+          setStabilityProgress(progress);
+
+          if (elapsed >= WEIGHT_STABLE_DURATION) {
+            // Lock the weight
+            const now = new Date();
+            setLockedWeight(weight);
+            setLockedTime(now);
+            setStabilityProgress(100);
+            clearInterval(stabilityTimerRef.current);
+            stabilityTimerRef.current = null;
+            showToast.success("🔒 Berat terkunci otomatis");
+          }
+        }, 100);
+      }
+    } else {
+      // Weight changed, reset stability tracking
+      if (stabilityTimerRef.current) {
+        clearInterval(stabilityTimerRef.current);
+        stabilityTimerRef.current = null;
+      }
+      stableStartTimeRef.current = null;
+      setStabilityProgress(0);
     }
-  };
+
+    lastWeightRef.current = weight;
+
+    return () => {
+      if (stabilityTimerRef.current) {
+        clearInterval(stabilityTimerRef.current);
+      }
+    };
+  }, [currentWeight, isConnected, isOpen, lockedWeight]);
 
   const handleSave = async () => {
     if (isSelectionMode && !selectedUnitId) {
       setError("Unit dump truck harus dipilih");
+      showToast.error("❌ Pilih unit terlebih dahulu");
       return;
     }
 
-    if (!manualMode && insertedWeight === null && isConnected) {
-      setError(
-        "Klik tombol Insert terlebih dahulu untuk mengambil berat dari timbangan",
-      );
-      showToast.error("⌛ Klik Insert untuk mengambil berat terlebih dahulu");
+    if (!isConnected) {
+      setError("Timbangan belum terhubung");
+      showToast.error("❌ Hubungkan timbangan terlebih dahulu");
       return;
     }
 
-    const weightToSave = manualMode ? manualWeight : displayWeight;
-    const weight = parseFloat(weightToSave) / 1000;
+    if (lockedWeight === null) {
+      setError("Tunggu hingga berat stabil dan terkunci otomatis (2 detik)");
+      showToast.error("⌛ Tunggu hingga berat stabil dan terkunci");
+      return;
+    }
 
-    if (!weightToSave || isNaN(weight) || weight <= 0) {
+    const weight = lockedWeight / 1000; // Convert kg to ton
+
+    if (isNaN(weight) || weight <= 0) {
       setError("Berat tidak valid. Harus lebih dari 0 ton");
       return;
     }
@@ -231,12 +246,21 @@ const TareWeightModal = ({
       unitId,
       tareWeight: weight,
       weighedAt: new Date().toISOString(),
-      method: manualMode
-        ? "manual"
-        : insertedWeight !== null
-          ? "inserted"
-          : "live",
+      method: "auto-locked",
     });
+  };
+
+  const handleUnlock = () => {
+    setLockedWeight(null);
+    setLockedTime(null);
+    setStabilityProgress(0);
+    lastWeightRef.current = null;
+    stableStartTimeRef.current = null;
+    if (stabilityTimerRef.current) {
+      clearInterval(stabilityTimerRef.current);
+      stabilityTimerRef.current = null;
+    }
+    showToast.info("🔓 Berat dibuka, tunggu stabilisasi ulang");
   };
 
   const handleClose = () => {
@@ -256,12 +280,11 @@ const TareWeightModal = ({
 
   const canSave =
     (isSelectionMode ? selectedUnitId : true) &&
-    displayWeight &&
-    parseFloat(displayWeight) > 0 &&
-    (manualMode || insertedWeight !== null || !isConnected);
+    isConnected &&
+    lockedWeight !== null;
 
   return (
-    <div className="detail-modal fixed inset-0 bg-black/50 z-50  flex items-center justify-center p-4">
+    <div className="detail-modal fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
       <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto bg-neutral-50 dark:bg-gray-800 border-none">
         <ModalHeader
           title={
@@ -377,43 +400,49 @@ const TareWeightModal = ({
               </Alert>
             )}
 
-          {/* Connection Status */}
+          {/* Connection & Weight Display */}
           <div
             className={`rounded-lg p-4 border-2 ${
               isConnected
-                ? "bg-green-50 border-green-300"
+                ? lockedWeight !== null
+                  ? "bg-green-50 border-green-300"
+                  : "bg-blue-50 border-blue-300"
                 : "bg-orange-50 border-orange-300"
             }`}
           >
-            <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
                 {isConnected ? (
-                  <>
-                    <Radio className="w-4 h-4 text-green-600 animate-pulse" />
-                    <span className="text-sm font-medium text-green-800">
-                      {isSelectionMode ? "Terhubung ke Timbangan" : "Terhubung"}
-                    </span>
-                  </>
+                  lockedWeight !== null ? (
+                    <>
+                      <Lock className="w-5 h-5 text-green-600" />
+                      <span className="text-sm font-medium text-green-800">
+                        Berat Terkunci
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <Radio className="w-5 h-5 text-blue-600 animate-pulse" />
+                      <span className="text-sm font-medium text-blue-800">
+                        Membaca Timbangan...
+                      </span>
+                    </>
+                  )
                 ) : (
                   <>
-                    <WifiOff className="w-4 h-4 text-orange-600" />
+                    <WifiOff className="w-5 h-5 text-orange-600" />
                     <span className="text-sm font-medium text-orange-800">
-                      {isSelectionMode ? "Offline - Mode Manual" : "Offline"}
+                      Timbangan Offline
                     </span>
                   </>
                 )}
               </div>
 
-              {/* Mode Badge */}
-              {manualMode ? (
-                <Badge variant="default" className="bg-yellow-600">
-                  <Edit2 className="w-3 h-3 mr-1" />
-                  Manual
-                </Badge>
-              ) : insertedWeight !== null ? (
+              {/* Status Badge */}
+              {lockedWeight !== null ? (
                 <Badge variant="default" className="bg-green-600">
-                  <Download className="w-3 h-3 mr-1" />
-                  Inserted
+                  <Lock className="w-3 h-3 mr-1" />
+                  Locked
                 </Badge>
               ) : isConnected ? (
                 <Badge variant="default" className="bg-blue-600 animate-pulse">
@@ -423,181 +452,117 @@ const TareWeightModal = ({
               ) : null}
             </div>
 
-            {/* Connect Button - Show when not connected and supported */}
+            {/* Connect Button - Show when not connected */}
             {!isConnected && isSupported && (
-              <div className="mt-3">
-                <Button
-                  onClick={connect}
-                  className="w-full bg-blue-600 hover:bg-blue-700 text-white"
-                  variant="default"
-                >
-                  <Wifi className="w-4 h-4 mr-2" />
-                  Hubungkan ke Timbangan
-                </Button>
-              </div>
+              <Button
+                onClick={connect}
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+                variant="default"
+              >
+                <Wifi className="w-4 h-4 mr-2" />
+                Hubungkan Timbangan
+              </Button>
             )}
 
             {/* Live Weight Display */}
-            {isConnected && currentWeight !== null && !manualMode && (
+            {isConnected && currentWeight !== null && (
               <div
-                className={`bg-neutral-50 rounded-lg p-3 border ${
-                  insertedWeight !== null
-                    ? "border-green-200"
-                    : "border-blue-200"
+                className={`bg-white rounded-lg p-4 border-2 ${
+                  lockedWeight !== null
+                    ? "border-green-300"
+                    : "border-blue-300"
                 }`}
               >
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">
-                    {insertedWeight !== null ? "Inserted:" : "Live:"}
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm text-gray-600 font-medium">
+                    {lockedWeight !== null ? "🔒 Locked Weight:" : "⚡ Live Weight:"}
                   </span>
                   <div className="flex items-center gap-2">
-                    {insertedWeight === null && (
-                      <Radio className="w-4 h-4 text-blue-600 animate-pulse" />
+                    {lockedWeight === null ? (
+                      <Radio className="w-5 h-5 text-blue-600 animate-pulse" />
+                    ) : (
+                      <Lock className="w-5 h-5 text-green-600" />
                     )}
-                    {insertedWeight !== null && (
-                      <Download className="w-4 h-4 text-green-600" />
-                    )}
-                    <span
-                      className={`text-2xl font-bold font-mono ${
-                        insertedWeight !== null
-                          ? "text-green-900"
-                          : "text-blue-900"
-                      }`}
-                    >
-                      {formatWeight(currentWeight / 1000)}
-                    </span>
-                    <span
-                      className={`text-lg font-medium ${
-                        insertedWeight !== null
-                          ? "text-green-600"
-                          : "text-blue-600"
-                      }`}
-                    >
-                      ton
-                    </span>
                   </div>
                 </div>
-                {insertedWeight === null && (
-                  <p className="text-xs text-blue-600 mt-2">
-                    ⚡ Live weight - Klik Insert untuk mengambil nilai
-                  </p>
-                )}
-                {insertedWeight !== null && insertedTime && (
-                  <p className="text-xs text-green-600 mt-2">
-                    📥 Diambil pada {format(insertedTime, "HH:mm:ss")} - Klik
-                    Insert lagi untuk update
-                  </p>
-                )}
-              </div>
-            )}
 
-            {/* Manual Mode Info */}
-            {manualMode && (
-              <div className="bg-yellow-50 rounded-lg p-3 border border-yellow-200 mt-2">
-                <div className="flex items-center gap-2">
-                  <Edit2 className="w-4 h-4 text-yellow-700" />
-                  <span className="text-sm font-medium text-yellow-800">
-                    Mode Manual Aktif
+                {/* Weight Display */}
+                <div className="flex items-baseline justify-center gap-2 mb-3">
+                  <span
+                    className={`text-4xl font-bold font-mono ${
+                      lockedWeight !== null
+                        ? "text-green-900"
+                        : "text-blue-900"
+                    }`}
+                  >
+                    {formatWeight(
+                      (lockedWeight !== null ? lockedWeight : currentWeight) / 1000
+                    )}
+                  </span>
+                  <span
+                    className={`text-2xl font-medium ${
+                      lockedWeight !== null
+                        ? "text-green-600"
+                        : "text-blue-600"
+                    }`}
+                  >
+                    ton
                   </span>
                 </div>
-                <p className="text-xs text-yellow-700 mt-1">
-                  Ketik berat secara manual di field bawah
-                </p>
+
+                {/* Stability Progress Bar */}
+                {lockedWeight === null && stabilityProgress > 0 && (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-blue-600 font-medium">
+                        ⏱️ Menunggu stabilisasi...
+                      </span>
+                      <span className="text-xs text-blue-600 font-mono font-bold">
+                        {Math.round(stabilityProgress)}%
+                      </span>
+                    </div>
+                    <div className="w-full bg-blue-100 rounded-full h-2.5 overflow-hidden">
+                      <div
+                        className="bg-blue-600 h-full transition-all duration-100 ease-linear"
+                        style={{ width: `${stabilityProgress}%` }}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Lock Status */}
+                {lockedWeight === null ? (
+                  <p className="text-xs text-blue-600 mt-2 text-center">
+                    ⚡ Berat akan terkunci otomatis setelah stabil 2 detik
+                  </p>
+                ) : (
+                  <div className="mt-2 flex items-center justify-between">
+                    <p className="text-xs text-green-600">
+                      🔒 Terkunci pada {lockedTime && format(lockedTime, "HH:mm:ss")}
+                    </p>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={handleUnlock}
+                      className="h-7 text-xs"
+                    >
+                      🔓 Buka Kunci
+                    </Button>
+                  </div>
+                )}
               </div>
             )}
-          </div>
 
-          {/* Weight Input */}
-          <div className="space-y-2">
-            <Label className="flex items-center gap-2">
-              <Scale className="w-4 h-4" />
-              Tare Weight (Berat Kosong) *
-            </Label>
-
-            <div className="flex gap-2">
-              <div className="relative flex-1">
-                <Input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  max="50"
-                  value={displayWeight / 1000}
-                  onChange={(e) => handleManualChange(e.target.value)}
-                  className={`${
-                    error && (isSelectionMode ? selectedUnitId : true)
-                      ? "border-red-500"
-                      : ""
-                  } ${
-                    manualMode
-                      ? "bg-yellow-50 border-yellow-400 text-black"
-                      : insertedWeight !== null
-                        ? "bg-green-50 border-green-400"
-                        : isConnected
-                          ? "bg-blue-50 border-blue-300"
-                          : ""
-                  }`}
-                  placeholder="0.00"
-                  disabled={
-                    !manualMode && insertedWeight === null && !isConnected
-                  }
-                  readOnly={!manualMode && insertedWeight === null}
-                />
-                <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                  {manualMode ? (
-                    <Edit2 className="w-4 h-4 text-yellow-600" />
-                  ) : insertedWeight !== null ? (
-                    <Download className="w-4 h-4 text-green-600" />
-                  ) : isConnected ? (
-                    <Radio className="w-4 h-4 text-blue-600 animate-pulse" />
-                  ) : (
-                    <WifiOff className="w-4 h-4 text-gray-400" />
-                  )}
-                </div>
-              </div>
-
-              {/* Manual Toggle - Only show when disconnected */}
-              {!isConnected && (
-                <Button
-                  type="button"
-                  onClick={handleToggleManual}
-                  className={
-                    manualMode
-                      ? "bg-yellow-600 hover:bg-yellow-700 cursor-pointer "
-                      : "cursor-pointer dark:bg-slate-700 dark:hover:bg-gray-200 dark:hover:text-black"
-                  }
-                >
-                  {manualMode ? "Auto" : "Manual"}
-                </Button>
-              )}
-
-              {/* Insert Button - Only show when connected */}
-              {isConnected && !manualMode && (
-                <Button
-                  type="button"
-                  onClick={handleInsert}
-                  disabled={!isConnected || !currentWeight}
-                  className={
-                    insertedWeight !== null
-                      ? "bg-green-600 hover:bg-green-700"
-                      : "bg-blue-600 hover:bg-blue-700"
-                  }
-                >
-                  <Download className="w-4 h-4 mr-1" />
-                  {insertedWeight !== null ? "Re-Insert" : "Insert"}
-                </Button>
-              )}
-            </div>
-
-            {error && (isSelectionMode ? selectedUnitId : true) && (
-              <p className="text-sm text-red-500 flex items-center gap-1">
-                <AlertTriangle className="w-3 h-3" />
-                {error}
-              </p>
+            {/* No Connection Warning */}
+            {!isConnected && (
+              <Alert className="mt-3 border-orange-300 bg-orange-50">
+                <AlertTriangle className="w-4 h-4 text-orange-600" />
+                <AlertDescription className="text-xs text-orange-800">
+                  ⚠️ Hubungkan timbangan untuk penimbangan otomatis
+                </AlertDescription>
+              </Alert>
             )}
-
-            <p className="text-xs text-gray-500">
-              Maksimal 70 ton untuk tare weight
-            </p>
           </div>
 
           {/* Action Buttons */}
@@ -606,14 +571,6 @@ const TareWeightModal = ({
               onClick={handleSave}
               disabled={!canSave || isSaving}
               className="flex-1 cursor-pointer dark:bg-slate-700"
-              title={
-                !canSave &&
-                isConnected &&
-                insertedWeight === null &&
-                !manualMode
-                  ? "Klik Insert terlebih dahulu "
-                  : ""
-              }
             >
               {isSaving ? (
                 <>
@@ -623,7 +580,7 @@ const TareWeightModal = ({
               ) : (
                 <>
                   <Save className="w-4 h-4 mr-2" />
-                  {isSelectionMode ? "Simpan Timbangan Kosong" : "Simpan"}
+                  Simpan Tare Weight
                 </>
               )}
             </Button>
@@ -641,14 +598,13 @@ const TareWeightModal = ({
           <Alert>
             <Clock className="w-4 h-4" />
             <AlertDescription className="text-xs">
-              <p className="font-medium mb-1">ℹ️ Informasi:</p>
+              <p className="font-medium mb-1">ℹ️ Cara Kerja Otomatis:</p>
               <ul className="list-disc list-inside space-y-1">
-                <li>Tare weight kadaluarsa setelah 7 hari</li>
+                <li>Hubungkan timbangan terlebih dahulu</li>
+                <li>Sistem akan membaca berat secara otomatis</li>
+                <li>Berat akan terkunci setelah stabil 2 detik</li>
                 <li>Pastikan unit kosong saat ditimbang</li>
-                <li>Gunakan "Insert" untuk mengambil berat stabil</li>
-                {isSelectionMode && (
-                  <li>Mode "Manual" hanya aktif saat offline</li>
-                )}
+                <li>Tare weight kadaluarsa setelah 7 hari</li>
               </ul>
             </AlertDescription>
           </Alert>
