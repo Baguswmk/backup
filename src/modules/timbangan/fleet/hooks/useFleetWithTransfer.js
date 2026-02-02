@@ -6,8 +6,10 @@ import { logger } from "@/shared/services/log";
 
 /**
  * Hook untuk mengelola fleet dengan dukungan transfer dump truck
+ * @param {Object} user - User object
+ * @param {Function} onSuccess - Callback yang dipanggil setelah operasi berhasil (untuk trigger refetch)
  */
-export const useFleetWithTransfer = (user) => {
+export const useFleetWithTransfer = (user, onSuccess) => {
   const [isSaving, setIsSaving] = useState(false);
 
   /**
@@ -18,7 +20,7 @@ export const useFleetWithTransfer = (user) => {
       setIsSaving(true);
 
       try {
-        logger.info("📝 Creating new fleet", {
+        logger.info("🔵 Creating new fleet", {
           hasTransfers: !!fleetData.moveFromFleets,
           transfersCount: fleetData.moveFromFleets?.length || 0,
         });
@@ -39,6 +41,12 @@ export const useFleetWithTransfer = (user) => {
             );
           }
 
+          // ✅ TRIGGER REFETCH
+          if (onSuccess) {
+            logger.info("🔄 Triggering refetch after create");
+            onSuccess();
+          }
+
           return result;
         } else {
           showToast.error(result.error || "Gagal membuat fleet");
@@ -56,7 +64,7 @@ export const useFleetWithTransfer = (user) => {
         setIsSaving(false);
       }
     },
-    []
+    [onSuccess]
   );
 
   /**
@@ -67,7 +75,7 @@ export const useFleetWithTransfer = (user) => {
       setIsSaving(true);
 
       try {
-        logger.info("📝 Updating fleet", {
+        logger.info("🔵 Updating fleet", {
           fleetId,
           hasTransfers: !!fleetData.moveFromFleets,
           transfersCount: fleetData.moveFromFleets?.length || 0,
@@ -89,6 +97,12 @@ export const useFleetWithTransfer = (user) => {
             );
           }
 
+          // ✅ TRIGGER REFETCH
+          if (onSuccess) {
+            logger.info("🔄 Triggering refetch after update");
+            onSuccess();
+          }
+
           return result;
         } else {
           showToast.error(result.error || "Gagal update fleet");
@@ -106,7 +120,7 @@ export const useFleetWithTransfer = (user) => {
         setIsSaving(false);
       }
     },
-    []
+    [onSuccess]
   );
 
   /**
@@ -134,7 +148,10 @@ export const useFleetWithTransfer = (user) => {
 /**
  * Contoh penggunaan di FleetManagement component:
  * 
- * const { handleSaveFleet } = useFleetWithTransfer(user);
+ * const { handleSaveFleet } = useFleetWithTransfer(user, () => {
+ *   // Auto refetch setelah save berhasil
+ *   refetchFleetData();
+ * });
  * 
  * <FleetModal
  *   isOpen={isModalOpen}

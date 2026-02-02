@@ -509,6 +509,89 @@ const updateConfig = useCallback(async (configId, updates) => {
     [fleetConfigs],
   );
 
+  // Bulk delete: hapus semua fleet sekaligus berdasarkan array of IDs
+  // Dipakai untuk delete merged (split) rows dari tabel
+  const bulkDeleteConfigs = useCallback(
+    async (configIds) => {
+      if (!Array.isArray(configIds) || configIds.length === 0) {
+        return { success: false, error: "Tidak ada ID yang diberikan" };
+      }
+
+      setIsLoading(true);
+      setError(null);
+
+      const currentState = useRitaseStore.getState();
+      const currentConfigs = currentState.fleetConfigs;
+
+      const backup = {
+        fleetConfigs: [...currentConfigs],
+        selectedFleetIds: [...currentState.selectedFleetIds],
+      };
+
+      // Optimistic update: hapus semua ID sekaligus
+      const optimisticConfigs = currentConfigs.filter(
+        (c) => !configIds.includes(c.id),
+      );
+
+      useRitaseStore.setState({
+        fleetConfigs: optimisticConfigs,
+        selectedFleetIds: currentState.selectedFleetIds.filter(
+          (id) => !configIds.includes(id),
+        ),
+      });
+
+      return await withErrorHandling(
+        async () => {
+          const result = await fleetService.bulkDeleteFleets(configIds);
+
+          if (result.success) {
+            await Promise.all([
+              offlineService.clearCache("fleets_"),
+              offlineService.clearCache("ritases_"),
+            ]);
+
+            setTimeout(() => {
+              loadFleetConfigs({
+                forceRefresh: true,
+                skipAutoActivate: true,
+              });
+            }, 500);
+
+            return { success: true };
+          }
+
+          // Partial success: tetap refresh, tapi info ke user
+          if (result.partialSuccess) {
+            setTimeout(() => {
+              loadFleetConfigs({
+                forceRefresh: true,
+                skipAutoActivate: true,
+              });
+            }, 500);
+
+            throw new Error(result.message);
+          }
+
+          // Fully failed: rollback
+          useRitaseStore.setState(backup);
+          throw new Error(result.error || "Gagal menghapus fleet");
+        },
+        {
+          operation: "bulk delete fleet configs",
+          showSuccessToast: true,
+          successMessage: `${configIds.length} konfigurasi fleet berhasil dihapus`,
+          onError: (err) => {
+            useRitaseStore.setState(backup);
+            setError(err.message);
+          },
+        },
+      ).finally(() => {
+        setIsLoading(false);
+      });
+    },
+    [loadFleetConfigs],
+  );
+
   const refresh = useCallback(
     async (options = {}) => {
       await offlineService.clearCache("fleets_");
@@ -592,6 +675,7 @@ const updateConfig = useCallback(async (configId, updates) => {
     createFleetConfig,
     updateConfig,
     deleteConfig,
+    bulkDeleteConfigs,
     getFleetById,
 
     refresh,

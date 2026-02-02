@@ -9,12 +9,16 @@ import { useDebouncedValue } from "@/shared/hooks/useDebouncedValue";
 import useAuthStore from "@/modules/auth/store/authStore";
 import { useFleetPermissions } from "@/shared/permissions/usePermissions";
 import { showToast } from "@/shared/utils/toast";
+import { useMasterData } from "@/modules/timbangan/masterData/hooks/useMasterData";
 import FleetHeader from "@/modules/timbangan/fleet/components/FleetHeader";
 import FleetSelectionAlert from "@/modules/timbangan/fleet/components/FleetSelectionAlert";
 import FleetFilterSection from "@/modules/timbangan/fleet/components/FleetFilterSection";
 import FleetTableContainer from "@/modules/timbangan/fleet/components/FleetTableContainer";
 import FleetModalsManager from "@/modules/timbangan/fleet/components/FleetModalsManager";
-import { useFleetWithTransfer } from "@/modules/timbangan/fleet/hooks/useFleetWithTransfer"; 
+import InformationDays from "@/modules/timbangan/fleet/components/InformationDays";
+import FleetSettingTable from "@/modules/timbangan/fleet/components/FleetSettingTable";
+import MMCTAdditionalSections from "@/modules/timbangan/fleet/components/MMCTAdditionalSections";
+import { useFleetWithTransfer } from "@/modules/timbangan/fleet/hooks/useFleetWithTransfer";
 import {
   DEBOUNCE_TIME,
   TOAST_MESSAGES,
@@ -25,13 +29,15 @@ import {
   validateResponse,
 } from "@/shared/utils/errorHandler";
 import { shallow } from "zustand/shallow";
-
+import { useFleetSplit } from "./hooks/useFleetSplit";
 const EMPTY_ARRAY = [];
 const PAGE_SIZE = 10;
 
 const FleetManagement = ({ Type }) => {
   const { user } = useAuthStore();
-
+  const { handleCreateSplitFleets } = useFleetSplit(user);
+  const [deleteActionType, setDeleteActionType] = useState("delete");
+  
   const measurementTypeMap = {
     Timbangan: "Timbangan",
     FOB: "FOB",
@@ -62,6 +68,17 @@ const FleetManagement = ({ Type }) => {
     return canAccessFleetType(Type);
   }, [canAccessFleetType, Type]);
 
+  // Get master data for dropdowns
+  const {
+    workUnits,
+    locations,
+    isLoading: masterDataLoading,
+  } = useMasterData(null);
+
+  // State for Information Days
+  const [selectedSatker, setSelectedSatker] = useState("");
+  const [selectedUrutkan, setSelectedUrutkan] = useState("");
+  const [showSplitModal, setShowSplitModal] = useState(false);
   const selectedFleetIds = useRitaseStore(
     useCallback((state) => state.selectedFleetIds ?? EMPTY_ARRAY, []),
     shallow,
@@ -79,7 +96,7 @@ const FleetManagement = ({ Type }) => {
     deleteConfig,
     refresh: refreshFleet,
   } = useFleet(user ? { user } : null, measurementType);
-const { handleSaveFleet } = useFleetWithTransfer(user);
+  const { handleSaveFleet } = useFleetWithTransfer(user);
   const [configSearchInput, setConfigSearchInput] = useState("");
   const configSearch = useDebouncedValue(configSearchInput, DEBOUNCE_TIME);
   const [isSaving, setIsSaving] = useState(false);
@@ -101,6 +118,15 @@ const { handleSaveFleet } = useFleetWithTransfer(user);
 
     return filtered;
   }, [allFleetConfigs, measurementType]);
+
+  // Filter fleet data by selected satker
+  const filteredFleetData = useMemo(() => {
+    if (!selectedSatker) return [];
+
+    return fleetConfigsByType.filter(
+      (config) => config.workUnit === selectedSatker,
+    );
+  }, [fleetConfigsByType, selectedSatker]);
 
   const {
     currentPage: configPage,
@@ -155,6 +181,7 @@ const { handleSaveFleet } = useFleetWithTransfer(user);
 
     return filtered;
   }, [searchFilteredConfigs, activeFilters]);
+
   const finalPaginatedConfigs = useMemo(() => {
     const start = (configPage - 1) * PAGE_SIZE;
     return finalFilteredConfigs.slice(start, start + PAGE_SIZE);
@@ -203,333 +230,456 @@ const { handleSaveFleet } = useFleetWithTransfer(user);
     [fleetConfigsByType],
   );
 
-  const getFleetDumptruckList = useCallback((fleetConfig) => {
-    if (!fleetConfig) return EMPTY_ARRAY;
-    if (fleetConfig.units?.length > 0) {
-      return fleetConfig.units.map((unit) => ({
-        id: unit.id || unit.dumpTruckId || "",
-        hull_no: unit.hull_no || "-",
-        operatorName: unit.operator || "-",
-        company: unit.company || "-",
-        workUnit: unit.workUnit || "-",
-      }));
+  const getFleetDumptruckList = useCallback(
+    (fleet) => {
+      if (!fleet) return [];
+
+      // If fleet is an array, it's a split group
+      if (Array.isArray(fleet)) {
+        // Aggregate all units from all fleets in the split group
+        return fleet.reduce((acc, f) => {
+          const units = f.units || [];
+          return [...acc, ...units];
+        }, []);
+      }
+
+      // Single fleet
+      return fleet.units || [];
+    },
+    [],
+  );
+
+  const filterOptions = useMemo(() => {
+    const excavatorsSet = new Set();
+    const workUnitsSet = new Set();
+    const loadingLocationsSet = new Set();
+    const dumpingLocationsSet = new Set();
+
+    fleetConfigsByType.forEach((config) => {
+      if (config.excavator && config.excavatorId) {
+        excavatorsSet.add(
+          JSON.stringify({ id: config.excavatorId, label: config.excavator }),
+        );
+      }
+      if (config.workUnit && config.workUnitId) {
+        workUnitsSet.add(
+          JSON.stringify({ id: config.workUnitId, label: config.workUnit }),
+        );
+      }
+      if (config.loadingLocation && config.loadingLocationId) {
+        loadingLocationsSet.add(
+          JSON.stringify({
+            id: config.loadingLocationId,
+            label: config.loadingLocation,
+          }),
+        );
+      }
+      if (config.dumpingLocation && config.dumpingLocationId) {
+        dumpingLocationsSet.add(
+          JSON.stringify({
+            id: config.dumpingLocationId,
+            label: config.dumpingLocation,
+          }),
+        );
+      }
+    });
+
+    return {
+      excavators: Array.from(excavatorsSet)
+        .map((s) => JSON.parse(s))
+        .sort((a, b) => a.label.localeCompare(b.label)),
+      workUnits: Array.from(workUnitsSet)
+        .map((s) => JSON.parse(s))
+        .sort((a, b) => a.label.localeCompare(b.label)),
+      loadingLocations: Array.from(loadingLocationsSet)
+        .map((s) => JSON.parse(s))
+        .sort((a, b) => a.label.localeCompare(b.label)),
+      dumpingLocations: Array.from(dumpingLocationsSet)
+        .map((s) => JSON.parse(s))
+        .sort((a, b) => a.label.localeCompare(b.label)),
+    };
+  }, [fleetConfigsByType]);
+
+  const fleetCounts = useMemo(() => {
+    const totalCount = selectedFleetIds?.length || 0;
+    const timbanganCount = selectedFleetIds?.filter((id) => {
+      const fleet = allFleetConfigs.find((c) => c.id === id);
+      return fleet?.measurementType === "Timbangan";
+    }).length;
+
+    return {
+      total: totalCount,
+      timbangan: timbanganCount || 0,
+    };
+  }, [selectedFleetIds, allFleetConfigs]);
+
+  const filterGroups = useMemo(() => {
+    const groups = [];
+
+    if (filterOptions.excavators.length > 0) {
+      groups.push({
+        id: "excavators",
+        label: "Excavators",
+        options: filterOptions.excavators,
+        value: activeFilters.excavators || [],
+        onChange: (value) => updateFilter("excavators", value),
+      });
     }
 
-    return EMPTY_ARRAY;
-  }, []);
-
-  const filterOptions = useMemo(
-    () => ({
-      excavators: (masters?.excavators || EMPTY_ARRAY).map((exc) => ({
-        value: String(exc.id),
-        label: exc.hull_no,
-        hint: exc.company || "-",
-      })),
-      workUnits: (masters?.workUnits || EMPTY_ARRAY).map((wu) => ({
-        value: String(wu.id),
-        label: wu.subsatker,
-        hint: wu.subsatker || "-",
-      })),
-      loadingLocations: (masters?.loadingLocations || EMPTY_ARRAY).map(
-        (loc) => ({
-          value: String(loc.id),
-          label: loc.name,
-        }),
-      ),
-      dumpingLocations: (masters?.dumpingLocations || EMPTY_ARRAY).map(
-        (loc) => ({
-          value: String(loc.id),
-          label: loc.name,
-        }),
-      ),
-    }),
-    [masters],
-  );
-
-  const filterGroups = useMemo(
-    () => [
-      {
-        id: FILTER_FIELDS.EXCAVATOR,
-        label: "Excavator",
-        options: filterOptions.excavators,
-        value: activeFilters.excavators || EMPTY_ARRAY,
-        onChange: (v) => updateFilter("excavators", v),
-        placeholder: "Pilih Excavator",
-      },
-      {
-        id: FILTER_FIELDS.WORK_UNIT,
-        label: "Work Unit",
+    if (filterOptions.workUnits.length > 0) {
+      groups.push({
+        id: "workUnits",
+        label: "Work Units",
         options: filterOptions.workUnits,
-        value: activeFilters.workUnits || EMPTY_ARRAY,
-        onChange: (v) => updateFilter("workUnits", v),
-        placeholder: "Pilih Work Unit",
-      },
-      {
-        id: FILTER_FIELDS.LOADING_LOCATION,
-        label: "Loading Location",
+        value: activeFilters.workUnits || [],
+        onChange: (value) => updateFilter("workUnits", value),
+      });
+    }
+
+    if (filterOptions.loadingLocations.length > 0) {
+      groups.push({
+        id: "loadingLocations",
+        label: "Loading Locations",
         options: filterOptions.loadingLocations,
-        value: activeFilters.loadingLocations || EMPTY_ARRAY,
-        onChange: (v) => updateFilter("loadingLocations", v),
-        placeholder: "Pilih Loading",
-      },
-      {
-        id: FILTER_FIELDS.DUMPING_LOCATION,
-        label: "Dumping Location",
+        value: activeFilters.loadingLocations || [],
+        onChange: (value) => updateFilter("loadingLocations", value),
+      });
+    }
+
+    if (filterOptions.dumpingLocations.length > 0) {
+      groups.push({
+        id: "dumpingLocations",
+        label: "Dumping Locations",
         options: filterOptions.dumpingLocations,
-        value: activeFilters.dumpingLocations || EMPTY_ARRAY,
-        onChange: (v) => updateFilter("dumpingLocations", v),
-        placeholder: "Pilih Dumping",
-      },
-    ],
-    [filterOptions, activeFilters, updateFilter],
-  );
+        value: activeFilters.dumpingLocations || [],
+        onChange: (value) => updateFilter("dumpingLocations", value),
+      });
+    }
 
-  const allSelectedFleets = useMemo(() => {
-    return fleetConfigsByType.filter((f) => selectedFleetIds.includes(f.id));
-  }, [fleetConfigsByType, selectedFleetIds]);
+    return groups;
+  }, [filterOptions, activeFilters, updateFilter]);
 
-  const fleetCounts = useMemo(
-    () => ({
-      total: allSelectedFleets.length,
-      timbangan: allSelectedFleets.length,
-    }),
-    [allSelectedFleets],
-  );
 
   const handleResetFilters = useCallback(() => {
     setConfigSearchInput("");
     resetFilters();
-  }, [resetFilters]);
+    setConfigPage(1);
+  }, [resetFilters, setConfigPage]);
 
   const handleCreateConfig = useCallback(() => {
-    if (isReadOnly) {
-      showToast.error("Anda tidak memiliki akses untuk membuat fleet");
-      return;
-    }
     if (!canCreate) {
       showToast.error(getDisabledMessage("create"));
       return;
     }
+
+    if (isReadOnly) {
+      showToast.error("Tidak dapat membuat konfigurasi dalam mode read-only");
+      return;
+    }
+
     openModal("config", null);
-  }, [isReadOnly, canCreate, getDisabledMessage, openModal]);
+  }, [canCreate, isReadOnly, getDisabledMessage, openModal]);
 
-  const handleEditConfig = useCallback(
-    (config) => {
-      if (isReadOnly) {
-        showToast.error("Anda tidak memiliki akses untuk mengedit fleet");
-        return;
-      }
-      if (!canUpdate) {
-        showToast.error(getDisabledMessage("update"));
-        return;
-      }
-      if (!checkDataAccess(config.workUnit || config.satker|| config.subsatker)) {
-        showToast.error(TOAST_MESSAGES.WARNING.NO_ACCESS);
-        return;
+  const handleRefresh = useCallback(async () => {
+    await refreshFleet();
+  }, [refreshFleet]);
+
+  const handleSaveConfig = useCallback(
+    async (config, transferInfo) => {
+      if (config.id) {
+        if (!canUpdate) {
+          showToast.error(getDisabledMessage("update"));
+          return;
+        }
+
+        if (isReadOnly) {
+          showToast.error("Tidak dapat update dalam mode read-only");
+          return;
+        }
+
+        if (!checkDataAccess(config)) {
+          showToast.error("Anda tidak memiliki akses untuk update fleet ini");
+          return;
+        }
+      } else {
+        if (!canCreate) {
+          showToast.error(getDisabledMessage("create"));
+          return;
+        }
+
+        if (isReadOnly) {
+          showToast.error("Tidak dapat create dalam mode read-only");
+          return;
+        }
       }
 
-      if (getModalState("detail").isOpen) {
-        closeModal("detail");
-      }
+      setIsSaving(true);
+      return withErrorHandling(
+        async () => {
+          const result = await handleSaveFleet(
+            config,
+            transferInfo,
+            config.id ? "update" : "create",
+          );
 
-      setTimeout(() => {
-        openModal("config", config);
-      }, 100);
+          validateResponse(result, {
+            operation: config.id ? "update" : "create",
+            entityName: "Fleet",
+          });
+
+          closeModal("config");
+          await refreshFleet();
+
+          showToast.success(
+            config.id
+              ? TOAST_MESSAGES.UPDATE_SUCCESS
+              : TOAST_MESSAGES.CREATE_SUCCESS,
+          );
+
+          return result;
+        },
+        {
+          operation: config.id ? "update" : "create",
+          defaultMessage: config.id
+            ? "Gagal update konfigurasi fleet"
+            : "Gagal membuat konfigurasi fleet",
+        },
+      ).finally(() => {
+        setIsSaving(false);
+      });
     },
     [
-      isReadOnly,
       canUpdate,
+      canCreate,
+      isReadOnly,
       checkDataAccess,
       getDisabledMessage,
-      openModal,
+      handleSaveFleet,
       closeModal,
-      getModalState,
+      refreshFleet,
     ],
   );
 
   const handleViewConfig = useCallback(
     (config) => {
-      if (!canRead) {
-        showToast.error(getDisabledMessage("read"));
+      openModal("detail", config);
+    },
+    [openModal],
+  );
+
+  const handleEditConfig = useCallback(
+    (config) => {
+      if (!canUpdate) {
+        showToast.error(getDisabledMessage("update"));
         return;
       }
 
-      if (getModalState("config").isOpen) {
-        closeModal("config");
+      if (isReadOnly) {
+        showToast.error("Tidak dapat mengedit dalam mode read-only");
+        return;
       }
 
-      setTimeout(() => {
-        openModal("detail", config);
-      }, 100);
+      if (!checkDataAccess(config)) {
+        showToast.error("Anda tidak memiliki akses untuk mengedit fleet ini");
+        return;
+      }
+
+      openModal("config", config);
     },
-    [canRead, getDisabledMessage, openModal, closeModal, getModalState],
+    [canUpdate, isReadOnly, checkDataAccess, getDisabledMessage, openModal],
   );
 
   const handleDeleteConfig = useCallback(
     (config) => {
-      if (isReadOnly) {
-        showToast.error("Anda tidak memiliki akses untuk menghapus fleet");
-        return;
-      }
       if (!canDeletePerm) {
         showToast.error(getDisabledMessage("delete"));
         return;
       }
-      if (!checkDataAccess(config.workUnit|| config.satker || config.subsatker)) {
-        showToast.error(TOAST_MESSAGES.WARNING.NO_ACCESS);
+
+      if (isReadOnly) {
+        showToast.error("Tidak dapat menghapus dalam mode read-only");
         return;
       }
-      if (!config || config.isActive) return;
+
+      if (!checkDataAccess(config)) {
+        showToast.error("Anda tidak memiliki akses untuk menghapus fleet ini");
+        return;
+      }
 
       openModal("delete", config);
     },
-    [isReadOnly, canDeletePerm, checkDataAccess, getDisabledMessage, openModal],
+    [canDeletePerm, isReadOnly, checkDataAccess, getDisabledMessage, openModal],
   );
-const handleSaveConfig = async (configData) => {
-  const selectedConfig = getModalState("config").data;
 
-  if (isReadOnly) {
-    showToast.error("Anda tidak memiliki akses untuk menyimpan fleet");
-    return { success: false };
-  }
+  const handleConfirmDelete = useCallback(
+    async (reasons) => {
+      const deleteData = getModalState("delete").data;
 
-  if (selectedConfig && !canUpdate) {
-    showToast.error(getDisabledMessage("update"));
-    return { success: false };
-  }
-  if (!selectedConfig && !canCreate) {
-    showToast.error(getDisabledMessage("create"));
-    return { success: false };
-  }
-
-  setIsSaving(true);
-
-  try {
-    // GUNAKAN handleSaveFleet yang sudah handle transfer dump truck
-    const result = await handleSaveFleet(configData, selectedConfig);
-
-    if (result?.success) {
-      closeModal("config");
-
-      setTimeout(() => {
-        refreshFleet();
-      }, 500);
-    }
-
-    return result;
-  } catch (error) {
-    console.error("❌ Fleet save error:", error);
-    showToast.error(error.message || "Gagal menyimpan fleet");
-    return { success: false, error: error.message };
-  } finally {
-    setIsSaving(false);
-  }
-};
-  const handleConfirmDelete = useCallback(async () => {
-    const deleteTarget = getModalState("delete").data;
-
-    if (!deleteTarget || isSaving) return;
-    if (isReadOnly) {
-      showToast.error("Anda tidak memiliki akses untuk menghapus fleet");
-      return;
-    }
-    if (!canDeletePerm) {
-      showToast.error(getDisabledMessage("delete"));
-      return;
-    }
-
-    setIsSaving(true);
-    try {
-      const result = await deleteConfig(deleteTarget.id);
-      if (result?.success) {
-        closeModal("delete");
+      if (!deleteData) {
+        console.error("No delete data found");
+        return { success: false };
       }
-    } catch (error) {
-      showToast.error(error);
-    } finally {
-      setIsSaving(false);
-    }
-  }, [
-    getModalState,
-    isSaving,
-    isReadOnly,
-    deleteConfig,
-    canDeletePerm,
-    getDisabledMessage,
-    closeModal,
-  ]);
-
-  const handleRefresh = useCallback(async () => {
-    if (!canRead) {
-      showToast.error(getDisabledMessage("read"));
-      return;
-    }
-
-    try {
-      await refreshFleet();
-      showToast.success(TOAST_MESSAGES.SUCCESS.REFRESH);
-    } catch (error) {
-      showToast.error(TOAST_MESSAGES.ERROR.REFRESH_FAILED);
-    }
-  }, [refreshFleet, canRead, getDisabledMessage]);
-
-  const handleSaveFleetSelection = useCallback(
-    (allIds) => {
-      setSelectedFleets(allIds);
-      showToast.success(
-        TOAST_MESSAGES.SUCCESS.FLEET_SELECTION(allIds.length, 0),
-      );
-    },
-    [setSelectedFleets],
-  );
-  const handleBulkDelete = useCallback(
-    async (fleetIds) => {
-      if (!canDeletePerm) {
-        showToast.error("Anda tidak memiliki akses untuk menghapus fleet");
-        return;
-      }
-
-      if (!Array.isArray(fleetIds) || fleetIds.length === 0) {
-        showToast.error("Tidak ada fleet yang dipilih");
-        return;
-      }
-
-      fleetConfigsByType.filter((f) => fleetIds.includes(f.id));
 
       setIsSaving(true);
 
-      return await withErrorHandling(
+      return withErrorHandling(
+        async () => {
+          // Handle split group deletion
+          if (Array.isArray(deleteData)) {
+            console.log("🗑️ Deleting split group:", {
+              fleetCount: deleteData.length,
+              fleetIds: deleteData.map(f => f.id),
+            });
+
+            const results = [];
+            const errors = [];
+
+            for (const fleet of deleteData) {
+              try {
+                const result = await deleteConfig(fleet.id);
+                if (result) {
+                  results.push(result);
+                } else {
+                  errors.push({
+                    id: fleet.id,
+                    error: "Failed to delete",
+                  });
+                }
+              } catch (err) {
+                errors.push({ id: fleet.id, error: err.message });
+              }
+            }
+
+            if (results.length > 0) {
+              closeModal("delete");
+              setDeleteActionType("delete"); // Reset action type
+              await refreshFleet();
+              showToast.success(
+                `Berhasil menghapus ${results.length} fleet dari ${deleteData.length} total fleet`,
+              );
+            }
+
+            if (errors.length > 0) {
+              console.error("Errors during split group deletion:", errors);
+              showToast.error(
+                `Gagal menghapus ${errors.length} fleet dari ${deleteData.length} total fleet`,
+              );
+            }
+
+            return {
+              success: results.length > 0,
+              successCount: results.length,
+              errorCount: errors.length,
+              errors,
+            };
+          }
+
+          // Handle single fleet deletion
+          console.log("🗑️ Deleting single fleet:", deleteData.id);
+          const result = await deleteConfig(deleteData.id);
+
+          validateResponse(result, {
+            operation: "delete",
+            entityName: "Fleet",
+          });
+
+          closeModal("delete");
+          setDeleteActionType("delete"); // Reset action type
+          await refreshFleet();
+          showToast.success(TOAST_MESSAGES.DELETE_SUCCESS);
+
+          return result;
+        },
+        {
+          operation: "delete",
+          defaultMessage: "Gagal menghapus konfigurasi fleet",
+        },
+      ).finally(() => {
+        setIsSaving(false);
+      });
+    },
+    [deleteConfig, refreshFleet, closeModal, getModalState],
+  );
+
+  const handleSaveFleetSelection = useCallback(
+    async (selectedIds) => {
+      setIsSaving(true);
+      return withErrorHandling(
+        async () => {
+          setSelectedFleets(selectedIds);
+          closeModal("fleetSelection");
+          await refreshFleet();
+
+          showToast.success("Pemilihan fleet berhasil disimpan");
+
+          return { success: true };
+        },
+        {
+          operation: "save fleet selection",
+          defaultMessage: "Gagal menyimpan pemilihan fleet",
+        },
+      ).finally(() => {
+        setIsSaving(false);
+      });
+    },
+    [setSelectedFleets, closeModal, refreshFleet],
+  );
+
+  const handleBulkDelete = useCallback(
+    async (configIds) => {
+      if (!canDeletePerm) {
+        showToast.error(getDisabledMessage("delete"));
+        return;
+      }
+
+      if (isReadOnly) {
+        showToast.error("Tidak dapat menghapus dalam mode read-only");
+        return;
+      }
+
+      setIsSaving(true);
+      return withErrorHandling(
         async () => {
           const results = [];
           const errors = [];
 
-          for (const fleetId of fleetIds) {
-            try {
-              const result = await deleteConfig(fleetId);
+          for (const id of configIds) {
+            const config = fleetConfigsByType.find((c) => c.id === id);
 
-              if (result?.success) {
-                results.push(fleetId);
+            if (!config) {
+              errors.push({ id, error: "Config not found" });
+              continue;
+            }
+
+            if (!checkDataAccess(config)) {
+              errors.push({ id, error: "Access denied" });
+              continue;
+            }
+
+            try {
+              const result = await deleteConfig(id);
+              if (result) {
+                results.push(result);
               } else {
-                errors.push({
-                  fleetId,
-                  error: result?.error || "Unknown error",
-                });
+                errors.push({ id, error: "Failed to delete" });
               }
-            } catch (error) {
-              errors.push({ fleetId, error: error.message });
+            } catch (err) {
+              errors.push({ id, error: err.message });
             }
           }
 
-          await refreshFleet();
-
-          if (errors.length === 0) {
-            showToast.success(`Berhasil menghapus ${results.length} fleet`);
-          } else if (results.length > 0) {
-            showToast.warning(
-              `${results.length} fleet berhasil dihapus, ${errors.length} gagal`,
+          if (results.length > 0) {
+            await refreshFleet();
+            showToast.success(
+              `Berhasil menghapus ${results.length} dari ${configIds.length} fleet`,
             );
-          } else {
-            showToast.error(`Gagal menghapus semua fleet`);
+          }
+
+          if (errors.length > 0) {
+            console.error("Errors during bulk delete:", errors);
+            showToast.error(
+              `Gagal menghapus ${errors.length} dari ${configIds.length} fleet`,
+            );
           }
 
           return {
@@ -549,6 +699,113 @@ const handleSaveConfig = async (configData) => {
     },
     [canDeletePerm, deleteConfig, refreshFleet, fleetConfigsByType],
   );
+
+  // Handlers for Information Days
+  const handleSatkerChange = useCallback((satker) => {
+    setSelectedSatker(satker);
+    setSelectedUrutkan(""); // Reset urutkan when satker changes
+  }, []);
+
+  const handleUrutkanChange = useCallback((urutkan) => {
+    setSelectedUrutkan(urutkan);
+  }, []);
+
+  // Handlers for Fleet Setting Table Actions
+  const handleViewFleetSetting = useCallback(
+    (fleet) => {
+      // Open detail modal with fleet data
+      openModal("detail", fleet);
+    },
+    [openModal],
+  );
+
+  const handleEditFleetSetting = useCallback(
+    (fleet) => {
+      if (!canUpdate) {
+        showToast.error(getDisabledMessage("update"));
+        return;
+      }
+
+      if (isReadOnly) {
+        showToast.error("Tidak dapat mengedit dalam mode read-only");
+        return;
+      }
+
+      // Check data access
+      if (!checkDataAccess(fleet)) {
+        showToast.error("Anda tidak memiliki akses untuk mengedit fleet ini");
+        return;
+      }
+
+      openModal("config", fleet);
+    },
+    [canUpdate, isReadOnly, checkDataAccess, getDisabledMessage, openModal],
+  );
+
+  const handleDeleteFleetSetting = useCallback(
+    (fleet) => {
+      if (!canDeletePerm) {
+        showToast.error(getDisabledMessage("delete"));
+        return;
+      }
+
+      if (isReadOnly) {
+        showToast.error("Tidak dapat menghapus dalam mode read-only");
+        return;
+      }
+
+      // ✅ FIX: Detect if fleet is split group (array) or single fleet
+      const isSplitGroup = Array.isArray(fleet);
+      
+      if (isSplitGroup) {
+        // Validate access for all fleets in the group
+        const hasAccessToAll = fleet.every((f) => checkDataAccess(f));
+        
+        if (!hasAccessToAll) {
+          showToast.error("Anda tidak memiliki akses untuk menghapus salah satu atau lebih fleet dalam grup ini");
+          return;
+        }
+        
+        console.log("🔍 Opening delete modal for SPLIT GROUP:", {
+          fleetCount: fleet.length,
+          fleetIds: fleet.map(f => f.id),
+        });
+        
+        // Set action type to delete-split-group
+        setDeleteActionType("delete-split-group");
+      } else {
+        // Single fleet deletion
+        if (!checkDataAccess(fleet)) {
+          showToast.error("Anda tidak memiliki akses untuk menghapus fleet ini");
+          return;
+        }
+        
+        console.log("🔍 Opening delete modal for SINGLE FLEET:", fleet.id);
+        
+        // Set action type to delete
+        setDeleteActionType("delete");
+      }
+
+      openModal("delete", fleet);
+    },
+    [canDeletePerm, isReadOnly, checkDataAccess, getDisabledMessage, openModal],
+  );
+
+  const handleOpenSplitModal = (fleet) => setShowSplitModal(true);
+
+  const handleCloseSplitModal = () => {
+    setShowSplitModal(false);
+  };
+
+  const handleSaveSplit = async (splitData) => {
+    const result = await handleCreateSplitFleets(splitData);
+    if (result.success) {
+      handleCloseSplitModal();
+      // Refresh fleet data after successful split
+      await refreshFleet();
+    }
+    return result;
+  };
 
   if (!canAccessType) {
     return (
@@ -583,7 +840,7 @@ const handleSaveConfig = async (configData) => {
           canCreate={false}
           shouldShowButton={() => false}
           getDisabledMessage={getDisabledMessage}
-          onRefresh={() => {}}
+          onRefresh={handleRefresh}
           onCreate={() => {}}
           onManageFleet={() => {}}
           fleetCounts={{ total: 0, timbangan: 0 }}
@@ -599,6 +856,7 @@ const handleSaveConfig = async (configData) => {
 
   return (
     <div className="space-y-6 min-h-screen">
+      {/* 1. Fleet Header */}
       <FleetHeader
         type={Type}
         userRole={userRole}
@@ -630,8 +888,8 @@ const handleSaveConfig = async (configData) => {
           <AlertDescription>
             <p className="text-sm text-red-900 dark:text-red-300">
               <strong>Perhatian:</strong> Data tidak dapat difilter karena
-              satker tidak ditemukan pada akun Anda. Silakan hubungi admin
-              untuk mengatur work unit Anda.
+              satker tidak ditemukan pada akun Anda. Silakan hubungi admin untuk
+              mengatur work unit Anda.
             </p>
           </AlertDescription>
         </Alert>
@@ -644,7 +902,39 @@ const handleSaveConfig = async (configData) => {
         />
       )}
 
-      <div className="bg-neutral-50 dark:bg-gray-800 rounded-lg dark:border-gray-700 shadow-sm">
+      {/* 2. Information Days - NEW */}
+      <InformationDays
+        selectedDate={new Date()}
+        selectedShift="II"
+        selectedGroup="D"
+        selectedSatker={selectedSatker}
+        selectedUrutkan={selectedUrutkan}
+        onSatkerChange={handleSatkerChange}
+        onUrutkanChange={handleUrutkanChange}
+        workUnits={workUnits}
+        locations={filterOptions.dumpingLocations}
+      />
+
+      {/* 3. Fleet Setting Table - NEW */}
+      <FleetSettingTable
+        fleetData={finalFilteredConfigs}
+        selectedSatker={selectedSatker}
+        selectedUrutkan={selectedUrutkan}
+        onSplitFleet={handleOpenSplitModal}
+        isLoading={isConfigsLoading || masterDataLoading}
+        onViewFleet={handleViewFleetSetting}
+        onEditFleet={!isReadOnly ? handleEditFleetSetting : undefined}
+        onDeleteFleet={!isReadOnly ? handleDeleteFleetSetting : undefined}
+      />
+
+      {/* 4. MMCT Additional Sections - Only shown when MMCT is selected */}
+      <MMCTAdditionalSections
+        selectedSatker={selectedSatker}
+        fleetData={filteredFleetData}
+      />
+
+      {/* Original Fleet Management Table */}
+      {/* <div className="bg-neutral-50 dark:bg-gray-800 rounded-lg dark:border-gray-700 shadow-sm">
         <div className="p-4 sm:p-6">
           <div className="space-y-4">
             <FleetFilterSection
@@ -686,12 +976,12 @@ const handleSaveConfig = async (configData) => {
               pageSize={10}
               enableBulkActions={true}
               onBulkDelete={handleBulkDelete}
-              enableCollapsibleView={true}      
+              enableCollapsibleView={true}
               defaultViewMode="collapsible"
             />
           </div>
         </div>
-      </div>
+      </div> */}
 
       <FleetModalsManager
         showConfigModal={!isReadOnly && getModalState("config").isOpen}
@@ -713,13 +1003,20 @@ const handleSaveConfig = async (configData) => {
         onSaveFleetSelection={handleSaveFleetSelection}
         showDeleteDialog={!isReadOnly && getModalState("delete").isOpen}
         onCloseDeleteDialog={() => {
-          if (!isSaving) closeModal("delete");
+          if (!isSaving) {
+            closeModal("delete");
+            setDeleteActionType("delete"); // Reset action type when closing
+          }
         }}
         onConfirmDelete={handleConfirmDelete}
         deleteTarget={getModalState("delete").data}
         getDumptruckCount={getFleetDumptruckCount}
         isSaving={isSaving}
         availableDumptruckSettings={fleetConfigs}
+        showSplitModal={showSplitModal}
+        onCloseSplitModal={handleCloseSplitModal}
+        onSaveSplit={handleSaveSplit}
+        deleteActionType={deleteActionType}
       />
     </div>
   );

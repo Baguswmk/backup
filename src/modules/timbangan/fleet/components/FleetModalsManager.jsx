@@ -1,5 +1,6 @@
 import React from "react";
 import FleetModal from "@/modules/timbangan/fleet/components/FleetModal";
+import FleetSplitModal from "@/modules/timbangan/fleet/components/FleetSplitModal";
 import FleetDetailModal from "@/modules/timbangan/fleet/components/FleetDetailModal";
 import FleetSelectionDialog from "@/shared/components/FleetSelectionDialog";
 import DeleteConfirmDialog from "@/shared/components/DeleteConfirmDialog";
@@ -14,7 +15,7 @@ const FleetModalsManager = ({
   masters,
   canUpdate,
   fleetType,
-  availableDumptruckSettings, 
+  availableDumptruckSettings,
   showDetailModal,
   onCloseDetailModal,
   selectedDetailConfig,
@@ -30,6 +31,11 @@ const FleetModalsManager = ({
   deleteTarget,
   getDumptruckCount,
   getDumptruckList,
+deleteActionType = "delete",
+  // Split Fleet Modal props
+  showSplitModal,
+  onCloseSplitModal,
+  onSaveSplit,
 
   isSaving,
 }) => {
@@ -45,6 +51,16 @@ const FleetModalsManager = ({
           masters={masters}
           mastersLoading={false}
           fleetType={fleetType}
+          availableDumptruckSettings={availableDumptruckSettings}
+        />
+      )}
+
+      {/* Fleet Split Modal - Only render when open */}
+      {showSplitModal && (
+        <FleetSplitModal
+          isOpen={showSplitModal}
+          onClose={onCloseSplitModal}
+          onSave={onSaveSplit}
           availableDumptruckSettings={availableDumptruckSettings}
         />
       )}
@@ -73,17 +89,32 @@ const FleetModalsManager = ({
       )}
 
       {/* Delete Confirmation Dialog */}
-      {showDeleteDialog && (
-        <DeleteConfirmDialog
-          isOpen={showDeleteDialog}
-          onClose={onCloseDeleteDialog}
-          onConfirm={onConfirmDelete}
-          target={deleteTarget}
-          assignedCount={deleteTarget ? getDumptruckCount(deleteTarget.id) : 0}
-          isProcessing={isSaving}
-          requireConfirmation={true}
-        />
-      )}
+     {showDeleteDialog && (
+  <DeleteConfirmDialog
+    isOpen={showDeleteDialog}
+    onClose={onCloseDeleteDialog}
+    onConfirm={onConfirmDelete}
+    target={
+      deleteTarget?.type === "single"
+        ? deleteTarget.config
+        : deleteTarget?.type === "split-group"
+          ? deleteTarget.configs
+          : deleteTarget
+    }
+    assignedCount={
+      deleteTarget?.type === "single"
+        ? deleteTarget.config?.dumptruckCount || 0
+        : deleteTarget?.type === "split-group"
+          ? deleteTarget.configs?.reduce(
+              (sum, f) => sum + (f.dumptruckCount || f.units?.length || 0),
+              0
+            )
+          : 0
+    }
+    isProcessing={isSaving}
+    actionType={deleteActionType}  
+  />
+)}
 
       {/* Loading Overlay */}
       <LoadingOverlay

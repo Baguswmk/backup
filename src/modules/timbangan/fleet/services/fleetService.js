@@ -247,6 +247,11 @@ async createFleetConfig(configData) {
       payload.checkers = configData.checkerIds.map(id => parseInt(id));
     } 
     
+    // isSplit flag: tandai fleet yang dibuat dari mode split
+    if (configData.isSplit) {
+      payload.isSplit = true;
+    }
+
     if (configData.createdByUserId) {
       payload.created_by_user = parseInt(configData.createdByUserId);
     }
@@ -800,6 +805,7 @@ _transformFleetConfig(apiResponse) {
         hull_no: dt.attributes?.hull_no || "",
         type: dt.attributes?.type || "DUMP_TRUCK",
         tareWeight: dt.attributes?.tare_weight ?? null,
+        tareWeightUpdatedDate: dt.attributes?.tare_weight_updated_date ?? null,
         company: dt.attributes?.company?.data?.attributes?.name || "-",
         companyId: dt.attributes?.company?.data?.id?.toString() || "",
         operator: ops[0]?.attributes?.name || null,
@@ -853,6 +859,8 @@ _transformFleetConfig(apiResponse) {
       units: dumptrucks,
 
       measurementType: attr.measurement_type,
+
+      isSplit: attr.isSplit === true || attr.isSplit === "true",
 
       createdAt: attr.createdAt,
       updatedAt: attr.updatedAt,

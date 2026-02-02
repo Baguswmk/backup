@@ -182,7 +182,7 @@ const TimbanganInternalPage = () => {
                 onClick={handleBackToHub}
                 variant="outline"
                 className={cn(
-                  "mt-4 w-full transition-all duration-200",
+                    "mt-4 w-full transition-all duration-200",
                   "hover:bg-red-50 dark:hover:bg-red-900/30",
                   "border-red-300 dark:border-red-700",
                   "text-red-600 dark:text-red-400",

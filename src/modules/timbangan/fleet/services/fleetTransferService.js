@@ -180,6 +180,10 @@ export const fleetTransferService = {
   async createFleetConfig(configData) {
     try {
       const now = new Date().toISOString();
+      
+      // ✅ FIX: Support both measurementType (camelCase) and measurement_type (snake_case)
+      const measurementType = configData.measurementType || configData.measurement_type;
+      
       const payload = {
         unit_exca: configData.excavatorId
           ? parseInt(configData.excavatorId)
@@ -198,7 +202,7 @@ export const fleetTransferService = {
           ? parseInt(configData.workUnitId)
           : null,
         created_at: now,
-        measurement_type: configData.measurement_type,
+        measurement_type: measurementType, // ✅ FIX: Use the normalized value
         pair_dt_op: configData.pairDtOp.map((pair) => ({
           truckId: parseInt(pair.truckId),
           operatorId: parseInt(pair.operatorId),
@@ -226,7 +230,7 @@ export const fleetTransferService = {
       }
 
       if (
-        configData.measurement_type === "Timbangan" &&
+        measurementType === "Timbangan" &&
         configData.weightBridgeId
       ) {
         payload.weigh_bridge = parseInt(configData.weightBridgeId);
@@ -345,8 +349,9 @@ export const fleetTransferService = {
         }
       }
 
-      if (updates.measurementType !== undefined) {
-        payload.measurement_type = updates.measurementType;
+      // ✅ FIX: Support both measurementType (camelCase) and measurement_type (snake_case)
+      if (updates.measurementType !== undefined || updates.measurement_type !== undefined) {
+        payload.measurement_type = updates.measurementType || updates.measurement_type;
       }
 
       if (updates.pairDtOp !== undefined && Array.isArray(updates.pairDtOp)) {
