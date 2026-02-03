@@ -306,6 +306,7 @@ export const generateExcel_DumpTruck = (data, params) => {
     "Group",
     "Status",
     "Input Type",
+    "Input By",
     "Nama Operator",
     "Tonase Adjustment",
     "Kategori Jam",
@@ -314,7 +315,7 @@ export const generateExcel_DumpTruck = (data, params) => {
   const columnWidths = [
     { wch: 12 }, { wch: 8 }, { wch: 15 }, { wch: 15 }, { wch: 12 },
     { wch: 10 }, { wch: 15 }, { wch: 25 }, { wch: 25 }, { wch: 10 },
-    { wch: 12 }, { wch: 12 }, { wch: 10 }, { wch: 25 }, { wch: 12 },
+    { wch: 12 }, { wch: 12 }, { wch: 10 }, { wch: 25 }, { wch: 12 }, { wch: 12 },
      { wch: 15 },  { wch: 15 }, 
     { wch: 12 },
   ];
@@ -336,6 +337,7 @@ export const generateExcel_DumpTruck = (data, params) => {
       item.coal_type || "-",
       item.group || "-",
       item.status || "-",
+      item.input_by || "-",
       item.input_by || "-",
       item.operator || "-",
       item.tonase_adjustment || 0,
