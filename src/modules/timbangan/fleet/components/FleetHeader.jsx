@@ -11,7 +11,6 @@ import {
 } from "lucide-react";
 import { useMasterData } from "../../masterData/hooks/useMasterData";
 import MMCTEquipmentListModal from "./MMCTEquipmentListModal";
-
 const FleetHeader = ({
   type,
   userRole,
@@ -29,7 +28,7 @@ const FleetHeader = ({
 }) => {
   const { refreshAllMasterData, isRefreshingMasterData } = useMasterData();
 
-  // State untuk MMCT Equipment List Modal
+  // State untuk MMCT Equipment L ist Modal
   const [showMMCTEquipmentModal, setShowMMCTEquipmentModal] = useState(false);
 
   // Check if user is CCR

@@ -1,10 +1,11 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogFooter,
+  DialogDescription,
 } from "@/shared/components/ui/dialog";
 import { Button } from "@/shared/components/ui/button";
 import { Badge } from "@/shared/components/ui/badge";
@@ -16,156 +17,231 @@ import {
   X,
   AlertCircle,
   Loader2,
+  Truck,
+  Construction,
+  AlertTriangle,
 } from "lucide-react";
 import { showToast } from "@/shared/utils/toast";
-import { mmctEquipmentService } from "@/modules/timbangan/fleet/services/mmctEquipmentService";
-import { useMasterData } from "@/modules/timbangan/masterData/hooks/useMasterData";
+import { useUnitLog } from "@/modules/timbangan/fleet/hooks/useUnitLog";
+import { useFleet } from "@/modules/timbangan/fleet/hooks/useFleet";
+import MultiSearchableSelect from "@/shared/components/MultiSearchableSelect";
 
 const EQUIPMENT_CATEGORIES = {
   DT_SERVICE: {
     id: "dt_service",
-    label: "List DT Service",
+    label: "DT Service",
     color: "blue",
     icon: "🚛",
+    type: "dt",
   },
   DT_BD: {
     id: "dt_bd",
-    label: "List DT BD (Breakdown)",
+    label: "DT Breakdown",
     color: "red",
     icon: "⚠️",
+    type: "dt",
   },
   EXCA_SERVICE: {
     id: "exca_service",
-    label: "List Exca Service",
+    label: "Exca Service",
     color: "green",
     icon: "🏗️",
+    type: "exca",
   },
   EXCA_BD: {
     id: "exca_bd",
-    label: "List Exca BD (Breakdown)",
+    label: "Exca Breakdown",
     color: "orange",
     icon: "🔧",
+    type: "exca",
+  },
+};
+
+const MAIN_TABS = {
+  UNIT: {
+    id: "unit",
+    label: "Unit (DT)",
+    icon: Truck,
+    categories: ["dt_service", "dt_bd"],
+  },
+  EXCA: {
+    id: "exca",
+    label: "Excavator",
+    icon: Construction,
+    categories: ["exca_service", "exca_bd"],
   },
 };
 
 const MMCTEquipmentListModal = ({ isOpen, onClose }) => {
-  const [activeTab, setActiveTab] = useState("dt_service");
-  const [equipmentLists, setEquipmentLists] = useState({
+  const [activeMainTab, setActiveMainTab] = useState("unit");
+  const [tempEquipmentLists, setTempEquipmentLists] = useState({
     dt_service: [],
     dt_bd: [],
     exca_service: [],
     exca_bd: [],
   });
-  const [isLoading, setIsLoading] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
+  const [deleteConfirmation, setDeleteConfirmation] = useState({
+    isOpen: false,
+    category: null,
+    index: null,
+    item: null,
+  });
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  // Use unitLog hook for MMCT operations
+  const {
+    mmctEquipmentLists,
+    isLoading,
+    isSaving,
+    addToMMCTList,
+    removeFromMMCTList,
+    bulkAddToMMCTList,
+    loadMMCTEquipmentLists,
+  } = useUnitLog();
 
   // Get master data for dropdowns
-  const { workUnits, isLoading: masterDataLoading } = useMasterData(null);
+  const { masters, mastersLoading } = useFleet();
 
-  // Load equipment lists on modal open
+  // Sync temp state with actual data
   useEffect(() => {
-    if (isOpen) {
-      loadEquipmentLists();
-    }
-  }, [isOpen]);
+    setTempEquipmentLists(mmctEquipmentLists);
+  }, [mmctEquipmentLists]);
 
   const loadEquipmentLists = async () => {
-    setIsLoading(true);
-    try {
-      const data = await mmctEquipmentService.getAllEquipmentLists();
-      setEquipmentLists(data);
-      setHasChanges(false);
-    } catch (error) {
-      showToast.error("Gagal memuat data list alat");
-      console.error("Load equipment lists error:", error);
-    } finally {
-      setIsLoading(false);
-    }
+    await loadMMCTEquipmentLists(true);
+    setHasChanges(false);
   };
 
-  const handleAddEquipment = (category) => {
-    setEquipmentLists((prev) => ({
+  const handleEquipmentSelectionChange = (category, selectedIds) => {
+    const isDT = category.startsWith("dt_");
+    const masterList = isDT ? masters.dumpTruck : masters.excavators;
+    
+    // Get current list
+    const currentList = tempEquipmentLists[category] || [];
+    const currentIds = currentList.map((item) => String(item.equipmentId));
+    
+    // Find newly added IDs
+    const newIds = selectedIds.filter((id) => !currentIds.includes(id));
+    
+    // Find removed IDs
+    const removedIds = currentIds.filter((id) => !selectedIds.includes(id));
+    
+    // Add new items
+    const newItems = newIds.map((id) => {
+      const equipment = masterList.find((eq) => eq.id === parseInt(id));
+      return {
+        id: `temp-${Date.now()}-${id}`,
+        equipmentType: isDT ? "DT" : "EXCA",
+        equipmentId: id,
+        equipmentName: equipment?.hull_no || equipment?.name || "",
+        isNew: true,
+      };
+    });
+    
+    // Remove items
+    let updatedList = currentList.filter(
+      (item) => !removedIds.includes(String(item.equipmentId))
+    );
+    
+    // Add new items
+    updatedList = [...updatedList, ...newItems];
+    
+    setTempEquipmentLists((prev) => ({
       ...prev,
-      [category]: [
-        ...prev[category],
-        {
-          id: `temp-${Date.now()}`,
-          equipmentType: "",
-          equipmentId: null,
-          equipmentName: "",
-          isNew: true,
-        },
-      ],
+      [category]: updatedList,
     }));
-    setHasChanges(true);
+    
+    if (newIds.length > 0 || removedIds.length > 0) {
+      setHasChanges(true);
+    }
   };
 
   const handleRemoveEquipment = (category, index) => {
-    setEquipmentLists((prev) => ({
-      ...prev,
-      [category]: prev[category].filter((_, i) => i !== index),
-    }));
-    setHasChanges(true);
+    const item = tempEquipmentLists[category][index];
+
+    // If it's existing item (has real ID), show confirmation dialog
+    if (!item.isNew && item.id && !item.id.toString().startsWith("temp-")) {
+      setDeleteConfirmation({
+        isOpen: true,
+        category,
+        index,
+        item,
+      });
+    } else {
+      // Just remove from temp state for new items
+      setTempEquipmentLists((prev) => ({
+        ...prev,
+        [category]: prev[category].filter((_, i) => i !== index),
+      }));
+      setHasChanges(true);
+    }
   };
 
-  const handleEquipmentChange = (category, index, field, value) => {
-    setEquipmentLists((prev) => ({
-      ...prev,
-      [category]: prev[category].map((item, i) => {
-        if (i === index) {
-          // When equipment is selected, auto-fill the name
-          if (field === "equipmentId") {
-            const isDT = category.startsWith("dt_");
-            const masterList = isDT ? workUnits : workUnits; // You might need excavator master data
-            const selectedEquipment = masterList.find(
-              (eq) => eq.id === parseInt(value)
-            );
-            
-            return {
-              ...item,
-              equipmentId: value,
-              equipmentName: selectedEquipment?.name || "",
-            };
-          }
-          
-          return {
-            ...item,
-            [field]: value,
-          };
-        }
-        return item;
-      }),
-    }));
-    setHasChanges(true);
+  const handleConfirmDelete = async () => {
+    const { category, index, item } = deleteConfirmation;
+    
+    try {
+      setIsDeleting(true);
+      await removeFromMMCTList(item.id);
+      
+      // Close dialog
+      setDeleteConfirmation({
+        isOpen: false,
+        category: null,
+        index: null,
+        item: null,
+      });
+      
+      showToast.success("Alat berhasil dihapus dari MMCT list");
+    } catch (error) {
+      showToast.error("Gagal menghapus alat dari MMCT list");
+      console.error("Remove equipment error:", error);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const handleCancelDelete = () => {
+    setDeleteConfirmation({
+      isOpen: false,
+      category: null,
+      index: null,
+      item: null,
+    });
   };
 
   const handleSave = async () => {
     // Validate all entries
-    for (const [category, items] of Object.entries(equipmentLists)) {
+    for (const [category, items] of Object.entries(tempEquipmentLists)) {
       for (const item of items) {
         if (!item.equipmentId || !item.equipmentName) {
           showToast.error(
-            `Mohon lengkapi semua data pada ${EQUIPMENT_CATEGORIES[category.toUpperCase()].label}`
+            `Mohon lengkapi semua data pada ${getCategoryConfig(category).label}`
           );
           return;
         }
       }
     }
 
-    setIsSaving(true);
     try {
-      await mmctEquipmentService.saveAllEquipmentLists(equipmentLists);
-      showToast.success("List alat PM/BD MMCT berhasil disimpan!");
+      // Save logic using bulkAddToMMCTList
+      for (const [category, items] of Object.entries(tempEquipmentLists)) {
+        // Filter only new items
+        const newItems = items.filter(
+          (item) => item.isNew || item.id.toString().startsWith("temp-")
+        );
+
+        if (newItems.length > 0) {
+          await bulkAddToMMCTList(category, newItems);
+        }
+      }
+
       setHasChanges(false);
-      
-      // Reload data after save
       await loadEquipmentLists();
     } catch (error) {
       showToast.error("Gagal menyimpan list alat");
       console.error("Save equipment lists error:", error);
-    } finally {
-      setIsSaving(false);
     }
   };
 
@@ -173,7 +249,7 @@ const MMCTEquipmentListModal = ({ isOpen, onClose }) => {
     if (hasChanges) {
       if (
         window.confirm(
-          "Ada perubahan yang belum disimpan. Yakin ingin menutup?"
+          "Ada perubahan yang belum disimpan. Yakin ingin keluar?"
         )
       ) {
         onClose();
@@ -184,310 +260,340 @@ const MMCTEquipmentListModal = ({ isOpen, onClose }) => {
     }
   };
 
-  const currentList = equipmentLists[activeTab] || [];
-
   const getCategoryConfig = (categoryId) => {
-    const key = categoryId.toUpperCase();
-    return EQUIPMENT_CATEGORIES[key] || EQUIPMENT_CATEGORIES.DT_SERVICE;
-  };
-
-  const getEquipmentOptions = (category) => {
-    const isDT = category.startsWith("dt_");
-    
-    if (isDT) {
-      // For Dump Truck - use workUnits or specific dump truck master data
-      return workUnits.map((unit) => ({
-        id: unit.id,
-        name: unit.name,
-        hull_no: unit.hull_no || "",
-      }));
-    } else {
-      // For Excavator - you might need to create excavator master data
-      // For now, using workUnits as placeholder
-      return workUnits.map((unit) => ({
-        id: unit.id,
-        name: unit.name,
-      }));
-    }
-  };
-
-  const totalEquipment = useMemo(() => {
-    return Object.values(equipmentLists).reduce(
-      (sum, list) => sum + list.length,
-      0
+    return (
+      Object.values(EQUIPMENT_CATEGORIES).find((c) => c.id === categoryId) ||
+      EQUIPMENT_CATEGORIES.DT_SERVICE
     );
-  }, [equipmentLists]);
-
-  // Helper function to get tab classes with explicit dark mode
-  const getTabClasses = (config, isActive) => {
-    const baseClasses = "flex items-center gap-2 px-4 py-2.5 rounded-t-lg font-medium text-sm transition-all duration-200 whitespace-nowrap border-b-2";
-    
-    if (!isActive) {
-      return `${baseClasses} bg-transparent text-gray-600 dark:text-gray-400 border-transparent hover:bg-gray-50 dark:hover:bg-gray-800`;
-    }
-
-    // Active state with explicit color classes
-    switch (config.color) {
-      case 'blue':
-        return `${baseClasses} bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 border-blue-500 dark:border-blue-400`;
-      case 'red':
-        return `${baseClasses} bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 border-red-500 dark:border-red-400`;
-      case 'green':
-        return `${baseClasses} bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 border-green-500 dark:border-green-400`;
-      case 'orange':
-        return `${baseClasses} bg-orange-50 dark:bg-orange-900/20 text-orange-700 dark:text-orange-300 border-orange-500 dark:border-orange-400`;
-      default:
-        return `${baseClasses} bg-gray-50 dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-500 dark:border-gray-400`;
-    }
   };
 
-  // Helper function to get badge classes
-  const getBadgeClasses = (config, isActive) => {
-    if (!isActive) return "";
-    
-    switch (config.color) {
-      case 'blue':
-        return "bg-blue-600 dark:bg-blue-700 text-white border-blue-600 dark:border-blue-700";
-      case 'red':
-        return "bg-red-600 dark:bg-red-700 text-white border-red-600 dark:border-red-700";
-      case 'green':
-        return "bg-green-600 dark:bg-green-700 text-white border-green-600 dark:border-green-700";
-      case 'orange':
-        return "bg-orange-600 dark:bg-orange-700 text-white border-orange-600 dark:border-orange-700";
-      default:
-        return "bg-gray-600 dark:bg-gray-700 text-white border-gray-600 dark:border-gray-700";
-    }
+  const getEquipmentOptions = (categoryId) => {
+    const isDT = categoryId.startsWith("dt_");
+    const masterList = isDT ? masters.dumpTruck : masters.excavators;
+
+    if (!masterList) return [];
+
+    return masterList.map((item) => ({
+      value: item.id,
+      label: item.hull_no || item.name || `${isDT ? "DT" : "Exca"} ${item.id}`,
+      hint: item.company || "",
+    }));
+  };
+  
+  const getSelectedEquipmentIds = (categoryId) => {
+    return (tempEquipmentLists[categoryId] || []).map((item) =>
+      String(item.equipmentId)
+    );
   };
 
-  return (
-    <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100">
-        <DialogHeader className="border-b border-gray-200 dark:border-gray-700 pb-4">
+  const getCategoryBgColor = (categoryId) => {
+    const config = getCategoryConfig(categoryId);
+    const colorMap = {
+      blue: "bg-blue-50 dark:bg-blue-900/10 border-blue-200 dark:border-blue-800",
+      red: "bg-red-50 dark:bg-red-900/10 border-red-200 dark:border-red-800",
+      green:
+        "bg-green-50 dark:bg-green-900/10 border-green-200 dark:border-green-800",
+      orange:
+        "bg-orange-50 dark:bg-orange-900/10 border-orange-200 dark:border-orange-800",
+    };
+    return colorMap[config.color] || colorMap.blue;
+  };
+
+  const getCategoryTextColor = (categoryId) => {
+    const config = getCategoryConfig(categoryId);
+    const colorMap = {
+      blue: "text-blue-700 dark:text-blue-300",
+      red: "text-red-700 dark:text-red-300",
+      green: "text-green-700 dark:text-green-300",
+      orange: "text-orange-700 dark:text-orange-300",
+    };
+    return colorMap[config.color] || colorMap.blue;
+  };
+
+  const renderEquipmentCard = (categoryId) => {
+    const config = getCategoryConfig(categoryId);
+    const currentList = tempEquipmentLists[categoryId] || [];
+    const isDT = categoryId.startsWith("dt_");
+    const options = getEquipmentOptions(categoryId);
+    const count = currentList.length;
+    return (
+      <div
+        key={categoryId}
+        className={`rounded-xl border-2 overflow-hidden shadow-sm ${getCategoryBgColor(categoryId)}`}
+      >
+        {/* Card Header */}
+        <div className="px-4 py-3 border-b border-current/20 bg-white/50 dark:bg-gray-800/50">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
-                <Settings className="w-6 h-6 text-blue-600 dark:text-blue-400" />
-              </div>
-              <div>
-                <DialogTitle className="text-xl font-bold text-gray-900 dark:text-white">
-                  List Alat PM/BD MMCT
-                </DialogTitle>
-                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                  Kelola list alat Preventive Maintenance dan Breakdown untuk MMCT
-                </p>
-              </div>
+            <div className="flex items-center gap-2">
+              <span className="text-2xl">{config.icon}</span>
+              <h3 className={`font-semibold ${getCategoryTextColor(categoryId)}`}>
+                {config.label}
+              </h3>
             </div>
             <Badge
               variant="outline"
-              className="text-sm font-semibold bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-300 border-gray-300 dark:border-gray-600"
+              className={`${getCategoryTextColor(categoryId)} border-current`}
             >
-              Total: {totalEquipment} Alat
+              {count} Unit
             </Badge>
-          </div>
-        </DialogHeader>
-
-        {/* Tabs */}
-        <div className="border-b border-gray-200 dark:border-gray-700 -mx-6 px-6">
-          <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-600">
-            {Object.entries(EQUIPMENT_CATEGORIES).map(([key, config]) => {
-              const count = equipmentLists[config.id]?.length || 0;
-              const isActive = activeTab === config.id;
-
-              return (
-                <button
-                  key={config.id}
-                  onClick={() => setActiveTab(config.id)}
-                  className={getTabClasses(config, isActive)}
-                >
-                  <span className="text-lg">{config.icon}</span>
-                  <span>{config.label}</span>
-                  <Badge
-                    variant={isActive ? "default" : "outline"}
-                    className={isActive ? getBadgeClasses(config, isActive) : "bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600"}
-                  >
-                    {count}
-                  </Badge>
-                </button>
-              );
-            })}
           </div>
         </div>
 
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto -mx-6 px-6 py-4 bg-gray-50 dark:bg-gray-900/50">
-          {isLoading ? (
-            <div className="flex items-center justify-center py-12">
-              <Loader2 className="w-8 h-8 animate-spin text-gray-400 dark:text-gray-500" />
+        {/* Card Content */}
+        <div className="p-4 space-y-3">
+          {/* Multi Select Section */}
+          <div className="space-y-2">
+            <label className="text-xs font-medium text-gray-700 dark:text-gray-300">
+              Pilih {isDT ? "Dump Truck" : "Excavator"}
+            </label>
+            <MultiSearchableSelect
+              items={options}
+              values={getSelectedEquipmentIds(categoryId)}
+              onChange={(values) => handleEquipmentSelectionChange(categoryId, values)}
+              placeholder={`Pilih ${isDT ? "DT" : "Exca"}...`}
+              emptyText={`${isDT ? "DT" : "Exca"} tidak ditemukan`}
+              disabled={isSaving || mastersLoading}
+            />
+          </div>
+
+          {/* Equipment List */}
+          {currentList.length === 0 ? (
+            <div className="text-center py-8 bg-white/70 dark:bg-gray-800/70 rounded-lg border-2 border-dashed border-current/30">
+              <AlertCircle className="w-8 h-8 mx-auto text-gray-400 dark:text-gray-500 mb-2" />
+              <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">
+                Belum ada data
+              </p>
             </div>
           ) : (
-            <div className="space-y-3">
-              {/* Add Button */}
-              <Button
-                onClick={() => handleAddEquipment(activeTab)}
-                variant="outline"
-                className="w-full border-dashed border-2 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:border-blue-400 dark:hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20"
-                disabled={isSaving}
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                Tambah {getCategoryConfig(activeTab).label}
-              </Button>
+            <div className="space-y-2">
+              {currentList.map((item, index) => (
+                <div
+                  key={item.id || index}
+                  className="flex items-start gap-2 p-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 hover:shadow-md dark:hover:shadow-gray-900/50 transition-shadow"
+                >
+                  <div className="shrink-0 w-8 h-8 bg-gray-100 dark:bg-gray-700 rounded-lg flex items-center justify-center text-xs font-semibold text-gray-600 dark:text-gray-300">
+                    {index + 1}
+                  </div>
 
-              {/* Equipment List */}
-              {currentList.length === 0 ? (
-                <div className="text-center py-12 bg-gray-50 dark:bg-gray-800/50 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600">
-                  <AlertCircle className="w-12 h-12 mx-auto text-gray-400 dark:text-gray-500 mb-3" />
-                  <p className="text-gray-500 dark:text-gray-400 font-medium">
-                    Belum ada data {getCategoryConfig(activeTab).label}
-                  </p>
-                  <p className="text-sm text-gray-400 dark:text-gray-500 mt-1">
-                    Klik tombol "Tambah" untuk menambahkan alat
-                  </p>
+                  <div className="flex-1">
+                    <div className="font-medium text-gray-900 dark:text-gray-100">
+                      {item.equipmentName}
+                    </div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400">
+                      ID: {item.equipmentId}
+                    </div>
+                  </div>
+
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleRemoveEquipment(categoryId, index)}
+                    disabled={isSaving}
+                    className="shrink-0 h-8 w-8 p-0 text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
                 </div>
-              ) : (
-                <div className="space-y-2">
-                  {currentList.map((item, index) => {
-                    const isDT = activeTab.startsWith("dt_");
-                    const options = getEquipmentOptions(activeTab);
-
-                    return (
-                      <div
-                        key={item.id || index}
-                        className="flex items-start gap-3 p-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 hover:shadow-md dark:hover:shadow-gray-900/50 transition-shadow"
-                      >
-                        <div className="flex-shrink-0 w-10 h-10 bg-gray-100 dark:bg-gray-700 rounded-lg flex items-center justify-center font-semibold text-gray-600 dark:text-gray-300">
-                          {index + 1}
-                        </div>
-
-                        <div className="flex-1 space-y-3">
-                          {/* Equipment Type - Hidden, auto-determined by category */}
-                          <input
-                            type="hidden"
-                            value={isDT ? "DUMP_TRUCK" : "EXCAVATOR"}
-                          />
-
-                          {/* Equipment Selection */}
-                          <div className="space-y-1.5">
-                            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                              {isDT ? "Dump Truck" : "Excavator"}
-                              <span className="text-red-500 dark:text-red-400 ml-1">*</span>
-                            </label>
-                            <select
-                              value={item.equipmentId || ""}
-                              onChange={(e) =>
-                                handleEquipmentChange(
-                                  activeTab,
-                                  index,
-                                  "equipmentId",
-                                  e.target.value
-                                )
-                              }
-                              disabled={isSaving || masterDataLoading}
-                              className="w-full px-3 py-2 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                            >
-                              <option value="" className="text-gray-500 dark:text-gray-400">
-                                -- Pilih {isDT ? "Dump Truck" : "Excavator"} --
-                              </option>
-                              {options.map((opt) => (
-                                <option 
-                                  key={opt.id} 
-                                  value={opt.id}
-                                  className="text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-700"
-                                >
-                                  {opt.name}
-                                  {opt.hull_no ? ` (${opt.hull_no})` : ""}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-
-                          {/* Equipment Name - Auto-filled but editable */}
-                          <div className="space-y-1.5">
-                            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                              Nama Alat
-                              <span className="text-red-500 dark:text-red-400 ml-1">*</span>
-                            </label>
-                            <input
-                              type="text"
-                              value={item.equipmentName || ""}
-                              onChange={(e) =>
-                                handleEquipmentChange(
-                                  activeTab,
-                                  index,
-                                  "equipmentName",
-                                  e.target.value
-                                )
-                              }
-                              disabled={isSaving}
-                              placeholder="Nama alat (otomatis terisi)"
-                              className="w-full px-3 py-2 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400 disabled:opacity-50 transition-colors"
-                            />
-                          </div>
-                        </div>
-
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleRemoveEquipment(activeTab, index)}
-                          disabled={isSaving}
-                          className="flex-shrink-0 text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
+              ))}
             </div>
           )}
         </div>
+      </div>
+    );
+  };
 
-        <DialogFooter className="border-t border-gray-200 dark:border-gray-700 -mx-6 px-6 pt-4 bg-white dark:bg-gray-900">
-          <div className="flex items-center justify-between w-full">
-            <div className="flex items-center gap-2">
-              {hasChanges && (
-                <Badge 
-                  variant="outline" 
-                  className="text-yellow-600 dark:text-yellow-400 border-yellow-300 dark:border-yellow-600 bg-yellow-50 dark:bg-yellow-900/20"
-                >
-                  <AlertCircle className="w-3 h-3 mr-1" />
-                  Ada perubahan belum disimpan
-                </Badge>
-              )}
+  return (
+    <>
+      <Dialog open={isOpen} onOpenChange={handleClose}>
+        <DialogContent className="max-w-6xl max-h-[90vh] flex flex-col p-0 gap-0 bg-white dark:bg-slate-800 border-none">
+          <DialogHeader className="px-6 pt-6 pb-4 border-b border-gray-200 dark:border-gray-700">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
+                <Settings className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+              </div>
+              <div>
+                <DialogTitle className="text-xl font-bold text-gray-900 dark:text-gray-100">
+                  Kelola List Alat PM/BD MMCT
+                </DialogTitle>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
+                  Atur daftar alat untuk PM (Preventive Maintenance) dan BD (Breakdown)
+                </p>
+              </div>
             </div>
+          </DialogHeader>
 
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                onClick={handleClose}
-                disabled={isSaving}
-                className="bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700"
-              >
-                <X className="w-4 h-4 mr-2" />
-                Batal
-              </Button>
-              <Button
-                onClick={handleSave}
-                disabled={isSaving || !hasChanges}
-                className="gap-2 bg-blue-600 dark:bg-blue-700 text-white hover:bg-blue-700 dark:hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {isSaving ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    Menyimpan...
-                  </>
-                ) : (
-                  <>
-                    <Save className="w-4 h-4" />
-                    Simpan Semua
-                  </>
-                )}
-              </Button>
+          {/* Main Tabs */}
+          <div className="px-6 pt-4 border-b border-gray-200 dark:border-gray-700">
+            <div className="flex gap-2">
+              {Object.entries(MAIN_TABS).map(([key, tab]) => {
+                const Icon = tab.icon;
+                const isActive = activeMainTab === tab.id;
+
+                return (
+                  <Button
+                    key={tab.id}
+                    onClick={() => setActiveMainTab(tab.id)}
+                    className={`flex items-center gap-2 px-4 py-2.5 rounded-t-lg font-medium transition-all ${
+                      isActive
+                        ? "bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 border-t-2 border-x-2 border-blue-500 dark:border-blue-400 -mb-px"
+                        : "bg-gray-100 dark:bg-gray-800/50 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700/50 border-2 border-transparent"
+                    }`}
+                  >
+                    <Icon className="w-5 h-5" />
+                    <span>{tab.label}</span>
+                  </Button>
+                );
+              })}
             </div>
           </div>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+
+          {/* Content */}
+          <div className="flex-1 overflow-y-auto px-6 py-4 bg-gray-50 dark:bg-gray-900/50">
+            {isLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="w-8 h-8 animate-spin text-gray-400 dark:text-gray-500" />
+              </div>
+            ) : (
+              <div className="flex flex-col gap-4">
+                {MAIN_TABS[activeMainTab.toUpperCase()].categories.map((categoryId) =>
+                  renderEquipmentCard(categoryId)
+                )}
+              </div>
+            )}
+          </div>
+
+          <DialogFooter className="border-t border-gray-200 dark:border-gray-700 px-6 py-4 bg-white dark:bg-gray-900">
+            <div className="flex items-center justify-between w-full">
+              <div className="flex items-center gap-2">
+                {hasChanges && (
+                  <Badge
+                    variant="outline"
+                    className="text-yellow-600 dark:text-yellow-400 border-yellow-300 dark:border-yellow-600 bg-yellow-50 dark:bg-yellow-900/20"
+                  >
+                    <AlertCircle className="w-3 h-3 mr-1" />
+                    Ada perubahan belum disimpan
+                  </Badge>
+                )}
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  onClick={handleClose}
+                  disabled={isSaving}
+                  className="bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700"
+                >
+                  <X className="w-4 h-4 mr-2" />
+                  Batal
+                </Button>
+                <Button
+                  onClick={handleSave}
+                  disabled={isSaving || !hasChanges}
+                  className="gap-2 bg-blue-600 dark:bg-blue-700 text-white hover:bg-blue-700 dark:hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isSaving ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Menyimpan...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="w-4 h-4" />
+                      Simpan Semua
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteConfirmation.isOpen} onOpenChange={handleCancelDelete}>
+        <DialogContent className="max-w-md bg-white dark:bg-gray-800 border-none">
+          <DialogHeader>
+            <div className="flex items-center gap-3 mb-2">
+              <div className="p-2 bg-red-100 dark:bg-red-900/30 rounded-lg">
+                <AlertTriangle className="w-6 h-6 text-red-600 dark:text-red-400" />
+              </div>
+              <DialogTitle className="text-xl font-bold text-gray-900 dark:text-gray-100">
+                Konfirmasi Hapus
+              </DialogTitle>
+            </div>
+            <DialogDescription className="text-gray-600 dark:text-gray-400">
+              Apakah Anda yakin ingin menghapus alat ini dari MMCT list?
+            </DialogDescription>
+          </DialogHeader>
+
+          {deleteConfirmation.item && (
+            <div className="my-4 p-4 bg-gray-50 dark:bg-gray-900/50 rounded-lg border border-gray-200 dark:border-gray-700">
+              <div className="space-y-2">
+                <div>
+                  <span className="text-xs font-medium text-gray-500 dark:text-gray-400">
+                    Nama Alat
+                  </span>
+                  <p className="font-semibold text-gray-900 dark:text-gray-100">
+                    {deleteConfirmation.item.equipmentName}
+                  </p>
+                </div>
+                <div>
+                  <span className="text-xs font-medium text-gray-500 dark:text-gray-400">
+                    ID Alat
+                  </span>
+                  <p className="text-sm text-gray-700 dark:text-gray-300">
+                    {deleteConfirmation.item.equipmentId}
+                  </p>
+                </div>
+                <div>
+                  <span className="text-xs font-medium text-gray-500 dark:text-gray-400">
+                    Tipe
+                  </span>
+                  <p className="text-sm text-gray-700 dark:text-gray-300">
+                    {deleteConfirmation.item.equipmentType}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3">
+            <p className="text-sm text-yellow-800 dark:text-yellow-200">
+              ⚠️ Data yang sudah dihapus tidak dapat dikembalikan
+            </p>
+          </div>
+
+          <DialogFooter className="gap-2 sm:gap-2">
+            <Button
+              variant="outline"
+              onClick={handleCancelDelete}
+              disabled={isDeleting}
+              className="flex-1 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700"
+            >
+              <X className="w-4 h-4 mr-2" />
+              Batal
+            </Button>
+            <Button
+              onClick={handleConfirmDelete}
+              disabled={isDeleting}
+              className="flex-1 bg-red-600 dark:bg-red-700 text-white hover:bg-red-700 dark:hover:bg-red-600 disabled:opacity-50"
+            >
+              {isDeleting ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Menghapus...
+                </>
+              ) : (
+                <>
+                  <AlertTriangle className="w-4 h-4 mr-2" />
+                  Ya, Hapus
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 };
 

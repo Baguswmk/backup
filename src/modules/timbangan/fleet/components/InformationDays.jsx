@@ -133,7 +133,7 @@ const InformationDays = ({
                 onChange={(e) => onSatkerChange(e.target.value)}
                 className="w-full px-3 py-2 text-sm font-semibold text-gray-900 dark:text-white bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400"
               >
-                <option value="">Pilih Satker</option>
+                <option value="">All</option>
                 {workUnits.map((wu) => (
                   <option key={wu.id} value={wu.satker}>
                     {wu.satker}
@@ -157,7 +157,6 @@ const InformationDays = ({
                 onChange={(e) => onUrutkanChange(e.target.value)}
                    className="w-full px-3 py-2 text-sm font-semibold text-gray-900 dark:text-white bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 disabled:bg-gray-100 dark:disabled:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                <option value="">Pilih Kategori</option>
                 <option value="all">All</option>
                 <option value="dumping">Dumping Point</option>
                 <option value="loading">Loading Point</option>
