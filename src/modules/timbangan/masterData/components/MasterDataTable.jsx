@@ -16,7 +16,6 @@ const MasterDataTable = ({
   canDelete = false,
   canWeigh = false,
 }) => {
-  console.log(data)
   if (isLoading) {
     return <LoadingContent />;
   }
