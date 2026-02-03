@@ -137,7 +137,6 @@ export const useWebSerialScale = () => {
             setStabilityProgress(100);
             clearInterval(stabilityTimerRef.current);
             stabilityTimerRef.current = null;
-            console.log('🔒 Weight auto-locked:', weight, 'kg');
           }
         }, 100);
       }

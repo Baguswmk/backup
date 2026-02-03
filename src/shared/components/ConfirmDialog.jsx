@@ -79,7 +79,7 @@ const ConfirmDialog = ({
               onClick={onConfirm}
               disabled={isProcessing}
               className={cn(
-                "flex-1 cursor-pointer disabled:cursor-not-allowed dark:text-gray-200 transition-all duration-200 shadow-sm hover:shadow-md",
+                "flex-1 cursor-pointer disabled:cursor-not-allowed dark:text-gray-200 transition-all duration-200 shadow-sm hover:shadow-md text-white",
                 variant === "destructive"
                   ? "bg-red-600 hover:bg-red-700 dark:bg-red-700 dark:hover:bg-red-800"
                   : "bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-800",
