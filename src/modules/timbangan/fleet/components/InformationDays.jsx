@@ -135,8 +135,8 @@ const InformationDays = ({
               >
                 <option value="">All</option>
                 {workUnits.map((wu) => (
-                  <option key={wu.id} value={wu.satker}>
-                    {wu.satker}
+                  <option key={wu.id} value={wu.subsatker}>
+                    {wu.subsatker}
                   </option>
                 ))}
               </select>

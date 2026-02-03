@@ -57,7 +57,6 @@ const FleetSettingTable = ({
     const result = Object.entries(grouped).map(([location, fleets]) => {
       let totalTronton = 0;
       let totalTrintin = 0;
-
       const excavatorGroups = {};
       fleets.forEach((fleet) => {
         const key = `${fleet.excavatorId || fleet.excavator}-${fleet.loadingLocationId || fleet.loadingLocation}`;
@@ -201,8 +200,6 @@ const FleetSettingTable = ({
 
     return totals;
   }, [paginatedGroups]);
-
-  let rowCounter = 0;
 
   return (
     <div className="w-full">

@@ -71,7 +71,6 @@ const FleetManagement = ({ Type }) => {
   // Get master data for dropdowns
   const {
     workUnits,
-    locations,
     isLoading: masterDataLoading,
   } = useMasterData(null);
 
@@ -900,7 +899,6 @@ const FleetManagement = ({ Type }) => {
         onSatkerChange={handleSatkerChange}
         onUrutkanChange={handleUrutkanChange}
         workUnits={workUnits}
-        locations={filterOptions.dumpingLocations}
       />
 
       {/* 3. Fleet Setting Table - NEW */}
