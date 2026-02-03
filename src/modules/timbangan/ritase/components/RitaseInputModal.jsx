@@ -819,42 +819,46 @@ const RitaseInputModal = ({
     </Alert>
 
     {/* Tare Weight Warning */}
-    {selectedFleet.units?.map((unit) => {
-      const tareDate = unit.tareWeightUpdatedDate;
-      const needsTareUpdate = !tareDate || 
-        (new Date() - new Date(tareDate)) > 30 * 24 * 60 * 60 * 1000; // 30 days in milliseconds
+    {(() => {
+      const currentUnit = selectedFleet.units?.find(
+        (unit) => unit.hull_no === hullNo
+      );
       
-      if (needsTareUpdate) {
-        return (
-          <Alert 
-            key={unit.pairId}
-            className="border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20"
-          >
-            <AlertCircle className="w-4 h-4 text-amber-600 dark:text-amber-400" />
-            <AlertDescription>
-              <div className="space-y-1">
-                <span className="text-sm font-medium text-amber-900 dark:text-amber-200">
-                  Peringatan Timbangan Kosong
-                </span>
-                <p className="text-sm text-amber-800 dark:text-amber-300">
-                  Dump Truck <strong>{unit.hull_no}</strong> perlu melakukan timbangan kosong.
-                  {tareDate ? (
-                    <span className="block mt-1">
-                      Timbangan terakhir: {new Date(tareDate).toLocaleDateString('id-ID')}
-                    </span>
-                  ) : (
-                    <span className="block mt-1">
-                      Belum pernah melakukan timbangan kosong.
-                    </span>
-                  )}
-                </p>
-              </div>
-            </AlertDescription>
-          </Alert>
-        );
-      }
-      return null;
-    })}
+      if (!currentUnit) return null;
+      
+      const tareDate = currentUnit.tareWeightUpdatedDate;
+      const needsTareUpdate = !tareDate || 
+        (new Date() - new Date(tareDate)) > 30 * 24 * 60 * 60 * 1000;
+      
+      if (!needsTareUpdate) return null;
+      
+      return (
+        <Alert 
+          className="border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20"
+        >
+          <AlertCircle className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+          <AlertDescription>
+            <div className="space-y-1">
+              <span className="text-sm font-medium text-amber-900 dark:text-amber-200">
+                Peringatan Timbangan Kosong
+              </span>
+              <p className="text-sm text-amber-800 dark:text-amber-300">
+                Dump Truck <strong>{currentUnit.hull_no}</strong> perlu melakukan timbangan kosong.
+                {tareDate ? (
+                  <span className="block mt-1">
+                    Timbangan terakhir: {new Date(tareDate).toLocaleDateString('id-ID')}
+                  </span>
+                ) : (
+                  <span className="block mt-1">
+                    Belum pernah melakukan timbangan kosong.
+                  </span>
+                )}
+              </p>
+            </div>
+          </AlertDescription>
+        </Alert>
+      );
+    })()}
   </>
 )}
 
