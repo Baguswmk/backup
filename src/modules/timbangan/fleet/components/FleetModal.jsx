@@ -3,15 +3,7 @@ import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
 import { Label } from "@/shared/components/ui/label";
 import { Checkbox } from "@/shared/components/ui/checkbox";
-import {
-  Settings,
-  Truck,
-  User,
-  Loader2,
-  AlertCircle,
-  ArrowLeft,
-  ArrowRight,
-} from "lucide-react";
+import { Settings, Truck, User, Loader2, AlertCircle } from "lucide-react";
 import { Alert, AlertDescription } from "@/shared/components/ui/alert";
 import { showToast } from "@/shared/utils/toast";
 import { useFleet } from "@/modules/timbangan/fleet/hooks/useFleet";
@@ -43,16 +35,7 @@ const MEASUREMENT_TYPE_OPTIONS = [
   { value: "Bypass", label: "Bypass" },
   { value: "Beltscale", label: "Beltscale" },
 ];
-const canMoveFromFleet2ToFleet1 = (fleet2SelectedUnits, unitToMove) => {
-  if (fleet2SelectedUnits.length <= 1) {
-    return {
-      allowed: false,
-      reason:
-        "Fleet 2 harus memiliki minimal 1 dump truck. Gunakan tombol 'Gabungkan ke Fleet 1' jika ingin menggabungkan semua fleet.",
-    };
-  }
-  return { allowed: true };
-};
+
 const FleetModal = ({
   isOpen,
   onClose,
@@ -62,24 +45,22 @@ const FleetModal = ({
   availableDumptruckSettings = [],
 }) => {
   const { user } = useAuthStore();
-
+  
+  // ============================================================
+  // HOOKS INTEGRATION - Using proper custom hooks
+  // ============================================================
+  
   const isEditingMergedGroup = Array.isArray(editingConfig);
   const fleetsToEdit = useMemo(() => {
-    return isEditingMergedGroup
-      ? editingConfig
-      : editingConfig
-        ? [editingConfig]
-        : [];
+    return isEditingMergedGroup ? editingConfig : editingConfig ? [editingConfig] : [];
   }, [isEditingMergedGroup, editingConfig]);
   const isEdit = fleetsToEdit.length > 0;
+  
+  // 1. Basic fleet data & masters
+  const { masters, mastersLoading } = useFleet(user ? { user } : null, null);
+  const { data: masterUnits, isLoading: masterUnitsLoading } = useMasterData("units");
 
-  const { masters, mastersLoading, deleteConfig } = useFleet(
-    user ? { user } : null,
-    null,
-  );
-  const { data: masterUnits, isLoading: masterUnitsLoading } =
-    useMasterData("units");
-
+  // 2. Split mode management - Using useFleetSplit hook
   const {
     isSplitMode,
     setIsSplitMode,
@@ -98,10 +79,14 @@ const FleetModal = ({
     resetSplitMode,
   } = useFleetSplit();
 
-  const { handleSaveFleet, isSaving: isSavingTransfer } =
-    useFleetWithTransfer(user);
+  // 3. Transfer functionality - Using useFleetWithTransfer hook
+  const { handleSaveFleet, isSaving: isSavingTransfer } = useFleetWithTransfer(user);
 
   const permissions = useFleetPermissions();
+
+  // ============================================================
+  // LOCAL STATE - Fleet 1 (Main)
+  // ============================================================
 
   const [fleetData, setFleetData] = useState({
     excavator: "",
@@ -180,68 +165,119 @@ const FleetModal = ({
     [masters?.excavators, masterUnits],
   );
 
-  useEffect(() => {
-    if (!isOpen) return;
+useEffect(() => {
+  if (!isOpen) return;
 
-    const initializeModalData = async () => {
-      if (fleetsToEdit.length > 0) {
-        const firstFleet = fleetsToEdit[0];
+  const initializeModalData = async () => {
+    if (fleetsToEdit.length > 0) {
+      // ── Initialize Fleet 1 from first fleet ──────────────────────
+      const firstFleet = fleetsToEdit[0];
+      
+      const initialData = {
+        excavator: firstFleet.excavatorId || "",
+        loadingLocation: firstFleet.loadingLocationId || "",
+        dumpingLocation: firstFleet.dumpingLocationId || "",
+        coalType: firstFleet.coalTypeId || "",
+        distance: firstFleet.distance ?? 0,
+        workUnit: firstFleet.workUnitId || "",
+        measurementType: firstFleet.measurementType || fleetType,
+      };
 
-        const initialData = {
-          excavator: firstFleet.excavatorId || "",
-          loadingLocation: firstFleet.loadingLocationId || "",
-          dumpingLocation: firstFleet.dumpingLocationId || "",
-          coalType: firstFleet.coalTypeId || "",
-          distance: firstFleet.distance ?? 0,
-          workUnit: firstFleet.workUnitId || "",
-          measurementType: firstFleet.measurementType || fleetType,
+      setFleetData(initialData);
+      setDistanceText(
+        firstFleet.distance != null && firstFleet.distance !== ""
+          ? String(firstFleet.distance)
+          : "",
+      );
+
+      // Initialize inspectors & checkers untuk Fleet 1
+      let inspectorIdsToSet = [];
+      if (Array.isArray(firstFleet.inspectorIds) && firstFleet.inspectorIds.length > 0) {
+        inspectorIdsToSet = firstFleet.inspectorIds.map(String);
+      } else if (Array.isArray(firstFleet.inspectors) && firstFleet.inspectors.length > 0) {
+        inspectorIdsToSet = firstFleet.inspectors.map((i) => String(i.id)).filter(Boolean);
+      } else if (firstFleet.inspectorId) {
+        inspectorIdsToSet = [String(firstFleet.inspectorId)];
+      }
+      setInspectorIds(inspectorIdsToSet);
+
+      let checkerIdsToSet = [];
+      if (Array.isArray(firstFleet.checkerIds) && firstFleet.checkerIds.length > 0) {
+        checkerIdsToSet = firstFleet.checkerIds.map(String);
+      } else if (Array.isArray(firstFleet.checkers) && firstFleet.checkers.length > 0) {
+        checkerIdsToSet = firstFleet.checkers.map((c) => String(c.id)).filter(Boolean);
+      } else if (firstFleet.checkerId) {
+        checkerIdsToSet = [String(firstFleet.checkerId)];
+      }
+      setCheckerIds(checkerIdsToSet);
+
+      // Initialize units untuk Fleet 1
+      if (firstFleet.units) {
+        const existingUnits = firstFleet.units.map((unit) => ({
+          id: String(unit.id || unit.dumpTruckId),
+          hull_no: unit.hull_no || "-",
+          company: unit.company || "-",
+          workUnit: unit.workUnit || "-",
+          type: "DUMP_TRUCK",
+          companyId: unit.companyId,
+          workUnitId: unit.workUnitId,
+        }));
+
+        setSelectedUnits(existingUnits);
+
+        const initialOperators = {};
+        firstFleet.units.forEach((unit) => {
+          const unitId = String(unit.id || unit.dumpTruckId);
+          if (unit.operatorId) {
+            initialOperators[unitId] = String(unit.operatorId);
+          }
+        });
+        setUnitOperators(initialOperators);
+      }
+
+      // ── Initialize Fleet 2 if exists (merged group) ──────────────
+      if (isEditingMergedGroup && fleetsToEdit.length > 1) {
+        setIsSplitMode(true);
+        
+        const secondFleet = fleetsToEdit[1];
+        
+        const fleet2InitialData = {
+          dumpingLocation: secondFleet.dumpingLocationId || "",
+          measurementType: secondFleet.measurementType || fleetType,
+          distance: secondFleet.distance ?? 0,
         };
-
-        setFleetData(initialData);
-        setDistanceText(
-          firstFleet.distance != null && firstFleet.distance !== ""
-            ? String(firstFleet.distance)
+        
+        setFleet2Data(fleet2InitialData);
+        setFleet2DistanceText(
+          secondFleet.distance != null && secondFleet.distance !== ""
+            ? String(secondFleet.distance)
             : "",
         );
 
-        let inspectorIdsToSet = [];
-        if (
-          Array.isArray(firstFleet.inspectorIds) &&
-          firstFleet.inspectorIds.length > 0
-        ) {
-          inspectorIdsToSet = firstFleet.inspectorIds.map(String);
-        } else if (
-          Array.isArray(firstFleet.inspectors) &&
-          firstFleet.inspectors.length > 0
-        ) {
-          inspectorIdsToSet = firstFleet.inspectors
-            .map((i) => String(i.id))
-            .filter(Boolean);
-        } else if (firstFleet.inspectorId) {
-          inspectorIdsToSet = [String(firstFleet.inspectorId)];
+        // Initialize inspectors & checkers untuk Fleet 2
+        let fleet2InspectorIdsToSet = [];
+        if (Array.isArray(secondFleet.inspectorIds) && secondFleet.inspectorIds.length > 0) {
+          fleet2InspectorIdsToSet = secondFleet.inspectorIds.map(String);
+        } else if (Array.isArray(secondFleet.inspectors) && secondFleet.inspectors.length > 0) {
+          fleet2InspectorIdsToSet = secondFleet.inspectors.map((i) => String(i.id)).filter(Boolean);
+        } else if (secondFleet.inspectorId) {
+          fleet2InspectorIdsToSet = [String(secondFleet.inspectorId)];
         }
-        setInspectorIds(inspectorIdsToSet);
+        setFleet2InspectorIds(fleet2InspectorIdsToSet);
 
-        let checkerIdsToSet = [];
-        if (
-          Array.isArray(firstFleet.checkerIds) &&
-          firstFleet.checkerIds.length > 0
-        ) {
-          checkerIdsToSet = firstFleet.checkerIds.map(String);
-        } else if (
-          Array.isArray(firstFleet.checkers) &&
-          firstFleet.checkers.length > 0
-        ) {
-          checkerIdsToSet = firstFleet.checkers
-            .map((c) => String(c.id))
-            .filter(Boolean);
-        } else if (firstFleet.checkerId) {
-          checkerIdsToSet = [String(firstFleet.checkerId)];
+        let fleet2CheckerIdsToSet = [];
+        if (Array.isArray(secondFleet.checkerIds) && secondFleet.checkerIds.length > 0) {
+          fleet2CheckerIdsToSet = secondFleet.checkerIds.map(String);
+        } else if (Array.isArray(secondFleet.checkers) && secondFleet.checkers.length > 0) {
+          fleet2CheckerIdsToSet = secondFleet.checkers.map((c) => String(c.id)).filter(Boolean);
+        } else if (secondFleet.checkerId) {
+          fleet2CheckerIdsToSet = [String(secondFleet.checkerId)];
         }
-        setCheckerIds(checkerIdsToSet);
+        setFleet2CheckerIds(fleet2CheckerIdsToSet);
 
-        if (firstFleet.units) {
-          const existingUnits = firstFleet.units.map((unit) => ({
+        // Initialize units untuk Fleet 2
+        if (secondFleet.units) {
+          const fleet2ExistingUnits = secondFleet.units.map((unit) => ({
             id: String(unit.id || unit.dumpTruckId),
             hull_no: unit.hull_no || "-",
             company: unit.company || "-",
@@ -251,111 +287,33 @@ const FleetModal = ({
             workUnitId: unit.workUnitId,
           }));
 
-          setSelectedUnits(existingUnits);
+          setFleet2SelectedUnits(fleet2ExistingUnits);
 
-          const initialOperators = {};
-          firstFleet.units.forEach((unit) => {
+          const fleet2InitialOperators = {};
+          secondFleet.units.forEach((unit) => {
             const unitId = String(unit.id || unit.dumpTruckId);
             if (unit.operatorId) {
-              initialOperators[unitId] = String(unit.operatorId);
+              fleet2InitialOperators[unitId] = String(unit.operatorId);
             }
           });
-          setUnitOperators(initialOperators);
+          setFleet2UnitOperators(fleet2InitialOperators);
         }
+      }
 
-        if (isEditingMergedGroup && fleetsToEdit.length > 1) {
-          setIsSplitMode(true);
-
-          const secondFleet = fleetsToEdit[1];
-
-          const fleet2InitialData = {
-            dumpingLocation: secondFleet.dumpingLocationId || "",
-            measurementType: secondFleet.measurementType || fleetType,
-            distance: secondFleet.distance ?? 0,
-          };
-
-          setFleet2Data(fleet2InitialData);
-          setFleet2DistanceText(
-            secondFleet.distance != null && secondFleet.distance !== ""
-              ? String(secondFleet.distance)
-              : "",
-          );
-
-          let fleet2InspectorIdsToSet = [];
-          if (
-            Array.isArray(secondFleet.inspectorIds) &&
-            secondFleet.inspectorIds.length > 0
-          ) {
-            fleet2InspectorIdsToSet = secondFleet.inspectorIds.map(String);
-          } else if (
-            Array.isArray(secondFleet.inspectors) &&
-            secondFleet.inspectors.length > 0
-          ) {
-            fleet2InspectorIdsToSet = secondFleet.inspectors
-              .map((i) => String(i.id))
-              .filter(Boolean);
-          } else if (secondFleet.inspectorId) {
-            fleet2InspectorIdsToSet = [String(secondFleet.inspectorId)];
-          }
-          setFleet2InspectorIds(fleet2InspectorIdsToSet);
-
-          let fleet2CheckerIdsToSet = [];
-          if (
-            Array.isArray(secondFleet.checkerIds) &&
-            secondFleet.checkerIds.length > 0
-          ) {
-            fleet2CheckerIdsToSet = secondFleet.checkerIds.map(String);
-          } else if (
-            Array.isArray(secondFleet.checkers) &&
-            secondFleet.checkers.length > 0
-          ) {
-            fleet2CheckerIdsToSet = secondFleet.checkers
-              .map((c) => String(c.id))
-              .filter(Boolean);
-          } else if (secondFleet.checkerId) {
-            fleet2CheckerIdsToSet = [String(secondFleet.checkerId)];
-          }
-          setFleet2CheckerIds(fleet2CheckerIdsToSet);
-
-          if (secondFleet.units) {
-            const fleet2ExistingUnits = secondFleet.units.map((unit) => ({
-              id: String(unit.id || unit.dumpTruckId),
-              hull_no: unit.hull_no || "-",
-              company: unit.company || "-",
-              workUnit: unit.workUnit || "-",
-              type: "DUMP_TRUCK",
-              companyId: unit.companyId,
-              workUnitId: unit.workUnitId,
-            }));
-
-            setFleet2SelectedUnits(fleet2ExistingUnits);
-
-            const fleet2InitialOperators = {};
-            secondFleet.units.forEach((unit) => {
-              const unitId = String(unit.id || unit.dumpTruckId);
-              if (unit.operatorId) {
-                fleet2InitialOperators[unitId] = String(unit.operatorId);
-              }
-            });
-            setFleet2UnitOperators(fleet2InitialOperators);
-          }
+      // Load filtered units
+      if (firstFleet.excavatorId) {
+        setIsLoadingFilteredUnits(true);
+        try {
+          const filtered = await filterUnitsByExcavator(String(firstFleet.excavatorId));
+          setFleetFilteredUnits(filtered);
+        } catch (error) {
+          console.error("❌ Failed to load filtered units:", error);
+          setFleetFilteredUnits([]);
+        } finally {
+          setIsLoadingFilteredUnits(false);
         }
-
-        if (firstFleet.excavatorId) {
-          setIsLoadingFilteredUnits(true);
-          try {
-            const filtered = await filterUnitsByExcavator(
-              String(firstFleet.excavatorId),
-            );
-            setFleetFilteredUnits(filtered);
-          } catch (error) {
-            console.error("❌ Failed to load filtered units:", error);
-            setFleetFilteredUnits([]);
-          } finally {
-            setIsLoadingFilteredUnits(false);
-          }
-        }
-      } else {
+      }
+    } else {
         const measurementTypeMap = {
           Timbangan: "Timbangan",
           Bypass: "Bypass",
@@ -391,18 +349,7 @@ const FleetModal = ({
     };
 
     initializeModalData();
-  }, [
-    isOpen,
-    fleetsToEdit,
-    isEditingMergedGroup,
-    filterUnitsByExcavator,
-    fleetType,
-  ]);
-
-  const allFleet2UnitsHaveOperators = useMemo(() => {
-    if (!isSplitMode || fleet2SelectedUnits.length === 0) return true;
-    return fleet2SelectedUnits.every((unit) => fleet2UnitOperators[unit.id]);
-  }, [isSplitMode, fleet2SelectedUnits, fleet2UnitOperators]);
+}, [isOpen, fleetsToEdit, isEditingMergedGroup, filterUnitsByExcavator, fleetType]);
 
   const selectedOperatorIds = useMemo(() => {
     return Object.values(unitOperators).filter(Boolean);
@@ -453,64 +400,65 @@ const FleetModal = ({
     [filterUnitsByExcavator, isEdit],
   );
 
-  const filteredUnits = useMemo(() => {
-    let units = [];
+const filteredUnits = useMemo(() => {
+  let units = [];
 
-    if (showAllUnits) {
-      units = masterUnits.filter((u) => u.type === "DUMP_TRUCK");
-    } else {
-      units = [...fleetFilteredUnits];
-    }
+  if (showAllUnits) {
+    units = masterUnits.filter((u) => u.type === "DUMP_TRUCK");
+  } else {
+    units = [...fleetFilteredUnits];
+  }
 
-    if (isEdit && fleetsToEdit.length > 0) {
-      fleetsToEdit.forEach((fleet) => {
-        if (fleet.units) {
-          fleet.units.forEach((existingUnit) => {
-            const unitId = String(existingUnit.id || existingUnit.dumpTruckId);
-            const alreadyInList = units.some((u) => String(u.id) === unitId);
+  // ── Add existing units from all fleets being edited ──────────────
+  if (isEdit && fleetsToEdit.length > 0) {
+    fleetsToEdit.forEach((fleet) => {
+      if (fleet.units) {
+        fleet.units.forEach((existingUnit) => {
+          const unitId = String(existingUnit.id || existingUnit.dumpTruckId);
+          const alreadyInList = units.some((u) => String(u.id) === unitId);
 
-            if (!alreadyInList) {
-              units.push({
-                id: unitId,
-                hull_no: existingUnit.hull_no,
-                company: existingUnit.company,
-                workUnit: existingUnit.workUnit,
-                type: "DUMP_TRUCK",
-                companyId: existingUnit.companyId,
-                workUnitId: existingUnit.workUnitId,
-              });
-            }
-          });
-        }
-      });
-    }
+          if (!alreadyInList) {
+            units.push({
+              id: unitId,
+              hull_no: existingUnit.hull_no,
+              company: existingUnit.company,
+              workUnit: existingUnit.workUnit,
+              type: "DUMP_TRUCK",
+              companyId: existingUnit.companyId,
+              workUnitId: existingUnit.workUnitId,
+            });
+          }
+        });
+      }
+    });
+  }
 
-    units = filterAvailableDumptrucks(
-      units,
-      usedDumptrucksMap,
-      isEdit ? fleetsToEdit.map((f) => f.id) : null,
-    );
-
-    if (searchQuery) {
-      const q = searchQuery.toLowerCase();
-      units = units.filter(
-        (u) =>
-          u.hull_no?.toLowerCase().includes(q) ||
-          u.company?.toLowerCase().includes(q) ||
-          u.workUnit?.toLowerCase().includes(q),
-      );
-    }
-
-    return units;
-  }, [
-    fleetFilteredUnits,
-    masterUnits,
-    searchQuery,
-    fleetsToEdit,
-    isEdit,
-    showAllUnits,
+  units = filterAvailableDumptrucks(
+    units,
     usedDumptrucksMap,
-  ]);
+    isEdit ? fleetsToEdit.map(f => f.id) : null,  // Pass array of IDs
+  );
+
+  if (searchQuery) {
+    const q = searchQuery.toLowerCase();
+    units = units.filter(
+      (u) =>
+        u.hull_no?.toLowerCase().includes(q) ||
+        u.company?.toLowerCase().includes(q) ||
+        u.workUnit?.toLowerCase().includes(q),
+    );
+  }
+
+  return units;
+}, [
+  fleetFilteredUnits,
+  masterUnits,
+  searchQuery,
+  fleetsToEdit,
+  isEdit,
+  showAllUnits,
+  usedDumptrucksMap,
+]);
 
   const filteredUnitsForFleet2 = useMemo(() => {
     let units = [];
@@ -518,9 +466,10 @@ const FleetModal = ({
     if (showAllUnits2) {
       units = masterUnits.filter((u) => u.type === "DUMP_TRUCK");
     } else {
-      units = [...fleetFilteredUnits];
+      units = [...fleetFilteredUnits]; // sama company sebagai excavator
     }
 
+    // filter out yang sudah di Fleet 1 atau Fleet 2
     units = units.filter((unit) => {
       const inFleet1 = selectedUnits.some(
         (u) => String(u.id) === String(unit.id),
@@ -531,6 +480,7 @@ const FleetModal = ({
       return !inFleet1 && !inFleet2;
     });
 
+    // search filter
     if (searchQuery2) {
       const q = searchQuery2.toLowerCase();
       units = units.filter(
@@ -631,265 +581,262 @@ const FleetModal = ({
     unitOperators,
   ]);
 
-  const handleSave = useCallback(async () => {
-    if (!validate()) {
-      showToast.error("Mohon lengkapi semua field yang wajib diisi");
+// ============================================================
+// NEW handleSave Function - Replace the old one completely
+// ============================================================
+
+const handleSave = useCallback(async () => {
+  // ============================================================
+  // SMART SAVE HANDLER
+  // Handles 3 scenarios:
+  // 1. Split Mode - Create 2 fleets simultaneously
+  // 2. Transfer Mode - Move DT from other fleets
+  // 3. Normal Mode - Standard create/update
+  // ============================================================
+
+  if (!validate()) {
+    showToast.error("Mohon lengkapi semua field yang wajib diisi");
+    return;
+  }
+
+  setIsSaving(true);
+  setErrors({});
+
+  try {
+    const dist = distanceText.trim() ? parseInt(distanceText, 10) : 0;
+
+    // ========================================================
+    // SCENARIO 1: SPLIT MODE - Create 2 Fleets
+    // ========================================================
+    if (isSplitMode) {
+      
+      // Validate Fleet 2 has necessary data
+      if (!fleet2Data.dumpingLocation) {
+        showToast.error("Fleet 2: Pilih dumping location");
+        setIsSaving(false);
+        return;
+      }
+      
+      if (fleet2SelectedUnits.length === 0) {
+        showToast.error("Fleet 2: Pilih minimal 1 dump truck");
+        setIsSaving(false);
+        return;
+      }
+
+      const dist2 = fleet2DistanceText.trim() ? parseInt(fleet2DistanceText, 10) : 0;
+
+      // Build split payload
+      const splitPayload = {
+        excavatorId: Number(fleetData.excavator),
+        loadingLocationId: Number(fleetData.loadingLocation),
+        coalTypeId: Number(fleetData.coalType) || null,
+        workUnitId: Number(fleetData.workUnit),
+        measurement_type: fleetData.measurementType || fleetType,
+        checkerIds: checkerIds.map(Number),
+        inspectorIds: inspectorIds.map(Number),
+        createdByUserId: user?.id ? Number(user.id) : null,
+        
+        // Both fleets data
+        splits: [
+          // Fleet 1
+          {
+            dumpingLocationId: Number(fleetData.dumpingLocation),
+            distance: dist,
+            pairDtOp: selectedUnits.map((unit) => ({
+              truckId: Number(unit.id),
+              operatorId: Number(unitOperators[unit.id]),
+            })),
+          },
+          // Fleet 2
+          {
+            dumpingLocationId: Number(fleet2Data.dumpingLocation),
+            distance: dist2,
+            pairDtOp: fleet2SelectedUnits.map((unit) => ({
+              truckId: Number(unit.id),
+              operatorId: Number(fleet2UnitOperators[unit.id]),
+            })),
+          },
+        ],
+      };
+
+      // Handle Edit Mode for Split (update both fleets)
+      if (isEdit && isEditingMergedGroup && fleetsToEdit.length > 1) {
+        
+        // Update Fleet 1
+        const payload1 = {
+          excavatorId: Number(fleetData.excavator),
+          loadingLocationId: Number(fleetData.loadingLocation),
+          dumpingLocationId: Number(fleetData.dumpingLocation),
+          coalTypeId: Number(fleetData.coalType) || null,
+          distance: dist,
+          workUnitId: Number(fleetData.workUnit),
+          measurementType: fleetData.measurementType || fleetType,
+          inspectorIds: inspectorIds.map(Number),
+          checkerIds: checkerIds.map(Number),
+          pairDtOp: selectedUnits.map((unit) => ({
+            truckId: Number(unit.id),
+            operatorId: Number(unitOperators[unit.id]),
+          })),
+          moveFromFleets: pendingTransfers.map(t => ({
+            fromFleetId: t.fromFleetId,
+            dumpTruckId: t.dumpTruckId
+          })),
+        };
+
+        // Update Fleet 2
+        const payload2 = {
+          excavatorId: Number(fleetData.excavator),
+          loadingLocationId: Number(fleetData.loadingLocation),
+          dumpingLocationId: Number(fleet2Data.dumpingLocation),
+          coalTypeId: Number(fleetData.coalType) || null,
+          distance: dist2,
+          workUnitId: Number(fleetData.workUnit),
+          measurementType: fleet2Data.measurementType || fleetType,
+          inspectorIds: fleet2InspectorIds.map(Number),
+          checkerIds: fleet2CheckerIds.map(Number),
+          pairDtOp: fleet2SelectedUnits.map((unit) => ({
+            truckId: Number(unit.id),
+            operatorId: Number(fleet2UnitOperators[unit.id]),
+          })),
+        };
+
+        // Update both fleets
+        const result1 = await handleSaveFleet(payload1, { id: fleetsToEdit[0].id });
+        const result2 = await handleSaveFleet(payload2, { id: fleetsToEdit[1].id });
+
+        if (result1.success && result2.success) {
+          showToast.success("Berhasil update 2 fleet configurations");
+          resetSplitMode();
+          setPendingTransfers([]);
+          onClose();
+        } else {
+          throw new Error("Gagal update salah satu fleet");
+        }
+      } else {
+        // Create new split fleets
+        const result = await fleetSplitService.createSplitFleets(splitPayload);
+
+        if (result.success) {
+          showToast.success(`Berhasil membuat ${result.data.length} fleet`);
+          resetSplitMode();
+          onClose();
+        } else {
+          throw new Error(result.message || "Gagal membuat split fleet");
+        }
+      }
+      
+      setIsSaving(false);
       return;
     }
 
-    setIsSaving(true);
-    setErrors({});
+    // ========================================================
+    // SCENARIO 2 & 3: Normal or Transfer Mode
+    // ========================================================
+    
+    const basePayload = {
+      excavatorId: Number(fleetData.excavator),
+      loadingLocationId: Number(fleetData.loadingLocation),
+      dumpingLocationId: Number(fleetData.dumpingLocation),
+      coalTypeId: Number(fleetData.coalType) || null,
+      distance: dist,
+      workUnitId: Number(fleetData.workUnit),
+      measurementType: fleetData.measurementType || fleetType,
+      inspectorIds: inspectorIds.map(Number),
+      checkerIds: checkerIds.map(Number),
+      pairDtOp: selectedUnits.map((unit) => ({
+        truckId: Number(unit.id),
+        operatorId: Number(unitOperators[unit.id]),
+      })),
+      createdByUserId: user?.id ? Number(user.id) : null,
+    };
 
-    try {
-      const dist = distanceText.trim() ? parseInt(distanceText, 10) : 0;
-
-      if (isSplitMode) {
-        if (fleet2SelectedUnits.length === 0) {
-          showToast.info(
-            "Fleet 2 tidak memiliki dump truck. Melanjutkan penyimpanan dengan 1 fleet saja.",
-            { duration: 4000 },
-          );
-
-          if (isEdit && isEditingMergedGroup && fleetsToEdit.length > 1) {
-            try {
-              const deleteResult = await deleteConfig(fleetsToEdit[1].id);
-
-              if (deleteResult && deleteResult.success) {
-                console.log("✅ Fleet 2 berhasil dihapus via deleteConfig");
-              } else {
-                console.warn("⚠️ Gagal menghapus Fleet 2, tetap dilanjutkan");
-              }
-            } catch (error) {
-              console.error("❌ Error deleting fleet 2:", error);
-            }
-          }
-
-          setIsSplitMode(false);
-          resetSplitMode();
-        } else {
-          if (!fleet2Data.dumpingLocation) {
-            showToast.error("Fleet 2: Pilih dumping location");
-            setIsSaving(false);
-            return;
-          }
-
-          if (!allFleet2UnitsHaveOperators) {
-            const unitsWithoutOp = fleet2SelectedUnits.filter(
-              (unit) => !fleet2UnitOperators[unit.id],
-            );
-            showToast.error(
-              `Fleet 2: ${unitsWithoutOp.length} dump truck belum memiliki operator`,
-            );
-            setIsSaving(false);
-            return;
-          }
-
-          const dist2 = fleet2DistanceText.trim()
-            ? parseInt(fleet2DistanceText, 10)
-            : 0;
-
-          const splitPayload = {
-            excavatorId: Number(fleetData.excavator),
-            loadingLocationId: Number(fleetData.loadingLocation),
-            coalTypeId: Number(fleetData.coalType) || null,
-            workUnitId: Number(fleetData.workUnit),
-            measurement_type: fleetData.measurementType || fleetType,
-            checkerIds: checkerIds.map(Number),
-            inspectorIds: inspectorIds.map(Number),
-            createdByUserId: user?.id ? Number(user.id) : null,
-
-            splits: [
-              {
-                dumpingLocationId: Number(fleetData.dumpingLocation),
-                distance: dist,
-                pairDtOp: selectedUnits.map((unit) => ({
-                  truckId: Number(unit.id),
-                  operatorId: Number(unitOperators[unit.id]),
-                })),
-              },
-              {
-                dumpingLocationId: Number(fleet2Data.dumpingLocation),
-                distance: dist2,
-                pairDtOp: fleet2SelectedUnits.map((unit) => ({
-                  truckId: Number(unit.id),
-                  operatorId: Number(fleet2UnitOperators[unit.id]),
-                })),
-              },
-            ],
-          };
-
-          if (isEdit && isEditingMergedGroup && fleetsToEdit.length > 1) {
-            const payload1 = {
-              excavatorId: Number(fleetData.excavator),
-              loadingLocationId: Number(fleetData.loadingLocation),
-              dumpingLocationId: Number(fleetData.dumpingLocation),
-              coalTypeId: Number(fleetData.coalType) || null,
-              distance: dist,
-              workUnitId: Number(fleetData.workUnit),
-              measurementType: fleetData.measurementType || fleetType,
-              inspectorIds: inspectorIds.map(Number),
-              checkerIds: checkerIds.map(Number),
-              pairDtOp: selectedUnits.map((unit) => ({
-                truckId: Number(unit.id),
-                operatorId: Number(unitOperators[unit.id]),
-              })),
-              moveFromFleets: pendingTransfers.map((t) => ({
-                fromFleetId: t.fromFleetId,
-                dumpTruckId: t.dumpTruckId,
-              })),
-            };
-
-            const payload2 = {
-              excavatorId: Number(fleetData.excavator),
-              loadingLocationId: Number(fleetData.loadingLocation),
-              dumpingLocationId: Number(fleet2Data.dumpingLocation),
-              coalTypeId: Number(fleetData.coalType) || null,
-              distance: dist2,
-              workUnitId: Number(fleetData.workUnit),
-              measurementType: fleet2Data.measurementType || fleetType,
-              inspectorIds: fleet2InspectorIds.map(Number),
-              checkerIds: fleet2CheckerIds.map(Number),
-              pairDtOp: fleet2SelectedUnits.map((unit) => ({
-                truckId: Number(unit.id),
-                operatorId: Number(fleet2UnitOperators[unit.id]),
-              })),
-            };
-
-            const result1 = await handleSaveFleet(payload1, {
-              id: fleetsToEdit[0].id,
-            });
-            const result2 = await handleSaveFleet(payload2, {
-              id: fleetsToEdit[1].id,
-            });
-
-            if (result1.success && result2.success) {
-              showToast.success("Berhasil update 2 fleet configurations");
-              resetSplitMode();
-              setPendingTransfers([]);
-              onClose();
-            } else {
-              throw new Error("Gagal update salah satu fleet");
-            }
-          } else {
-            const result =
-              await fleetSplitService.createSplitFleets(splitPayload);
-
-            if (result.success) {
-              showToast.success(`Berhasil membuat ${result.data.length} fleet`);
-              resetSplitMode();
-              onClose();
-            } else {
-              throw new Error(result.message || "Gagal membuat split fleet");
-            }
-          }
-
-          setIsSaving(false);
-          return;
-        }
-      }
-
-      const basePayload = {
-        excavatorId: Number(fleetData.excavator),
-        loadingLocationId: Number(fleetData.loadingLocation),
-        dumpingLocationId: Number(fleetData.dumpingLocation),
-        coalTypeId: Number(fleetData.coalType) || null,
-        distance: dist,
-        workUnitId: Number(fleetData.workUnit),
-        measurementType: fleetData.measurementType || fleetType,
-        inspectorIds: inspectorIds.map(Number),
-        checkerIds: checkerIds.map(Number),
-        pairDtOp: selectedUnits.map((unit) => ({
-          truckId: Number(unit.id),
-          operatorId: Number(unitOperators[unit.id]),
-        })),
-        createdByUserId: user?.id ? Number(user.id) : null,
-      };
-
-      if (pendingTransfers.length > 0) {
-        basePayload.moveFromFleets = pendingTransfers.map((t) => ({
-          fromFleetId: t.fromFleetId,
-          dumpTruckId: t.dumpTruckId,
-        }));
-      }
-
-      const editConfig = isEdit
-        ? isEditingMergedGroup
-          ? { ids: fleetsToEdit.map((f) => f.id) }
-          : { id: fleetsToEdit[0].id }
-        : null;
-
-      const result = await handleSaveFleet(basePayload, editConfig);
-
-      if (result.success) {
-        const message = isEditingMergedGroup
-          ? `Berhasil update ${fleetsToEdit.length} fleet configurations`
-          : isEdit
-            ? "Berhasil update fleet configuration"
-            : "Berhasil membuat fleet configuration";
-
-        showToast.success(message);
-        setPendingTransfers([]);
-        onClose();
-      } else {
-        throw new Error(result.error || "Gagal menyimpan fleet");
-      }
-    } catch (err) {
-      console.error("❌ Fleet save error:", err);
-
-      const isQueued =
-        err?.queued || err?.message?.includes("queued for offline sync");
-      const isValidation =
-        err?.validationError ||
-        (err?.response?.status >= 400 && err?.response?.status < 500);
-
-      if (isQueued) {
-        setErrors((p) => ({ ...p, submit: null }));
-        showToast.info(
-          "📤 Data disimpan di queue dan akan otomatis tersinkron saat online",
-          { duration: 4000 },
-        );
-        setTimeout(() => onClose(), 1000);
-      } else if (isValidation) {
-        setErrors((p) => ({
-          ...p,
-          submit: err?.message || "Validasi gagal. Periksa input Anda.",
-        }));
-        showToast.error(err?.message || "Validasi gagal");
-      } else {
-        const errorMsg = err?.message || "Gagal menyimpan data";
-        setErrors((p) => ({ ...p, submit: errorMsg }));
-        showToast.error(errorMsg);
-      }
-    } finally {
-      setIsSaving(false);
+    // Add transfer data if exists
+    if (pendingTransfers.length > 0) {
+      
+      basePayload.moveFromFleets = pendingTransfers.map(t => ({
+        fromFleetId: t.fromFleetId,
+        dumpTruckId: t.dumpTruckId
+      }));
     }
-  }, [
-    validate,
-    distanceText,
-    fleetData,
-    inspectorIds,
-    checkerIds,
-    selectedUnits,
-    unitOperators,
-    onClose,
-    isSplitMode,
-    fleet2Data,
-    fleet2DistanceText,
-    fleet2CheckerIds,
-    fleet2InspectorIds,
-    fleet2SelectedUnits,
-    fleet2UnitOperators,
-    isEdit,
-    isEditingMergedGroup,
-    fleetsToEdit,
-    fleetType,
-    user,
-    handleSaveFleet,
-    pendingTransfers,
-    resetSplitMode,
-    deleteConfig,
-    allFleet2UnitsHaveOperators,
-  ]);
+
+    // Determine edit config
+    const editConfig = isEdit ? (
+      isEditingMergedGroup 
+        ? { ids: fleetsToEdit.map(f => f.id) }  // Multiple fleets
+        : { id: fleetsToEdit[0].id }  // Single fleet
+    ) : null;
+
+    const result = await handleSaveFleet(basePayload, editConfig);
+
+    if (result.success) {
+      const message = isEditingMergedGroup 
+        ? `Berhasil update ${fleetsToEdit.length} fleet configurations`
+        : isEdit
+          ? "Berhasil update fleet configuration"
+          : "Berhasil membuat fleet configuration";
+      
+      showToast.success(message);
+      setPendingTransfers([]);
+      onClose();
+    } else {
+      throw new Error(result.error || "Gagal menyimpan fleet");
+    }
+
+  } catch (err) {
+    console.error("❌ Fleet save error:", err);
+
+    const isQueued =
+      err?.queued || err?.message?.includes("queued for offline sync");
+    const isValidation =
+      err?.validationError ||
+      (err?.response?.status >= 400 && err?.response?.status < 500);
+
+    if (isQueued) {
+      setErrors((p) => ({ ...p, submit: null }));
+      showToast.info(
+        "📤 Data disimpan di queue dan akan otomatis tersinkron saat online",
+        { duration: 4000 },
+      );
+      setTimeout(() => onClose(), 1000);
+    } else if (isValidation) {
+      setErrors((p) => ({
+        ...p,
+        submit: err?.message || "Validasi gagal. Periksa input Anda.",
+      }));
+      showToast.error(err?.message || "Validasi gagal");
+    } else {
+      const errorMsg = err?.message || "Gagal menyimpan data";
+      setErrors((p) => ({ ...p, submit: errorMsg }));
+      showToast.error(errorMsg);
+    }
+  } finally {
+    setIsSaving(false);
+  }
+}, [
+  validate, 
+  distanceText, 
+  fleetData, 
+  inspectorIds, 
+  checkerIds, 
+  selectedUnits, 
+  unitOperators, 
+  onClose, 
+  isSplitMode, 
+  fleet2Data, 
+  fleet2DistanceText, 
+  fleet2CheckerIds, 
+  fleet2InspectorIds, 
+  fleet2SelectedUnits, 
+  fleet2UnitOperators, 
+  isEdit, 
+  isEditingMergedGroup, 
+  fleetsToEdit, 
+  fleetType,
+  user,
+  handleSaveFleet,
+  pendingTransfers,
+  resetSplitMode
+]);
   const excaItems = useMemo(
     () =>
       (masters?.excavators || []).map((e) => ({
@@ -1126,17 +1073,17 @@ const FleetModal = ({
   return (
     <div className="detail-modal fixed inset-0 bg-black/50 dark:bg-black/70 z-50 flex items-center justify-center p-4">
       <div className="bg-neutral-50 dark:bg-gray-800 rounded-lg max-w-4xl w-full max-h-[90vh] overflow-auto">
-        <ModalHeader
-          title={
-            isEdit
-              ? isEditingMergedGroup
-                ? `Edit ${fleetsToEdit.length} Split Fleet Configurations`
-                : "Edit Fleet Configuration"
-              : "Tambah Fleet Configuration"
-          }
-          icon={Settings}
-          onClose={onClose}
-        />
+<ModalHeader
+  title={
+    isEdit
+      ? isEditingMergedGroup
+        ? `Edit ${fleetsToEdit.length} Split Fleet Configurations`
+        : "Edit Fleet Configuration"
+      : "Tambah Fleet Configuration"
+  }
+  icon={Settings}
+  onClose={onClose}
+/>
 
         {(mastersLoading || masterUnitsLoading) && (
           <LoadingOverlay isVisible={true} message="Loading master data..." />
@@ -1419,68 +1366,9 @@ const FleetModal = ({
                         disabled={isSaving}
                         className="dark:text-gray-200"
                       />
-                      <Label className  ="text-sm font-medium cursor-pointer dark:text-gray-300">
-                        Tampilkan semua mitra
+                      <Label className="text-sm font-medium cursor-pointer dark:text-gray-300">
+                        Tampilkan semua DT
                       </Label>
-                    </div>
-                  )}
-
-                  {isSplitMode && fleet2SelectedUnits.length > 0 && (
-                    <div className="mb-4">
-                      <Alert className="bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800">
-                        <AlertCircle className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-                        <AlertDescription className="text-sm dark:text-blue-300">
-                          <div className="flex items-center justify-between flex-wrap gap-2">
-                            <span>
-                              Ingin menggabungkan {fleet2SelectedUnits.length}{" "}
-                              dump truck ke Fleet 1?
-                            </span>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => {
-                                const confirmMsg =
-                                  `Gabungkan ${fleet2SelectedUnits.length} dump truck dari Fleet 2 ke Fleet 1?\n\n` +
-                                  `Fleet 2 akan dihapus setelah penggabungan.`;
-
-                                if (window.confirm(confirmMsg)) {
-                                  const fleet2Units = [...fleet2SelectedUnits];
-                                  const fleet2Operators = {
-                                    ...fleet2UnitOperators,
-                                  };
-
-                                  setSelectedUnits((prev) => [
-                                    ...prev,
-                                    ...fleet2Units,
-                                  ]);
-                                  setUnitOperators((prev) => ({
-                                    ...prev,
-                                    ...fleet2Operators,
-                                  }));
-
-                                  setFleet2SelectedUnits([]);
-                                  setFleet2UnitOperators({});
-                                  setFleet2Data({
-                                    dumpingLocation: "",
-                                    measurementType: "",
-                                  });
-                                  setFleet2DistanceText("");
-
-                                  setIsSplitMode(false);
-
-                                  showToast.success(
-                                    `${fleet2Units.length} dump truck berhasil digabungkan ke Fleet 1`,
-                                  );
-                                }
-                              }}
-                              className="bg-orange-600 hover:bg-orange-700 text-white dark:bg-orange-600 dark:hover:bg-orange-700 border-none"
-                            >
-                              <ArrowLeft className="w-4 h-4 mr-1" />
-                              Gabungkan ke Fleet 1
-                            </Button>
-                          </div>
-                        </AlertDescription>
-                      </Alert>
                     </div>
                   )}
 
@@ -2020,7 +1908,7 @@ const FleetModal = ({
                         </Alert>
                       )}
 
-                      {/* Search + Tampilkan semua mitra — Fleet 2 punya control sendiri */}
+                      {/* Search + Tampilkan semua DT — Fleet 2 punya control sendiri */}
                       <div className="flex flex-col gap-2">
                         <div className="flex items-center gap-2">
                           <Input
@@ -2042,14 +1930,14 @@ const FleetModal = ({
                             className="dark:text-gray-200"
                           />
                           <Label className="text-sm font-medium cursor-pointer dark:text-gray-300">
-                            Tampilkan semua mitra
+                            Tampilkan semua DT
                           </Label>
                         </div>
                       </div>
 
                       {/* Tombol Transfer All dari Fleet 1 ke Fleet 2 */}
                       {selectedUnits.length > 0 && (
-                        <div className="p-3 bg-linear-to-r from-blue-50 to-yellow-50 dark:from-blue-900/20 dark:to-yellow-900/20 border-2 border-dashed border-blue-300 dark:border-blue-700 rounded-lg">
+                        <div className="p-3 bg-gradient-to-r from-blue-50 to-yellow-50 dark:from-blue-900/20 dark:to-yellow-900/20 border-2 border-dashed border-blue-300 dark:border-blue-700 rounded-lg">
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
                               <Truck className="w-5 h-5 text-blue-600 dark:text-blue-400" />
@@ -2058,8 +1946,7 @@ const FleetModal = ({
                                   Transfer Dump Truck dari Fleet 1
                                 </p>
                                 <p className="text-xs text-gray-500 dark:text-gray-400">
-                                  {selectedUnits.length} dump truck tersedia di
-                                  Fleet 1
+                                  {selectedUnits.length} dump truck tersedia di Fleet 1
                                 </p>
                               </div>
                             </div>
@@ -2068,41 +1955,46 @@ const FleetModal = ({
                               size="sm"
                               onClick={() => {
                                 if (isSaving) return;
-
-                                const unitsToTransfer = selectedUnits.filter(
-                                  (unit) => {
-                                    const alreadyInFleet2 =
-                                      fleet2SelectedUnits.some(
-                                        (u) => String(u.id) === String(unit.id),
-                                      );
-                                    return !alreadyInFleet2;
-                                  },
-                                );
+                                
+                                // Pindahkan semua unit dari Fleet 1 ke Fleet 2
+                                const unitsToTransfer = selectedUnits.filter(unit => {
+                                  // Cek apakah unit sudah ada di Fleet 2
+                                  const alreadyInFleet2 = fleet2SelectedUnits.some(
+                                    u => String(u.id) === String(unit.id)
+                                  );
+                                  return !alreadyInFleet2;
+                                });
 
                                 if (unitsToTransfer.length === 0) {
-                                  showToast.info(
-                                    "Semua dump truck Fleet 1 sudah ada di Fleet 2",
-                                  );
+                                  showToast.info("Semua dump truck Fleet 1 sudah ada di Fleet 2");
                                   return;
                                 }
 
-                                setFleet2SelectedUnits((prev) => [
-                                  ...prev,
-                                  ...unitsToTransfer,
-                                ]);
-
+                                // Transfer units
+                                setFleet2SelectedUnits(prev => [...prev, ...unitsToTransfer]);
+                                
+                                // Clear Fleet 1
                                 setSelectedUnits([]);
                                 setUnitOperators({});
-
-                                showToast.success(
-                                  `${unitsToTransfer.length} dump truck dipindahkan ke Fleet 2`,
-                                );
+                                
+                                showToast.success(`${unitsToTransfer.length} dump truck dipindahkan ke Fleet 2`);
                               }}
                               disabled={isSaving || selectedUnits.length === 0}
                               className="bg-blue-600 hover:bg-blue-700 text-white dark:bg-blue-600 dark:hover:bg-blue-700"
                             >
-                              <ArrowLeft />
-                              Gabungkan ke Fleet 2
+                              <svg 
+                                xmlns="http://www.w3.org/2000/svg" 
+                                className="w-4 h-4 mr-1" 
+                                viewBox="0 0 24 24" 
+                                fill="none" 
+                                stroke="currentColor" 
+                                strokeWidth="2" 
+                                strokeLinecap="round" 
+                                strokeLinejoin="round"
+                              >
+                                <path d="M5 12h14M12 5l7 7-7 7"/>
+                              </svg>
+                              Pindahkan Semua
                             </Button>
                           </div>
                         </div>
@@ -2134,22 +2026,6 @@ const FleetModal = ({
                                       <Checkbox
                                         checked={true}
                                         onCheckedChange={() => {
-                                          if (isSaving) return;
-
-                                          const moveCheck =
-                                            canMoveFromFleet2ToFleet1(
-                                              fleet2SelectedUnits,
-                                              unit,
-                                            );
-
-                                          if (!moveCheck.allowed) {
-                                            showToast.warning(
-                                              moveCheck.reason,
-                                              { duration: 5000 },
-                                            );
-                                            return;
-                                          }
-
                                           setFleet2SelectedUnits((prev) =>
                                             prev.filter(
                                               (u) =>
@@ -2162,10 +2038,6 @@ const FleetModal = ({
                                             delete newOperators[unit.id];
                                             return newOperators;
                                           });
-
-                                          showToast.success(
-                                            `${unit.hull_no} dihapus dari Fleet 2`,
-                                          );
                                         }}
                                         disabled={isSaving}
                                         className="dark:text-gray-200"
@@ -2357,8 +2229,7 @@ const FleetModal = ({
                         <div>
                           <div className="flex items-center gap-2 px-3 py-2 bg-gray-100 dark:bg-gray-800 rounded-t-lg">
                             <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">
-                              Dump Truck Tersedia (
-                              {filteredUnitsForFleet2.length})
+                              Dump Truck Tersedia ({filteredUnitsForFleet2.length})
                             </span>
                           </div>
                           <div className="space-y-2 max-h-60 overflow-y-auto bg-gray-50 dark:bg-gray-900/30 p-3 rounded-b-lg">
@@ -2435,8 +2306,8 @@ const FleetModal = ({
                             <AlertCircle className="h-4 w-4 text-yellow-600 dark:text-yellow-400" />
                             <AlertDescription className="text-sm dark:text-yellow-300">
                               Tidak ada dump truck tersedia. Coba aktifkan{" "}
-                              <strong>"Tampilkan semua mitra"</strong> untuk
-                              melihat semua dump truck.
+                              <strong>"Tampilkan semua DT"</strong> untuk melihat
+                              semua dump truck.
                             </AlertDescription>
                           </Alert>
                         )}
@@ -2461,11 +2332,7 @@ const FleetModal = ({
                 disabled={
                   isSaving ||
                   !allUnitsHaveOperators ||
-                  selectedUnits.length === 0 ||
-                  (isSplitMode &&
-                    fleet2SelectedUnits.length > 0 &&
-                    (!allFleet2UnitsHaveOperators ||
-                      !fleet2Data.dumpingLocation))
+                  selectedUnits.length === 0
                 }
                 className="cursor-pointer disabled:cursor-not-allowed bg-blue-600 hover:bg-blue-700 text-white dark:bg-blue-600 dark:text-gray-200 dark:hover:bg-blue-700"
               >
