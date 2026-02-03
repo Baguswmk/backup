@@ -181,7 +181,7 @@ const CompanySection = ({
                           <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700 dark:text-gray-300">Waktu</th>
                           <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700 dark:text-gray-300">Shift</th>
                           <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700 dark:text-gray-300">Bukti</th>
-                          <th className="px-3 py-2 text-center text-xs font-semibold text-gray-700 dark:text-gray-300">Aksi</th>
+                          <th className="px-3 py-2 text-center text-xs font-semibold text-gray-700 dark:text-gray-300">Action</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-orange-100 dark:divide-orange-900/20">
@@ -340,7 +340,7 @@ const CompanySection = ({
                   <th className="px-3 py-2 text-left font-semibold">Driver</th>
                   <th className="px-3 py-2 text-right font-semibold">Berat (Ton)</th>
                   <th className="px-3 py-2 text-center font-semibold">Shift</th>
-                  <th className="px-3 py-2 text-center font-semibold">Aksi</th>
+                  <th className="px-3 py-2 text-center font-semibold">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
@@ -398,7 +398,7 @@ const CompanySection = ({
                         </Button>
 
                         {actionMenuOpen === ritase.id && (
-                          <div className="absolute right-0 mt-2 w-48 bg-neutral-50 dark:bg-gray-800 rounded-md shadow-lg border border-gray-200 dark:border-gray-700 z-10">
+                          <div className="absolute right-2 mt-2 w-48 bg-neutral-50 dark:bg-gray-800 rounded-md shadow-lg border border-gray-200 dark:border-gray-700 z-10">
                             <Button
                               onClick={() => onDetail(ritase)}
                               className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2 cursor-pointer dark:text-gray-200"
@@ -418,7 +418,7 @@ const CompanySection = ({
                               className="w-full px-4 py-2 text-left text-sm hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400 flex items-center gap-2 cursor-pointer rounded-b-md"
                             >
                               <Trash2 className="w-4 h-4" />
-                              Hapus
+                              Delete
                             </Button>
                           </div>
                         )}

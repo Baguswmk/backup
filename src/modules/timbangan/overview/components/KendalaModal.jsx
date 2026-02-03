@@ -409,7 +409,7 @@ const KendalaModal = ({
         {/* Info Box */}
         <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-md p-3">
           <div className="flex gap-2">
-            <Clock className="w-4 h-4 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
+            <Clock className="w-4 h-4 text-blue-600 dark:text-blue-400 mt-0.5 shrink-0" />
             <div className="text-xs text-blue-800 dark:text-blue-300">
               <p className="font-medium">Unit: {excaHullNo}</p>
               <p>Tanggal: {new Date(date).toLocaleDateString('id-ID')}</p>

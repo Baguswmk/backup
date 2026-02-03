@@ -373,7 +373,7 @@ const HourDetailModal = ({ isOpen, data, hour, onClose }) => {
                 ))}
 
                 {/* Grand Total */}
-                <div className="bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-900/30 dark:to-blue-800/30 border border-blue-200 dark:border-blue-700 rounded-lg p-4">
+                <div className="bg-linear-to-r from-blue-50 to-blue-100 dark:from-blue-900/30 dark:to-blue-800/30 border border-blue-200 dark:border-blue-700 rounded-lg p-4">
                   <div className="flex justify-between items-center">
                     <div>
                       <h3 className="font-bold text-lg text-gray-900 dark:text-gray-100">
@@ -403,7 +403,7 @@ const HourDetailModal = ({ isOpen, data, hour, onClose }) => {
                       </div>
                       {totalTonnage < totalTarget && (
                         <div className="mt-2">
-                          <Badge variant="destructive">
+                          <Badge variants="destructive">
                             Kurang {(totalTarget - totalTonnage).toFixed(2)} Ton dari target
                           </Badge>
                         </div>

@@ -189,7 +189,7 @@ const OverviewTable = ({
                   Dumping
                 </th>
                 <th className="px-3 py-3 text-center font-semibold min-w-25">
-                  Aksi
+                  Action
                 </th>
               </tr>
             </thead>
