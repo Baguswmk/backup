@@ -13,8 +13,6 @@ const WEIGHT_PATTERNS = [
 const MAX_FRAMING_ERRORS = 10; // Max consecutive framing errors before reconnect
 const FRAMING_ERROR_RESET_TIME = 5000; // Reset counter after 5 seconds
 const RECONNECT_DELAY = 2000; // Wait 2 seconds before auto-reconnect
-const STABILITY_DURATION = 2000; // 2 seconds of stable weight to auto-lock
-const WEIGHT_TOLERANCE = 0.01; // Tolerance for weight stability (in kg)
 
 export const useWebSerialScale = () => {
   const [, forceUpdate] = useReducer(x => x + 1, 0);
@@ -23,12 +21,6 @@ export const useWebSerialScale = () => {
   const [error, setError] = useState(null);
   const [isSupported, setIsSupported] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
-
-  // Auto-lock states
-  const [lockedWeight, setLockedWeight] = useState(null);
-  const [lockedTime, setLockedTime] = useState(null);
-  const [stabilityProgress, setStabilityProgress] = useState(0);
-  const [isStable, setIsStable] = useState(false);
 
   const weightDataRef = useRef({
     currentWeight: null,
@@ -48,11 +40,6 @@ export const useWebSerialScale = () => {
   const reconnectTimeoutRef = useRef(null);
   const isReconnectingRef = useRef(false);
 
-  // Stability tracking
-  const stabilityTimerRef = useRef(null);
-  const lastStableWeightRef = useRef(null);
-  const stableStartTimeRef = useRef(null);
-
   const parseWeight = useCallback((rawData) => {
     if (!rawData) return null;
     
@@ -71,88 +58,6 @@ export const useWebSerialScale = () => {
     }
     return null;
   }, []);
-
-  // Unlock weight (reset to live reading)
-  const unlockWeight = useCallback(() => {
-    setLockedWeight(null);
-    setLockedTime(null);
-    setStabilityProgress(0);
-    setIsStable(false);
-    lastStableWeightRef.current = null;
-    stableStartTimeRef.current = null;
-    
-    if (stabilityTimerRef.current) {
-      clearInterval(stabilityTimerRef.current);
-      stabilityTimerRef.current = null;
-    }
-  }, []);
-
-  // Check weight stability and auto-lock
-  useEffect(() => {
-    if (!isConnected || lockedWeight !== null) {
-      // Clear stability tracking if disconnected or already locked
-      if (stabilityTimerRef.current) {
-        clearInterval(stabilityTimerRef.current);
-        stabilityTimerRef.current = null;
-      }
-      stableStartTimeRef.current = null;
-      setStabilityProgress(0);
-      setIsStable(false);
-      return;
-    }
-
-    const currentWeight = weightDataRef.current.currentWeight;
-    
-    if (currentWeight === null || currentWeight === undefined) {
-      return;
-    }
-
-    const weight = parseFloat(currentWeight);
-    if (isNaN(weight) || weight <= 0) {
-      return;
-    }
-
-    // Check if weight is stable (within tolerance)
-    const lastWeight = lastStableWeightRef.current;
-    const weightIsStable = lastWeight !== null && Math.abs(weight - lastWeight) <= WEIGHT_TOLERANCE;
-
-    if (weightIsStable) {
-      // Weight is stable
-      if (stableStartTimeRef.current === null) {
-        // Start tracking stability
-        stableStartTimeRef.current = Date.now();
-        setIsStable(true);
-        
-        // Start progress timer
-        stabilityTimerRef.current = setInterval(() => {
-          const elapsed = Date.now() - stableStartTimeRef.current;
-          const progress = Math.min((elapsed / STABILITY_DURATION) * 100, 100);
-          setStabilityProgress(progress);
-
-          if (elapsed >= STABILITY_DURATION) {
-            // Auto-lock the weight
-            const now = new Date();
-            setLockedWeight(weight);
-            setLockedTime(now);
-            setStabilityProgress(100);
-            clearInterval(stabilityTimerRef.current);
-            stabilityTimerRef.current = null;
-          }
-        }, 100);
-      }
-    } else {
-      // Weight changed, reset stability tracking
-      if (stabilityTimerRef.current) {
-        clearInterval(stabilityTimerRef.current);
-        stabilityTimerRef.current = null;
-      }
-      stableStartTimeRef.current = null;
-      setStabilityProgress(0);
-      setIsStable(false);
-    }
-
-    lastStableWeightRef.current = weight;
-  }, [isConnected, lockedWeight]);
 
   // Clean disconnect
   const cleanDisconnect = useCallback(async () => {
@@ -190,11 +95,8 @@ export const useWebSerialScale = () => {
     framingErrorCountRef.current = 0;
     lastFramingErrorTimeRef.current = null;
     
-    // Reset stability tracking
-    unlockWeight();
-    
     setIsConnected(false);
-  }, [unlockWeight]);
+  }, []);
 
   // Auto-reconnect on framing errors
   const handleAutoReconnect = useCallback(async () => {
@@ -474,9 +376,6 @@ export const useWebSerialScale = () => {
       if (reconnectTimeoutRef.current) {
         clearTimeout(reconnectTimeoutRef.current);
       }
-      if (stabilityTimerRef.current) {
-        clearInterval(stabilityTimerRef.current);
-      }
       isMountedRef.current = false;
       cleanDisconnect();
     };
@@ -493,11 +392,5 @@ export const useWebSerialScale = () => {
     connect,
     disconnect,
     autoConnect,
-    // Auto-lock related
-    lockedWeight,
-    lockedTime,
-    stabilityProgress,
-    isStable,
-    unlockWeight,
   };
 };

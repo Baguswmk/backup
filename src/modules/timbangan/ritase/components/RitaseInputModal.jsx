@@ -64,6 +64,7 @@ const RitaseInputModal = ({
 
   const [insertedWeight, setInsertedWeight] = useState(null);
   const [insertedTime, setInsertedTime] = useState(null);
+  const [manualEditMode, setManualEditMode] = useState(false);
   const [displayWeight, setDisplayWeight] = useState("");
   const [isWeightStable, setIsWeightStable] = useState(false);
   const [stableWeightCount, setStableWeightCount] = useState(0);
@@ -223,6 +224,7 @@ const RitaseInputModal = ({
       setDisplayWeight("");
       setInsertedWeight(null);
       setInsertedTime(null);
+      setManualEditMode(false);
       setIsWeightStable(false);
       setStableWeightCount(0);
       setWaitingForFirstData(true);
@@ -272,6 +274,7 @@ const RitaseInputModal = ({
 
   useEffect(() => {
     if (
+      manualEditMode ||
       insertedWeight !== null ||
       !wsConnected ||
       !currentWeight
@@ -343,14 +346,15 @@ const RitaseInputModal = ({
   }, [
     currentWeight,
     wsConnected,
+    manualEditMode,
     insertedWeight,
     stableWeightCount,
     waitingForFirstData,
     handleAutoInsert,
   ]);
-  
+
   useEffect(() => {
-    if (insertedWeight !== null) return;
+    if (manualEditMode || insertedWeight !== null) return;
 
     const timeoutId = setTimeout(() => {
       if (wsConnected && currentWeight !== null) {
@@ -361,7 +365,7 @@ const RitaseInputModal = ({
       }
     }, 100);
     return () => clearTimeout(timeoutId);
-  }, [currentWeight, wsConnected, insertedWeight]);
+  }, [currentWeight, wsConnected, manualEditMode, insertedWeight]);
 
   const getRemainingHiddenTime = useCallback(
     (hullNo) => {
@@ -477,6 +481,119 @@ const RitaseInputModal = ({
     },
     [findFleetForHullNo],
   );
+
+  const handleInsert = useCallback(() => {
+    if (!wsConnected || !currentWeight) return;
+
+    const weight = parseFloat(currentWeight /1000);
+    const formattedWeight = weight.toFixed(2);
+    const now = new Date();
+
+    setInsertedWeight(weight);
+    setInsertedTime(now);
+    setDisplayWeight(formattedWeight);
+    setIsWeightStable(true);
+
+    const measurementType =
+      selectedFleet?.measurement_type ||
+      selectedFleet?.measurementType ||
+      MEASUREMENT_TYPES.TIMBANGAN;
+    const hasWeighBridge = user?.weigh_bridge != null;
+
+    if (measurementType === MEASUREMENT_TYPES.TIMBANGAN && hasWeighBridge) {
+      setGrossWeight(formattedWeight);
+    } else if (
+      (measurementType === MEASUREMENT_TYPES.TIMBANGAN && !hasWeighBridge) ||
+      measurementType === MEASUREMENT_TYPES.BYPASS
+    ) {
+      setNetWeight(formattedWeight);
+    }
+
+    if (stableWeightTimerRef.current) {
+      clearTimeout(stableWeightTimerRef.current);
+      stableWeightTimerRef.current = null;
+    }
+  }, [wsConnected, currentWeight, selectedFleet, user]);
+
+  const handleToggleManualEdit = useCallback(() => {
+    const newMode = !manualEditMode;
+    setManualEditMode(newMode);
+
+    if (newMode) {
+      setInsertedWeight(null);
+      setInsertedTime(null);
+      setIsWeightStable(false);
+      setStableWeightCount(0);
+    }
+
+    if (!newMode && wsConnected && currentWeight) {
+      const weight = parseFloat(currentWeight / 1000);
+      const formattedWeight = weight.toFixed(2);
+      setDisplayWeight(formattedWeight);
+    }
+  }, [manualEditMode, wsConnected, currentWeight]);
+
+    const handleManualWeightChange = useCallback(
+      (value) => {
+        const canEdit = manualEditMode || insertedWeight !== null;
+
+        if (canEdit) {
+          let formattedValue = value.replace(/,/g, ".");
+
+          const measurementType =
+            selectedFleet?.measurement_type ||
+            selectedFleet?.measurementType ||
+            MEASUREMENT_TYPES.TIMBANGAN;
+          const hasWeighBridge = user?.weigh_bridge != null;
+
+          const isGrossWeight =
+            measurementType === MEASUREMENT_TYPES.TIMBANGAN && hasWeighBridge;
+          const isNetWeight =
+            (measurementType === MEASUREMENT_TYPES.TIMBANGAN &&
+              !hasWeighBridge) ||
+            measurementType === MEASUREMENT_TYPES.BYPASS;
+
+          const netWeightRegex = /^\d{0,2}(\.\d{0,2})?$/;
+          const grossWeightRegex = /^\d{0,3}(\.\d{0,2})?$/;
+
+          let isValid = false;
+          if (formattedValue === "") {
+            isValid = true;
+          } else if (isGrossWeight) {
+            isValid = grossWeightRegex.test(formattedValue);
+            const numValue = parseFloat(formattedValue);
+            if (!isNaN(numValue) && numValue > 199.99) {
+              isValid = false;
+            }
+          } else if (isNetWeight) {
+            isValid = netWeightRegex.test(formattedValue);
+            const numValue = parseFloat(formattedValue);
+            if (!isNaN(numValue) && numValue > 99.99) {
+              isValid = false;
+            }
+          }
+
+          if (isValid) {
+            setDisplayWeight(formattedValue);
+
+            if (isGrossWeight) {
+              setGrossWeight(formattedValue);
+              setErrors((prev) => ({ ...prev, gross_weight: null }));
+            } else if (isNetWeight) {
+              setNetWeight(formattedValue);
+              setErrors((prev) => ({ ...prev, net_weight: null }));
+            }
+
+            if (insertedWeight !== null) {
+              setInsertedWeight(null);
+              setInsertedTime(null);
+              setIsWeightStable(false);
+            }
+          }
+        }
+      },
+      [manualEditMode, insertedWeight, selectedFleet, user],
+    );
 
   const validateForm = useCallback(() => {
     const newErrors = {};
@@ -634,6 +751,7 @@ const RitaseInputModal = ({
     setInsertedWeight(null);
     setInsertedTime(null);
     setDisplayWeight("");
+    setManualEditMode(false);
   };
 
   const handleClose = () => {
@@ -663,6 +781,7 @@ const RitaseInputModal = ({
   const showNetWeight =
     !isJembatan && measurementType === MEASUREMENT_TYPES.TIMBANGAN;
   const showWeightFields = showGrossWeight || showNetWeight;
+  const canEditWeight = manualEditMode || insertedWeight !== null;
 
   const activeHiddenCount = useMemo(() => {
     const now = Date.now();
@@ -762,105 +881,60 @@ const RitaseInputModal = ({
               </div>
 
               {/* Fleet Info Display */}
-{/* Fleet Info Display */}
-{selectedFleet && (
-  <>
-    <Alert className="border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/20">
-      <CheckCircle2 className="w-4 h-4 text-green-600 dark:text-green-400" />
-      <AlertDescription>
-        <div className="space-y-2">
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-medium text-green-900 dark:text-green-200">
-              Fleet Ditemukan:
-            </span>
-            <Badge
-              className={`${getMeasurementTypeBadge(measurementType)} text-white`}
-            >
-              {measurementType}
-            </Badge>
-          </div>
+              {selectedFleet && (
+                <Alert className="border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/20">
+                  <CheckCircle2 className="w-4 h-4 text-green-600 dark:text-green-400" />
+                  <AlertDescription>
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium text-green-900 dark:text-green-200">
+                          Fleet Ditemukan:
+                        </span>
+                        <Badge
+                          className={`${getMeasurementTypeBadge(measurementType)} text-white`}
+                        >
+                          {measurementType}
+                        </Badge>
+                      </div>
 
-          <div className="grid grid-cols-2 gap-2 text-sm">
-            <div>
-              <span className="text-gray-600 dark:text-gray-400">
-                Excavator:
-              </span>
-              <span className="ml-2 font-medium text-gray-900 dark:text-gray-100">
-                {selectedFleet.excavator}
-              </span>
-            </div>
-            <div>
-              <span className="text-gray-600 dark:text-gray-400">
-                Loading:
-              </span>
-              <span className="ml-2 font-medium text-gray-900 dark:text-gray-100">
-                {selectedFleet.loadingLocation}
-              </span>
-            </div>
-            <div>
-              <span className="text-gray-600 dark:text-gray-400">
-                Dumping:
-              </span>
-              <span className="ml-2 font-medium text-gray-900 dark:text-gray-100">
-                {selectedFleet.dumpingLocation}
-              </span>
-            </div>
-            <div>
-              <span className="text-gray-600 dark:text-gray-400">
-                Distance:
-              </span>
-              <span className="ml-2 font-medium text-gray-900 dark:text-gray-100">
-                {selectedFleet.distance} m
-              </span>
-            </div>
-          </div>
-        </div>
-      </AlertDescription>
-    </Alert>
-
-    {/* Tare Weight Warning */}
-    {(() => {
-      const currentUnit = selectedFleet.units?.find(
-        (unit) => unit.hull_no === hullNo
-      );
-      
-      if (!currentUnit) return null;
-      
-      const tareDate = currentUnit.tareWeightUpdatedDate;
-      const needsTareUpdate = !tareDate || 
-        (new Date() - new Date(tareDate)) > 30 * 24 * 60 * 60 * 1000;
-      
-      if (!needsTareUpdate) return null;
-      
-      return (
-        <Alert 
-          className="border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20"
-        >
-          <AlertCircle className="w-4 h-4 text-amber-600 dark:text-amber-400" />
-          <AlertDescription>
-            <div className="space-y-1">
-              <span className="text-sm font-medium text-amber-900 dark:text-amber-200">
-                Peringatan Timbangan Kosong
-              </span>
-              <p className="text-sm text-amber-800 dark:text-amber-300">
-                Dump Truck <strong>{currentUnit.hull_no}</strong> perlu melakukan timbangan kosong.
-                {tareDate ? (
-                  <span className="block mt-1">
-                    Timbangan terakhir: {new Date(tareDate).toLocaleDateString('id-ID')}
-                  </span>
-                ) : (
-                  <span className="block mt-1">
-                    Belum pernah melakukan timbangan kosong.
-                  </span>
-                )}
-              </p>
-            </div>
-          </AlertDescription>
-        </Alert>
-      );
-    })()}
-  </>
-)}
+                      <div className="grid grid-cols-2 gap-2 text-sm">
+                        <div>
+                          <span className="text-gray-600 dark:text-gray-400">
+                            Excavator:
+                          </span>
+                          <span className="ml-2 font-medium text-gray-900 dark:text-gray-100">
+                            {selectedFleet.excavator}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-gray-600 dark:text-gray-400">
+                            Loading:
+                          </span>
+                          <span className="ml-2 font-medium text-gray-900 dark:text-gray-100">
+                            {selectedFleet.loadingLocation}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-gray-600 dark:text-gray-400">
+                            Dumping:
+                          </span>
+                          <span className="ml-2 font-medium text-gray-900 dark:text-gray-100">
+                            {selectedFleet.dumpingLocation}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-gray-600 dark:text-gray-400">
+                            Distance:
+                          </span>
+                          <span className="ml-2 font-medium text-gray-900 dark:text-gray-100">
+                            {selectedFleet.distance} m
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </AlertDescription>
+                </Alert>
+              )}
 
               {/* Error for fleet not found */}
               {errors.fleet && (
@@ -891,19 +965,26 @@ const RitaseInputModal = ({
                             type="text"
                             inputMode="decimal"
                             value={displayWeight}
+                            onChange={(e) =>
+                              handleManualWeightChange(e.target.value)
+                            }
                             placeholder="0.00"
                             disabled={isSubmitting}
-                            readOnly={true}
+                            readOnly={!canEditWeight}
                             className={`${errors.gross_weight ? "border-red-500 dark:border-red-400" : ""} ${
-                              insertedWeight !== null
-                                ? "bg-green-50 dark:bg-green-900/20 border-green-400 dark:border-green-600 font-bold"
-                                : wsConnected
-                                  ? "bg-blue-50 dark:bg-blue-900/20 border-blue-300 dark:border-blue-600"
-                                  : "bg-white dark:bg-gray-900"
+                              manualEditMode
+                                ? "bg-yellow-50 dark:bg-yellow-900/20 border-yellow-400 dark:border-yellow-600 font-bold"
+                                : insertedWeight !== null
+                                  ? "bg-green-50 dark:bg-green-900/20 border-green-400 dark:border-green-600 font-bold"
+                                  : wsConnected
+                                    ? "bg-blue-50 dark:bg-blue-900/20 border-blue-300 dark:border-blue-600"
+                                    : "bg-white dark:bg-gray-900"
                             } border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500`}
                           />
                           <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                            {insertedWeight !== null ? (
+                            {manualEditMode ? (
+                              <Edit2 className="w-4 h-4 text-yellow-600 dark:text-yellow-400" />
+                            ) : insertedWeight !== null ? (
                               <Download className="w-4 h-4 text-green-600 dark:text-green-400" />
                             ) : wsConnected ? (
                               <Radio className="w-4 h-4 text-blue-600 dark:text-blue-400 animate-pulse" />
@@ -912,6 +993,55 @@ const RitaseInputModal = ({
                             )}
                           </div>
                         </div>
+
+                        {!wsConnected && (
+                          <Button
+                            type="button"
+                            onClick={handleToggleManualEdit}
+                            className={`gap-1 shrink-0 ${
+                              manualEditMode
+                                ? "bg-yellow-600 hover:bg-yellow-700 dark:bg-yellow-500 dark:hover:bg-yellow-600"
+                                : "bg-gray-600 hover:bg-gray-700 dark:bg-gray-500 dark:hover:bg-gray-600"
+                            } text-white`}
+                            size="default"
+                          >
+                            {manualEditMode ? (
+                              <>
+                                <Wifi className="w-4 h-4" />
+                                <span className="hidden sm:inline">Auto</span>
+                              </>
+                            ) : (
+                              <>
+                                <Edit2 className="w-4 h-4" />
+                                <span className="hidden sm:inline">Manual</span>
+                              </>
+                            )}
+                          </Button>
+                        )}
+
+                        {wsConnected && !manualEditMode && (
+                          <Button
+                            type="button"
+                            onClick={handleInsert}
+                            disabled={
+                              !wsConnected ||
+                              !currentWeight ||
+                              !isWeightStable ||
+                              waitingForFirstData
+                            }
+                            className={`gap-1 shrink-0 ${
+                              insertedWeight !== null
+                                ? "bg-green-600 hover:bg-green-700 dark:bg-green-500 dark:hover:bg-green-600"
+                                : "bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
+                            } text-white`}
+                            size="default"
+                          >
+                            <Download className="w-4 h-4" />
+                            <span className="hidden sm:inline">
+                              {insertedWeight !== null ? "Re-Insert" : "Insert"}
+                            </span>
+                          </Button>
+                        )}
                       </div>
 
                       {errors.gross_weight && (
@@ -921,36 +1051,46 @@ const RitaseInputModal = ({
                       )}
 
                       <div className="space-y-1">
-                        {insertedWeight !== null &&
+                        {manualEditMode && (
+                          <div className="flex items-center gap-1 mt-2 text-xs text-yellow-600 dark:text-yellow-400">
+                            <Edit2 className="w-3 h-3" />
+                            <span>Mode manual</span>
+                          </div>
+                        )}
+
+                        {!manualEditMode &&
+                          insertedWeight !== null &&
                           insertedTime && (
                             <div className="flex items-center gap-1 text-xs text-green-600 dark:text-green-400">
                               <Download className="w-3 h-3" />
                               <span>
-                                Auto-inserted: {insertedWeight.toFixed(2)} ton -{" "}
+                                Locked: {insertedWeight.toFixed(2)} ton -{" "}
                                 {format(insertedTime, "HH:mm:ss")}
                               </span>
                             </div>
                           )}
 
-                        {insertedWeight === null &&
+                        {!manualEditMode &&
+                          insertedWeight === null &&
                           wsConnected &&
                           !waitingForFirstData &&
                           !isWeightStable && (
                             <div className="flex items-center gap-1 text-xs text-blue-600 dark:text-blue-400">
                               <Radio className="w-3 h-3 animate-pulse" />
                               <span>
-                                Menunggu stabil... ({stableWeightCount}/20)
+                                Menunggu stabil... ({stableWeightCount}/10)
                               </span>
                             </div>
                           )}
 
-                        {insertedWeight === null &&
+                        {!manualEditMode &&
+                          insertedWeight === null &&
                           wsConnected &&
                           !waitingForFirstData &&
                           isWeightStable && (
                             <div className="flex items-center gap-1 text-xs text-green-600 dark:text-green-400">
                               <CheckCircle2 className="w-3 h-3" />
-                              <span>Berat stabil - Auto-inserting...</span>
+                              <span>Berat stabil - Siap insert</span>
                             </div>
                           )}
                       </div>
@@ -1003,20 +1143,27 @@ const RitaseInputModal = ({
                             type="text"
                             inputMode="decimal"
                             value={displayWeight}
+                            onChange={(e) =>
+                              handleManualWeightChange(e.target.value)
+                            }
                             placeholder="0.00"
                             disabled={isSubmitting}
-                            readOnly={true}
+                            readOnly={!canEditWeight}
                             className={`${errors.net_weight ? "border-red-500 dark:border-red-400" : ""} ${
-                              insertedWeight !== null
-                                ? "bg-green-50 dark:bg-green-900/20 border-green-400 dark:border-green-600 font-bold"
-                                : wsConnected
-                                  ? "bg-blue-50 dark:bg-blue-900/20 border-blue-300 dark:border-blue-600"
-                                  : "bg-white dark:bg-gray-900"
+                              manualEditMode
+                                ? "bg-yellow-50 dark:bg-yellow-900/20 border-yellow-400 dark:border-yellow-600 font-bold"
+                                : insertedWeight !== null
+                                  ? "bg-green-50 dark:bg-green-900/20 border-green-400 dark:border-green-600 font-bold"
+                                  : wsConnected
+                                    ? "bg-blue-50 dark:bg-blue-900/20 border-blue-300 dark:border-blue-600"
+                                    : "bg-white dark:bg-gray-900"
                             } border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500`}
                           />
 
                           <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                            {insertedWeight !== null ? (
+                            {manualEditMode ? (
+                              <Edit2 className="w-4 h-4 text-yellow-600 dark:text-yellow-400" />
+                            ) : insertedWeight !== null ? (
                               <Download className="w-4 h-4 text-green-600 dark:text-green-400" />
                             ) : wsConnected ? (
                               <Radio className="w-4 h-4 text-blue-600 dark:text-blue-400 animate-pulse" />
@@ -1025,6 +1172,55 @@ const RitaseInputModal = ({
                             )}
                           </div>
                         </div>
+
+                        {!wsConnected && (
+                          <Button
+                            type="button"
+                            onClick={handleToggleManualEdit}
+                            className={`gap-1 shrink-0 ${
+                              manualEditMode
+                                ? "bg-yellow-600 hover:bg-yellow-700 dark:bg-yellow-500 dark:hover:bg-yellow-600"
+                                : "bg-gray-600 hover:bg-gray-700 dark:bg-gray-500 dark:hover:bg-gray-600"
+                            } text-white`}
+                            size="default"
+                          >
+                            {manualEditMode ? (
+                              <>
+                                <Wifi className="w-4 h-4" />
+                                <span className="hidden sm:inline">Auto</span>
+                              </>
+                            ) : (
+                              <>
+                                <Edit2 className="w-4 h-4" />
+                                <span className="hidden sm:inline">Manual</span>
+                              </>
+                            )}
+                          </Button>
+                        )}
+
+                        {wsConnected && !manualEditMode && (
+                          <Button
+                            type="button"
+                            onClick={handleInsert}
+                            disabled={
+                              !wsConnected ||
+                              !currentWeight ||
+                              !isWeightStable ||
+                              waitingForFirstData
+                            }
+                            className={`gap-1 shrink-0 ${
+                              insertedWeight !== null
+                                ? "bg-green-600 hover:bg-green-700 dark:bg-green-500 dark:hover:bg-green-600"
+                                : "bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
+                            } text-white`}
+                            size="default"
+                          >
+                            <Download className="w-4 h-4" />
+                            <span className="hidden sm:inline">
+                              {insertedWeight !== null ? "Re-Insert" : "Insert"}
+                            </span>
+                          </Button>
+                        )}
                       </div>
 
                       {errors.net_weight && (
@@ -1034,36 +1230,46 @@ const RitaseInputModal = ({
                       )}
 
                       <div className="space-y-1">
-                        {insertedWeight !== null &&
+                        {manualEditMode && (
+                          <div className="flex items-center gap-1 mt-2 text-xs text-yellow-600 dark:text-yellow-400">
+                            <Edit2 className="w-3 h-3" />
+                            <span>Mode manual</span>
+                          </div>
+                        )}
+
+                        {!manualEditMode &&
+                          insertedWeight !== null &&
                           insertedTime && (
                             <div className="flex items-center gap-1 text-xs text-green-600 dark:text-green-400">
                               <Download className="w-3 h-3" />
                               <span>
-                                Auto-inserted: {insertedWeight.toFixed(2)} ton -{" "}
+                                Locked: {insertedWeight.toFixed(2)} ton -{" "}
                                 {format(insertedTime, "HH:mm:ss")}
                               </span>
                             </div>
                           )}
 
-                        {insertedWeight === null &&
+                        {!manualEditMode &&
+                          insertedWeight === null &&
                           wsConnected &&
                           !waitingForFirstData &&
                           !isWeightStable && (
                             <div className="flex items-center gap-1 text-xs text-blue-600 dark:text-blue-400">
                               <Radio className="w-3 h-3 animate-pulse" />
                               <span>
-                                Menunggu stabil... ({stableWeightCount}/20)
+                                Menunggu stabil... ({stableWeightCount}/10)
                               </span>
                             </div>
                           )}
 
-                        {insertedWeight === null &&
+                        {!manualEditMode &&
+                          insertedWeight === null &&
                           wsConnected &&
                           !waitingForFirstData &&
                           isWeightStable && (
                             <div className="flex items-center gap-1 text-xs text-green-600 dark:text-green-400">
                               <CheckCircle2 className="w-3 h-3" />
-                              <span>Berat stabil - Auto-inserting...</span>
+                              <span>Berat stabil - Siap insert</span>
                             </div>
                           )}
                       </div>
@@ -1101,7 +1307,10 @@ const RitaseInputModal = ({
                     !hullNo ||
                     !selectedFleet ||
                     fleetConfigs.length === 0 ||
-                    (showWeightFields && insertedWeight === null)
+                    (!manualEditMode &&
+                      wsConnected &&
+                      showWeightFields &&
+                      insertedWeight === null)
                   }
                   className="min-w-32 bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white"
                 >
