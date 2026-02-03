@@ -108,60 +108,49 @@ export const fleetTransferService = {
         })
         .filter(Boolean);
 
-      // IMPORTANT: Jika tidak ada DT yang tersisa, kita perlu handle dengan cara berbeda
-      // Karena fleet tidak boleh kosong (minimal 1 DT)
-      // Dalam kasus ini, kita akan delete fleet tersebut
-      if (updatedPairs.length === 0) {
-        logger.warn("⚠️ No dump trucks left in fleet, deleting fleet", {
-          fleetId,
-        });
 
-        await offlineService.delete(`/setting-fleets/${fleetId}`);
+        if (updatedPairs.length === 0) {
+  logger.info("✅ Fleet will have 0 dump trucks (valid state)", {
+    fleetId,
+  });
+}
 
-        logger.info("✅ Fleet deleted due to no remaining dump trucks", {
-          fleetId,
-        });
+// Update fleet dengan pairs yang sudah difilter
+const updatePayload = {
+  pair_dt_op: updatedPairs, // Bisa [] (array kosong)
+};
 
-        return {
-          success: true,
-          deleted: true,
-          fleetId,
-        };
-      }
+const endpoint = `/v1/custom/setting-fleet/${fleetId}`;
 
-      // Update fleet dengan pairs yang sudah difilter
-      const updatePayload = {
-        pair_dt_op: updatedPairs,
-      };
+logger.info("📡 Updating fleet to remove dump truck", {
+  fleetId,
+  remainingPairs: updatedPairs.length,
+  isEmpty: updatedPairs.length === 0,
+  payload: updatePayload,
+});
 
-      const endpoint = `/v1/custom/setting-fleet/${fleetId}`;
+const response = await offlineService.put(endpoint, updatePayload);
 
-      logger.info("📡 Updating fleet to remove dump truck", {
-        fleetId,
-        remainingPairs: updatedPairs.length,
-        payload: updatePayload,
-      });
+if (response.status === "success") {
+  logger.info("✅ Dump truck removed successfully", {
+    fleetId,
+    dumpTruckId,
+    remainingPairs: updatedPairs.length,
+    isEmpty: updatedPairs.length === 0,
+  });
 
-      const response = await offlineService.put(endpoint, updatePayload);
+  // Clear cache
+  await offlineService.clearCache("fleets_");
 
-      if (response.status === "success") {
-        logger.info("✅ Dump truck removed successfully", {
-          fleetId,
-          dumpTruckId,
-          remainingPairs: updatedPairs.length,
-        });
+  return {
+    success: true,
+    fleetId,
+    remainingPairs: updatedPairs.length,
+    isEmpty: updatedPairs.length === 0,
+  };
+}
 
-        // Clear cache
-        await offlineService.clearCache("fleets_");
-
-        return {
-          success: true,
-          fleetId,
-          remainingPairs: updatedPairs.length,
-        };
-      }
-
-      throw new Error("Failed to update fleet");
+throw new Error("Failed to update fleet");
     } catch (error) {
       logger.error("❌ Failed to remove dump truck from fleet", {
         fleetId,
@@ -180,7 +169,10 @@ export const fleetTransferService = {
   async createFleetConfig(configData) {
     try {
       const now = new Date().toISOString();
-      
+       if (!configData.pairDtOp || configData.pairDtOp.length === 0) {
+      throw new Error("Fleet baru harus memiliki minimal 1 dump truck");
+    }
+
       // ✅ FIX: Support both measurementType (camelCase) and measurement_type (snake_case)
       const measurementType = configData.measurementType || configData.measurement_type;
       
@@ -360,10 +352,6 @@ export const fleetTransferService = {
       }
 
       if (updates.pairDtOp !== undefined && Array.isArray(updates.pairDtOp)) {
-        if (updates.pairDtOp.length === 0) {
-          throw new Error("Minimal 1 dump truck harus dipilih");
-        }
-
         payload.pair_dt_op = updates.pairDtOp.map((pair) => ({
           truckId: parseInt(pair.truckId),
           operatorId: parseInt(pair.operatorId),

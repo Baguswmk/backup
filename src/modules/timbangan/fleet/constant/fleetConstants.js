@@ -61,6 +61,12 @@ export const LOADING_MESSAGES = {
   PROCESSING: "Memproses...",
 };
 
+export const MEASUREMENT_TYPE_OPTIONS = [
+    { value: "Timbangan", label: "Timbangan" },
+    { value: "Bypass", label: "Bypass" },
+    { value: "Beltscale", label: "Beltscale" },
+  ];
+
 export const PAGE_SIZE = PAGINATION.PAGE_SIZE;
 export const DEBOUNCE_TIME = DEBOUNCE.SEARCH;
 export const FILTER_FIELDS = SHARED_FILTER_FIELDS;

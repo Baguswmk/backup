@@ -20,6 +20,15 @@ export const useFleetWithTransfer = (user, onSuccess) => {
       setIsSaving(true);
 
       try {
+        if (!fleetData.pairDtOp || fleetData.pairDtOp.length === 0) {
+          showToast.error("Fleet baru harus memiliki minimal 1 dump truck");
+          setIsSaving(false);
+          return {
+            success: false,
+            error: "Fleet baru harus memiliki minimal 1 dump truck"
+          };
+        }
+        
         logger.info("🔵 Creating new fleet", {
           hasTransfers: !!fleetData.moveFromFleets,
           transfersCount: fleetData.moveFromFleets?.length || 0,
@@ -44,7 +53,7 @@ export const useFleetWithTransfer = (user, onSuccess) => {
           // ✅ TRIGGER REFETCH
           if (onSuccess) {
             logger.info("🔄 Triggering refetch after create");
-            await onSuccess(); // ✅ FIX: Tambahkan await
+            await onSuccess();
           }
 
           return result;
@@ -75,6 +84,12 @@ export const useFleetWithTransfer = (user, onSuccess) => {
       setIsSaving(true);
 
       try {
+        if (fleetData.pairDtOp && fleetData.pairDtOp.length === 0) {
+          // ⚠️ Warning saja, tapi tetap ijinkan update
+          logger.warn("⚠️ Updating fleet to have 0 dump trucks", { fleetId });
+          showToast.warning("Fleet akan menjadi kosong (0 dump truck)");
+        }
+        
         logger.info("🔵 Updating fleet", {
           fleetId,
           hasTransfers: !!fleetData.moveFromFleets,
@@ -100,7 +115,7 @@ export const useFleetWithTransfer = (user, onSuccess) => {
           // ✅ TRIGGER REFETCH
           if (onSuccess) {
             logger.info("🔄 Triggering refetch after update");
-            await onSuccess(); // ✅ FIX: Tambahkan await
+            await onSuccess();
           }
 
           return result;
@@ -124,24 +139,47 @@ export const useFleetWithTransfer = (user, onSuccess) => {
   );
 
   /**
-   * Handle save (create atau update)
+   * ✅ FIX: Handle save dengan 3 cara pemanggilan berbeda
    * 
-   * ✅ FIX SIGNATURE: Disesuaikan dengan cara FleetManagement memanggil function ini
-   * FleetManagement memanggil: handleSaveFleet(config, transferInfo, mode)
+   * Cara 1 (FleetManagement normal create/update):
+   *   handleSaveFleet(fleetData)
+   *   - Deteksi create/update berdasarkan fleetData.id
+   * 
+   * Cara 2 (FleetModal split mode edit - dengan editConfig):
+   *   handleSaveFleet(payload, { id: fleetId })
+   *   - Parameter kedua adalah editConfig yang punya property 'id'
+   * 
+   * Cara 3 (FleetModal split mode create):
+   *   handleSaveFleet(payload, null)
+   *   - Parameter kedua null = create
    * 
    * @param {Object} fleetData - Data fleet yang akan disave
-   * @param {Object} transferInfo - Transfer info (optional, tidak digunakan saat ini)
-   * @param {string} mode - "create" atau "update" (optional)
+   * @param {Object|null} editConfig - Edit config atau null
+   *   - null = create
+   *   - { id: fleetId } = update dengan ID tertentu
    */
   const handleSaveFleet = useCallback(
-    async (fleetData, transferInfo = null, mode = null) => {
-      // ✅ FIX: Deteksi mode berdasarkan fleetData.id ATAU parameter mode
-      const isUpdate = fleetData.id || mode === "update";
+    async (fleetData, editConfig = null) => {
+      // ✅ FIX: Cek parameter kedua untuk menentukan mode
       
-      if (isUpdate) {
-        // Untuk update, gunakan fleetData.id
-        return handleUpdateFleet(fleetData.id, fleetData);
+      // Jika editConfig punya property 'id' atau 'ids', ini adalah UPDATE
+      const fleetId = editConfig?.id || editConfig?.ids?.[0] || fleetData.id;
+      
+      if (fleetId) {
+        // MODE: UPDATE
+        logger.info("🔵 handleSaveFleet: UPDATE mode detected", { 
+          fleetId,
+          hasEditConfig: !!editConfig,
+          hasFleetDataId: !!fleetData.id 
+        });
+        
+        return handleUpdateFleet(fleetId, fleetData);
       } else {
+        // MODE: CREATE
+        logger.info("🔵 handleSaveFleet: CREATE mode detected", {
+          hasEditConfig: !!editConfig
+        });
+        
         return handleCreateFleet(fleetData);
       }
     },

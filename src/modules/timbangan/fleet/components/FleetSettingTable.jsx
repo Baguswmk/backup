@@ -217,10 +217,10 @@ const FleetSettingTable = ({
                 Loading Point
               </th>
               <th className="px-4 py-3 text-left font-semibold border-r border-blue-500 dark:border-blue-600">
-                Mitra
+                Dumping Point
               </th>
               <th className="px-4 py-3 text-left font-semibold border-r border-blue-500 dark:border-blue-600">
-                Dumping Point
+                Mitra
               </th>
               <th className="px-4 py-3 text-left font-semibold border-r border-blue-500 dark:border-blue-600">
                 Jenis Batubara
@@ -316,7 +316,11 @@ const FleetSettingTable = ({
                                 </div>
                               </td>
                             )}
-
+  <td className="px-4 py-3 text-left border-r border-gray-300 dark:border-gray-600">
+                              <div className="text-gray-700 dark:text-gray-300">
+                                {fleet.dumpingLocation}
+                              </div>
+                            </td>
                                      {/* Mitra - merge untuk group yang sama */}
                             {fleet.isFirstInGroup && (
                               <td
@@ -330,11 +334,7 @@ const FleetSettingTable = ({
                             )}
 
                             {/* Dumping Point - tampil per baris (TIDAK DI-MERGE) */}
-                            <td className="px-4 py-3 text-left border-r border-gray-300 dark:border-gray-600">
-                              <div className="text-gray-700 dark:text-gray-300">
-                                {fleet.dumpingLocation}
-                              </div>
-                            </td>
+                          
 
                             {/* Jenis Batubara - tampil per baris (TIDAK DI-MERGE) */}
                             <td className="px-4 py-3 text-left border-r border-gray-300 dark:border-gray-600">
