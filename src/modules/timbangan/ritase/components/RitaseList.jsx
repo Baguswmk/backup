@@ -73,7 +73,7 @@ const RitaseList = ({
   const [isDuplicateModalOpen, setIsDuplicateModalOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isDeletingRitase, setIsDeletingRitase] = useState(false);
-
+  
   const getInputButtonText = () => {
     return userRole === USER_ROLES.OPERATOR_JT ? "Timbang" : "Input Data";
   };
@@ -303,18 +303,18 @@ const RitaseList = ({
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                className="h-8 w-8 p-0 dark:hover:bg-gray-700"
+                                className="h-8 w-8 p-0 dark:hover:bg-gray-700 cursor-pointer hover:bg-gray-200"
                               >
                                 <MoreVertical className="h-4 w-4 text-gray-500 dark:text-gray-400" />
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent
                               align="end"
-                              className="dark:bg-gray-800 dark:border-gray-700"
+                              className="bg-white dark:bg-gray-800 dark:border-gray-700"
                             >
                               <DropdownMenuItem
                                 onClick={() => handleViewDetail(ritase)}
-                                className="dark:hover:bg-gray-700 dark:text-gray-200"
+                                className="dark:hover:bg-gray-700 cursor-pointer hover:bg-gray-200 dark:text-gray-200"
                               >
                                 <Eye className="w-4 h-4 mr-2" />
                                 Detail
@@ -327,22 +327,22 @@ const RitaseList = ({
                               <DropdownMenuSeparator className="dark:bg-gray-700" />
                               <DropdownMenuItem
                                 onClick={() => handleEdit(ritase)}
-                                className="dark:hover:bg-gray-700 dark:text-gray-200"
+                                className="dark:hover:bg-gray-700 cursor-pointer hover:bg-gray-200 dark:text-gray-200"
                               >
                                 <Edit2 className="w-4 h-4 mr-2" />
                                 Edit
                               </DropdownMenuItem>
                               <DropdownMenuItem
                                 onClick={() => handleDuplicate(ritase)}
-                                className="dark:hover:bg-gray-700 dark:text-gray-200"
+                                className="dark:hover:bg-gray-700 cursor-pointer hover:bg-gray-200 dark:text-gray-200"
                               >
                                 <Copy className="w-4 h-4 mr-2" />
-                                Duplicate
+                                Tambah Ritase
                               </DropdownMenuItem>
                               <DropdownMenuSeparator className="dark:bg-gray-700" />
                               <DropdownMenuItem
                                 onClick={() => handleDelete(ritase)}
-                                className="text-red-600 dark:text-red-400 dark:hover:bg-gray-700"
+                                className="text-red-600 dark:text-red-400 dark:hover:bg-gray-700 cursor-pointer hover:bg-gray-200"
                               >
                                 <Trash2 className="w-4 h-4 mr-2" />
                                 Delete
@@ -371,7 +371,7 @@ const RitaseList = ({
 
       {/* Detail Dialog */}
       <Dialog open={isDetailDialogOpen} onOpenChange={setIsDetailDialogOpen}>
-        <DialogContent className="max-w-2xl dark:bg-slate-900 max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-2xl bg-white dark:bg-slate-900 max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 dark:text-neutral-50">
               <CheckCircle2 className="w-5 h-5 text-green-500" />
@@ -387,7 +387,7 @@ const RitaseList = ({
                     Hull No (DT)
                   </div>
                   <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                    {selectedRitase.hull_no || "-"}
+                    {selectedRitase.unit_dump_truck || "-"}
                   </div>
                 </div>
                 <div>
@@ -551,7 +551,7 @@ const RitaseList = ({
       {/* Edit Modal */}
       {selectedRitase && (
         <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
-          <DialogContent className="max-w-4xl lg:min-w-4xl max-h-[90vh] overflow-y-auto dark:bg-slate-900">
+          <DialogContent className="max-w-4xl lg:min-w-4xl max-h-[90vh] overflow-y-auto bg-white dark:bg-slate-900">
             <DialogHeader>
               <DialogTitle className="dark:text-neutral-50">
                 Edit Data Ritase
@@ -575,9 +575,9 @@ const RitaseList = ({
           open={isDuplicateModalOpen}
           onOpenChange={setIsDuplicateModalOpen}
         >
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto dark:bg-slate-900">
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto dark:bg-slate-900 bg-white border-none">
             <DialogHeader>
-              <DialogTitle className="flex items-center gap-2 dark:text-neutral-50">
+              <DialogTitle className="flex items-center gap-2 dark:text-neutral-50 ">
                 <Copy className="w-5 h-5" />
                 Tambah Data Ritase
               </DialogTitle>

@@ -279,7 +279,7 @@ const RitaseDuplicateForm = ({ sourceRitase, onSubmit, onCancel }) => {
     : "";
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 " >
       {/* Info Alert tentang Bypass/Beltscale */}
       {needsNoWeight && (
         <Alert className="bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800">

@@ -983,7 +983,7 @@ const handleDeleteTripFromChecker = async (trip) => {
       {/* Duplicate Modal */}
       {selectedRitase && (
         <Dialog open={isDuplicateModalOpen} onOpenChange={setIsDuplicateModalOpen}>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto dark:bg-slate-900">
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto dark:bg-slate-900 bg-white border-none">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2 dark:text-neutral-50">
                 <Copy className="w-5 h-5" />
