@@ -526,11 +526,6 @@ const FleetManagement = ({ Type }) => {
         async () => {
           // Handle split group deletion
           if (Array.isArray(deleteData)) {
-            console.log("🗑️ Deleting split group:", {
-              fleetCount: deleteData.length,
-              fleetIds: deleteData.map(f => f.id),
-            });
-
             const results = [];
             const errors = [];
 
@@ -575,7 +570,6 @@ const FleetManagement = ({ Type }) => {
           }
 
           // Handle single fleet deletion
-          console.log("🗑️ Deleting single fleet:", deleteData.id);
           const result = await deleteConfig(deleteData.id);
 
           validateResponse(result, {
@@ -766,10 +760,6 @@ const FleetManagement = ({ Type }) => {
           return;
         }
         
-        console.log("🔍 Opening delete modal for SPLIT GROUP:", {
-          fleetCount: fleet.length,
-          fleetIds: fleet.map(f => f.id),
-        });
         
         // Set action type to delete-split-group
         setDeleteActionType("delete-split-group");
@@ -779,8 +769,6 @@ const FleetManagement = ({ Type }) => {
           showToast.error("Anda tidak memiliki akses untuk menghapus fleet ini");
           return;
         }
-        
-        console.log("🔍 Opening delete modal for SINGLE FLEET:", fleet.id);
         
         // Set action type to delete
         setDeleteActionType("delete");

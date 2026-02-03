@@ -609,7 +609,6 @@ const handleSave = useCallback(async () => {
     // SCENARIO 1: SPLIT MODE - Create 2 Fleets
     // ========================================================
     if (isSplitMode) {
-      console.log("🔀 Split Mode - Creating 2 fleets");
       
       // Validate Fleet 2 has necessary data
       if (!fleet2Data.dumpingLocation) {
@@ -662,7 +661,6 @@ const handleSave = useCallback(async () => {
 
       // Handle Edit Mode for Split (update both fleets)
       if (isEdit && isEditingMergedGroup && fleetsToEdit.length > 1) {
-        console.log("✏️ Edit Split Mode - Updating 2 existing fleets");
         
         // Update Fleet 1
         const payload1 = {
@@ -754,9 +752,6 @@ const handleSave = useCallback(async () => {
 
     // Add transfer data if exists
     if (pendingTransfers.length > 0) {
-      console.log("🔄 Transfer Mode - Moving DTs from other fleets", {
-        count: pendingTransfers.length
-      });
       
       basePayload.moveFromFleets = pendingTransfers.map(t => ({
         fromFleetId: t.fromFleetId,
@@ -770,13 +765,6 @@ const handleSave = useCallback(async () => {
         ? { ids: fleetsToEdit.map(f => f.id) }  // Multiple fleets
         : { id: fleetsToEdit[0].id }  // Single fleet
     ) : null;
-
-    // Save using transfer-aware hook
-    console.log("💾 Saving fleet", {
-      isEdit,
-      hasTransfers: pendingTransfers.length > 0,
-      editConfig
-    });
 
     const result = await handleSaveFleet(basePayload, editConfig);
 
