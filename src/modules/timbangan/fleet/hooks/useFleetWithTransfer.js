@@ -44,7 +44,7 @@ export const useFleetWithTransfer = (user, onSuccess) => {
           // ✅ TRIGGER REFETCH
           if (onSuccess) {
             logger.info("🔄 Triggering refetch after create");
-            onSuccess();
+            await onSuccess(); // ✅ FIX: Tambahkan await
           }
 
           return result;
@@ -100,7 +100,7 @@ export const useFleetWithTransfer = (user, onSuccess) => {
           // ✅ TRIGGER REFETCH
           if (onSuccess) {
             logger.info("🔄 Triggering refetch after update");
-            onSuccess();
+            await onSuccess(); // ✅ FIX: Tambahkan await
           }
 
           return result;
@@ -125,11 +125,22 @@ export const useFleetWithTransfer = (user, onSuccess) => {
 
   /**
    * Handle save (create atau update)
+   * 
+   * ✅ FIX SIGNATURE: Disesuaikan dengan cara FleetManagement memanggil function ini
+   * FleetManagement memanggil: handleSaveFleet(config, transferInfo, mode)
+   * 
+   * @param {Object} fleetData - Data fleet yang akan disave
+   * @param {Object} transferInfo - Transfer info (optional, tidak digunakan saat ini)
+   * @param {string} mode - "create" atau "update" (optional)
    */
   const handleSaveFleet = useCallback(
-    async (fleetData, editingConfig = null) => {
-      if (editingConfig && editingConfig.id) {
-        return handleUpdateFleet(editingConfig.id, fleetData);
+    async (fleetData, transferInfo = null, mode = null) => {
+      // ✅ FIX: Deteksi mode berdasarkan fleetData.id ATAU parameter mode
+      const isUpdate = fleetData.id || mode === "update";
+      
+      if (isUpdate) {
+        // Untuk update, gunakan fleetData.id
+        return handleUpdateFleet(fleetData.id, fleetData);
       } else {
         return handleCreateFleet(fleetData);
       }
@@ -144,21 +155,3 @@ export const useFleetWithTransfer = (user, onSuccess) => {
     handleSaveFleet,
   };
 };
-
-/**
- * Contoh penggunaan di FleetManagement component:
- * 
- * const { handleSaveFleet } = useFleetWithTransfer(user, () => {
- *   // Auto refetch setelah save berhasil
- *   refetchFleetData();
- * });
- * 
- * <FleetModal
- *   isOpen={isModalOpen}
- *   onClose={handleCloseModal}
- *   editingConfig={editingConfig}
- *   onSave={handleSaveFleet}
- *   fleetType={selectedTab}
- *   availableDumptruckSettings={fleetConfigs}
- * />
- */

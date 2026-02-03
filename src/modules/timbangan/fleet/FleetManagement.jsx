@@ -74,6 +74,7 @@ const FleetManagement = ({ Type }) => {
     isLoading: masterDataLoading,
   } = useMasterData(null);
 
+
   // State for Information Days
   const [selectedSatker, setSelectedSatker] = useState("");
   const [selectedUrutkan, setSelectedUrutkan] = useState("");

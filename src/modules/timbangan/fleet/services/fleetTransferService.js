@@ -202,7 +202,8 @@ export const fleetTransferService = {
           ? parseInt(configData.workUnitId)
           : null,
         created_at: now,
-        measurement_type: measurementType, // ✅ FIX: Use the normalized value
+        measurement_type: measurementType,
+        isSplit: configData.isSplit !== undefined ? Boolean(configData.isSplit) : false,
         pair_dt_op: configData.pairDtOp.map((pair) => ({
           truckId: parseInt(pair.truckId),
           operatorId: parseInt(pair.operatorId),
@@ -352,6 +353,10 @@ export const fleetTransferService = {
       // ✅ FIX: Support both measurementType (camelCase) and measurement_type (snake_case)
       if (updates.measurementType !== undefined || updates.measurement_type !== undefined) {
         payload.measurement_type = updates.measurementType || updates.measurement_type;
+      }
+
+      if (updates.isSplit !== undefined) {
+        payload.isSplit = Boolean(updates.isSplit);
       }
 
       if (updates.pairDtOp !== undefined && Array.isArray(updates.pairDtOp)) {
