@@ -73,7 +73,6 @@ const RitaseList = ({
   const [isDuplicateModalOpen, setIsDuplicateModalOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isDeletingRitase, setIsDeletingRitase] = useState(false);
-  
   const getInputButtonText = () => {
     return userRole === USER_ROLES.OPERATOR_JT ? "Timbang" : "Input Data";
   };

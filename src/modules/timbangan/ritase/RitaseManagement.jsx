@@ -355,12 +355,8 @@ const RitaseManagement = () => {
 
   const handleCreateRitaseFromAggregated = useCallback(
     async (fleetData) => {
-      console.log(fleetData);
       try {
-        // ✅ FIXED: Gunakan createManualRitase untuk input manual dari AggregatedInputModal
-        // Perubahan:
-        // - submitTimbanganForm → createManualRitase
-        // - Hapus clientCreatedAt (tidak diperlukan di createManualRitase)
+     
         const result = await ritaseServices.createManualRitase({
           ...fleetData,
           created_by_user: user?.id || null,
@@ -397,11 +393,6 @@ const RitaseManagement = () => {
   const handleDuplicateRitase = useCallback(
     async (duplicatedData) => {
       try {
-        // ✅ FIXED: Gunakan duplicateRitase untuk operasi duplicate
-        // Perubahan:
-        // - submitTimbanganForm → duplicateRitase
-        // - created_by_user format: { id: user?.id } (sesuai struktur API duplicateRitase)
-        // - Hapus clientCreatedAt (tidak diperlukan di duplicateRitase)
         const result = await ritaseServices.duplicateRitase({
           ...duplicatedData,
           created_by_user: { id: user?.id || null },

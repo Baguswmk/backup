@@ -142,7 +142,6 @@ const RitaseHistory = () => {
     async (forceRefresh = false) => {
       // ✅ Guard: jangan load kalau belum ada dateRange & shift
       if (!currentDateRange.from || !currentDateRange.to || !viewingShift) {
-        console.log("⏸️ Skip load: tanggal/shift belum dipilih");
         return { summaries: [], ritases: [] };
       }
 
@@ -187,7 +186,6 @@ const RitaseHistory = () => {
     const initializeData = async () => {
       try {
         await loadFleetConfigsFromAPI(false, null);
-        console.log("✅ Fleet configs loaded. Waiting for user to select date & shift...");
       } catch (error) {
         console.error("⚠️ Initial load error:", error);
         showToast.error("Gagal memuat konfigurasi fleet");
@@ -420,7 +418,6 @@ const RitaseHistory = () => {
 
   const handleCreateRitaseFromAggregated = useCallback(
     async (fleetData) => {
-      console.log(fleetData);
       try {
         const result = await ritaseServices.createManualRitase({
           ...fleetData,
