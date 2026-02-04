@@ -21,9 +21,7 @@ import { useRitaseStore } from "@/modules/timbangan/ritase/store/ritaseStore";
 import { showToast } from "@/shared/utils/toast";
 import useAuthStore from "@/modules/auth/store/authStore";
 import { ritaseServices } from "@/modules/timbangan/ritase/services/ritaseServices";
-import {
-  getWorkShiftInfo,
-} from "@/shared/utils/date";
+import { getWorkShiftInfo } from "@/shared/utils/date";
 import { useMasterData } from "@/modules/timbangan/masterData/hooks/useMasterData";
 
 import {
@@ -357,11 +355,15 @@ const RitaseManagement = () => {
 
   const handleCreateRitaseFromAggregated = useCallback(
     async (fleetData) => {
+      console.log(fleetData);
       try {
-        const result = await ritaseServices.submitTimbanganForm({
+        // ✅ FIXED: Gunakan createManualRitase untuk input manual dari AggregatedInputModal
+        // Perubahan:
+        // - submitTimbanganForm → createManualRitase
+        // - Hapus clientCreatedAt (tidak diperlukan di createManualRitase)
+        const result = await ritaseServices.createManualRitase({
           ...fleetData,
           created_by_user: user?.id || null,
-          clientCreatedAt: new Date().toISOString(),
         });
 
         if (result.success) {
@@ -395,13 +397,15 @@ const RitaseManagement = () => {
   const handleDuplicateRitase = useCallback(
     async (duplicatedData) => {
       try {
-
-        const result = await ritaseServices.submitTimbanganForm({
+        // ✅ FIXED: Gunakan duplicateRitase untuk operasi duplicate
+        // Perubahan:
+        // - submitTimbanganForm → duplicateRitase
+        // - created_by_user format: { id: user?.id } (sesuai struktur API duplicateRitase)
+        // - Hapus clientCreatedAt (tidak diperlukan di duplicateRitase)
+        const result = await ritaseServices.duplicateRitase({
           ...duplicatedData,
-          created_by_user: user?.id || null,
-          clientCreatedAt: new Date().toISOString(),
+          created_by_user: { id: user?.id || null },
         });
-
 
         if (result.success) {
           showToast.success("Data berhasil diduplikasi");
@@ -429,10 +433,9 @@ const RitaseManagement = () => {
         return { success: false, error: error.message };
       }
     },
-    [loadSummaryData, loadRitaseDataFromAPI],
+    [user, loadSummaryData, loadRitaseDataFromAPI],
   );
 
-  
   const updateRitaseOptimistically = useCallback((id, updatedData) => {
     setSummaryData((prev) => ({
       ...prev,
@@ -442,10 +445,8 @@ const RitaseManagement = () => {
           : item,
       ),
       summaries: prev.summaries.map((summary) => {
-        
         const oldRitase = prev.ritases.find((r) => r.id === id);
         if (oldRitase?.unit_exca !== updatedData.unit_exca) {
-          
           return summary;
         }
         return summary;
@@ -455,14 +456,10 @@ const RitaseManagement = () => {
 
   const handleRefreshAfterEdit = useCallback(
     async (id, updatedData) => {
-
-
-      
       if (id && updatedData) {
         updateRitaseOptimistically(id, updatedData);
       }
 
-      
       try {
         await Promise.all([
           loadSummaryData(true),
@@ -470,7 +467,6 @@ const RitaseManagement = () => {
         ]);
       } catch (error) {
         console.error("❌ Gagal reload data setelah edit:", error);
-        
       }
     },
     [loadSummaryData, loadRitaseDataFromAPI, updateRitaseOptimistically],
@@ -484,14 +480,14 @@ const RitaseManagement = () => {
         if (result.success) {
           showToast.success("Data berhasil dihapus");
 
-            try {
-              await Promise.all([
-                loadSummaryData(true),
-                loadRitaseDataFromAPI(null, true),
-              ]);
-            } catch (error) {
-              console.error("❌ Gagal reload data setelah delete:", error);
-            }
+          try {
+            await Promise.all([
+              loadSummaryData(true),
+              loadRitaseDataFromAPI(null, true),
+            ]);
+          } catch (error) {
+            console.error("❌ Gagal reload data setelah delete:", error);
+          }
 
           return { success: true };
         }
@@ -585,7 +581,7 @@ const RitaseManagement = () => {
           onCreateRitase={handleCreateRitaseFromAggregated}
           fleetConfigs={filteredFleetConfigs}
           onRefresh={handleRefresh}
-          onUpdateRitase={handleRefreshAfterEdit} 
+          onUpdateRitase={handleRefreshAfterEdit}
           onDeleteRitase={handleDeleteRitase}
           onDuplicateRitase={handleDuplicateRitase}
           refreshButtonRef={refreshButtonRef}
@@ -617,7 +613,7 @@ const RitaseManagement = () => {
             hasActiveFilters={hasActiveRitaseFilters}
             onPrintTicket={handlePrintTicket}
             onRefreshData={handleRefreshAfterEdit}
-            onUpdateRitase={handleRefreshAfterEdit} 
+            onUpdateRitase={handleRefreshAfterEdit}
             onDeleteRitase={handleDeleteRitase}
             onDuplicateRitase={handleDuplicateRitase}
             refreshButtonRef={refreshButtonRef}

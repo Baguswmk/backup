@@ -267,7 +267,6 @@ const handleSave = useCallback(async () => {
   }
 
   setIsSaving(true);
-
   try {
     // ✅ PERBAIKAN: Gunakan nama field yang sesuai dengan backend API
     const payload = {
@@ -373,7 +372,7 @@ const handleSave = useCallback(async () => {
     () =>
       (masters?.workUnits || []).map((wu) => ({
         value: String(wu.id),
-        label: wu.satker || wu.subsatker || wu.name || `Work Unit #${wu.id}`,
+        label: wu.subsatker  || wu.satker || wu.name || `Work Unit #${wu.id}`,
         hint: wu.name && wu.satker !== wu.name ? wu.name : undefined,
       })),
     [masters?.workUnits],

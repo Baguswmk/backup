@@ -100,6 +100,7 @@ const AggregatedRitase = ({
   onDuplicateRitase,
    refreshButtonRef,
 }) => {
+  console.log(aggregatedData)
   const [selectedDetail, setSelectedDetail] = useState(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedChecker, setSelectedChecker] = useState(null);
@@ -215,7 +216,7 @@ const AggregatedRitase = ({
     }
   };
 
-const handleEditSubmit = async (result) => {
+  const handleEditSubmit = async (result) => {
     if (result.success) {
       setIsEditModalOpen(false);
       setSelectedRitase(null);
@@ -372,7 +373,7 @@ const handleDeleteTripFromChecker = async (trip) => {
     if (!Array.isArray(paginatedData) || paginatedData.length === 0) {
       return null;
     }
-
+    console.log(paginatedData)
     return paginatedData
       .map((group, index) => {
         if (!group || !Array.isArray(group.items) || group.items.length === 0) {

@@ -38,15 +38,45 @@ const RitaseDuplicateForm = ({ sourceRitase, onSubmit, onCancel }) => {
     return user?.id || null;
   };
 
+  const getSourceData = () => {
+    if (!sourceRitase) return null;
+
+    // Jika ada ritases array, gunakan ritase pertama sebagai sumber data
+    if (sourceRitase.ritases && Array.isArray(sourceRitase.ritases) && sourceRitase.ritases.length > 0) {
+      return sourceRitase.ritases[0];
+    }
+
+    // Jika tidak ada ritases array, gunakan sourceRitase langsung
+    return sourceRitase;
+  };
+
+  // Helper untuk mendapatkan nilai dari source data dengan fallback
+  const getValueFromSource = (field) => {
+    const source = getSourceData();
+    if (!source) return null;
+    
+    return source[field] || sourceRitase[field] || null;
+  };
+
+  const getSettingFleet = () => {
+    const idSettingFleet = getValueFromSource('id_setting_fleet');
+    const settingFleet = getValueFromSource('setting_fleet');
+    
+    if (idSettingFleet) return parseInt(idSettingFleet);
+    if (settingFleet) return parseInt(settingFleet);
+    
+    return null;
+  };
+
   const [formData, setFormData] = useState({
     unit_dump_truck: "",
     gross_weight: "",
     net_weight: "",
     operator: "",
     date: new Date().toISOString().split('T')[0],
-    shift: sourceRitase?.shift || "Shift 1",
-    checker: sourceRitase?.checker || "",
-    inspector: sourceRitase?.inspector || "",
+    shift: getValueFromSource('shift') || "Shift 1",
+    checker: getValueFromSource('checker') || "",
+    inspector: getValueFromSource('inspector') || "",
     created_by_user: getCreatedByUserId()
   });
 
@@ -80,7 +110,7 @@ const RitaseDuplicateForm = ({ sourceRitase, onSubmit, onCancel }) => {
     }
   };
 
-  const measurementType = sourceRitase?.measurement_type || sourceRitase?.measurementType;
+  const measurementType = getValueFromSource('measurement_type') || getValueFromSource('measurementType');
   const hasWeighBridge = user?.weigh_bridge != null;
   
   const needsGrossWeight = measurementType === "Timbangan" && hasWeighBridge;
@@ -197,8 +227,10 @@ const RitaseDuplicateForm = ({ sourceRitase, onSubmit, onCancel }) => {
       const selectedOperator = masters?.operators?.find(
         op => String(op.id) === String(formData.operator)
       );
-      
       const tare_weight = selectedDumpTruck?.tare_weight || 0;
+      
+      const settingFleetId = getSettingFleet();
+      
       const duplicatedData = {
         unit_dump_truck: selectedDumpTruck?.hull_no || selectedDumpTruck?.name || "",
         operator: selectedOperator?.name || "",
@@ -207,22 +239,25 @@ const RitaseDuplicateForm = ({ sourceRitase, onSubmit, onCancel }) => {
         company: selectedDumpTruck?.company,
         created_by_user: getCreatedByUserId(),
         tare_weight: selectedDumpTruck?.tare_weight || 0,
-        unit_exca: sourceRitase?.unit_exca,
-        loading_location: sourceRitase?.loading_location,
-        dumping_location: sourceRitase?.dumping_location,
-        measurement_type: measurementType,
-        distance: parseFloat(sourceRitase?.distance || 0),
-        coal_type: sourceRitase?.coal_type,
-        pic_work_unit: sourceRitase?.pic_work_unit,
-        pic_dumping_point: sourceRitase?.pic_dumping_point,
-        pic_loading_point: sourceRitase?.pic_loading_point,
-        checker: sourceRitase?.checker,
-        inspector: sourceRitase?.inspector,
         
-        // Field opsional
-        id_setting_fleet: sourceRitase?.id_setting_fleet || null,
-        weigh_bridge: sourceRitase?.weigh_bridge || null,
-        spph: sourceRitase?.spph || null,
+        // Gunakan getValueFromSource untuk field yang mungkin undefined
+        unit_exca: getValueFromSource('unit_exca'),
+        loading_location: getValueFromSource('loading_location'),
+        dumping_location: getValueFromSource('dumping_location'),
+        measurement_type: getValueFromSource('measurement_type') || measurementType,
+        distance: parseFloat(getValueFromSource('distance') || 0),
+        coal_type: getValueFromSource('coal_type'),
+        pic_work_unit: getValueFromSource('pic_work_unit'),
+        pic_dumping_point: getValueFromSource('pic_dumping_point'),
+        pic_loading_point: getValueFromSource('pic_loading_point'),
+        checker: getValueFromSource('checker'),
+        inspector: getValueFromSource('inspector'),
+        weigh_bridge: getValueFromSource('weigh_bridge'),
+        spph: getValueFromSource('spph'),
+        
+        // Setting fleet
+        setting_fleet: settingFleetId,
+        id_setting_fleet: settingFleetId,
       };
 
       if (measurementType === "Timbangan") {
@@ -255,9 +290,9 @@ const RitaseDuplicateForm = ({ sourceRitase, onSubmit, onCancel }) => {
   };
 
   const weightLabel = needsGrossWeight
-    ? "Berat Kotor (ton)"
+    ? "Berat Kotor (Ton)"
     : needsNetWeight
-    ? "Berat Bersih (ton)"
+    ? "Berat Bersih (Ton)"
     : null;
 
   const weightMaxHint = needsGrossWeight
@@ -411,25 +446,25 @@ const RitaseDuplicateForm = ({ sourceRitase, onSubmit, onCancel }) => {
           <div>
             <span className="text-gray-500 dark:text-gray-400">Excavator:</span>
             <span className="ml-2 text-gray-900 dark:text-gray-100">
-              {sourceRitase?.unit_exca || "-"}
+              {getValueFromSource('unit_exca') || "-"}
             </span>
           </div>
           <div>
             <span className="text-gray-500 dark:text-gray-400">Company:</span>
             <span className="ml-2 text-gray-900 dark:text-gray-100">
-              {sourceRitase?.company || "-"}
+              {getValueFromSource('company') || "-"}
             </span>
           </div>
           <div>
             <span className="text-gray-500 dark:text-gray-400">Loading:</span>
             <span className="ml-2 text-gray-900 dark:text-gray-100">
-              {sourceRitase?.loading_location || "-"}
+              {getValueFromSource('loading_location') || "-"}
             </span>
           </div>
           <div>
             <span className="text-gray-500 dark:text-gray-400">Dumping:</span>
             <span className="ml-2 text-gray-900 dark:text-gray-100">
-              {sourceRitase?.dumping_location || "-"}
+              {getValueFromSource('dumping_location') || "-"}
             </span>
           </div>
           <div>
@@ -441,7 +476,7 @@ const RitaseDuplicateForm = ({ sourceRitase, onSubmit, onCancel }) => {
           <div>
             <span className="text-gray-500 dark:text-gray-400">Distance:</span>
             <span className="ml-2 text-gray-900 dark:text-gray-100">
-              {sourceRitase?.distance || 0} m
+              {getValueFromSource('distance') || 0} m
             </span>
           </div>
         </div>

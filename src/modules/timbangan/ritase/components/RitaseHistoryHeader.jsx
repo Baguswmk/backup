@@ -1,6 +1,4 @@
 import React from "react";
-import { Button } from "@/shared/components/ui/button";
-import { Card, CardContent } from "@/shared/components/ui/card";
 import { RefreshCw, History } from "lucide-react";
 import { DateRangePicker } from "@/shared/components/DateRangePicker";
 
@@ -13,24 +11,25 @@ const RitaseHistoryHeader = ({
   isLoading,
   isSearching,
   onDateRangeChange,
+  onRefresh,
   totalRecords = 0,
   hasSearched = false,
 }) => {
   return (
-    <Card className="bg-white dark:bg-gray-800 shadow-sm">
-      <CardContent className="p-4 sm:p-6">
+    <div className="bg-white shadow-sm rounded-lg dark:bg-gray-800">
+      <div className="p-4 sm:p-6">
         {/* Header Section */}
         <div className="flex flex-col lg:flex-row lg:items-center md:justify-between gap-4 mb-4 sm:mb-6">
           {/* Title & User Info */}
           <div className="flex flex-row items-center gap-3">
-            <div className="p-2 bg-blue-100 dark:bg-blue-900 rounded-lg shrink-0">
+            <div className="p-2 bg-blue-100 rounded-lg shrink-0 dark:bg-blue-900">
               <History className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600 dark:text-blue-400" />
             </div>
             <div className="min-w-0 flex-1">
-              <h1 className="text-lg sm:text-2xl font-bold text-gray-900 dark:text-gray-100 truncate">
+              <h1 className="text-lg sm:text-2xl font-bold text-gray-900 truncate dark:text-gray-100">
                 History Ritase
               </h1>
-              <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 truncate">
+              <p className="text-xs sm:text-sm text-gray-500 truncate dark:text-gray-400">
                 {user?.name || user?.username} • {userRole || "User"}
               </p>
             </div>
@@ -41,15 +40,26 @@ const RitaseHistoryHeader = ({
               <span className="text-xs sm:text-sm font-medium gap-2 text-gray-700 dark:text-gray-300">
                 Periode & Shift:
               </span>
-                 <DateRangePicker
+              <DateRangePicker
                 dateRange={dateRange}
                 currentShift={currentShift}
                 viewingShift={viewingShift}
                 isLoading={isLoading || isSearching}
                 onDateRangeChange={onDateRangeChange}
               />
+              
+              {/* ✅ Tombol Refresh - Pure Tailwind */}
+              <button
+                onClick={onRefresh}
+                disabled={isLoading || isSearching || !dateRange.from || !dateRange.to || !viewingShift}
+                className="cursor-pointer shrink-0 inline-flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
+              >
+                <RefreshCw className={`w-4 h-4 ${isSearching ? 'animate-spin' : ''}`} />
+                Refresh
+              </button>
+              
               {isSearching && (
-                <span className="text-xs text-blue-600 dark:text-blue-400 flex items-center gap-1">
+                <span className="text-xs text-blue-600 flex items-center gap-1 dark:text-blue-400">
                   <RefreshCw className="w-3 h-3 animate-spin" />
                   Memuat data...
                 </span>
@@ -70,8 +80,9 @@ const RitaseHistoryHeader = ({
             </p>
           </div>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 };
+
 export default RitaseHistoryHeader;
