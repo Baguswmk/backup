@@ -731,13 +731,8 @@ const FleetModal = ({
 
           if (isEdit && isEditingMergedGroup && fleetsToEdit.length > 1) {
             try {
-              const deleteResult = await deleteConfig(fleetsToEdit[1].id);
+              await deleteConfig(fleetsToEdit[1].id);
 
-              if (deleteResult && deleteResult.success) {
-                console.log("✅ Fleet 2 berhasil dihapus via deleteConfig");
-              } else {
-                console.warn("⚠️ Gagal menghapus Fleet 2, tetap dilanjutkan");
-              }
             } catch (error) {
               console.error("❌ Error deleting fleet 2:", error);
             }

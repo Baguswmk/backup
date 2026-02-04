@@ -203,7 +203,7 @@ const FleetSettingTable = ({
 
   return (
     <div className="w-full">
-      <div className="rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
+      <div className="rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm overflow-x-auto">
         <table className="w-full text-sm bg-white dark:bg-gray-800">
           <thead className="bg-linear-to-r from-blue-600 to-blue-700 dark:from-blue-700 dark:to-blue-800 text-white sticky top-0 z-10 shadow-md">
             <tr>

@@ -240,23 +240,6 @@ const FleetSplitSettingsSection = ({
                   </p>
                 )}
               </div>
-
-              <div className="space-y-2">
-                <Label className="dark:text-gray-300">Coal Type Fleet 2</Label>
-                <Input
-                  type="text"
-                  value={fleet2Data.coalType || ""}
-                  onChange={(e) =>
-                    setFleet2Data((p) => ({
-                      ...p,
-                      coalType: e.target.value,
-                    }))
-                  }
-                  placeholder="Masukkan jenis batubara (opsional)"
-                  disabled={isSaving}
-                  className="border-none cursor-pointer hover:bg-gray-200 focus:bg-gray-200 dark:focus:bg-gray-700 dark:bg-gray-800 dark:text-gray-200"
-                />
-              </div>
             </div>
 
             <div className="space-y-2">
