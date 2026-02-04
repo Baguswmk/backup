@@ -745,7 +745,6 @@ async fetchSummaryFleetByRitases(options = {}) {
   async duplicateRitase(data) {
     try {
       const payload = {
-        data: {
           unit_dump_truck: data.unit_dump_truck,
           operator: data.operator,
           date: data.date,
@@ -768,21 +767,20 @@ async fetchSummaryFleetByRitases(options = {}) {
           id_setting_fleet: data.id_setting_fleet || null,
           weigh_bridge: data.weigh_bridge || null,
           spph: data.spph || null,
-        },
       };
 
       if (data.measurement_type === "Timbangan") {
         if (data.gross_weight !== undefined && data.gross_weight !== null) {
-          payload.data.gross_weight = parseFloat(data.gross_weight);
+          payload.gross_weight = parseFloat(data.gross_weight);
         }
         if (data.net_weight !== undefined && data.net_weight !== null) {
-          payload.data.net_weight = parseFloat(data.net_weight);
+          payload.net_weight = parseFloat(data.net_weight);
         }
       }
 
       logger.info("📤 DUPLICATE Ritase Payload:", payload);
 
-      const response = await offlineService.post("/ritases", payload);
+      const response = await offlineService.post("/v1/custom/ritase/manual", payload);
 
       const serverData = response.data || {};
 

@@ -47,6 +47,22 @@ const SearchableSelect = ({
     }
   }, [open]);
 
+  useEffect(() => {
+    const handleWheel = (e) => {
+      if (open && commandListRef.current?.contains(e.target)) {
+        e.stopPropagation();
+      }
+    };
+
+    if (open) {
+      document.addEventListener('wheel', handleWheel, { capture: true });
+    }
+
+    return () => {
+      document.removeEventListener('wheel', handleWheel, { capture: true });
+    };
+  }, [open]);
+
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
@@ -71,7 +87,7 @@ const SearchableSelect = ({
       </PopoverTrigger>
 
       <PopoverContent
-        className="w-[--radix-popover-trigger-width] p-0 bg-neutral-50 border-none dark:bg-gray-800 dark:border-gray-700"
+        className="w-[--radix-popover-trigger-width] p-0 bg-neutral-50 border-none dark:bg-gray-800 dark:border-gray-700 z-[60]"
         align="start"
       >
         <Command
@@ -85,7 +101,7 @@ const SearchableSelect = ({
           />
           <CommandList
             ref={commandListRef}
-            className="max-h-[300px] overflow-y-auto"
+            className="max-h-[300px] overflow-y-auto overscroll-contain"
           >
             <CommandEmpty className="dark:text-gray-400">
               {emptyText}
