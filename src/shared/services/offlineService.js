@@ -842,6 +842,40 @@ if (typeof window !== "undefined") {
   window.addEventListener("beforeunload", cleanup);
 }
 
+async function deleteQueueItem(id) {
+  try {
+    const db = await getDB();
+    await db.delete(STORES.QUEUE, id);
+    emitCoalescedEvent("queue:updated");
+    return { success: true };
+  } catch (error) {
+    console.error("Failed to delete queue item:", error);
+    return { success: false, error: error.message };
+  }
+}
+
+async function deleteFailedItem(id) {
+  try {
+    const db = await getDB();
+    await db.delete(STORES.FAILED, id);
+    emitCoalescedEvent("queue:updated");
+    return { success: true };
+  } catch (error) {
+    console.error("Failed to delete failed item:", error);
+    return { success: false, error: error.message };
+  }
+}
+
+async function getFailedQueue() {
+  try {
+    const db = await getDB();
+    return await db.getAll(STORES.FAILED);
+  } catch (error) {
+    console.error("Failed to get failed queue:", error);
+    return [];
+  }
+}
+
 export const offlineService = {
   apiCall,
 
@@ -851,11 +885,15 @@ export const offlineService = {
   patch,
   delete: del,
 
-  addToQueue,
+   addToQueue,
   getQueue,
   getPendingCount,
   syncAllPending,
   retryFailed,
+  deleteQueueItem,      
+  deleteFailedItem,     
+  getFailedQueue,       
+
 
   setCache,
   getCache,

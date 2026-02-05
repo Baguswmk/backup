@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import {
   Card,
   CardContent,
@@ -7,6 +7,7 @@ import {
 } from "@/shared/components/ui/card";
 import { Badge } from "@/shared/components/ui/badge";
 import { Button } from "@/shared/components/ui/button";
+import { Input } from "@/shared/components/ui/input";
 import {
   Tabs,
   TabsContent,
@@ -34,7 +35,9 @@ import {
   Plus,
   UserCheck,
   Copy,
-  Edit2
+  Edit2,
+  Search,
+  X
 } from "lucide-react";
 import {
   Table,
@@ -119,6 +122,46 @@ const AggregatedRitase = ({
   const [isDuplicateModalOpen, setIsDuplicateModalOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isDeletingRitase, setIsDeletingRitase] = useState(false);
+  
+  // Search states
+  const [searchExcavator, setSearchExcavator] = useState("");
+  const [searchDumpingPoint, setSearchDumpingPoint] = useState("");
+  const [searchLoadingPoint, setSearchLoadingPoint] = useState("");
+  // Filtered ritase data based on search
+  const filteredRitaseBySearch = useMemo(() => {
+    if (!searchExcavator && !searchDumpingPoint && !searchLoadingPoint) {
+      return filteredRitaseData;
+    }
+    
+    return filteredRitaseData.filter((ritase) => {
+      const matchExcavator = !searchExcavator || 
+        (ritase.unit_exca?.toLowerCase().includes(searchExcavator.toLowerCase()));
+      const matchDumping = !searchDumpingPoint || 
+        (ritase.dumping_location?.toLowerCase().includes(searchDumpingPoint.toLowerCase()));
+      const matchLoading = !searchLoadingPoint || 
+        (ritase.loading_location?.toLowerCase().includes(searchLoadingPoint.toLowerCase()));
+      
+      return matchExcavator && matchDumping && matchLoading;
+    });
+  }, [filteredRitaseData, searchExcavator, searchDumpingPoint, searchLoadingPoint]);
+
+  // Reset search filters
+  const handleResetSearch = () => {
+    setSearchExcavator("");
+    setSearchDumpingPoint("");
+    setSearchLoadingPoint("");
+  };
+
+  // Check if any search is active
+  const hasActiveSearch = searchExcavator || searchDumpingPoint || searchLoadingPoint;
+
+  // Reset page to 1 when search changes
+  useEffect(() => {
+    if (hasActiveSearch && onPageChange) {
+      onPageChange(1);
+    }
+  }, [searchExcavator, searchDumpingPoint, searchLoadingPoint]);
+
   const groupedData = useMemo(() => {
     // Extract summaries data from new structure
     const summariesData = aggregatedData?.summaries?.data || aggregatedData || [];
@@ -177,15 +220,54 @@ const AggregatedRitase = ({
     }));
   }, [aggregatedData, activeTab]);
 
+
+  // Filter groupedData based on search
+  const filteredGroupedData = useMemo(() => {
+    if (!searchExcavator && !searchDumpingPoint && !searchLoadingPoint) {
+      return groupedData;
+    }
+
+    return groupedData.map((group) => {
+      const filteredItems = group.items.filter((item) => {
+        const matchExcavator = !searchExcavator || 
+          (item.unit_exca?.toLowerCase().includes(searchExcavator.toLowerCase()));
+        const matchDumping = !searchDumpingPoint || 
+          (item.dumping_location?.toLowerCase().includes(searchDumpingPoint.toLowerCase()));
+        const matchLoading = !searchLoadingPoint || 
+          (item.loading_location?.toLowerCase().includes(searchLoadingPoint.toLowerCase()));
+        
+        return matchExcavator && matchDumping && matchLoading;
+      });
+
+      if (filteredItems.length === 0) return null;
+
+      // Recalculate totals for filtered items
+      const totalWeight = filteredItems.reduce((sum, item) => {
+        return sum + parseFloat(item.totalWeight || item.total_tonase || 0);
+      }, 0);
+
+      const totalTrips = filteredItems.reduce((sum, item) => {
+        return sum + parseInt(item.tripCount || item.total_ritase || 0);
+      }, 0);
+
+      return {
+        ...group,
+        items: filteredItems,
+        totalWeight: parseFloat(totalWeight.toFixed(2)),
+        totalTrips: totalTrips,
+      };
+    }).filter(Boolean); // Remove null groups
+  }, [groupedData, searchExcavator, searchDumpingPoint, searchLoadingPoint]);
+
   const paginatedData = useMemo(() => {
     const startIdx = (currentPage - 1) * ITEMS_PER_PAGE;
     const endIdx = startIdx + ITEMS_PER_PAGE;
-    return groupedData.slice(startIdx, endIdx);
-  }, [groupedData, currentPage]);
+    return filteredGroupedData.slice(startIdx, endIdx);
+  }, [filteredGroupedData, currentPage]);
 
   const totalPages = useMemo(() => {
-    return Math.ceil(groupedData.length / ITEMS_PER_PAGE);
-  }, [groupedData]);
+    return Math.ceil(filteredGroupedData.length / ITEMS_PER_PAGE);
+  }, [filteredGroupedData]);
 
 
     const handleEdit = (ritase) => {
@@ -361,7 +443,118 @@ const handleDeleteTripFromChecker = async (trip) => {
 
   const getTripCount = (item) => {
     return item.tripCount || item.total_ritase || 0;
+
+
   };
+
+    const renderSearchSection = () => (
+    <div className="mb-4 space-y-3 bg-gray-50 dark:bg-gray-800/50 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Search className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+          <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+            Search Ritase
+          </h3>
+        </div>
+        {hasActiveSearch && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleResetSearch}
+            className="h-7 px-2 text-xs text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
+          >
+            <X className="w-3 h-3 mr-1" />
+            Reset
+          </Button>
+        )}
+      </div>
+      
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        {/* Search by Excavator */}
+        <div className="space-y-1.5">
+          <label className="text-xs font-medium text-gray-600 dark:text-gray-400">
+            Excavator
+          </label>
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <Input
+              type="text"
+              placeholder="Cari excavator..."
+              value={searchExcavator}
+              onChange={(e) => setSearchExcavator(e.target.value)}
+              className="pl-9 h-9 text-sm dark:bg-gray-900 dark:border-gray-600 dark:text-gray-200"
+            />
+            {searchExcavator && (
+              <button
+                onClick={() => setSearchExcavator("")}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Search by Loading Point */}
+        <div className="space-y-1.5">
+          <label className="text-xs font-medium text-gray-600 dark:text-gray-400">
+            Loading Point
+          </label>
+          <div className="relative">
+            <Upload className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <Input
+              type="text"
+              placeholder="Cari loading point..."
+              value={searchLoadingPoint}
+              onChange={(e) => setSearchLoadingPoint(e.target.value)}
+              className="pl-9 h-9 text-sm dark:bg-gray-900 dark:border-gray-600 dark:text-gray-200"
+            />
+            {searchLoadingPoint && (
+              <button
+                onClick={() => setSearchLoadingPoint("")}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Search by Dumping Point */}
+        <div className="space-y-1.5">
+          <label className="text-xs font-medium text-gray-600 dark:text-gray-400">
+            Dumping Point
+          </label>
+          <div className="relative">
+            <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <Input
+              type="text"
+              placeholder="Cari dumping point..."
+              value={searchDumpingPoint}
+              onChange={(e) => setSearchDumpingPoint(e.target.value)}
+              className="pl-9 h-9 text-sm dark:bg-gray-900 dark:border-gray-600 dark:text-gray-200"
+            />
+            {searchDumpingPoint && (
+              <button
+                onClick={() => setSearchDumpingPoint("")}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {hasActiveSearch && (
+        <div className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400">
+          <span className="font-medium">
+            Ditemukan: {filteredGroupedData.length} grup
+          </span>
+        </div>
+      )}
+    </div>
+  );
 
   const getTotalWeight = (item) => {
     const weight = item.totalWeight || item.total_tonase || 0;
@@ -706,9 +899,117 @@ const handleDeleteTripFromChecker = async (trip) => {
 
             {isCCR && (
               <TabsContent value="all-shipment" className="mt-0">
+                {/* Search Section */}
+                <div className="mb-4 space-y-3 bg-gray-50 dark:bg-gray-800/50 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Search className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+                      <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                        Search Ritase
+                      </h3>
+                    </div>
+                    {hasActiveSearch && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={handleResetSearch}
+                        className="h-7 px-2 text-xs text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
+                      >
+                        <X className="w-3 h-3 mr-1" />
+                        Reset
+                      </Button>
+                    )}
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    {/* Search by Excavator */}
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-medium text-gray-600 dark:text-gray-400">
+                        Excavator
+                      </label>
+                      <div className="relative">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                        <Input
+                          type="text"
+                          placeholder="Cari excavator..."
+                          value={searchExcavator}
+                          onChange={(e) => setSearchExcavator(e.target.value)}
+                          className="pl-9 h-9 text-sm dark:bg-gray-900 dark:border-gray-600 dark:text-gray-200"
+                        />
+                        {searchExcavator && (
+                          <button
+                            onClick={() => setSearchExcavator("")}
+                            className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Search by Loading Point */}
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-medium text-gray-600 dark:text-gray-400">
+                        Loading Point
+                      </label>
+                      <div className="relative">
+                        <Upload className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                        <Input
+                          type="text"
+                          placeholder="Cari loading point..."
+                          value={searchLoadingPoint}
+                          onChange={(e) => setSearchLoadingPoint(e.target.value)}
+                          className="pl-9 h-9 text-sm dark:bg-gray-900 dark:border-gray-600 dark:text-gray-200"
+                        />
+                        {searchLoadingPoint && (
+                          <button
+                            onClick={() => setSearchLoadingPoint("")}
+                            className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Search by Dumping Point */}
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-medium text-gray-600 dark:text-gray-400">
+                        Dumping Point
+                      </label>
+                      <div className="relative">
+                        <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                        <Input
+                          type="text"
+                          placeholder="Cari dumping point..."
+                          value={searchDumpingPoint}
+                          onChange={(e) => setSearchDumpingPoint(e.target.value)}
+                          className="pl-9 h-9 text-sm dark:bg-gray-900 dark:border-gray-600 dark:text-gray-200"
+                        />
+                        {searchDumpingPoint && (
+                          <button
+                            onClick={() => setSearchDumpingPoint("")}
+                            className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {hasActiveSearch && (
+                    <div className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400">
+                      <span className="font-medium">
+                        Ditemukan: {filteredRitaseBySearch.length} data
+                      </span>
+                    </div>
+                  )}
+                </div>
+
                 <RitaseList
                   userRole="CCR"
-                  filteredRitaseData={filteredRitaseData}
+                  filteredRitaseData={filteredRitaseBySearch}
                   isInitialLoading={isInitialLoading}
                   isRefreshing={isRefreshing}
                   currentPage={currentRitasePage}
@@ -743,24 +1044,29 @@ const handleDeleteTripFromChecker = async (trip) => {
                     Memuat data...
                   </p>
                 </div>
-              ) : aggregatedData.length === 0 ? (
-                <div className="text-center py-12">
-                  <Package className="w-10 h-10 sm:w-12 sm:h-12 mx-auto text-gray-300 dark:text-gray-600" />
-                  <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-4">
-                    Belum ada data ritase
-                  </p>
-                </div>
               ) : (
                 <>
-                  {totalPages > 1 && (
-                    <div className="mt-4">
-                      <Pagination
-                        currentPage={currentPage}
-                        totalPages={totalPages}
-                        onPageChange={onPageChange}
-                        isLoading={isRefreshing}
-                      />
+                  {renderSearchSection()}
+                  {aggregatedData.length === 0 ? (
+                    <div className="text-center py-12">
+                      <Package className="w-10 h-10 sm:w-12 sm:h-12 mx-auto text-gray-300 dark:text-gray-600" />
+                      <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-4">
+                        {hasActiveSearch ? "Tidak ada data yang sesuai dengan pencarian" : "Belum ada data ritase"}
+                      </p>
                     </div>
+                  ) : (
+                    <>
+                      {totalPages > 1 && (
+                        <div className="mt-4">
+                          <Pagination
+                            currentPage={currentPage}
+                            totalPages={totalPages}
+                            onPageChange={onPageChange}
+                            isLoading={isRefreshing}
+                          />
+                        </div>
+                      )}
+                    </>
                   )}
                 </>
               )}
@@ -775,25 +1081,30 @@ const handleDeleteTripFromChecker = async (trip) => {
                       Memuat data...
                     </p>
                   </div>
-                ) : groupedData.length === 0 ? (
-                  <div className="text-center py-12">
-                    <Package className="w-10 h-10 sm:w-12 sm:h-12 mx-auto text-gray-300 dark:text-gray-600" />
-                    <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-4">
-                      Belum ada data ritase
-                    </p>
-                  </div>
                 ) : (
                   <>
-                    {renderGroupedView()}
-                    {totalPages > 1 && (
-                      <div className="mt-4">
-                        <Pagination
-                          currentPage={currentPage}
-                          totalPages={totalPages}
-                          onPageChange={onPageChange}
-                          isLoading={isRefreshing}
-                        />
+                    {renderSearchSection()}
+                    {filteredGroupedData.length === 0 ? (
+                      <div className="text-center py-12">
+                        <Package className="w-10 h-10 sm:w-12 sm:h-12 mx-auto text-gray-300 dark:text-gray-600" />
+                        <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-4">
+                          {hasActiveSearch ? "Tidak ada data yang sesuai dengan pencarian" : "Belum ada data ritase"}
+                        </p>
                       </div>
+                    ) : (
+                      <>
+                        {renderGroupedView()}
+                        {totalPages > 1 && (
+                          <div className="mt-4">
+                            <Pagination
+                              currentPage={currentPage}
+                              totalPages={totalPages}
+                              onPageChange={onPageChange}
+                              isLoading={isRefreshing}
+                            />
+                          </div>
+                        )}
+                      </>
                     )}
                   </>
                 )}

@@ -508,6 +508,23 @@ export const useRitaseStore = create(
           };
         }),
 
+      hardResetFleetData: () => {
+        try {
+          localStorage.removeItem("timbangan-store");
+
+          set({
+            fleetConfigs: [],
+            selectedFleetIds: [],
+            dtIndex: {},
+            hiddenDumptrucks: {},
+            lastFetchTimestamp: null,
+          });
+
+        } catch (error) {
+          console.error("❌ Hard reset failed:", error);
+        }
+      },
+
       loadFleetConfigsFromAPI: async (
         forceRefresh = false,
         dateRange = null,
@@ -520,6 +537,10 @@ export const useRitaseStore = create(
 
           if (!user) {
             throw new Error("User belum login");
+          }
+
+          if (forceRefresh) {
+            get().hardResetFleetData();
           }
 
           const weighBridgeId =
@@ -546,33 +567,14 @@ export const useRitaseStore = create(
           });
 
           if (result.success) {
-            const state = get();
-            const existingSelectedIds = state.selectedFleetIds || [];
-
-            const existingSelectedFleets = state.fleetConfigs.filter((f) =>
-              existingSelectedIds.includes(f.id),
-            );
-
-            const mergedConfigs = [...existingSelectedFleets, ...result.data];
-            const uniqueConfigs = Array.from(
-              new Map(mergedConfigs.map((c) => [c.id, c])).values(),
-            );
-
             set({
-              fleetConfigs: uniqueConfigs,
+              fleetConfigs: result.data,
+              selectedFleetIds: [],
+              dtIndex: {},
               isLoading: false,
               error: null,
               lastFetchTimestamp: new Date().toISOString(),
             });
-
-            if (existingSelectedIds.length > 0) {
-              const selectedConfigs = uniqueConfigs.filter((c) =>
-                existingSelectedIds.includes(c.id),
-              );
-              get()._executeIndexRebuild(selectedConfigs);
-            } else {
-              set({ dtIndex: {} });
-            }
 
             get().cleanupOldHiddenDumptrucks();
 

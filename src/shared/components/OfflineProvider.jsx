@@ -106,7 +106,14 @@ export const OfflineProvider = ({ children }) => {
   const loadPendingCount = useCallback(async () => {
     try {
       const count = await offlineService.getPendingCount();
-      batchStateUpdate({ pendingCount: count });
+      const failedCount = await offlineService.getFailedQueue?.()
+        .then(failed => failed.length)
+        .catch(() => 0);
+      
+      batchStateUpdate({ 
+        pendingCount: count,
+        failedCount: failedCount 
+      });
       return count;
     } catch (error) {
       console.error("Failed to load pending count:", error);
@@ -139,7 +146,7 @@ export const OfflineProvider = ({ children }) => {
 
       if (result.success) {
         if (result.synced > 0) {
-          showToast.success(`  ${result.synced} data berhasil disinkronkan`);
+          showToast.success(`✅ ${result.synced} data berhasil disinkronkan`);
         }
         if (result.failed > 0) {
           showToast.warning(`⚠️ ${result.failed} data gagal disinkronkan`);
@@ -172,7 +179,7 @@ export const OfflineProvider = ({ children }) => {
       const result = await offlineService.retryFailed();
 
       if (result.success && result.synced > 0) {
-        showToast.success(`  ${result.synced} data berhasil disinkronkan`);
+        showToast.success(`✅ ${result.synced} data berhasil disinkronkan`);
         await loadPendingCount();
       }
 
@@ -203,6 +210,46 @@ export const OfflineProvider = ({ children }) => {
       return { success: false, error: error.message };
     }
   }, [batchStateUpdate]);
+
+  // Fungsi baru untuk mendapatkan detail transaksi
+  const getQueueDetails = useCallback(async () => {
+    try {
+      const pending = await offlineService.getQueue();
+      const failed = await offlineService.getFailedQueue?.() || [];
+      
+      return {
+        pending: pending || [],
+        failed: failed || [],
+      };
+    } catch (error) {
+      console.error("Failed to get queue details:", error);
+      return { pending: [], failed: [] };
+    }
+  }, []);
+
+  // Fungsi baru untuk menghapus item spesifik
+  const deleteQueueItem = useCallback(async (id, type = 'pending') => {
+    try {
+      let result;
+      if (type === 'failed') {
+        result = await offlineService.deleteFailedItem?.(id);
+      } else {
+        result = await offlineService.deleteQueueItem?.(id);
+      }
+
+      if (result?.success) {
+        showToast.success("Data berhasil dihapus");
+        await loadPendingCount();
+        return { success: true };
+      } else {
+        throw new Error("Delete operation failed");
+      }
+    } catch (error) {
+      console.error("Failed to delete item:", error);
+      showToast.error("Gagal menghapus data");
+      return { success: false, error: error.message };
+    }
+  }, [loadPendingCount]);
 
   useEffect(() => {
     const handleQueueUpdated = () => {
@@ -264,6 +311,10 @@ export const OfflineProvider = ({ children }) => {
     clearOfflineData,
     loadPendingCount,
     setAutoSyncEnabled,
+    
+    // Fungsi baru
+    getQueueDetails,
+    deleteQueueItem,
 
     canSync: isOnline && !isSyncingRef.current,
     hasPendingData: syncStatus.pendingCount > 0,
