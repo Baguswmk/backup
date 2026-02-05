@@ -138,9 +138,17 @@ export const fleetService = {
         forceRefresh,
       });
 
-      if (forceRefresh) {
-        await offlineService.clearCache(cacheKey);
-      }
+     if (forceRefresh) {
+      logger.info('🗑️ Force refresh: clearing all fleet cache');
+      
+      await Promise.all([
+        offlineService.clearCache(cacheKey),              
+        offlineService.clearCacheByPrefix('fleets_'),    
+        offlineService.clearCacheByPrefix('setting-fleets'),
+      ]);
+      
+      logger.info('✅ Fleet cache cleared');
+    }
 
       const requestPromise = (async () => {
         try {
