@@ -129,12 +129,9 @@ export const fleetService = {
         return pendingRequests.get(requestKey);
       }
 
-      const ttl = CACHE_TTL.FLEET_DATA;
-
       logger.info("🔍 Fetching fleet configs", {
         filters: JSON.stringify(filters),
         cacheKey,
-        ttl: `${ttl / 1000}s`,
         forceRefresh,
       });
 
@@ -176,7 +173,6 @@ export const fleetService = {
               pagination: { pageSize: 500 },
             },
             cacheKey,
-            ttl,
             forceRefresh,
           });
 
@@ -621,7 +617,7 @@ export const fleetService = {
 
   async deleteFleetConfig(configId) {
     try {
-      await offlineService.delete(`/setting-fleets/${configId}`);
+      await offlineService.delete(`/v1/custom/setting-fleet/${configId}`);
 
       await Promise.all([
         offlineService.clearCache("fleets_"),
@@ -704,7 +700,7 @@ export const fleetService = {
 
       for (const fleetId of fleetIds) {
         try {
-          await offlineService.delete(`/setting-fleets/${fleetId}`);
+          await offlineService.delete(`/v1/custom/setting-fleet/${fleetId}`);
 
           results.success.push({ id: fleetId });
 
