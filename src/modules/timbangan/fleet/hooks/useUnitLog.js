@@ -134,12 +134,17 @@ export const useUnitLog = () => {
   /**
    * Add to MMCT list
    */
-  const addToMMCTList = useCallback(async (category, unitId, unitName) => {
+  const addToMMCTList = useCallback(async (category, unitId, unitName, description) => {
     setIsSaving(true);
     setError(null);
 
     try {
-      const result = await unitLogService.addToMMCTList(category, unitId, unitName);
+      // Validate description
+      if (!description || description.trim() === "") {
+        throw new Error("Keterangan tidak boleh kosong");
+      }
+
+      const result = await unitLogService.addToMMCTList(category, unitId, unitName, description);
 
       if (!result.success) {
         throw new Error(result.error);
@@ -204,14 +209,14 @@ export const useUnitLog = () => {
 
     try {
       const result = await unitLogService.bulkAddToMMCTList(category, equipmentList);
-
-      if (result.success) {
+        if (result.success) {
         showToast.success(result.message);
       } else if (result.partialSuccess) {
         showToast.warning(result.message);
       } else {
         throw new Error(result.error);
       }
+
 
       // Reload lists and statistics
       await Promise.all([

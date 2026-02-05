@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useRef, useEffect } from "react";
 import { Loader2, Eye, Edit, Trash2, MoreVertical } from "lucide-react";
 import {
   DropdownMenu,
@@ -21,15 +21,64 @@ const FleetSettingTable = ({
   itemsPerPage = 3,
 }) => {
   const [currentPage, setCurrentPage] = useState(1);
-
+  const [tooltipState, setTooltipState] = useState({
+    visible: false,
+    fleetId: null,
+    position: "bottom",
+    data: [],
+    locked: false,
+  });
+  const [searchQuery, setSearchQuery] = useState("");
+  const tooltipRef = useRef(null);
   const groupedFleetData = useMemo(() => {
     if (!fleetData || fleetData.length === 0) return [];
 
     let filtered = fleetData;
+
     if (selectedSatker) {
-      filtered = fleetData.filter((fleet) => fleet.workUnit === selectedSatker);
+      filtered = filtered.filter((fleet) => fleet.workUnit === selectedSatker);
     }
 
+    if (searchQuery && searchQuery.trim() !== "") {
+      const query = searchQuery.toLowerCase().trim();
+      filtered = filtered.filter((fleet) => {
+        const excavatorMatch = fleet.excavator?.toLowerCase().includes(query);
+        const loadingMatch = fleet.loadingLocation
+          ?.toLowerCase()
+          .includes(query);
+        const dumpingMatch = fleet.dumpingLocation
+          ?.toLowerCase()
+          .includes(query);
+        const mitraMatch = fleet.excavatorCompany
+          ?.toLowerCase()
+          .includes(query);
+        const satkerMatch = fleet.workUnit?.toLowerCase().includes(query);
+        const coalTypeMatch = fleet.coalType?.toLowerCase().includes(query);
+        const measurementMatch = fleet.measurementType
+          ?.toLowerCase()
+          .includes(query);
+
+        const unitsMatch =
+          fleet.units &&
+          Array.isArray(fleet.units) &&
+          fleet.units.some((unit) => {
+            const hullNoMatch = unit.hull_no?.toLowerCase().includes(query);
+            const operatorMatch = unit.operator?.toLowerCase().includes(query);
+            return hullNoMatch || operatorMatch;
+          });
+
+        return (
+          excavatorMatch ||
+          loadingMatch ||
+          dumpingMatch ||
+          mitraMatch ||
+          satkerMatch ||
+          coalTypeMatch ||
+          measurementMatch ||
+          unitsMatch
+        );
+      });
+    }
     let groupingKey = "loadingLocation";
     let groupLabel = "Loading Point";
 
@@ -155,15 +204,16 @@ const FleetSettingTable = ({
         rows: processedRows,
         totalTronton,
         totalTrintin,
-        totalDumptrucks: processedRows.reduce(
-          (sum, fleet) => sum + (fleet.dumptruckCount || 0),
-          0,
-        ),
+       totalDumptrucks: processedRows
+      .filter(fleet => fleet.isFirstInGroup)
+      .reduce((sum, fleet) => {
+        return sum + (fleet.isMergedGroup ? fleet.groupDumptruckCount : (fleet.dumptruckCount || 0));
+      }, 0),
       };
     });
 
     return result;
-  }, [fleetData, selectedSatker, selectedUrutkan]);
+  }, [fleetData, selectedSatker, selectedUrutkan, searchQuery]);
 
   const totalPages = Math.ceil(groupedFleetData.length / itemsPerPage);
 
@@ -175,13 +225,94 @@ const FleetSettingTable = ({
 
   useMemo(() => {
     setCurrentPage(1);
-  }, [selectedSatker, selectedUrutkan]);
-
+  }, [selectedSatker, selectedUrutkan, searchQuery]);
   const handlePageChange = (page) => {
     setCurrentPage(page);
 
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
+
+  const handleTooltipShow = (fleet, event) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    const viewportHeight = window.innerHeight;
+    const spaceBelow = viewportHeight - rect.bottom;
+    const spaceAbove = rect.top;
+
+      const position = spaceBelow >= 400? "bottom" : spaceAbove > 300? "top" : "bottom";
+
+    setTooltipState({
+      visible: true,
+      fleetId: fleet.id,
+      position: position,
+      data: fleet.units || [],
+      locked: false,
+    });
+  };
+
+  const handleTooltipHide = () => {
+    if (!tooltipState.locked) {
+      setTooltipState({
+        visible: false,
+        fleetId: null,
+        position: "bottom",
+        data: [],
+        locked: false,
+      });
+    }
+  };
+
+const handleTooltipClick = (fleet, event) => {
+  event.stopPropagation();
+  if (tooltipState.locked && tooltipState.fleetId === fleet.id) {
+    setTooltipState({
+      visible: false,
+      fleetId: null,
+      position: "bottom",
+      data: [],
+      locked: false,
+    });
+  } else {
+    const rect = event.currentTarget.getBoundingClientRect();
+    const viewportHeight = window.innerHeight;
+    const spaceBelow = viewportHeight - rect.bottom;
+    const spaceAbove = rect.top;
+
+    const position = spaceBelow >= 400 ? "bottom" : spaceAbove > 300 ? "top" : "bottom";
+
+    const tooltipData = fleet.isMergedGroup 
+      ? fleet.splitFleets.flatMap(f => f.units || [])
+      : fleet.units || [];
+
+    setTooltipState({
+      visible: true,
+      fleetId: fleet.id,
+      position: position, 
+      data: tooltipData, 
+      locked: true,
+    });
+  }
+};
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (tooltipRef.current && !tooltipRef.current.contains(event.target)) {
+        setTooltipState({
+          visible: false,
+          fleetId: null,
+          position: "bottom",
+          data: [],
+        });
+      }
+    };
+
+    if (tooltipState.visible) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [tooltipState.visible]);
 
   const grandTotals = useMemo(() => {
     const totals = {
@@ -203,6 +334,64 @@ const FleetSettingTable = ({
 
   return (
     <div className="w-full">
+      <div className="mb-4 flex items-center gap-3">
+        <div className="relative flex-1 max-w-md">
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Cari berdasarkan excavator, hull_no, loading point, dumping point, mitra, satker..."
+            className="w-full pl-10 pr-4 py-2.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-800 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 transition-all"
+          />
+          <svg
+            className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 dark:text-gray-500"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+            />
+          </svg>
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery("")}
+              className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+            >
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M6 18L18 6M6 6l12 12"
+                />
+              </svg>
+            </button>
+          )}
+        </div>
+
+        {searchQuery && (
+          <div className="text-sm text-gray-600 dark:text-gray-400">
+            Ditemukan{" "}
+            <span className="font-semibold text-blue-600 dark:text-blue-400">
+              {groupedFleetData.reduce(
+                (sum, group) => sum + group.rows.length,
+                0,
+              )}
+            </span>{" "}
+            hasil
+          </div>
+        )}
+      </div>
+
       <div className="rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm overflow-x-auto">
         <table className="w-full text-sm bg-white dark:bg-gray-800">
           <thead className="bg-linear-to-r from-blue-600 to-blue-700 dark:from-blue-700 dark:to-blue-800 text-white sticky top-0 z-10 shadow-md">
@@ -303,8 +492,6 @@ const FleetSettingTable = ({
                               </td>
                             )}
 
-                   
-
                             {/* Loading Point - merge untuk group yang sama */}
                             {fleet.isFirstInGroup && (
                               <td
@@ -316,12 +503,12 @@ const FleetSettingTable = ({
                                 </div>
                               </td>
                             )}
-  <td className="px-4 py-3 text-left border-r border-gray-300 dark:border-gray-600">
+                            <td className="px-4 py-3 text-left border-r border-gray-300 dark:border-gray-600">
                               <div className="text-gray-700 dark:text-gray-300">
                                 {fleet.dumpingLocation}
                               </div>
                             </td>
-                                     {/* Mitra - merge untuk group yang sama */}
+                            {/* Mitra - merge untuk group yang sama */}
                             {fleet.isFirstInGroup && (
                               <td
                                 className="px-4 py-3 text-left border-r border-gray-300 dark:border-gray-600 align-middle"
@@ -332,9 +519,6 @@ const FleetSettingTable = ({
                                 </div>
                               </td>
                             )}
-
-                            {/* Dumping Point - tampil per baris (TIDAK DI-MERGE) */}
-                          
 
                             {/* Jenis Batubara - tampil per baris (TIDAK DI-MERGE) */}
                             <td className="px-4 py-3 text-left border-r border-gray-300 dark:border-gray-600">
@@ -371,9 +555,89 @@ const FleetSettingTable = ({
                             </td>
 
                             {/* Jumlah DT - tampil per baris (TIDAK DI-MERGE) */}
-                            <td className="px-4 py-3 text-center border-r border-gray-300 dark:border-gray-600 font-semibold text-gray-900 dark:text-gray-100">
-                              {fleet.dumptruckCount || 0}
-                            </td>
+                            {fleet.isFirstInGroup && (
+                              <td
+                                className="px-4 py-3 text-center border-r border-gray-300 dark:border-gray-600 relative"
+                                rowSpan={fleet.groupSize}
+                              >
+                                <div
+                                  className="inline-block cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                                  onMouseEnter={(e) => {
+  const tooltipData = fleet.isMergedGroup 
+    ? fleet.splitFleets.flatMap(f => f.units || [])
+    : fleet.units || [];
+  
+  handleTooltipShow({...fleet, units: tooltipData}, e);
+}}
+                                  onMouseLeave={handleTooltipHide}
+                                  onClick={(e) => handleTooltipClick(fleet, e)}
+                                  ref={
+                                    tooltipState.fleetId === fleet.id
+                                      ? tooltipRef
+                                      : null
+                                  }
+                                >
+                                  <span className="text-gray-900 dark:text-gray-100">
+                                      {fleet.isMergedGroup 
+          ? fleet.groupDumptruckCount 
+          : (fleet.dumptruckCount || "-")
+        }
+                                  </span>
+
+                                  {/* Tooltip */}
+                                  {tooltipState.visible &&
+                                    tooltipState.fleetId === fleet.id && (
+                                      <div
+                                        className={`absolute ${
+                                          tooltipState.position === "top"
+                                            ? "bottom-full mb-2"
+                                            : "top-full mt-2"
+                                        } left-1/2 transform -translate-x-1/2 z-50 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg p-3 min-w-75 max-w-75`}
+                                      >
+                                        {/* Arrow indicator */}
+                                        <div
+                                          className={`absolute left-1/2 transform -translate-x-1/2 w-0 h-0 ${
+                                            tooltipState.position === "top"
+                                              ? "top-full border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-t-[6px] border-t-gray-300 dark:border-t-gray-600"
+                                              : "bottom-full border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-b-[6px] border-b-gray-300 dark:border-b-gray-600"
+                                          }`}
+                                        />
+
+                                        <div className="text-xs font-semibold mb-2 text-gray-700 dark:text-gray-300 border-b border-gray-200 dark:border-gray-700 pb-1">
+                                          List Dumptruck
+                                        </div>
+
+                                        {tooltipState.data.length > 0 ? (
+                                          <div className="max-h-50 overflow-y-auto">
+                                            <ul className="space-y-1">
+                                              {tooltipState.data.map(
+                                                (unit, idx) => (
+                                                  <li
+                                                    key={idx}
+                                                    className="text-xs text-gray-600 dark:text-gray-400 flex justify-between items-center py-1 border-b border-gray-100 dark:border-gray-700 last:border-0"
+                                                  >
+                                                    <span className="font-medium">
+                                                      {unit.hull_no ||
+                                                        `Unit ${idx + 1}`}
+                                                    </span>
+                                                    <span className="text-gray-500 dark:text-gray-500 text-[10px]">
+                                                      {unit.operator}
+                                                    </span>
+                                                  </li>
+                                                ),
+                                              )}
+                                            </ul>
+                                          </div>
+                                        ) : (
+                                          <p className="text-xs text-gray-500 dark:text-gray-500 italic">
+                                            Tidak ada data dumptruck
+                                          </p>
+                                        )}
+                                      </div>
+                                    )}
+                                </div>
+                              </td>
+                            )}
 
                             {/* Ket. - "Split" for merged groups */}
                             {fleet.isFirstInGroup && (
@@ -542,23 +806,33 @@ const FleetSettingTable = ({
       {groupedFleetData.length === 0 && !isLoading && (
         <div className="p-8 text-center text-gray-500 dark:text-gray-400">
           <p>
-            {selectedSatker && selectedUrutkan
-              ? `Tidak ada data fleet untuk satker "${selectedSatker}" dengan kategori "${
-                  selectedUrutkan === "all"
-                    ? "Semua"
-                    : selectedUrutkan === "dumping"
-                      ? "Dumping Point"
-                      : selectedUrutkan === "loading"
-                        ? "Loading Point"
-                        : selectedUrutkan === "mitra"
-                          ? "Mitra"
-                          : selectedUrutkan === "satker"
-                            ? "Satker"
-                            : selectedUrutkan
-                }"`
-              : selectedSatker
-                ? `Tidak ada data fleet untuk satker "${selectedSatker}"`
-                : "Silakan pilih Satker untuk menampilkan data fleet"}
+            {searchQuery ? (
+              <>
+                Tidak ditemukan hasil untuk pencarian "
+                <span className="font-semibold text-gray-700 dark:text-gray-300">
+                  {searchQuery}
+                </span>
+                "
+              </>
+            ) : selectedSatker && selectedUrutkan ? (
+              `Tidak ada data fleet untuk satker "${selectedSatker}" dengan kategori "${
+                selectedUrutkan === "all"
+                  ? "Semua"
+                  : selectedUrutkan === "dumping"
+                    ? "Dumping Point"
+                    : selectedUrutkan === "loading"
+                      ? "Loading Point"
+                      : selectedUrutkan === "mitra"
+                        ? "Mitra"
+                        : selectedUrutkan === "satker"
+                          ? "Satker"
+                          : selectedUrutkan
+              }"`
+            ) : selectedSatker ? (
+              `Tidak ada data fleet untuk satker "${selectedSatker}"`
+            ) : (
+              "Silakan pilih Satker untuk menampilkan data fleet"
+            )}
           </p>
         </div>
       )}

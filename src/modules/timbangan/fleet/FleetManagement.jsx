@@ -865,6 +865,7 @@ const FleetManagement = ({ Type }) => {
         onCreate={handleCreateConfig}
         onManageFleet={() => openModal("fleetSelection")}
         fleetCounts={fleetCounts}
+        fleetData={finalFilteredConfigs}
       />
 
       {userRole?.toLowerCase() === "ccr" && !userSatker && (

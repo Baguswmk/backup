@@ -2,7 +2,7 @@ import React from "react";
 import { Label } from "@/shared/components/ui/label";
 import MultiSearchableSelect from "@/shared/components/MultiSearchableSelect";
 import { InfoCard } from "@/shared/components/InfoCard";
-
+import SearchableSelect from "@/shared/components/SearchableSelect";
 const FleetInspectorCheckerSection = ({
   inspectorItems,
   checkerItems,
@@ -44,11 +44,11 @@ const FleetInspectorCheckerSection = ({
 
       <div className="space-y-2">
         <Label className="dark:text-gray-300">Checker *</Label>
-        <MultiSearchableSelect
+        <SearchableSelect
           items={checkerItems}
-          values={checkerIds}
+          value={checkerIds[0] || ""}
           onChange={handleCheckerChange}
-          placeholder="Pilih checker (bisa pilih banyak)"
+          placeholder="Pilih checker"
           emptyText="Checker tidak ditemukan"
           error={!!errors.checker}
           disabled={isSaving}
@@ -69,4 +69,3 @@ const FleetInspectorCheckerSection = ({
 };
 
 export default FleetInspectorCheckerSection;
-

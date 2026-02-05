@@ -11,6 +11,8 @@ import {
 } from "lucide-react";
 import { useMasterData } from "../../masterData/hooks/useMasterData";
 import MMCTEquipmentListModal from "./MMCTEquipmentListModal";
+import ExportFleetButtons from "./ExportFleetButtons";
+
 const FleetHeader = ({
   type,
   userRole,
@@ -25,10 +27,13 @@ const FleetHeader = ({
   onCreate,
   onManageFleet,
   fleetCounts,
+  fleetData = [],
+  selectedSatker,
+  selectedUrutkan,
 }) => {
   const { refreshAllMasterData, isRefreshingMasterData } = useMasterData();
 
-  // State untuk MMCT Equipment L ist Modal
+  // State untuk MMCT Equipment List Modal
   const [showMMCTEquipmentModal, setShowMMCTEquipmentModal] = useState(false);
 
   // Check if user is CCR
@@ -63,6 +68,15 @@ const FleetHeader = ({
 
         {/* Right: Action Buttons */}
         <div className="flex items-center gap-2 w-full sm:w-auto flex-wrap">
+          {/* Export Buttons (PDF & Excel) */}
+          <ExportFleetButtons
+            fleetData={fleetData}
+            selectedSatker={selectedSatker}
+            selectedUrutkan={selectedUrutkan}
+            type={type}
+            userRole={userRole}
+          />
+
           {/* MMCT Equipment List Button - Only for CCR */}
           {isCCR && (
             <Button
@@ -90,6 +104,7 @@ const FleetHeader = ({
             />
             <span className="hidden sm:inline">Master</span>
           </Button>
+
           {/* Refresh Fleet Data Button */}
           <Button
             onClick={onRefresh}

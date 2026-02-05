@@ -1,59 +1,138 @@
 import { offlineService } from "@/shared/services/offlineService";
 import { logger } from "@/shared/services/log";
 
-/**
- * Service untuk menangani pemindahan dump truck antar fleet
- */
 export const fleetTransferService = {
-  /**
-   * Handle save fleet dengan logic pindah DT dari fleet lain
-   * @param {Object} payload - Payload dari FleetModal
-   * @param {boolean} isEdit - Apakah ini mode edit atau create
-   * @param {string} currentFleetId - ID fleet yang sedang diedit (null jika create)
-   * @returns {Promise<Object>} Result dengan success status
-   */
   async saveFleetWithTransfer(payload, isEdit = false, currentFleetId = null) {
+    // Track untuk rollback jika terjadi error
+    const modifiedFleets = [];
+    
     try {
       const { moveFromFleets, ...basePayload } = payload;
 
-      // STEP 1: Jika ada DT yang perlu dipindahkan, update fleet lama dulu
+      logger.info("🔵 saveFleetWithTransfer started", {
+        isEdit,
+        currentFleetId,
+        hasTransfers: !!(moveFromFleets && moveFromFleets.length > 0),
+        transferCount: moveFromFleets?.length || 0,
+        basePayloadPairs: basePayload.pairDtOp?.length || 0,
+      });
+
+      // 🔧 FIX: STEP 1 - Save/Update fleet TARGET dulu (Fleet 1)
+      // Ini memastikan Fleet 1 sudah punya DT lengkap sebelum kita hapus dari fleet lain
+      let result;
+      if (isEdit && currentFleetId) {
+        logger.info("📝 Updating target fleet (Fleet 1) first", {
+          fleetId: currentFleetId,
+          pairs: basePayload.pairDtOp?.length || 0,
+        });
+        
+        result = await this.updateFleetConfig(currentFleetId, basePayload);
+        
+        if (!result.success) {
+          throw new Error(result.error || "Failed to update target fleet");
+        }
+        
+        logger.info("✅ Target fleet updated successfully", { fleetId: currentFleetId });
+      } else {
+        logger.info("📝 Creating new fleet first", {
+          pairs: basePayload.pairDtOp?.length || 0,
+        });
+        
+        result = await this.createFleetConfig(basePayload);
+        
+        if (!result.success) {
+          throw new Error(result.error || "Failed to create fleet");
+        }
+        
+        logger.info("✅ New fleet created successfully", {
+          fleetId: result.setting_fleet_id,
+        });
+      }
+
+      // 🔧 FIX: STEP 2 - Baru hapus DT dari fleet lama (SOURCE)
+      // Karena Fleet 1 sudah aman punya DT-nya, sekarang kita bersihkan fleet lama
       if (moveFromFleets && moveFromFleets.length > 0) {
-        logger.info("🔄 Starting dump truck transfer", {
+        logger.info("🔄 Starting dump truck transfer from source fleets", {
           count: moveFromFleets.length,
           transfers: moveFromFleets,
         });
 
         for (const transfer of moveFromFleets) {
-          await this.removeDumptruckFromFleet(
-            transfer.fromFleetId,
-            transfer.dumpTruckId
-          );
+          try {
+            logger.info("🗑️ Removing DT from source fleet", {
+              fromFleetId: transfer.fromFleetId,
+              dumpTruckId: transfer.dumpTruckId,
+            });
+
+            const removeResult = await this.removeDumptruckFromFleet(
+              transfer.fromFleetId,
+              transfer.dumpTruckId
+            );
+
+            // Track fleet yang sudah dimodifikasi untuk rollback
+            if (removeResult.success) {
+              modifiedFleets.push({
+                fleetId: transfer.fromFleetId,
+                dumpTruckId: transfer.dumpTruckId,
+                wasEmpty: removeResult.isEmpty,
+              });
+              
+              logger.info("✅ DT removed from source fleet", {
+                fromFleetId: transfer.fromFleetId,
+                dumpTruckId: transfer.dumpTruckId,
+                fleetNowEmpty: removeResult.isEmpty,
+              });
+            }
+          } catch (error) {
+            logger.error("❌ Failed to remove DT from source fleet", {
+              fromFleetId: transfer.fromFleetId,
+              dumpTruckId: transfer.dumpTruckId,
+              error: error.message,
+            });
+
+            // ⚠️ CRITICAL: Jika gagal hapus dari fleet lama, kita punya masalah
+            // Fleet 1 sudah ter-update dengan DT ini, tapi fleet lama masih punya
+            // Ini akan menyebabkan duplikasi
+            
+            // Option 1: Rollback Fleet 1 (kompleks, butuh backup state)
+            // Option 2: Continue dan log warning (biarkan user handle manual)
+            // Option 3: Throw error dan batalkan semua (tapi Fleet 1 sudah ter-update)
+            
+            // Untuk sekarang: log warning dan continue
+            logger.warn("⚠️ POTENTIAL DUPLICATION DETECTED", {
+              targetFleet: currentFleetId || result.setting_fleet_id,
+              sourceFleet: transfer.fromFleetId,
+              dumpTruckId: transfer.dumpTruckId,
+              message: "DT may exist in both fleets. Manual cleanup may be required.",
+            });
+            
+            // Tetap continue untuk DT lainnya
+            continue;
+          }
         }
 
-        logger.info("✅ All dump trucks removed from old fleets");
-      }
-
-      // STEP 2: Sekarang save/update fleet dengan DT yang baru
-      let result;
-      if (isEdit && currentFleetId) {
-        result = await this.updateFleetConfig(currentFleetId, basePayload);
-      } else {
-        result = await this.createFleetConfig(basePayload);
-      }
-
-      if (result.success) {
-        logger.info("✅ Fleet saved successfully with transfers", {
-          fleetId: isEdit ? currentFleetId : result.setting_fleet_id,
-          movedCount: moveFromFleets?.length || 0,
+        logger.info("✅ All dump truck transfers completed", {
+          totalTransfers: moveFromFleets.length,
+          successfulRemovals: modifiedFleets.length,
         });
       }
+
+      logger.info("✅ Fleet saved successfully with transfers", {
+        fleetId: isEdit ? currentFleetId : result.setting_fleet_id,
+        movedCount: moveFromFleets?.length || 0,
+        modifiedSourceFleets: modifiedFleets.length,
+      });
 
       return result;
     } catch (error) {
       logger.error("❌ Failed to save fleet with transfer", {
         error: error.message,
         details: error.response?.data,
+        modifiedFleets: modifiedFleets.length,
       });
+
+      // TODO: Implement rollback mechanism jika diperlukan
+      // Untuk sekarang, kita throw error dan biarkan UI handle
 
       throw error;
     }
@@ -86,11 +165,27 @@ export const fleetTransferService = {
       const fleet = fleetResponse.data;
       const pairs = fleet.attributes?.setting_dump_truck?.data?.attributes?.pair_dt_op || [];
 
+      logger.info("📊 Current fleet pairs before removal", {
+        fleetId,
+        totalPairs: pairs.length,
+        pairIds: pairs.map(p => p.dts?.data?.[0]?.id),
+      });
+
       // Filter pairs untuk hapus DT yang dimaksud
       const updatedPairs = pairs
         .filter((pair) => {
           const dtIds = (pair.dts?.data || []).map((dt) => String(dt.id));
-          return !dtIds.includes(String(dumpTruckId));
+          const shouldRemove = dtIds.includes(String(dumpTruckId));
+          
+          if (shouldRemove) {
+            logger.info("🎯 Found DT to remove in pair", {
+              fleetId,
+              dumpTruckId,
+              pairDtIds: dtIds,
+            });
+          }
+          
+          return !shouldRemove;
         })
         .map((pair) => {
           const dtId = pair.dts?.data?.[0]?.id;
@@ -108,49 +203,57 @@ export const fleetTransferService = {
         })
         .filter(Boolean);
 
+      logger.info("📊 Updated pairs after filtering", {
+        fleetId,
+        beforeCount: pairs.length,
+        afterCount: updatedPairs.length,
+        removed: pairs.length - updatedPairs.length,
+        isEmpty: updatedPairs.length === 0,
+      });
 
-        if (updatedPairs.length === 0) {
-  logger.info("✅ Fleet will have 0 dump trucks (valid state)", {
-    fleetId,
-  });
-}
+      if (updatedPairs.length === 0) {
+        logger.info("✅ Fleet will have 0 dump trucks (valid state)", {
+          fleetId,
+        });
+      }
 
-// Update fleet dengan pairs yang sudah difilter
-const updatePayload = {
-  pair_dt_op: updatedPairs, // Bisa [] (array kosong)
-};
+      // Update fleet dengan pairs yang sudah difilter
+      const updatePayload = {
+        pair_dt_op: updatedPairs, // Bisa [] (array kosong)
+      };
 
-const endpoint = `/v1/custom/setting-fleet/${fleetId}`;
+      const endpoint = `/v1/custom/setting-fleet/${fleetId}`;
 
-logger.info("📡 Updating fleet to remove dump truck", {
-  fleetId,
-  remainingPairs: updatedPairs.length,
-  isEmpty: updatedPairs.length === 0,
-  payload: updatePayload,
-});
+      logger.info("📡 Updating fleet to remove dump truck", {
+        fleetId,
+        endpoint,
+        remainingPairs: updatedPairs.length,
+        isEmpty: updatedPairs.length === 0,
+        payload: updatePayload,
+      });
 
-const response = await offlineService.put(endpoint, updatePayload);
+      const response = await offlineService.put(endpoint, updatePayload);
 
-if (response.status === "success") {
-  logger.info("✅ Dump truck removed successfully", {
-    fleetId,
-    dumpTruckId,
-    remainingPairs: updatedPairs.length,
-    isEmpty: updatedPairs.length === 0,
-  });
+      if (response.status === "success") {
+        logger.info("✅ Dump truck removed successfully", {
+          fleetId,
+          dumpTruckId,
+          remainingPairs: updatedPairs.length,
+          isEmpty: updatedPairs.length === 0,
+        });
 
-  // Clear cache
-  await offlineService.clearCache("fleets_");
+        // Clear cache
+        await offlineService.clearCache("fleets_");
 
-  return {
-    success: true,
-    fleetId,
-    remainingPairs: updatedPairs.length,
-    isEmpty: updatedPairs.length === 0,
-  };
-}
+        return {
+          success: true,
+          fleetId,
+          remainingPairs: updatedPairs.length,
+          isEmpty: updatedPairs.length === 0,
+        };
+      }
 
-throw new Error("Failed to update fleet");
+      throw new Error("Failed to update fleet");
     } catch (error) {
       logger.error("❌ Failed to remove dump truck from fleet", {
         fleetId,
@@ -169,9 +272,10 @@ throw new Error("Failed to update fleet");
   async createFleetConfig(configData) {
     try {
       const now = new Date().toISOString();
-       if (!configData.pairDtOp || configData.pairDtOp.length === 0) {
-      throw new Error("Fleet baru harus memiliki minimal 1 dump truck");
-    }
+      
+      if (!configData.pairDtOp || configData.pairDtOp.length === 0) {
+        throw new Error("Fleet baru harus memiliki minimal 1 dump truck");
+      }
 
       // ✅ FIX: Support both measurementType (camelCase) and measurement_type (snake_case)
       const measurementType = configData.measurementType || configData.measurement_type;
@@ -228,6 +332,12 @@ throw new Error("Failed to update fleet");
       ) {
         payload.weigh_bridge = parseInt(configData.weightBridgeId);
       }
+
+      logger.info("📡 Creating fleet config", {
+        excavatorId: payload.unit_exca,
+        pairsCount: payload.pair_dt_op.length,
+        isSplit: payload.isSplit,
+      });
 
       const response = await offlineService.post(
         "/v1/custom/setting-fleet",
@@ -323,7 +433,7 @@ throw new Error("Failed to update fleet");
           updates.inspectorIds.length > 0
         ) {
           payload.inspectors = updates.inspectorIds.map((id) => parseInt(id));
-          logger.info("📝 Updating inspectors", {
+          logger.info("🔍 Updating inspectors", {
             configId,
             count: payload.inspectors.length,
             ids: payload.inspectors,
@@ -334,7 +444,7 @@ throw new Error("Failed to update fleet");
       if (updates.checkerIds !== undefined) {
         if (Array.isArray(updates.checkerIds) && updates.checkerIds.length > 0) {
           payload.checkers = updates.checkerIds.map((id) => parseInt(id));
-          logger.info("📝 Updating checkers", {
+          logger.info("🔍 Updating checkers", {
             configId,
             count: payload.checkers.length,
             ids: payload.checkers,
@@ -368,8 +478,9 @@ throw new Error("Failed to update fleet");
 
       logger.info("📡 Sending update request", {
         endpoint,
-        payload,
+        configId,
         hasPairDtOp: !!payload.pair_dt_op,
+        pairCount: payload.pair_dt_op?.length,
         hasInspectors: !!payload.inspectors,
         hasCheckers: !!payload.checkers,
       });

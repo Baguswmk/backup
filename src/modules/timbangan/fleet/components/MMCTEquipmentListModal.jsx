@@ -9,6 +9,7 @@ import {
 } from "@/shared/components/ui/dialog";
 import { Button } from "@/shared/components/ui/button";
 import { Badge } from "@/shared/components/ui/badge";
+import { Input } from "@/shared/components/ui/input";
 import {
   Settings,
   Plus,
@@ -135,6 +136,7 @@ const MMCTEquipmentListModal = ({ isOpen, onClose }) => {
         equipmentType: isDT ? "DT" : "EXCA",
         equipmentId: id,
         equipmentName: equipment?.hull_no || equipment?.name || "",
+        description: "", // Add notes field
         isNew: true,
       };
     });
@@ -155,6 +157,21 @@ const MMCTEquipmentListModal = ({ isOpen, onClose }) => {
     if (newIds.length > 0 || removedIds.length > 0) {
       setHasChanges(true);
     }
+  };
+
+  const handleNotesChange = (category, index, description) => {
+    setTempEquipmentLists((prev) => {
+      const updatedCategory = [...prev[category]];
+      updatedCategory[index] = {
+        ...updatedCategory[index],
+        description: description,
+      };
+      return {
+        ...prev,
+        [category]: updatedCategory,
+      };
+    });
+    setHasChanges(true);
   };
 
   const handleRemoveEquipment = (category, index) => {
@@ -369,30 +386,44 @@ const MMCTEquipmentListModal = ({ isOpen, onClose }) => {
               {currentList.map((item, index) => (
                 <div
                   key={item.id || index}
-                  className="flex items-start gap-2 p-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 hover:shadow-md dark:hover:shadow-gray-900/50 transition-shadow"
+                  className="p-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 hover:shadow-md dark:hover:shadow-gray-900/50 transition-shadow"
                 >
-                  <div className="shrink-0 w-8 h-8 bg-gray-100 dark:bg-gray-700 rounded-lg flex items-center justify-center text-xs font-semibold text-gray-600 dark:text-gray-300">
-                    {index + 1}
+                  <div className="flex items-start gap-2 mb-2">
+                    <div className="shrink-0 w-8 h-8 bg-gray-100 dark:bg-gray-700 rounded-lg flex items-center justify-center text-xs font-semibold text-gray-600 dark:text-gray-300">
+                      {index + 1}
+                    </div>
+
+                    <div className="flex-1">
+                      <div className="font-medium text-gray-900 dark:text-gray-100">
+                        {item.equipmentName}
+                      </div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400">
+                        ID: {item.equipmentId}
+                      </div>
+                    </div>
+
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleRemoveEquipment(categoryId, index)}
+                      disabled={isSaving}
+                      className="shrink-0 h-8 w-8 p-0 text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
                   </div>
 
-                  <div className="flex-1">
-                    <div className="font-medium text-gray-900 dark:text-gray-100">
-                      {item.equipmentName}
-                    </div>
-                    <div className="text-xs text-gray-500 dark:text-gray-400">
-                      ID: {item.equipmentId}
-                    </div>
+                  {/* Notes Input - Disabled if already has description and not new */}
+                  <div className="ml-10">
+                    <Input
+                      type="text"
+                      placeholder="Tambahkan catatan (opsional)..."
+                      value={item.description || ""}
+                      onChange={(e) => handleNotesChange(categoryId, index, e.target.value)}
+                      disabled={isSaving || (!item.isNew && item.description)}
+                      className="w-full text-sm bg-gray-50 dark:bg-gray-900 border-gray-300 dark:border-gray-600 dark:text-neutral-50 focus:border-blue-500 dark:focus:border-blue-400 focus:ring-1 focus:ring-blue-500 dark:focus:ring-blue-400 disabled:opacity-60 disabled:cursor-not-allowed"
+                    />
                   </div>
-
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleRemoveEquipment(categoryId, index)}
-                    disabled={isSaving}
-                    className="shrink-0 h-8 w-8 p-0 text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
                 </div>
               ))}
             </div>

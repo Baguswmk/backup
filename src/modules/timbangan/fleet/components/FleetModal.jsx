@@ -145,11 +145,24 @@ const FleetModal = ({
   );
 
   const handleCheckerChange = useCallback(
-    (newCheckerIds) => {
-      setCheckerIds(newCheckerIds);
+    (newCheckerId) => {
+      // SearchableSelect mengirim single value, simpan sebagai array dengan max 1 item
+      // Jika value kosong/null, set array kosong
+      if (!newCheckerId) {
+        setCheckerIds([]);
+        if (isSplitMode) {
+          setFleet2CheckerIds([]);
+        }
+        return;
+      }
+      
+      // Replace dengan checker yang baru dipilih (max 1 checker)
+      const updated = [newCheckerId];
+      setCheckerIds(updated);
+      
       // Jika split mode aktif, sync ke Fleet 2
       if (isSplitMode) {
-        setFleet2CheckerIds(newCheckerIds);
+        setFleet2CheckerIds(updated);
       }
     },
     [isSplitMode, setFleet2CheckerIds],

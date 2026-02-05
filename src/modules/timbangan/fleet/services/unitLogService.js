@@ -290,7 +290,7 @@ export const unitLogService = {
   /**
    * Add equipment to MMCT list
    */
-  async addToMMCTList(category, unitId, unitName) {
+  async addToMMCTList(category, unitId, unitName, description = "") {
     try {
       logger.info("➕ Adding unit to MMCT list", { category, unitId });
 
@@ -298,6 +298,11 @@ export const unitLogService = {
       const validCategories = ["dt_service", "dt_bd", "exca_service", "exca_bd"];
       if (!validCategories.includes(category)) {
         throw new Error("Kategori tidak valid");
+      }
+
+      // Validate description
+      if (!description || description.trim() === "") {
+        throw new Error("Keterangan tidak boleh kosong");
       }
 
       // Determine status from category
@@ -308,7 +313,7 @@ export const unitLogService = {
         entry_date: new Date().toISOString(),
         status: status,
         unit: unitId,
-        description: `${category} - ${unitName}`,
+        description: description.trim(),
       };
 
       const result = await this.createUnitLog(data);
@@ -400,20 +405,33 @@ export const unitLogService = {
 
       for (const equipment of equipmentList) {
         try {
+          // Validate description
+          if (!equipment.description || equipment.description.trim() === "") {
+            results.failed.push({
+              id: equipment.equipmentId,
+              name: equipment.equipmentName,
+              error: "Keterangan tidak boleh kosong",
+            });
+            continue;
+          }
+
           const result = await this.addToMMCTList(
             category,
             equipment.equipmentId,
-            equipment.equipmentName
+            equipment.equipmentName,
+            equipment.description
           );
 
           if (result.success) {
             results.success.push({
               id: equipment.equipmentId,
+              name: equipment.equipmentName,
               data: result.data,
             });
           } else {
             results.failed.push({
               id: equipment.equipmentId,
+              name: equipment.equipmentName,
               error: result.error,
             });
           }
@@ -422,6 +440,7 @@ export const unitLogService = {
 
           results.failed.push({
             id: equipment.equipmentId,
+            name: equipment.equipmentName,
             error: errorMessage,
           });
 
