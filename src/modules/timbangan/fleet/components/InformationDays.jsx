@@ -1,12 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { Calendar, Clock, Users, MapPin } from "lucide-react";
-import { getWorkShiftInfo  } from "@/shared/utils/date";
-import { getCurrentShift } from "@/shared/utils/shift";
+import { calculateCurrentShiftAndGroup } from "@/shared/utils/group";
 
 const InformationDays = ({
-  selectedDate,
-  selectedShift,
-  selectedGroup,
   selectedSatker,
   selectedUrutkan,
   onSatkerChange,
@@ -15,13 +11,14 @@ const InformationDays = ({
   locations = [],
 }) => {
   const [currentTime, setCurrentTime] = useState(new Date());
-  const [workShiftInfo, setWorkShiftInfo] = useState(getWorkShiftInfo());
+  const [shiftInfo, setShiftInfo] = useState(() => calculateCurrentShiftAndGroup());
 
-  // Update waktu setiap detik
+  // Update waktu dan shift setiap detik
   useEffect(() => {
     const timer = setInterval(() => {
-      setCurrentTime(new Date());
-      setWorkShiftInfo(getWorkShiftInfo());
+      const now = new Date();
+      setCurrentTime(now);
+      setShiftInfo(calculateCurrentShiftAndGroup(now));
     }, 1000);
 
     return () => clearInterval(timer);
@@ -29,31 +26,14 @@ const InformationDays = ({
 
   // Format hari saja (contoh: Kamis)
   const formatDay = (date) => {
-    if (!date) {
-      const options = { weekday: "long" };
-      return currentTime.toLocaleDateString("id-ID", options);
-    }
     const options = { weekday: "long" };
-    return new Date(date).toLocaleDateString("id-ID", options);
+    return date.toLocaleDateString("id-ID", options);
   };
 
   // Format tanggal saja (contoh: 29 Januari 2026)
   const formatDate = (date) => {
-    if (!date) {
-      const options = { year: "numeric", month: "long", day: "numeric" };
-      return currentTime.toLocaleDateString("id-ID", options);
-    }
     const options = { year: "numeric", month: "long", day: "numeric" };
-    return new Date(date).toLocaleDateString("id-ID", options);
-  };
-
-  // Format shift
-  const formatShift = (shift) => {
-    if (!shift) {
-      const currentShift = getCurrentShift();
-      return currentShift;
-    }
-    return shift;
+    return date.toLocaleDateString("id-ID", options);
   };
 
   // Format jam real-time (HH:MM:SS)
@@ -74,7 +54,7 @@ const InformationDays = ({
             <div className="flex items-center gap-2">
               <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Hari :</p>
               <p className="text-base font-semibold text-gray-900 dark:text-white">
-                {formatDay(selectedDate)}
+                {formatDay(currentTime)}
               </p>
             </div>
           </div>
@@ -84,7 +64,7 @@ const InformationDays = ({
             <div className="flex items-center gap-2">
               <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Tanggal :</p>
               <p className="text-base font-semibold text-gray-900 dark:text-white">
-                {formatDate(selectedDate)}
+                {formatDate(currentTime)}
               </p>
             </div>
           </div>
@@ -94,7 +74,7 @@ const InformationDays = ({
             <div className="flex items-center gap-2">
               <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Shift :</p>
               <p className="text-base font-semibold text-gray-900 dark:text-white">
-                {formatShift(selectedShift)}
+                {shiftInfo.currentShift}
               </p>
             </div>
           </div>
@@ -117,7 +97,7 @@ const InformationDays = ({
             <div className="flex items-center gap-2">
               <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Group :</p>
               <p className="text-base font-semibold text-gray-900 dark:text-white">
-                {selectedGroup || "D"}
+                {shiftInfo.activeGroup}
               </p>
             </div>
           </div>
@@ -155,7 +135,7 @@ const InformationDays = ({
               <select
                 value={selectedUrutkan || ""}
                 onChange={(e) => onUrutkanChange(e.target.value)}
-                   className="w-full px-3 py-2 text-sm font-semibold text-gray-900 dark:text-white bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 disabled:bg-gray-100 dark:disabled:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-50"
+                className="w-full px-3 py-2 text-sm font-semibold text-gray-900 dark:text-white bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 disabled:bg-gray-100 dark:disabled:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <option value="all">All</option>
                 <option value="dumping">Dumping Point</option>

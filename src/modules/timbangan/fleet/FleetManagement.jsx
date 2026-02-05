@@ -893,9 +893,6 @@ const FleetManagement = ({ Type }) => {
 
       {/* 2. Information Days - NEW */}
       <InformationDays
-        selectedDate={new Date()}
-        selectedShift="II"
-        selectedGroup="D"
         selectedSatker={selectedSatker}
         selectedUrutkan={selectedUrutkan}
         onSatkerChange={handleSatkerChange}
