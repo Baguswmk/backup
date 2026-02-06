@@ -48,7 +48,8 @@ const [ritaseData, setRitaseData] = useState({
   shift: "",
   weight: "",
   grossWeight: "",
-  distance: 0,      
+  distance: 0,
+  createdTime: new Date().toTimeString().slice(0, 5), // Format: HH:mm
 });
 
   const [errors, setErrors] = useState({});
@@ -77,15 +78,16 @@ useEffect(() => {
       coalType: selectedFleetConfig.coalTypeId || "",
       workUnit: selectedFleetConfig.workUnitId || "",
       measurementType: selectedFleetConfig.measurementType || "",
-      checker: selectedFleetConfig.checkerId || "",      
-      inspector: selectedFleetConfig.inspectorId || "",  
-      distance: selectedFleetConfig.distance || 0,       
+      checker: selectedFleetConfig.checkerId || "",
+      inspector: selectedFleetConfig.inspectorId || "",
+      distance: selectedFleetConfig.distance || 0,
       dumpTruck: "",
       operator: "",
       date: new Date().toISOString().split("T")[0],
       shift: "",
       weight: "",
       grossWeight: "",
+      createdTime: new Date().toTimeString().slice(0, 5),
     });
   } else if (isOpen) {
     // Reset form
@@ -106,6 +108,7 @@ useEffect(() => {
       shift: "",
       weight: "",
       grossWeight: "",
+      createdTime: new Date().toTimeString().slice(0, 5),
     });
   }
   setErrors({});
@@ -284,6 +287,9 @@ const handleSave = useCallback(async () => {
       
       measurement_type: ritaseData.measurementType,
       distance: parseFloat(ritaseData.distance) || 0,
+      
+      // Gabungkan date + time untuk created_at
+      created_at: `${ritaseData.date}T${ritaseData.createdTime}:00`,
     };
 
     // ✅ CRITICAL FIX: Checker & Inspector dengan validasi proper
@@ -685,6 +691,24 @@ const inspectorItems = useMemo(() => {
                 {errors.shift && (
                   <p className="text-sm text-red-500 dark:text-red-400">
                     {errors.shift}
+                  </p>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label className="dark:text-gray-300">Waktu Input *</Label>
+                <Input
+                  type="time"
+                  value={ritaseData.createdTime}
+                  onChange={(e) =>
+                    setRitaseData((p) => ({ ...p, createdTime: e.target.value }))
+                  }
+                  disabled={isSaving}
+                  className="border-none dark:text-gray-300 dark:bg-gray-700"
+                />
+                {errors.createdTime && (
+                  <p className="text-sm text-red-500 dark:text-red-400">
+                    {errors.createdTime}
                   </p>
                 )}
               </div>

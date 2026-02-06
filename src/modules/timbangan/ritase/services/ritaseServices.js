@@ -677,7 +677,6 @@ async fetchSummaryFleetByRitases(options = {}) {
 
         checker: data.checker ? parseInt(data.checker) : null,
         inspector: data.inspector ? parseInt(data.inspector) : null,
-
         // Backend expects these exact field names:
         loading_location: parseInt(data.loading_location),
         dumping_location: parseInt(data.dumping_location),
@@ -688,6 +687,7 @@ async fetchSummaryFleetByRitases(options = {}) {
         pic_work_unit: parseInt(data.pic_work_unit),
         unit_dump_truck: parseInt(data.unit_dump_truck),
         operator: data.operator ? parseInt(data.operator) : null,
+        created_at: data.created_at,
       };
 
       // Handle weight based on measurement type
@@ -763,10 +763,12 @@ async fetchSummaryFleetByRitases(options = {}) {
           inspector: data.inspector,
           created_by_user: data.created_by_user,
           distance: parseFloat(data.distance) || 0,
+                    created_at: data.created_at,
 
           id_setting_fleet: data.id_setting_fleet || null,
           weigh_bridge: data.weigh_bridge || null,
           spph: data.spph || null,
+
       };
 
       if (data.measurement_type === "Timbangan") {

@@ -77,6 +77,7 @@ const RitaseDuplicateForm = ({ sourceRitase, onSubmit, onCancel }) => {
     shift: getValueFromSource('shift') || "Shift 1",
     checker: getValueFromSource('checker') || "",
     inspector: getValueFromSource('inspector') || "",
+    createdTime: new Date().toTimeString().slice(0, 5), // Format: HH:mm
     created_by_user: getCreatedByUserId()
   });
 
@@ -174,6 +175,10 @@ const RitaseDuplicateForm = ({ sourceRitase, onSubmit, onCancel }) => {
       newErrors.shift = "Shift harus dipilih";
     }
 
+    if (!formData.createdTime) {
+      newErrors.createdTime = "Waktu harus diisi";
+    }
+
     if (needsGrossWeight) {
       if (!formData.gross_weight || formData.gross_weight.trim() === "") {
         newErrors.weight = "Berat kotor wajib diisi untuk Jembatan Timbang";
@@ -239,6 +244,9 @@ const RitaseDuplicateForm = ({ sourceRitase, onSubmit, onCancel }) => {
         company: selectedDumpTruck?.company,
         created_by_user: getCreatedByUserId(),
         tare_weight: selectedDumpTruck?.tare_weight || 0,
+        
+        // Gabungkan date + time untuk created_at
+        created_at: `${formData.date}T${formData.createdTime}:00`,
         
         // Gunakan getValueFromSource untuk field yang mungkin undefined
         unit_exca: getValueFromSource('unit_exca'),
@@ -414,6 +422,26 @@ const RitaseDuplicateForm = ({ sourceRitase, onSubmit, onCancel }) => {
           />
           {errors.date && (
             <p className="text-sm text-red-500">{errors.date}</p>
+          )}
+        </div>
+
+        {/* Waktu Input */}
+        <div className="space-y-2">
+          <Label htmlFor="createdTime" className="dark:text-gray-200">
+            Waktu <span className="text-red-500">*</span>
+          </Label>
+          <Input
+            id="createdTime"
+            type="time"
+            value={formData.createdTime}
+            onChange={(e) => handleChange("createdTime", e.target.value)}
+            disabled={isSubmitting}
+            className={`dark:bg-slate-800 dark:text-gray-100 ${
+              errors.createdTime ? "border-red-500" : ""
+            }`}
+          />
+          {errors.createdTime && (
+            <p className="text-sm text-red-500">{errors.createdTime}</p>
           )}
         </div>
 
