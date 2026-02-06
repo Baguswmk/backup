@@ -40,12 +40,10 @@ const isDateRangeToday = (dateRange) => {
   return dateRange.from === today && dateRange.to === today;
 };
 
-const getTTLForDate = (dateRange, type = "fleet") => {
+const getTTLForDate = (dateRange, type) => {
   const isTodayRange = isDateRangeToday(dateRange);
 
-  if (type === "fleet") {
-    return isTodayRange ? CACHE_CONFIG.FLEET_TODAY : CACHE_CONFIG.FLEET_HISTORY;
-  } else if (type === "timbangan") {
+   if (type === "timbangan") {
     return isTodayRange
       ? CACHE_CONFIG.TIMBANGAN_TODAY
       : CACHE_CONFIG.TIMBANGAN_HISTORY;
