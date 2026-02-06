@@ -278,7 +278,7 @@ const FleetDetailModal = ({ isOpen, config, onClose, onEdit, dumptruck }) => {
                                   <td className="px-3 py-2 text-sm dark:text-gray-300">
                                     <div className="flex items-center gap-1">
                                       <User className="w-3 h-3 text-gray-500 dark:text-gray-400" />
-                                      {dt.operatorName}
+                                      {dt.operator}
                                     </div>
                                   </td>
                                   <td className="px-3 py-2 text-sm text-gray-600 dark:text-gray-400">
