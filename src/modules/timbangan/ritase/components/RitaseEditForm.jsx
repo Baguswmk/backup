@@ -41,7 +41,7 @@ const SHIFT_OPTIONS = [
 
 const RitaseEditForm = ({
   editingItem,
-  onSuccess,  // Changed from onSubmit to onSuccess (callback setelah berhasil)
+  onSuccess, // Changed from onSubmit to onSuccess (callback setelah berhasil)
   onCancel,
 }) => {
   const { user } = useAuthStore();
@@ -51,7 +51,7 @@ const RitaseEditForm = ({
     formData,
     errors,
     isValid,
-    isSubmitting,  // Ini dari useRitaseForm, bukan prop lagi
+    isSubmitting, // Ini dari useRitaseForm, bukan prop lagi
     updateField,
     validateField,
     handleSubmit,
@@ -118,6 +118,14 @@ const RitaseEditForm = ({
       hint: ex.company || "-",
     }));
   }, [masters.excavators]);
+
+  const operatorOptions = useMemo(() => {
+    return (masters.operators || []).map((op) => ({
+      value: op.name,
+      label: op.name,
+      hint: op.company || "-",
+    }));
+  }, [masters.operators]);
 
   const coalTypeOptions = useMemo(() => {
     return (masters.coalTypes || []).map((ct) => ({
@@ -270,7 +278,7 @@ const RitaseEditForm = ({
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <div>
                 <Label className="pb-2 dark:text-gray-300" htmlFor="weight">
                   {weightFieldLabel} *
@@ -280,9 +288,7 @@ const RitaseEditForm = ({
                   type="text"
                   inputMode="decimal"
                   value={
-                    useNetWeight
-                      ? formData.net_weight
-                      : formData.gross_weight
+                    useNetWeight ? formData.net_weight : formData.gross_weight
                   }
                   onChange={(e) => handleWeightChange(e.target.value)}
                   onBlur={() => validateField(weightFieldName)}
@@ -296,25 +302,6 @@ const RitaseEditForm = ({
                   </p>
                 )}
               </div>
-
-              <div>
-                <Label className="pb-2 dark:text-gray-300">
-                  Dump Truck *
-                </Label>
-                <SearchableSelect
-                  items={dumptruckOptions}
-                  value={formData.unit_dump_truck}
-                  onChange={(value) => updateField("unit_dump_truck", value)}
-                  placeholder="Pilih dump truck..."
-                  error={!!errors.unit_dump_truck}
-                />
-                {errors.unit_dump_truck && (
-                  <p className="text-sm text-red-500 mt-1">
-                    {errors.unit_dump_truck}
-                  </p>
-                )}
-              </div>
-
               <div>
                 <Label className="pb-2 dark:text-gray-300">Excavator *</Label>
                 <SearchableSelect
@@ -328,6 +315,34 @@ const RitaseEditForm = ({
                   <p className="text-sm text-red-500 mt-1">
                     {errors.unit_exca}
                   </p>
+                )}
+              </div>
+              <div>
+                <Label className="pb-2 dark:text-gray-300">Dump Truck *</Label>
+                <SearchableSelect
+                  items={dumptruckOptions}
+                  value={formData.unit_dump_truck}
+                  onChange={(value) => updateField("unit_dump_truck", value)}
+                  placeholder="Pilih dump truck..."
+                  error={!!errors.unit_dump_truck}
+                />
+                {errors.unit_dump_truck && (
+                  <p className="text-sm text-red-500 mt-1">
+                    {errors.unit_dump_truck}
+                  </p>
+                )}
+              </div>
+              <div>
+                <Label className="pb-2 dark:text-gray-300">Operator *</Label>
+                <SearchableSelect
+                  items={operatorOptions}
+                  value={formData.operator}
+                  onChange={(value) => updateField("operator", value)}
+                  placeholder="Pilih operator..."
+                  error={!!errors.operator}
+                />
+                {errors.operator && (
+                  <p className="text-sm text-red-500 mt-1">{errors.operator}</p>
                 )}
               </div>
             </div>

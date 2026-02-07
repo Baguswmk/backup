@@ -37,7 +37,7 @@ import {
   Copy,
   Edit2,
   Search,
-  X
+  X,
 } from "lucide-react";
 import {
   Table,
@@ -66,9 +66,9 @@ import AggregatedInputModal from "./AggregatedInputModal";
 import KertasCheckerDialog from "./KertasCheckerDialog";
 import { format } from "date-fns";
 import { id as localeId } from "date-fns/locale";
-import RitaseEditForm from  "@/modules/timbangan/ritase/components/RitaseEditForm";
-import RitaseDuplicateForm from  "@/modules/timbangan/ritase/components/RitaseDuplicateForm";
-import DeleteConfirmDialog from "@/shared/components/DeleteConfirmDialog"
+import RitaseEditForm from "@/modules/timbangan/ritase/components/RitaseEditForm";
+import RitaseDuplicateForm from "@/modules/timbangan/ritase/components/RitaseDuplicateForm";
+import DeleteConfirmDialog from "@/shared/components/DeleteConfirmDialog";
 const ITEMS_PER_PAGE = 10;
 
 const AggregatedRitase = ({
@@ -101,15 +101,13 @@ const AggregatedRitase = ({
   onUpdateRitase,
   onDeleteRitase,
   onDuplicateRitase,
-   refreshButtonRef,
+  refreshButtonRef,
 }) => {
   const [selectedDetail, setSelectedDetail] = useState(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedChecker, setSelectedChecker] = useState(null);
   const [isCheckerDialogOpen, setIsCheckerDialogOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState(
-    isCCR ? "checker" : "checker",
-  );
+  const [activeTab, setActiveTab] = useState(isCCR ? "checker" : "checker");
 
   const [expandedGroups, setExpandedGroups] = useState({});
   const [detailTrips, setDetailTrips] = useState([]);
@@ -122,50 +120,70 @@ const AggregatedRitase = ({
   const [isDuplicateModalOpen, setIsDuplicateModalOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isDeletingRitase, setIsDeletingRitase] = useState(false);
-  
+
   // Search states
   const [searchExcavator, setSearchExcavator] = useState("");
   const [searchDumpingPoint, setSearchDumpingPoint] = useState("");
   const [searchLoadingPoint, setSearchLoadingPoint] = useState("");
+  const [searchDumptruck, setSearchDumptruck] = useState("");
+
   // Filtered ritase data based on search
   const filteredRitaseBySearch = useMemo(() => {
-    if (!searchExcavator && !searchDumpingPoint && !searchLoadingPoint) {
+    if (!searchExcavator && !searchDumpingPoint && !searchLoadingPoint && !searchDumptruck) {
       return filteredRitaseData;
     }
-    
+
     return filteredRitaseData.filter((ritase) => {
-      const matchExcavator = !searchExcavator || 
-        (ritase.unit_exca?.toLowerCase().includes(searchExcavator.toLowerCase()));
-      const matchDumping = !searchDumpingPoint || 
-        (ritase.dumping_location?.toLowerCase().includes(searchDumpingPoint.toLowerCase()));
-      const matchLoading = !searchLoadingPoint || 
-        (ritase.loading_location?.toLowerCase().includes(searchLoadingPoint.toLowerCase()));
-      
-      return matchExcavator && matchDumping && matchLoading;
+      const matchExcavator =
+        !searchExcavator ||
+        ritase.unit_exca?.toLowerCase().includes(searchExcavator.toLowerCase());
+      const matchDumping =
+        !searchDumpingPoint ||
+        ritase.dumping_location
+          ?.toLowerCase()
+          .includes(searchDumpingPoint.toLowerCase());
+      const matchLoading =
+        !searchLoadingPoint ||
+        ritase.loading_location
+          ?.toLowerCase()
+          .includes(searchLoadingPoint.toLowerCase());
+      const matchDumptruck =
+        !searchDumptruck || ritase.unit_dump_truck?.toLowerCase().includes(searchDumptruck.toLowerCase());
+
+      return matchExcavator && matchDumping && matchLoading && matchDumptruck;
     });
-  }, [filteredRitaseData, searchExcavator, searchDumpingPoint, searchLoadingPoint]);
+  }, [
+    filteredRitaseData,
+    searchExcavator,
+    searchDumpingPoint,
+    searchLoadingPoint,
+    searchDumptruck
+  ]);
 
   // Reset search filters
   const handleResetSearch = () => {
     setSearchExcavator("");
     setSearchDumpingPoint("");
     setSearchLoadingPoint("");
+    setSearchDumptruck("");
   };
 
   // Check if any search is active
-  const hasActiveSearch = searchExcavator || searchDumpingPoint || searchLoadingPoint;
+  const hasActiveSearch =
+    searchExcavator || searchDumpingPoint || searchLoadingPoint || searchDumptruck;
 
   // Reset page to 1 when search changes
   useEffect(() => {
     if (hasActiveSearch && onPageChange) {
       onPageChange(1);
     }
-  }, [searchExcavator, searchDumpingPoint, searchLoadingPoint]);
+  }, [searchExcavator, searchDumpingPoint, searchLoadingPoint, searchDumptruck]);
 
   const groupedData = useMemo(() => {
     // Extract summaries data from new structure
-    const summariesData = aggregatedData?.summaries?.data || aggregatedData || [];
-    
+    const summariesData =
+      aggregatedData?.summaries?.data || aggregatedData || [];
+
     if (activeTab === "excavator") {
       return summariesData;
     }
@@ -205,7 +223,7 @@ const AggregatedRitase = ({
 
       grouped[key].totalWeight += parseFloat(weight);
       grouped[key].totalTrips += parseInt(trips);
-      
+
       // Track unique excavators
       if (item.unit_exca) {
         grouped[key].uniqueExcavators.add(item.unit_exca);
@@ -220,43 +238,53 @@ const AggregatedRitase = ({
     }));
   }, [aggregatedData, activeTab]);
 
-
   // Filter groupedData based on search
   const filteredGroupedData = useMemo(() => {
     if (!searchExcavator && !searchDumpingPoint && !searchLoadingPoint) {
       return groupedData;
     }
 
-    return groupedData.map((group) => {
-      const filteredItems = group.items.filter((item) => {
-        const matchExcavator = !searchExcavator || 
-          (item.unit_exca?.toLowerCase().includes(searchExcavator.toLowerCase()));
-        const matchDumping = !searchDumpingPoint || 
-          (item.dumping_location?.toLowerCase().includes(searchDumpingPoint.toLowerCase()));
-        const matchLoading = !searchLoadingPoint || 
-          (item.loading_location?.toLowerCase().includes(searchLoadingPoint.toLowerCase()));
-        
-        return matchExcavator && matchDumping && matchLoading;
-      });
+    return groupedData
+      .map((group) => {
+        const filteredItems = group.items.filter((item) => {
+          const matchExcavator =
+            !searchExcavator ||
+            item.unit_exca
+              ?.toLowerCase()
+              .includes(searchExcavator.toLowerCase());
+          const matchDumping =
+            !searchDumpingPoint ||
+            item.dumping_location
+              ?.toLowerCase()
+              .includes(searchDumpingPoint.toLowerCase());
+          const matchLoading =
+            !searchLoadingPoint ||
+            item.loading_location
+              ?.toLowerCase()
+              .includes(searchLoadingPoint.toLowerCase());
 
-      if (filteredItems.length === 0) return null;
+          return matchExcavator && matchDumping && matchLoading;
+        });
 
-      // Recalculate totals for filtered items
-      const totalWeight = filteredItems.reduce((sum, item) => {
-        return sum + parseFloat(item.totalWeight || item.total_tonase || 0);
-      }, 0);
+        if (filteredItems.length === 0) return null;
 
-      const totalTrips = filteredItems.reduce((sum, item) => {
-        return sum + parseInt(item.tripCount || item.total_ritase || 0);
-      }, 0);
+        // Recalculate totals for filtered items
+        const totalWeight = filteredItems.reduce((sum, item) => {
+          return sum + parseFloat(item.totalWeight || item.total_tonase || 0);
+        }, 0);
 
-      return {
-        ...group,
-        items: filteredItems,
-        totalWeight: parseFloat(totalWeight.toFixed(2)),
-        totalTrips: totalTrips,
-      };
-    }).filter(Boolean); // Remove null groups
+        const totalTrips = filteredItems.reduce((sum, item) => {
+          return sum + parseInt(item.tripCount || item.total_ritase || 0);
+        }, 0);
+
+        return {
+          ...group,
+          items: filteredItems,
+          totalWeight: parseFloat(totalWeight.toFixed(2)),
+          totalTrips: totalTrips,
+        };
+      })
+      .filter(Boolean); // Remove null groups
   }, [groupedData, searchExcavator, searchDumpingPoint, searchLoadingPoint]);
 
   const paginatedData = useMemo(() => {
@@ -269,10 +297,16 @@ const AggregatedRitase = ({
     return Math.ceil(filteredGroupedData.length / ITEMS_PER_PAGE);
   }, [filteredGroupedData]);
 
+  const handleEdit = (ritase) => {
+    // ✅ Reset state first to ensure clean slate
+    setSelectedRitase(null);
+    setIsEditModalOpen(false);
 
-    const handleEdit = (ritase) => {
-    setSelectedRitase(ritase);
-    setIsEditModalOpen(true);
+    // ✅ Then set new data with a small delay to ensure re-render
+    setTimeout(() => {
+      setSelectedRitase(ritase);
+      setIsEditModalOpen(true);
+    }, 0);
   };
 
   const handleDuplicate = (ritase) => {
@@ -280,7 +314,7 @@ const AggregatedRitase = ({
     setIsDuplicateModalOpen(true);
   };
 
-    const handleConfirmDelete = async () => {
+  const handleConfirmDelete = async () => {
     if (!selectedRitase || isDeletingRitase) return;
 
     setIsDeletingRitase(true);
@@ -301,7 +335,7 @@ const AggregatedRitase = ({
     if (result.success) {
       setIsEditModalOpen(false);
       setSelectedRitase(null);
-      
+
       setTimeout(() => {
         if (refreshButtonRef?.current) {
           refreshButtonRef.current.click();
@@ -369,13 +403,13 @@ const AggregatedRitase = ({
           )
         : [];
 
-const formattedTrips = matchingTrips.map((trip) => ({
-  ...trip,
-  hull_no: trip.unit_dump_truck || "-",
-  weight: trip.net_weight,
-  time: trip.createdAt || trip.date,
-  shift: trip.shift || "-",
-}));
+      const formattedTrips = matchingTrips.map((trip) => ({
+        ...trip,
+        hull_no: trip.unit_dump_truck || "-",
+        weight: trip.net_weight,
+        time: trip.createdAt || trip.date,
+        shift: trip.shift || "-",
+      }));
 
       setSelectedChecker({
         excavator: item.unit_exca,
@@ -422,11 +456,11 @@ const formattedTrips = matchingTrips.map((trip) => ({
     }
   };
 
-const handleUpdateTripFromChecker = async (updatedTrip) => {
+  const handleUpdateTripFromChecker = async (updatedTrip) => {
     if (onUpdateRitase) {
       await onUpdateRitase(updatedTrip);
     }
-    
+
     setTimeout(() => {
       if (refreshButtonRef?.current) {
         refreshButtonRef.current.click();
@@ -434,20 +468,18 @@ const handleUpdateTripFromChecker = async (updatedTrip) => {
     }, 10);
   };
 
-// Handler untuk delete trip dari KertasCheckerDialog
-const handleDeleteTripFromChecker = async (trip) => {
-  if (onDeleteRitase) {
-    await onDeleteRitase(trip);
-  }
-};
+  // Handler untuk delete trip dari KertasCheckerDialog
+  const handleDeleteTripFromChecker = async (trip) => {
+    if (onDeleteRitase) {
+      await onDeleteRitase(trip);
+    }
+  };
 
   const getTripCount = (item) => {
     return item.tripCount || item.total_ritase || 0;
-
-
   };
 
-    const renderSearchSection = () => (
+  const renderSearchSection = () => (
     <div className="mb-4 space-y-3 bg-gray-50 dark:bg-gray-800/50 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
@@ -468,7 +500,7 @@ const handleDeleteTripFromChecker = async (trip) => {
           </Button>
         )}
       </div>
-      
+
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         {/* Search by Excavator */}
         <div className="space-y-1.5">
@@ -711,14 +743,14 @@ const handleDeleteTripFromChecker = async (trip) => {
                                   <Eye className="mr-2 h-3 w-3 sm:h-4 sm:w-4" />
                                   Lihat Kertas Checker
                                 </DropdownMenuItem>
-                                         <DropdownMenuItem
-                                onClick={() => handleDuplicate(item)}
-                                className="cursor-pointer hover:bg-gray-200 dark:hover:bg-slate-700"
-                              >
-                                <Copy className="mr-2 h-4 w-4" />
-                                Tambah Ritase
-                              </DropdownMenuItem>
-                              {/* <DropdownMenuItem
+                                <DropdownMenuItem
+                                  onClick={() => handleDuplicate(item)}
+                                  className="cursor-pointer hover:bg-gray-200 dark:hover:bg-slate-700"
+                                >
+                                  <Copy className="mr-2 h-4 w-4" />
+                                  Tambah Ritase
+                                </DropdownMenuItem>
+                                {/* <DropdownMenuItem
                                 onClick={() => handleEdit(item)}
                                 className="cursor-pointer hover:bg-gray-200 dark:hover:bg-slate-700"
                               >
@@ -755,9 +787,7 @@ const handleDeleteTripFromChecker = async (trip) => {
           <CardTitle className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-0">
             <div className="flex items-center gap-2 text-gray-900 dark:text-white text-base sm:text-lg">
               <Scale className="w-4 h-4 sm:w-5 sm:h-5" />
-              <span className="text-sm sm:text-base">
-                Ringkasan Ritase
-              </span>
+              <span className="text-sm sm:text-base">Ringkasan Ritase</span>
             </div>
             <div className="flex items-center gap-2">
               {/* {aggregatedData?.summaries?.summary_detail && (
@@ -829,26 +859,26 @@ const handleDeleteTripFromChecker = async (trip) => {
                   <TabsTrigger
                     value="loading"
                     className="data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 cursor-pointer text-xs px-3 py-2 whitespace-nowrap shrink-0"
-                    >
+                  >
                     <Upload className="w-3 h-3 mr-1" />
                     Loading
                   </TabsTrigger>
                   <TabsTrigger
                     value="mitra"
                     className="data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 cursor-pointer text-xs px-3 py-2 whitespace-nowrap shrink-0"
-                    >
+                  >
                     <Building2 className="w-3 h-3 mr-1" />
                     Mitra
                   </TabsTrigger>
-                    {isCCR && (
-                      <TabsTrigger
-                        value="all-shipment"
-                        className="data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 cursor-pointer text-xs px-3 py-2 whitespace-nowrap shrink-0"
-                      >
-                        <List className="w-3 h-3 mr-1" />
-                        All
-                      </TabsTrigger>
-                    )}
+                  {isCCR && (
+                    <TabsTrigger
+                      value="all-shipment"
+                      className="data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 cursor-pointer text-xs px-3 py-2 whitespace-nowrap shrink-0"
+                    >
+                      <List className="w-3 h-3 mr-1" />
+                      All
+                    </TabsTrigger>
+                  )}
                 </TabsList>
               </div>
 
@@ -880,19 +910,19 @@ const handleDeleteTripFromChecker = async (trip) => {
                   <TabsTrigger
                     value="mitra"
                     className="data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 cursor-pointer text-sm px-4"
-                    >
+                  >
                     <Building2 className="w-4 h-4 mr-2" />
                     Mitra
                   </TabsTrigger>
-                    {isCCR && (
-                      <TabsTrigger
-                        value="all-shipment"
-                        className="data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 cursor-pointer text-sm px-4"
-                      >
-                        <List className="w-4 h-4 mr-2" />
-                        All Shipment
-                      </TabsTrigger>
-                    )}
+                  {isCCR && (
+                    <TabsTrigger
+                      value="all-shipment"
+                      className="data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 cursor-pointer text-sm px-4"
+                    >
+                      <List className="w-4 h-4 mr-2" />
+                      All Shipment
+                    </TabsTrigger>
+                  )}
                 </TabsList>
               </div>
             </div>
@@ -920,8 +950,8 @@ const handleDeleteTripFromChecker = async (trip) => {
                       </Button>
                     )}
                   </div>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     {/* Search by Excavator */}
                     <div className="space-y-1.5">
                       <label className="text-xs font-medium text-gray-600 dark:text-gray-400">
@@ -958,7 +988,9 @@ const handleDeleteTripFromChecker = async (trip) => {
                           type="text"
                           placeholder="Cari loading point..."
                           value={searchLoadingPoint}
-                          onChange={(e) => setSearchLoadingPoint(e.target.value)}
+                          onChange={(e) =>
+                            setSearchLoadingPoint(e.target.value)
+                          }
                           className="pl-9 h-9 text-sm dark:bg-gray-900 dark:border-gray-600 dark:text-gray-200"
                         />
                         {searchLoadingPoint && (
@@ -983,7 +1015,9 @@ const handleDeleteTripFromChecker = async (trip) => {
                           type="text"
                           placeholder="Cari dumping point..."
                           value={searchDumpingPoint}
-                          onChange={(e) => setSearchDumpingPoint(e.target.value)}
+                          onChange={(e) =>
+                            setSearchDumpingPoint(e.target.value)
+                          }
                           className="pl-9 h-9 text-sm dark:bg-gray-900 dark:border-gray-600 dark:text-gray-200"
                         />
                         {searchDumpingPoint && (
@@ -996,7 +1030,33 @@ const handleDeleteTripFromChecker = async (trip) => {
                         )}
                       </div>
                     </div>
+                   {/* Search by DT */}
+
+                       <div className="space-y-1.5">
+                      <label className="text-xs font-medium text-gray-600 dark:text-gray-400">
+                        Dumptruck
+                      </label>
+                      <div className="relative">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                        <Input
+                          type="text"
+                          placeholder="Cari excavator..."
+                          value={searchDumptruck}
+                          onChange={(e) => setSearchDumptruck(e.target.value)}
+                          className="pl-9 h-9 text-sm dark:bg-gray-900 dark:border-gray-600 dark:text-gray-200"
+                        />
+                        {searchDumptruck && (
+                          <button
+                            onClick={() => setSearchDumptruck("")}
+                            className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
                   </div>
+                 
 
                   {hasActiveSearch && (
                     <div className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400">
@@ -1051,7 +1111,9 @@ const handleDeleteTripFromChecker = async (trip) => {
                     <div className="text-center py-12">
                       <Package className="w-10 h-10 sm:w-12 sm:h-12 mx-auto text-gray-300 dark:text-gray-600" />
                       <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-4">
-                        {hasActiveSearch ? "Tidak ada data yang sesuai dengan pencarian" : "Belum ada data ritase"}
+                        {hasActiveSearch
+                          ? "Tidak ada data yang sesuai dengan pencarian"
+                          : "Belum ada data ritase"}
                       </p>
                     </div>
                   ) : (
@@ -1088,7 +1150,9 @@ const handleDeleteTripFromChecker = async (trip) => {
                       <div className="text-center py-12">
                         <Package className="w-10 h-10 sm:w-12 sm:h-12 mx-auto text-gray-300 dark:text-gray-600" />
                         <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-4">
-                          {hasActiveSearch ? "Tidak ada data yang sesuai dengan pencarian" : "Belum ada data ritase"}
+                          {hasActiveSearch
+                            ? "Tidak ada data yang sesuai dengan pencarian"
+                            : "Belum ada data ritase"}
                         </p>
                       </div>
                     ) : (
@@ -1253,8 +1317,7 @@ const handleDeleteTripFromChecker = async (trip) => {
                               trip.measurement_type === "manual"
                                 ? trip.net_weight
                                 : trip.gross_weight}{" "} */}
-
-                                {trip.net_weight} ton
+                              {trip.net_weight} ton
                             </TableCell>
                           </TableRow>
                         ))
@@ -1267,11 +1330,19 @@ const handleDeleteTripFromChecker = async (trip) => {
           </div>
         </DialogContent>
       </Dialog>
-      
 
-       {/* Edit Modal */}
+      {/* Edit Modal */}
       {selectedRitase && (
-        <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
+        <Dialog
+          open={isEditModalOpen}
+          onOpenChange={(open) => {
+            setIsEditModalOpen(open);
+            if (!open) {
+              // ✅ Clear selectedRitase when modal closes
+              setTimeout(() => setSelectedRitase(null), 100);
+            }
+          }}
+        >
           <DialogContent className="max-w-4xl lg:min-w-4xl max-h-[90vh] overflow-y-auto dark:bg-slate-900">
             <DialogHeader>
               <DialogTitle className="dark:text-neutral-50">
@@ -1279,6 +1350,7 @@ const handleDeleteTripFromChecker = async (trip) => {
               </DialogTitle>
             </DialogHeader>
             <RitaseEditForm
+              key={`edit-${selectedRitase?.id}-${selectedRitase?.updatedAt}`}
               editingItem={selectedRitase}
               onSubmit={handleEditSubmit}
               onCancel={() => {
@@ -1292,7 +1364,10 @@ const handleDeleteTripFromChecker = async (trip) => {
 
       {/* Duplicate Modal */}
       {selectedRitase && (
-        <Dialog open={isDuplicateModalOpen} onOpenChange={setIsDuplicateModalOpen}>
+        <Dialog
+          open={isDuplicateModalOpen}
+          onOpenChange={setIsDuplicateModalOpen}
+        >
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto dark:bg-slate-900 bg-white border-none">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2 dark:text-neutral-50">
@@ -1337,15 +1412,15 @@ const handleDeleteTripFromChecker = async (trip) => {
         />
       )}
 
-<KertasCheckerDialog
-  isOpen={isCheckerDialogOpen}
-  onClose={() => setIsCheckerDialogOpen(false)}
-  data={selectedChecker}
-   onRefresh={onRefresh}
-  onUpdateTrip={handleUpdateTripFromChecker}
-  onDeleteTrip={handleDeleteTripFromChecker}
-  refreshButtonRef={refreshButtonRef}
-/>
+      <KertasCheckerDialog
+        isOpen={isCheckerDialogOpen}
+        onClose={() => setIsCheckerDialogOpen(false)}
+        data={selectedChecker}
+        onRefresh={onRefresh}
+        onUpdateTrip={handleUpdateTripFromChecker}
+        onDeleteTrip={handleDeleteTripFromChecker}
+        refreshButtonRef={refreshButtonRef}
+      />
 
       <AggregatedInputModal
         isOpen={showInputModal}
