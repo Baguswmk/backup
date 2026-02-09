@@ -1,5 +1,5 @@
 import QRCode from "qrcode";
-import bukitAsamLogo from "/logo_ptba.png"
+import bukitAsamLogo from "/logo_ptba.png";
 
 export const generateRitasePDF = async (data, supervisorName) => {
   const {
@@ -15,9 +15,9 @@ export const generateRitasePDF = async (data, supervisorName) => {
   // Format locations - handle both array and string
   const formatLocations = (locations) => {
     if (Array.isArray(locations)) {
-      return locations.join(', ');
+      return locations.join(", ");
     }
-    return locations || '-';
+    return locations || "-";
   };
 
   const formattedLoadingLocations = formatLocations(loading_location);
@@ -32,7 +32,7 @@ export const generateRitasePDF = async (data, supervisorName) => {
   const firstRitase = ritases[0];
   const date = firstRitase.date;
   const shift = firstRitase.shift;
-  
+
   // ✅ Ambil checker dari ritase pertama
   const checker = firstRitase.checker || "Checker";
 
@@ -52,9 +52,9 @@ export const generateRitasePDF = async (data, supervisorName) => {
     const createdAtDate = new Date(ritase.created_at);
     const hour = createdAtDate.getHours();
     const time = createdAtDate.toLocaleTimeString("id-ID", {
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit'
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
     });
 
     if (!groupedData[truck]) {
@@ -355,7 +355,7 @@ export const generateRitasePDF = async (data, supervisorName) => {
         ${hours
           .map((hour) => {
             const data = hourlyTotals[hour] || { tonnage: 0, ritCount: 0 };
-            if (data.ritCount === 0) return '<td>-</td>';
+            if (data.ritCount === 0) return "<td>-</td>";
             return `<td><strong>${data.tonnage.toFixed(2)}</strong><br><span style="font-size: 7pt;">(${data.ritCount} Rit)</span></td>`;
           })
           .join("")}
@@ -393,22 +393,24 @@ export const generateRitasePDF = async (data, supervisorName) => {
 };
 
 export const exportToPDF = async (rowData, supervisorName) => {
-  
   try {
     // Validasi data
     if (!rowData || !rowData.ritases || rowData.ritases.length === 0) {
       throw new Error("Data ritase tidak tersedia atau kosong");
     }
 
-    const htmlContent = await generateRitasePDF({
-      unit_exca: rowData.unit_exca,
-      company: rowData.company,
-      loading_location: rowData.loading_locations,
-      dumping_location: rowData.dumping_locations,
-      ritases: rowData.ritases,
-      totalTonase: rowData.totalTonase,
-      pic_work_unit: rowData.pic_work_unit,
-    }, supervisorName);
+    const htmlContent = await generateRitasePDF(
+      {
+        unit_exca: rowData.unit_exca,
+        company: rowData.company,
+        loading_location: rowData.loading_locations,
+        dumping_location: rowData.dumping_locations,
+        ritases: rowData.ritases,
+        totalTonase: rowData.totalTonase,
+        pic_work_unit: rowData.pic_work_unit,
+      },
+      supervisorName,
+    );
 
     const printWindow = window.open("", "_blank");
     if (!printWindow) {
@@ -452,27 +454,29 @@ export const generateKertasCheckerPDF = async (data, params) => {
   // Format tanggal
   let formattedDate = "Unknown Date";
   try {
+    let dateObj;
     if (data.date) {
-      const dateObj = new Date(data.date);
-      if (!isNaN(dateObj.getTime())) {
-        formattedDate = dateObj.toLocaleDateString("id-ID", {
-          weekday: "long",
-          year: "numeric",
-          month: "long",
-          day: "numeric",
-        });
-      }
+      dateObj = new Date(data.date);
     } else if (data.trips && data.trips.length > 0) {
       // Ambil tanggal dari trip pertama jika data.date tidak ada
-      const dateObj = new Date(data.trips[0].time);
-      if (!isNaN(dateObj.getTime())) {
-        formattedDate = dateObj.toLocaleDateString("id-ID", {
-          weekday: "long",
-          year: "numeric",
-          month: "long",
-          day: "numeric",
-        });
+      dateObj = new Date(data.trips[0].time);
+    }
+
+    if (dateObj && !isNaN(dateObj.getTime())) {
+      // Untuk Shift 1, kurangi 1 hari
+      if (
+        shiftName &&
+        (shiftName.includes("Shift 1") || shiftName.includes("1"))
+      ) {
+        dateObj.setDate(dateObj.getDate() + 1);
       }
+
+      formattedDate = dateObj.toLocaleDateString("id-ID", {
+        weekday: "long",
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      });
     }
   } catch (e) {
     console.error("Error formatting date:", e);
@@ -744,8 +748,11 @@ export const generateKertasCheckerPDF = async (data, params) => {
         <td colspan="2" style="text-align: center;"><strong>TOTAL</strong></td>
         ${timeSlots
           .map((timeSlot) => {
-            const slotData = timeSlotTotals[timeSlot] || { weight: 0, count: 0 };
-            if (slotData.count === 0) return '<td>-</td>';
+            const slotData = timeSlotTotals[timeSlot] || {
+              weight: 0,
+              count: 0,
+            };
+            if (slotData.count === 0) return "<td>-</td>";
             return `<td><strong>${slotData.weight.toFixed(2)} Ton</strong><br><span style="font-size: 7pt;">(${slotData.count} Rit)</span></td>`;
           })
           .join("")}
