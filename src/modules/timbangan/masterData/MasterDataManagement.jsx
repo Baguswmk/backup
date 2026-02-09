@@ -290,7 +290,7 @@ const MasterDataManagement = () => {
         },
         {
           key: "tare_weight",
-          label: "Tare Weight",
+          label: "Berat Kosong",
           render: (val, row) => (
             <TareWeightCell
               tareWeight={row.tare_weight}

@@ -111,7 +111,7 @@ const MobileList = ({
                   size="icon"
                   onClick={() => onWeigh(row)}
                   className="h-8 w-8 hover:bg-purple-50 hover:text-purple-600 cursor-pointer"
-                  title="Timbang Tare Weight"
+                  title="Timbang Berat Kosong"
                 >
                   <Scale className="w-4 h-4" />
                 </Button>
@@ -258,7 +258,7 @@ const DesktopTable = ({
                     size="sm"
                     onClick={() => onWeigh(row)}
                     className="h-8 w-8 p-0 hover:bg-purple-50 hover:text-purple-600 cursor-pointer"
-                    title="Timbang Tare Weight"
+                    title="Timbang Berat Kosong"
                   >
                     <Scale className="w-4 h-4" />
                   </Button>

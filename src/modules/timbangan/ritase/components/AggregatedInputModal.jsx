@@ -831,7 +831,7 @@ const inspectorItems = useMemo(() => {
               <InfoCard title="Berat" variant="primary" className="border-none">
                 <div className="md:col-span-2 space-y-2">
                   <Label className="dark:text-gray-300">
-                    Gross Weight (ton) *
+                   Berat Kotor (ton) *
                     <span className="text-xs text-gray-500 ml-2">(Max: 199.99 ton)</span>
                   </Label>
                   <Input
@@ -854,7 +854,7 @@ const inspectorItems = useMemo(() => {
               <InfoCard title="Berat" variant="primary" className="border-none">
                 <div className="md:col-span-2 space-y-2">
                   <Label className="dark:text-gray-300">
-                    Net Weight (ton) *
+                    Berat Bersih (ton) *
                     {ritaseData.measurementType === "Timbangan" && user?.weigh_bridge != null && (
                       <span className="text-xs text-gray-500 ml-2">(Max: 199.99 ton)</span>
                     )}

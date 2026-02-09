@@ -975,7 +975,7 @@ const RitaseForm = ({
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-gray-600 dark:text-gray-400">
-                Net Weight:
+                Berat Bersih:
               </span>
               <span className="font-medium dark:text-gray-200">
                 {editingItem.gross_weight || "-"} ton
@@ -1576,10 +1576,7 @@ const RitaseForm = ({
               className="flex items-center gap-2 mb-2"
             >
               <Weight className="w-4 h-4" />
-              Gross Weight (ton) *
-              <span className="text-xs text-gray-500 font-normal">
-                (Berat Kotor)
-              </span>
+              Berat Kotor (ton) *
             </Label>
 
             <div className="flex items-center gap-2">

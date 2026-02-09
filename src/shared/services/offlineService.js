@@ -569,10 +569,10 @@ async function patch(url, data, config = {}) {
   });
 }
 
-async function del(url, config = {}) {
+async function del(url, data = null, config = {}) {  
   const { bypassQueue = true, ...restConfig } = config;
 
-  return apiCall(url, "DELETE", null, {
+  return apiCall(url, "DELETE", data, {  
     bypassQueue,
     ...restConfig,
   });

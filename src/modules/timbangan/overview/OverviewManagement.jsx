@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback, useEffect } from "react";
+import React, { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import {
   Card,
   CardContent,
@@ -58,6 +58,16 @@ const OverviewManagement = () => {
   rowData: null,
 });
 
+  // Tooltip state
+  const [tooltipState, setTooltipState] = useState({
+    visible: false,
+    type: null,
+    position: "bottom",
+    data: [],
+    locked: false,
+  });
+  const tooltipRef = useRef(null);
+
   const hookParams = useMemo(
     () => ({
       startDate: dateRange.from,
@@ -75,7 +85,6 @@ const OverviewManagement = () => {
     summaryData: hookSummaryData,
     tableData: hookTableData,
   } = useDashboardDaily(hookParams, true);
-
   useEffect(() => {
     if (isLoading) {
       if (!cachedData) {
@@ -265,30 +274,129 @@ const summaryData = useMemo(() => {
       ? hookSummaryData.activeExcavators
       : [],
   };
-}, [hookSummaryData, error, isRefreshing, cachedData]);
-  const sortedTableData = useMemo(() => {
+}, [hookSummaryData, isRefreshing, cachedData, error]);
+
+  // Tooltip handlers
+  const handleTooltipShow = (type, event) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    const viewportHeight = window.innerHeight;
+    const spaceBelow = viewportHeight - rect.bottom;
+    const spaceAbove = rect.top;
+
+    const position =
+      spaceBelow >= 400 ? "bottom" : spaceAbove > 300 ? "top" : "bottom";
+
+    const data =
+      type === "dt" ? summaryData.dumptruckBreakdown : summaryData.excavatorBreakdown;
+
+    setTooltipState({
+      visible: true,
+      type: type,
+      position: position,
+      data: data,
+      locked: false,
+    });
+  };
+
+  const handleTooltipHide = () => {
+    if (!tooltipState.locked) {
+      setTooltipState({
+        visible: false,
+        type: null,
+        position: "bottom",
+        data: [],
+        locked: false,
+      });
+    }
+  };
+
+  const handleTooltipClick = (type, event) => {
+    event.stopPropagation();
+    if (tooltipState.locked && tooltipState.type === type) {
+      setTooltipState({
+        visible: false,
+        type: null,
+        position: "bottom",
+        data: [],
+        locked: false,
+      });
+    } else {
+      const rect = event.currentTarget.getBoundingClientRect();
+      const viewportHeight = window.innerHeight;
+      const spaceBelow = viewportHeight - rect.bottom;
+      const spaceAbove = rect.top;
+
+      const position =
+        spaceBelow >= 400 ? "bottom" : spaceAbove > 300 ? "top" : "bottom";
+
+      const data =
+        type === "dt"
+          ? summaryData.dumptruckBreakdown
+          : summaryData.excavatorBreakdown;
+
+      setTooltipState({
+        visible: true,
+        type: type,
+        position: position,
+        data: data,
+        locked: true,
+      });
+    }
+  };
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (tooltipRef.current && !tooltipRef.current.contains(event.target)) {
+        setTooltipState({
+          visible: false,
+          type: null,
+          position: "bottom",
+          data: [],
+          locked: false,
+        });
+      }
+    };
+
+    if (tooltipState.visible) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [tooltipState.visible]);
+
+  const sortedData = useMemo(() => {
     if (!sortConfig.key) return filteredTableData;
 
     return [...filteredTableData].sort((a, b) => {
-      let aVal = a[sortConfig.key];
-      let bVal = b[sortConfig.key];
+      let aValue = a[sortConfig.key];
+      let bValue = b[sortConfig.key];
 
-      if (sortConfig.key === "totalTonase") {
-        aVal = parseFloat(aVal) || 0;
-        bVal = parseFloat(bVal) || 0;
+      if (sortConfig.key === "ritases") {
+        aValue = a.ritases?.length || 0;
+        bValue = b.ritases?.length || 0;
+      } else if (sortConfig.key === "total_ritase") {
+        aValue = a.total_ritase || 0;
+        bValue = b.total_ritase || 0;
+      } else if (sortConfig.key === "total_tonase") {
+        aValue = parseFloat(a.total_tonase) || 0;
+        bValue = parseFloat(b.total_tonase) || 0;
       }
 
-      if (aVal < bVal) return sortConfig.direction === "asc" ? -1 : 1;
-      if (aVal > bVal) return sortConfig.direction === "asc" ? 1 : -1;
+      if (aValue < bValue) return sortConfig.direction === "asc" ? -1 : 1;
+      if (aValue > bValue) return sortConfig.direction === "asc" ? 1 : -1;
       return 0;
     });
   }, [filteredTableData, sortConfig]);
 
-  const totalPages = Math.ceil(sortedTableData.length / itemsPerPage);
+  const totalPages = Math.ceil(sortedData.length / itemsPerPage);
+
   const paginatedData = useMemo(() => {
-    const start = (currentPage - 1) * itemsPerPage;
-    return sortedTableData.slice(start, start + itemsPerPage);
-  }, [sortedTableData, currentPage, itemsPerPage]);
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    return sortedData.slice(startIndex, endIndex);
+  }, [sortedData, currentPage, itemsPerPage]);
 
   const handleSort = useCallback((key) => {
     setSortConfig((prev) => ({
@@ -297,56 +405,45 @@ const summaryData = useMemo(() => {
     }));
   }, []);
 
-  const handlePageChange = useCallback((page) => {
-    setCurrentPage(page);
+  const handlePageChange = useCallback((newPage) => {
+    setCurrentPage(newPage);
   }, []);
 
-  const handleResetFilters = useCallback(() => {
-    setSearchQuery("");
-    setSelectedExcavators([]);
-    setSelectedLocations([]);
-    setSelectedDumpPoints([]);
-    setSelectedMitra("All");
+  const handleDateRangeChange = useCallback((newDateRange) => {
+    setDateRange(newDateRange);
     setCurrentPage(1);
-
-    const today = new Date().toISOString().split("T")[0];
-    setDateRange({ from: today, to: today });
-    setShift("All");
   }, []);
 
-  const handleRefresh = useCallback(() => {
-    refresh();
-  }, [refresh]);
-
-const handleDateRangeChange = useCallback((payload) => {
-  const { startDate, endDate, shift: newShift, from, to } = payload;
-  
-  setDateRange({
-    from: from || startDate,
-    to: to || endDate,
-  });
-  
-  if (newShift) {
-    setShift(newShift);
-  }
-  
-  setCurrentPage(1);
-}, []);
   const handleShiftChange = useCallback((newShift) => {
     setShift(newShift);
     setCurrentPage(1);
   }, []);
 
   const hasActiveFilters =
-    searchQuery ||
     selectedExcavators.length > 0 ||
     selectedLocations.length > 0 ||
     selectedDumpPoints.length > 0;
 
-  const openDetailModal = useCallback((rowData) => {
+  const handleResetFilters = useCallback(() => {
+    setSelectedExcavators([]);
+    setSelectedLocations([]);
+    setSelectedDumpPoints([]);
+    setCurrentPage(1);
+  }, []);
+
+  const handleRefresh = useCallback(async () => {
+    setIsRefreshing(true);
+    try {
+      await refresh();
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, [refresh]);
+
+  const openDetailModal = useCallback((data) => {
     setDetailModal({
       isOpen: true,
-      data: rowData,
+      data,
     });
   }, []);
 
@@ -357,11 +454,11 @@ const handleDateRangeChange = useCallback((payload) => {
     });
   }, []);
 
-  const openHourDetailModal = useCallback((rowData, hour) => {
+  const openHourDetailModal = useCallback((data, hour) => {
     setHourDetailModal({
       isOpen: true,
-      data: rowData,
-      hour: hour,
+      data,
+      hour,
     });
   }, []);
 
@@ -449,7 +546,6 @@ const handleCloseSupervisorModal = useCallback(() => {
   );
   return (
     <div className="space-y-6 p-4 md:p-6 min-h-screen">
-      {/* ✅ Summary Cards - Loading indicator di header card, tidak menutupi konten */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
   {/* Active Dump Truck Card */}
   <Card className="shadow-sm hover:shadow-md transition-shadow dark:text-gray-200 border-none dark:shadow-gray-600">
@@ -463,8 +559,68 @@ const handleCloseSupervisorModal = useCallback(() => {
       </CardTitle>
     </CardHeader>
     <CardContent>
-      <div className="text-3xl font-bold text-blue-600 mb-3">
-        {summaryData.activeDumptrucks}
+      <div className="relative inline-block">
+        <div 
+          className="text-3xl font-bold text-blue-600 mb-3 cursor-pointer hover:opacity-80 transition-opacity"
+          onMouseEnter={(e) => handleTooltipShow("dt", e)}
+          onMouseLeave={handleTooltipHide}
+          onClick={(e) => handleTooltipClick("dt", e)}
+          ref={tooltipState.visible && tooltipState.type === "dt" ? tooltipRef : null}
+        >
+          {summaryData.activeDumptrucks}
+        </div>
+
+        {/* Tooltip for DT */}
+        {tooltipState.visible && tooltipState.type === "dt" && (
+          <div
+            className={`absolute ${
+              tooltipState.position === "top"
+                ? "bottom-full mb-2"
+                : "top-full mt-2"
+            } left-0 z-50 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg p-3 min-w-[300px] max-w-[350px]`}
+          >
+            {/* Arrow indicator */}
+            <div
+              className={`absolute left-4 transform w-0 h-0 ${
+                tooltipState.position === "top"
+                  ? "top-full border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-t-[6px] border-t-gray-300 dark:border-t-gray-600"
+                  : "bottom-full border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-b-[6px] border-b-gray-300 dark:border-b-gray-600"
+              }`}
+            />
+
+            <div className="text-xs font-semibold mb-2 text-gray-700 dark:text-gray-300 border-b border-gray-200 dark:border-gray-700 pb-1">
+              List Dump Trucks
+            </div>
+
+            {tooltipState.data.length > 0 ? (
+              <div className="max-h-[300px] overflow-y-auto">
+                <ul className="space-y-1">
+                  {tooltipState.data.map((item, idx) => (
+                    <li
+                      key={idx}
+                      className="text-xs text-gray-600 dark:text-gray-400 py-1.5 border-b border-gray-100 dark:border-gray-700 last:border-0"
+                    >
+                      <div className="flex justify-between items-start gap-2">
+                        <div className="flex-1">
+                          <span className="font-medium block">
+                            {item.name}
+                          </span>
+                        </div>
+                        <span className="text-[10px] bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 px-2 py-0.5 rounded-full font-medium">
+                          {item.count} unit
+                        </span>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : (
+              <p className="text-xs text-gray-500 dark:text-gray-500 italic">
+                Tidak ada data dump truck
+              </p>
+            )}
+          </div>
+        )}
       </div>
       {summaryData.dumptruckBreakdown.length > 0 ? (
         <div className="space-y-1">
@@ -498,8 +654,68 @@ const handleCloseSupervisorModal = useCallback(() => {
       </CardTitle>
     </CardHeader>
     <CardContent>
-      <div className="text-3xl font-bold text-green-600 mb-3">
-        {summaryData.activeExcavators}
+      <div className="relative inline-block">
+        <div 
+          className="text-3xl font-bold text-green-600 mb-3 cursor-pointer hover:opacity-80 transition-opacity"
+          onMouseEnter={(e) => handleTooltipShow("excavator", e)}
+          onMouseLeave={handleTooltipHide}
+          onClick={(e) => handleTooltipClick("excavator", e)}
+          ref={tooltipState.visible && tooltipState.type === "excavator" ? tooltipRef : null}
+        >
+          {summaryData.activeExcavators}
+        </div>
+
+        {/* Tooltip for Excavator */}
+        {tooltipState.visible && tooltipState.type === "excavator" && (
+          <div
+            className={`absolute ${
+              tooltipState.position === "top"
+                ? "bottom-full mb-2"
+                : "top-full mt-2"
+            } left-0 z-50 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg p-3 min-w-[300px] max-w-[350px]`}
+          >
+            {/* Arrow indicator */}
+            <div
+              className={`absolute left-4 transform w-0 h-0 ${
+                tooltipState.position === "top"
+                  ? "top-full border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-t-[6px] border-t-gray-300 dark:border-t-gray-600"
+                  : "bottom-full border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-b-[6px] border-b-gray-300 dark:border-b-gray-600"
+              }`}
+            />
+
+            <div className="text-xs font-semibold mb-2 text-gray-700 dark:text-gray-300 border-b border-gray-200 dark:border-gray-700 pb-1">
+              List Excavators
+            </div>
+
+            {tooltipState.data.length > 0 ? (
+              <div className="max-h-[300px] overflow-y-auto">
+                <ul className="space-y-1">
+                  {tooltipState.data.map((item, idx) => (
+                    <li
+                      key={idx}
+                      className="text-xs text-gray-600 dark:text-gray-400 py-1.5 border-b border-gray-100 dark:border-gray-700 last:border-0"
+                    >
+                      <div className="flex justify-between items-start gap-2">
+                        <div className="flex-1">
+                          <span className="font-medium block">
+                            {item.name}
+                          </span>
+                        </div>
+                        <span className="text-[10px] bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300 px-2 py-0.5 rounded-full font-medium">
+                          {item.count} unit
+                        </span>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : (
+              <p className="text-xs text-gray-500 dark:text-gray-500 italic">
+                Tidak ada data excavator
+              </p>
+            )}
+          </div>
+        )}
       </div>
       {summaryData.excavatorBreakdown.length > 0 ? (
         <div className="space-y-1">

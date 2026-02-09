@@ -237,7 +237,7 @@ const RitaseList = ({
                         Dumping
                       </TableHead>
                       <TableHead className="text-right text-gray-700 dark:text-gray-300 font-semibold">
-                        Net Weight
+                        Berat Bersih
                       </TableHead>
                       <TableHead className="text-right text-gray-700 dark:text-gray-300 font-semibold">
                         Actions
@@ -446,7 +446,7 @@ const RitaseList = ({
                   <>
                     <div>
                       <div className="text-sm text-gray-500 dark:text-gray-400 mb-1">
-                        Gross Weight
+                        Berat Kotor
                       </div>
                       <div className="text-lg font-bold text-blue-600 dark:text-blue-400">
                         {selectedRitase.gross_weight || "-"} ton
@@ -454,7 +454,7 @@ const RitaseList = ({
                     </div>
                     <div>
                       <div className="text-sm text-gray-500 dark:text-gray-400 mb-1">
-                        Tare Weight
+                        Berat Kosong
                       </div>
                       <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
                         {selectedRitase.tare_weight || "-"} ton
@@ -462,7 +462,7 @@ const RitaseList = ({
                     </div>
                     <div>
                       <div className="text-sm text-gray-500 dark:text-gray-400 mb-1">
-                        Net Weight
+                        Berat Bersih
                       </div>
                       <div className="text-lg font-bold text-green-600 dark:text-green-400">
                         {selectedRitase.net_weight || "-"} ton
@@ -472,7 +472,7 @@ const RitaseList = ({
                 ) : (
                   <div>
                     <div className="text-sm text-gray-500 dark:text-gray-400 mb-1">
-                      Net Weight
+                      Berat Bersih
                     </div>
                     <div className="text-lg font-bold text-green-600 dark:text-green-400">
                       {selectedRitase.net_weight || "-"} ton

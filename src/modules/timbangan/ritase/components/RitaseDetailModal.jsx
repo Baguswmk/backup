@@ -271,7 +271,7 @@ const RitaseDetailModal = ({
                       </span>
                     </div>
                     <div className="flex justify-between dark:text-gray-400">
-                      <span className="text-gray-600">Net Weight:</span>
+                      <span className="text-gray-600">Berat Bersih:</span>
                       <span className="font-bold text-green-600">
                         {formatWeight(extractedData.netWeight)} ton
                       </span>
@@ -367,7 +367,7 @@ const RitaseDetailModal = ({
 
                   {mode === "edit" ? (
                     <div>
-                      <Label htmlFor="gross_weight">Gross Weight (ton) *</Label>
+                      <Label htmlFor="gross_weight">Berat Kotor (ton) *</Label>
                       <Input
                         id="gross_weight"
                         type="text"
@@ -413,7 +413,7 @@ const RitaseDetailModal = ({
                     <div className="grid grid-cols-3 gap-4 p-4 bg-gray-50 rounded-lg">
                       <div className="text-center">
                         <div className="text-xs text-gray-600 mb-1">
-                          Tare Weight
+                          Berat Kosong
                         </div>
                         <div className="font-bold text-orange-600">
                           {formatWeight(extractedData.tareWeight)} ton
@@ -421,7 +421,7 @@ const RitaseDetailModal = ({
                       </div>
                       <div className="text-center ">
                         <div className="text-xs text-gray-600 mb-1">
-                          Net Weight
+                          Berat Bersih
                         </div>
                         <div className="font-bold text-2xl text-green-600">
                           {formatWeight(extractedData.netWeight)} ton
@@ -429,7 +429,7 @@ const RitaseDetailModal = ({
                       </div>
                       <div className="text-center">
                         <div className="text-xs text-gray-600 mb-1">
-                          Gross Weight
+                          Berat Kotor
                         </div>
                         <div className="font-bold text-blue-600">
                           {formatWeight(extractedData.grossWeight)} ton
