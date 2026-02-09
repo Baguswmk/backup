@@ -30,6 +30,8 @@ import {
 } from "@/shared/utils/errorHandler";
 import { shallow } from "zustand/shallow";
 import { useFleetSplit } from "./hooks/useFleetSplit";
+import { logger } from "@/shared/services/log";
+
 const EMPTY_ARRAY = [];
 const PAGE_SIZE = 10;
 
@@ -37,7 +39,7 @@ const FleetManagement = ({ Type }) => {
   const { user } = useAuthStore();
   const { handleCreateSplitFleets } = useFleetSplit(user);
   const [deleteActionType, setDeleteActionType] = useState("delete");
-  
+
   const measurementTypeMap = {
     Timbangan: "Timbangan",
     FOB: "FOB",
@@ -69,11 +71,7 @@ const FleetManagement = ({ Type }) => {
   }, [canAccessFleetType, Type]);
 
   // Get master data for dropdowns
-  const {
-    workUnits,
-    isLoading: masterDataLoading,
-  } = useMasterData(null);
-
+  const { workUnits, isLoading: masterDataLoading } = useMasterData(null);
 
   // State for Information Days
   const [selectedSatker, setSelectedSatker] = useState("");
@@ -96,7 +94,15 @@ const FleetManagement = ({ Type }) => {
     deleteConfig,
     refresh: refreshFleet,
   } = useFleet(user ? { user } : null, measurementType);
-  const { handleSaveFleet } = useFleetWithTransfer(user);
+
+  // ✅ UPDATED: Use hooks with refetch callback
+  const {
+    handleSaveFleet,
+    handleBulkEditFleets,
+    handleBulkDeleteFleets,
+    isSaving: isSavingTransfer,
+  } = useFleetWithTransfer(user, refreshFleet);
+
   const [configSearchInput, setConfigSearchInput] = useState("");
   const configSearch = useDebouncedValue(configSearchInput, DEBOUNCE_TIME);
   const [isSaving, setIsSaving] = useState(false);
@@ -230,24 +236,21 @@ const FleetManagement = ({ Type }) => {
     [fleetConfigsByType],
   );
 
-  const getFleetDumptruckList = useCallback(
-    (fleet) => {
-      if (!fleet) return [];
+  const getFleetDumptruckList = useCallback((fleet) => {
+    if (!fleet) return [];
 
-      // If fleet is an array, it's a split group
-      if (Array.isArray(fleet)) {
-        // Aggregate all units from all fleets in the split group
-        return fleet.reduce((acc, f) => {
-          const units = f.units || [];
-          return [...acc, ...units];
-        }, []);
-      }
+    // If fleet is an array, it's a split group
+    if (Array.isArray(fleet)) {
+      // Aggregate all units from all fleets in the split group
+      return fleet.reduce((acc, f) => {
+        const units = f.units || [];
+        return [...acc, ...units];
+      }, []);
+    }
 
-      // Single fleet
-      return fleet.units || [];
-    },
-    [],
-  );
+    // Single fleet
+    return fleet.units || [];
+  }, []);
 
   const filterOptions = useMemo(() => {
     const excavatorsSet = new Set();
@@ -359,7 +362,6 @@ const FleetManagement = ({ Type }) => {
     return groups;
   }, [filterOptions, activeFilters, updateFilter]);
 
-
   const handleResetFilters = useCallback(() => {
     setConfigSearchInput("");
     resetFilters();
@@ -386,6 +388,13 @@ const FleetManagement = ({ Type }) => {
 
   const handleSaveConfig = useCallback(
     async (config, transferInfo) => {
+      // ✅ FIX: If no config provided (e.g., from FleetModal's onSave callback after create),
+      // just refresh the fleet data
+      if (!config) {
+        await refreshFleet();
+        return;
+      }
+
       if (config.id) {
         if (!canUpdate) {
           showToast.error(getDisabledMessage("update"));
@@ -484,9 +493,37 @@ const FleetManagement = ({ Type }) => {
         return;
       }
 
-      openModal("config", config);
+      // ✅ FIX: Group split fleets by isSplit + excavatorId + loadingLocationId
+      let fleetsToEdit = config;
+
+      if (config.isSplit) {
+        const relatedFleets = fleetConfigs.filter(
+          (fleet) =>
+            fleet.isSplit === true &&
+            fleet.excavatorId === config.excavatorId &&
+            fleet.loadingLocationId === config.loadingLocationId,
+        );
+
+        if (relatedFleets.length > 0) {
+          fleetsToEdit = relatedFleets;
+
+        } else {
+          console.warn(
+            "⚠️ No related split fleets found, editing single fleet",
+          );
+        }
+      }
+
+      openModal("config", fleetsToEdit);
     },
-    [canUpdate, isReadOnly, checkDataAccess, getDisabledMessage, openModal],
+    [
+      canUpdate,
+      isReadOnly,
+      checkDataAccess,
+      getDisabledMessage,
+      openModal,
+      fleetConfigs,
+    ],
   );
 
   const handleDeleteConfig = useCallback(
@@ -511,6 +548,9 @@ const FleetManagement = ({ Type }) => {
     [canDeletePerm, isReadOnly, checkDataAccess, getDisabledMessage, openModal],
   );
 
+  /**
+   * ✅ UPDATED: Handle confirm delete dengan support untuk bulk delete via hooks
+   */
   const handleConfirmDelete = useCallback(
     async (reasons) => {
       const deleteData = getModalState("delete").data;
@@ -524,49 +564,26 @@ const FleetManagement = ({ Type }) => {
 
       return withErrorHandling(
         async () => {
-          // Handle split group deletion
+          // ✅ Handle split group deletion using BULK DELETE
           if (Array.isArray(deleteData)) {
-            const results = [];
-            const errors = [];
+            logger.info("🔀 Deleting split group via BULK endpoint", {
+              fleetsCount: deleteData.length,
+              fleetIds: deleteData.map((f) => f.id),
+            });
 
-            for (const fleet of deleteData) {
-              try {
-                const result = await deleteConfig(fleet.id);
-                if (result) {
-                  results.push(result);
-                } else {
-                  errors.push({
-                    id: fleet.id,
-                    error: "Failed to delete",
-                  });
-                }
-              } catch (err) {
-                errors.push({ id: fleet.id, error: err.message });
-              }
-            }
+            const fleetIds = deleteData.map((f) => f.id);
+            const result = await handleBulkDeleteFleets(fleetIds);
 
-            if (results.length > 0) {
+            if (result.success) {
               closeModal("delete");
-              setDeleteActionType("delete"); // Reset action type
-              await refreshFleet();
-              showToast.success(
-                `Berhasil menghapus ${results.length} fleet dari ${deleteData.length} total fleet`,
-              );
-            }
+              setDeleteActionType("delete");
+              // Refresh sudah dipanggil di dalam handleBulkDeleteFleets
+              // await refreshFleet();
 
-            if (errors.length > 0) {
-              console.error("Errors during split group deletion:", errors);
-              showToast.error(
-                `Gagal menghapus ${errors.length} fleet dari ${deleteData.length} total fleet`,
-              );
+              return result;
+            } else {
+              throw new Error(result.error || "Gagal delete fleet group");
             }
-
-            return {
-              success: results.length > 0,
-              successCount: results.length,
-              errorCount: errors.length,
-              errors,
-            };
           }
 
           // Handle single fleet deletion
@@ -578,7 +595,7 @@ const FleetManagement = ({ Type }) => {
           });
 
           closeModal("delete");
-          setDeleteActionType("delete"); // Reset action type
+          setDeleteActionType("delete");
           await refreshFleet();
           showToast.success(TOAST_MESSAGES.DELETE_SUCCESS);
 
@@ -592,7 +609,13 @@ const FleetManagement = ({ Type }) => {
         setIsSaving(false);
       });
     },
-    [deleteConfig, refreshFleet, closeModal, getModalState],
+    [
+      deleteConfig,
+      refreshFleet,
+      closeModal,
+      getModalState,
+      handleBulkDeleteFleets,
+    ],
   );
 
   const handleSaveFleetSelection = useCallback(
@@ -619,6 +642,9 @@ const FleetManagement = ({ Type }) => {
     [setSelectedFleets, closeModal, refreshFleet],
   );
 
+  /**
+   * ✅ UPDATED: Handle bulk delete menggunakan hooks
+   */
   const handleBulkDelete = useCallback(
     async (configIds) => {
       if (!canDeletePerm) {
@@ -631,57 +657,40 @@ const FleetManagement = ({ Type }) => {
         return;
       }
 
+      // Validate access for all configs
+      const invalidConfigs = [];
+      for (const id of configIds) {
+        const config = fleetConfigsByType.find((c) => c.id === id);
+        if (!config) {
+          invalidConfigs.push({ id, reason: "Config not found" });
+          continue;
+        }
+        if (!checkDataAccess(config)) {
+          invalidConfigs.push({ id, reason: "Access denied" });
+        }
+      }
+
+      if (invalidConfigs.length > 0) {
+        logger.error("❌ Some configs failed validation", { invalidConfigs });
+        showToast.error(
+          `Tidak dapat menghapus ${invalidConfigs.length} fleet karena akses ditolak`,
+        );
+        return;
+      }
+
       setIsSaving(true);
       return withErrorHandling(
         async () => {
-          const results = [];
-          const errors = [];
+          logger.info("🗑️ Bulk deleting fleets via hook", {
+            count: configIds.length,
+          });
 
-          for (const id of configIds) {
-            const config = fleetConfigsByType.find((c) => c.id === id);
+          const result = await handleBulkDeleteFleets(configIds);
 
-            if (!config) {
-              errors.push({ id, error: "Config not found" });
-              continue;
-            }
+          // Refresh sudah dipanggil di dalam handleBulkDeleteFleets
+          // await refreshFleet();
 
-            if (!checkDataAccess(config)) {
-              errors.push({ id, error: "Access denied" });
-              continue;
-            }
-
-            try {
-              const result = await deleteConfig(id);
-              if (result) {
-                results.push(result);
-              } else {
-                errors.push({ id, error: "Failed to delete" });
-              }
-            } catch (err) {
-              errors.push({ id, error: err.message });
-            }
-          }
-
-          if (results.length > 0) {
-            await refreshFleet();
-            showToast.success(
-              `Berhasil menghapus ${results.length} dari ${configIds.length} fleet`,
-            );
-          }
-
-          if (errors.length > 0) {
-            console.error("Errors during bulk delete:", errors);
-            showToast.error(
-              `Gagal menghapus ${errors.length} dari ${configIds.length} fleet`,
-            );
-          }
-
-          return {
-            success: results.length > 0,
-            successCount: results.length,
-            errorCount: errors.length,
-            errors,
-          };
+          return result;
         },
         {
           operation: "bulk delete",
@@ -691,7 +700,14 @@ const FleetManagement = ({ Type }) => {
         setIsSaving(false);
       });
     },
-    [canDeletePerm, deleteConfig, refreshFleet, fleetConfigsByType],
+    [
+      canDeletePerm,
+      isReadOnly,
+      checkDataAccess,
+      getDisabledMessage,
+      handleBulkDeleteFleets,
+      fleetConfigsByType,
+    ],
   );
 
   // Handlers for Information Days
@@ -713,6 +729,9 @@ const FleetManagement = ({ Type }) => {
     [openModal],
   );
 
+  /**
+   * ✅ UPDATED: Handle edit fleet setting dengan support untuk bulk edit
+   */
   const handleEditFleetSetting = useCallback(
     (fleet) => {
       if (!canUpdate) {
@@ -725,17 +744,45 @@ const FleetManagement = ({ Type }) => {
         return;
       }
 
-      // Check data access
-      if (!checkDataAccess(fleet)) {
-        showToast.error("Anda tidak memiliki akses untuk mengedit fleet ini");
-        return;
+      // ✅ Check if it's a split/merged group (array) or single fleet
+      const isSplitGroup = Array.isArray(fleet);
+
+      if (isSplitGroup) {
+        // Validate access for all fleets in the group
+        const hasAccessToAll = fleet.every((f) => checkDataAccess(f));
+
+        if (!hasAccessToAll) {
+          showToast.error(
+            "Anda tidak memiliki akses untuk mengedit salah satu atau lebih fleet dalam grup ini",
+          );
+          return;
+        }
+
+        logger.info("✏️ Editing split/merged group", {
+          fleetsCount: fleet.length,
+          fleetIds: fleet.map((f) => f.id),
+        });
+      } else {
+        // Single fleet
+        if (!checkDataAccess(fleet)) {
+          showToast.error("Anda tidak memiliki akses untuk mengedit fleet ini");
+          return;
+        }
+
+        logger.info("✏️ Editing single fleet", {
+          fleetId: fleet.id,
+        });
       }
 
+      // Open modal with fleet data (can be single or array)
       openModal("config", fleet);
     },
     [canUpdate, isReadOnly, checkDataAccess, getDisabledMessage, openModal],
   );
 
+  /**
+   * ✅ UPDATED: Handle delete fleet setting dengan bulk delete support
+   */
   const handleDeleteFleetSetting = useCallback(
     (fleet) => {
       if (!canDeletePerm) {
@@ -748,28 +795,40 @@ const FleetManagement = ({ Type }) => {
         return;
       }
 
-      // ✅ FIX: Detect if fleet is split group (array) or single fleet
+      // ✅ Detect if fleet is split group (array) or single fleet
       const isSplitGroup = Array.isArray(fleet);
-      
+
       if (isSplitGroup) {
         // Validate access for all fleets in the group
         const hasAccessToAll = fleet.every((f) => checkDataAccess(f));
-        
+
         if (!hasAccessToAll) {
-          showToast.error("Anda tidak memiliki akses untuk menghapus salah satu atau lebih fleet dalam grup ini");
+          showToast.error(
+            "Anda tidak memiliki akses untuk menghapus salah satu atau lebih fleet dalam grup ini",
+          );
           return;
         }
-        
-        
+
+        logger.info("🗑️ Preparing to delete split/merged group", {
+          fleetsCount: fleet.length,
+          fleetIds: fleet.map((f) => f.id),
+        });
+
         // Set action type to delete-split-group
         setDeleteActionType("delete-split-group");
       } else {
         // Single fleet deletion
         if (!checkDataAccess(fleet)) {
-          showToast.error("Anda tidak memiliki akses untuk menghapus fleet ini");
+          showToast.error(
+            "Anda tidak memiliki akses untuk menghapus fleet ini",
+          );
           return;
         }
-        
+
+        logger.info("🗑️ Preparing to delete single fleet", {
+          fleetId: fleet.id,
+        });
+
         // Set action type to delete
         setDeleteActionType("delete");
       }
@@ -917,56 +976,6 @@ const FleetManagement = ({ Type }) => {
         selectedSatker={selectedSatker}
         fleetData={filteredFleetData}
       />
-
-      {/* Original Fleet Management Table */}
-      {/* <div className="bg-neutral-50 dark:bg-gray-800 rounded-lg dark:border-gray-700 shadow-sm">
-        <div className="p-4 sm:p-6">
-          <div className="space-y-4">
-            <FleetFilterSection
-              searchQuery={configSearchInput}
-              onSearchChange={(value) => {
-                setConfigSearchInput(value);
-                setConfigPage(1);
-              }}
-              canRead={canRead}
-              onRefresh={handleRefresh}
-              isRefreshing={isRefreshing}
-              filterExpanded={filterExpanded}
-              onToggleFilter={() => setFilterExpanded(!filterExpanded)}
-              filterGroups={filterGroups}
-              mastersLoading={mastersLoading}
-              hasActiveFilters={finalHasActiveFilters}
-              onResetFilters={handleResetFilters}
-            />
-
-            <FleetTableContainer
-              filteredConfigs={finalFilteredConfigs}
-              paginatedConfigs={finalPaginatedConfigs}
-              isLoading={isConfigsLoading}
-              hasActiveFilters={finalHasActiveFilters}
-              onResetFilters={handleResetFilters}
-              isRefreshing={isRefreshing}
-              isSaving={isSaving}
-              canRead={canRead}
-              canUpdate={canUpdate && !isReadOnly}
-              canDelete={canDeletePerm && !isReadOnly}
-              onViewConfig={handleViewConfig}
-              onEditConfig={!isReadOnly ? handleEditConfig : undefined}
-              onDeleteConfig={!isReadOnly ? handleDeleteConfig : undefined}
-              getDumptruckCount={getFleetDumptruckCount}
-              getDumptruckList={getFleetDumptruckList}
-              currentPage={configPage}
-              onPageChange={setConfigPage}
-              totalPages={totalPages}
-              pageSize={10}
-              enableBulkActions={true}
-              onBulkDelete={handleBulkDelete}
-              enableCollapsibleView={true}
-              defaultViewMode="collapsible"
-            />
-          </div>
-        </div>
-      </div> */}
 
       <FleetModalsManager
         showConfigModal={!isReadOnly && getModalState("config").isOpen}

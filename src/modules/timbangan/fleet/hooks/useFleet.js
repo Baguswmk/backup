@@ -180,8 +180,22 @@ export const useFleet = (userAuth = null, measurementType = null) => {
 
           const newConfigs = result.data || [];
 
+          const validConfigs = newConfigs.filter((c, index) => {
+            if (!c || !c.id) {
+              console.error(`❌ Invalid config at index ${index}:`, c);
+              return false;
+            }
+            return true;
+          });
+
+          if (validConfigs.length !== newConfigs.length) {
+            console.warn(
+              `⚠️ Filtered out ${newConfigs.length - validConfigs.length} invalid configs`,
+            );
+          }
+
           useRitaseStore.setState({
-            fleetConfigs: newConfigs,
+            fleetConfigs: validConfigs,
           });
 
           if (!options.skipAutoActivate && !isInitializedRef.current) {
@@ -190,7 +204,7 @@ export const useFleet = (userAuth = null, measurementType = null) => {
 
             if (currentSelectedIds.length > 0) {
               const validIds = currentSelectedIds.filter((id) => {
-                return newConfigs.some((c) => c.id === id);
+                return validConfigs.some((c) => c.id === id);
               });
 
               if (validIds.length !== currentSelectedIds.length) {
@@ -198,7 +212,7 @@ export const useFleet = (userAuth = null, measurementType = null) => {
               }
 
               if (validIds.length > 0) {
-                const selectedConfigs = newConfigs.filter((c) =>
+                const selectedConfigs = validConfigs.filter((c) =>
                   validIds.includes(c.id),
                 );
                 setDumptruckIndexFromConfigs(selectedConfigs);
@@ -208,7 +222,7 @@ export const useFleet = (userAuth = null, measurementType = null) => {
 
           return {
             success: true,
-            data: newConfigs,
+            data: validConfigs,
           };
         },
         {
@@ -320,128 +334,142 @@ export const useFleet = (userAuth = null, measurementType = null) => {
     }
   }, []);
 
-const createFleetConfig = useCallback(
-  async (configData) => {
+  const createFleetConfig = useCallback(
+    async (configData) => {
+      setIsLoading(true);
+      setError(null);
+
+      return await withErrorHandling(
+        async () => {
+          // CHANGED: Validate inspectorIds array
+          if (
+            !configData.inspectorIds ||
+            !Array.isArray(configData.inspectorIds) ||
+            configData.inspectorIds.length === 0
+          ) {
+            throw new Error("Minimal 1 inspector wajib dipilih");
+          }
+
+          // CHANGED: Validate checkerIds array
+          if (
+            !configData.checkerIds ||
+            !Array.isArray(configData.checkerIds) ||
+            configData.checkerIds.length === 0
+          ) {
+            throw new Error("Minimal 1 checker wajib dipilih");
+          }
+
+          const enrichedData = {
+            ...configData,
+            createdByUserId: user?.id || null,
+          };
+
+          if (!enrichedData.measurement_type) {
+            const fleetTypeMap = {
+              Jembatan: "Timbangan",
+              Timbangan: "Timbangan",
+              FOB: "FOB",
+              Bypass: "Bypass",
+              Beltscale: "Beltscale",
+            };
+
+            const fleetType =
+              configData.fleetType || measurementType || "Timbangan";
+            enrichedData.measurement_type =
+              fleetTypeMap[fleetType] || measurementType || "Timbangan";
+          }
+
+          const satkerId = user?.work_unit?.id || user?.workUnit?.id;
+          if (
+            (userRoleInfo.role === "Admin" || user?.role === "admin") &&
+            satkerId
+          ) {
+            enrichedData.workUnitId = satkerId;
+          }
+
+          const result = await fleetService.createFleetConfig(enrichedData);
+
+          if (result.success) {
+            await offlineService.clearCache("fleets_");
+
+            return { success: true, data: result.data };
+          }
+
+          throw new Error(
+            result.error || result.message || "Failed to create config",
+          );
+        },
+        {
+          operation: "create fleet config",
+          showSuccessToast: true,
+          onError: (err) => setError(err.message),
+        },
+      ).finally(() => {
+        setIsLoading(false);
+      });
+    },
+    [user, userRoleInfo, measurementType],
+  );
+
+  // UPDATE: updateConfig function
+  const updateConfig = useCallback(async (configId, updates) => {
     setIsLoading(true);
     setError(null);
 
+    const currentConfigs = useRitaseStore.getState().fleetConfigs;
+    const optimisticConfigs = currentConfigs.map((c) =>
+      c.id === configId ? { ...c, ...updates } : c,
+    );
+
+    useRitaseStore.setState({ fleetConfigs: optimisticConfigs });
+
     return await withErrorHandling(
       async () => {
-        // CHANGED: Validate inspectorIds array
-        if (!configData.inspectorIds || !Array.isArray(configData.inspectorIds) || configData.inspectorIds.length === 0) {
-          throw new Error("Minimal 1 inspector wajib dipilih");
-        }
-        
-        // CHANGED: Validate checkerIds array
-        if (!configData.checkerIds || !Array.isArray(configData.checkerIds) || configData.checkerIds.length === 0) {
-          throw new Error("Minimal 1 checker wajib dipilih");
-        }
-
-        const enrichedData = {
-          ...configData,
-          createdByUserId: user?.id || null,
-        };
-
-        if (!enrichedData.measurement_type) {
-          const fleetTypeMap = {
-            Jembatan: "Timbangan",
-            Timbangan: "Timbangan",
-            FOB: "FOB",
-            Bypass: "Bypass",
-            Beltscale: "Beltscale",
-          };
-
-          const fleetType =
-            configData.fleetType || measurementType || "Timbangan";
-          enrichedData.measurement_type =
-            fleetTypeMap[fleetType] || measurementType || "Timbangan";
+        // CHANGED: Validate inspectorIds if provided
+        if (updates.inspectorIds !== undefined) {
+          if (
+            !Array.isArray(updates.inspectorIds) ||
+            updates.inspectorIds.length === 0
+          ) {
+            throw new Error("Minimal 1 inspector wajib dipilih");
+          }
         }
 
-        const satkerId = user?.work_unit?.id || user?.workUnit?.id;
-        if (
-          (userRoleInfo.role === "Admin" || user?.role === "admin") &&
-          satkerId
-        ) {
-          enrichedData.workUnitId = satkerId;
+        // CHANGED: Validate checkerIds if provided
+        if (updates.checkerIds !== undefined) {
+          if (
+            !Array.isArray(updates.checkerIds) ||
+            updates.checkerIds.length === 0
+          ) {
+            throw new Error("Minimal 1 checker wajib dipilih");
+          }
         }
 
-        const result = await fleetService.createFleetConfig(enrichedData);
+        const result = await fleetService.updateFleetConfig(configId, updates);
 
         if (result.success) {
-          await offlineService.clearCache("fleets_");
+          await offlineService.clearCacheByPrefix("fleets");
+          await offlineService.clearCacheByPrefix("ritases");
 
           return { success: true, data: result.data };
         }
 
-        throw new Error(
-          result.error || result.message || "Failed to create config",
-        );
+        useRitaseStore.setState({ fleetConfigs: currentConfigs });
+        throw new Error(result.error || "Failed to update config");
       },
       {
-        operation: "create fleet config",
+        operation: "update fleet config",
         showSuccessToast: true,
-        onError: (err) => setError(err.message),
+        successMessage: "Konfigurasi fleet berhasil diperbarui",
+        onError: (err) => {
+          useRitaseStore.setState({ fleetConfigs: currentConfigs });
+          setError(err.message);
+        },
       },
     ).finally(() => {
       setIsLoading(false);
     });
-  },
-  [user, userRoleInfo, measurementType],
-);
-
-// UPDATE: updateConfig function
-const updateConfig = useCallback(async (configId, updates) => {
-  setIsLoading(true);
-  setError(null);
-
-  const currentConfigs = useRitaseStore.getState().fleetConfigs;
-  const optimisticConfigs = currentConfigs.map((c) =>
-    c.id === configId ? { ...c, ...updates } : c,
-  );
-
-  useRitaseStore.setState({ fleetConfigs: optimisticConfigs });
-
-  return await withErrorHandling(
-    async () => {
-      // CHANGED: Validate inspectorIds if provided
-      if (updates.inspectorIds !== undefined) {
-        if (!Array.isArray(updates.inspectorIds) || updates.inspectorIds.length === 0) {
-          throw new Error("Minimal 1 inspector wajib dipilih");
-        }
-      }
-
-      // CHANGED: Validate checkerIds if provided
-      if (updates.checkerIds !== undefined) {
-        if (!Array.isArray(updates.checkerIds) || updates.checkerIds.length === 0) {
-          throw new Error("Minimal 1 checker wajib dipilih");
-        }
-      }
-
-      const result = await fleetService.updateFleetConfig(configId, updates);
-
-      if (result.success) {
-        await offlineService.clearCacheByPrefix("fleets");
-        await offlineService.clearCacheByPrefix("ritases");
-
-        return { success: true, data: result.data };
-      }
-
-      useRitaseStore.setState({ fleetConfigs: currentConfigs });
-      throw new Error(result.error || "Failed to update config");
-    },
-    {
-      operation: "update fleet config",
-      showSuccessToast: true,
-      successMessage: "Konfigurasi fleet berhasil diperbarui",
-      onError: (err) => {
-        useRitaseStore.setState({ fleetConfigs: currentConfigs });
-        setError(err.message);
-      },
-    },
-  ).finally(() => {
-    setIsLoading(false);
-  });
-}, []);
+  }, []);
 
   const deleteConfig = useCallback(
     async (configId) => {

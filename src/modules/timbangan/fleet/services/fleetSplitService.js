@@ -1,18 +1,19 @@
 import { offlineService } from "@/shared/services/offlineService";
 import { logger } from "@/shared/services/log";
 
-/**
- * Service untuk menangani split fleet (bulk create 2 fleet sekaligus)
- */
 export const fleetSplitService = {
-  /**
-   * Create 2 fleet configs sekaligus dengan excavator dan loading point yang sama
-   * @param {Object} splitData - Data split dari FleetSplitModal
-   * @returns {Promise<Object>} Result dengan success status
-   */
   async createSplitFleets(splitData) {
     try {
-      logger.info("🔀 Creating split fleets", {
+      // Validation
+      if (!splitData.splits || splitData.splits.length < 2) {
+        throw new Error("Mode split memerlukan minimal 2 fleet configuration");
+      }
+
+      if (splitData.splits.length > 3) {
+        throw new Error("Mode split maksimal 3 fleet configuration");
+      }
+
+      logger.info("🔀 Creating split fleets via BULK endpoint", {
         excavatorId: splitData.excavatorId,
         loadingLocationId: splitData.loadingLocationId,
         splits: splitData.splits.length,
@@ -20,155 +21,147 @@ export const fleetSplitService = {
 
       const now = new Date().toISOString();
 
-      // Prepare base payload yang sama untuk kedua fleet
-      const basePayload = {
-        unit_exca: splitData.excavatorId
-          ? parseInt(splitData.excavatorId)
-          : null,
-        loading_location: splitData.loadingLocationId
-          ? parseInt(splitData.loadingLocationId)
-          : null,
-        coal_type: splitData.coalTypeId ? parseInt(splitData.coalTypeId) : null,
-        pic_work_unit: splitData.workUnitId
-          ? parseInt(splitData.workUnitId)
-          : null,
-        measurement_type: splitData.measurement_type,
-        created_at: now,
-        isSplit: true, // Flag untuk menandai ini adalah split fleet
-      };
-
-      // Add checkers (required)
-      if (
-        splitData.checkerIds &&
-        Array.isArray(splitData.checkerIds) &&
-        splitData.checkerIds.length > 0
-      ) {
-        basePayload.checkers = splitData.checkerIds.map((id) => parseInt(id));
-      }
-
-      // Add inspectors (conditional - only if different companies)
-      if (
-        splitData.inspectorIds &&
-        Array.isArray(splitData.inspectorIds) &&
-        splitData.inspectorIds.length > 0
-      ) {
-        basePayload.inspectors = splitData.inspectorIds.map((id) =>
-          parseInt(id),
-        );
-      }
-
-      if (splitData.createdByUserId) {
-        basePayload.created_by_user = parseInt(splitData.createdByUserId);
-      }
-
-      if (
-        splitData.measurement_type === "Timbangan" &&
-        splitData.weightBridgeId
-      ) {
-        basePayload.weigh_bridge = parseInt(splitData.weightBridgeId);
-      }
-
-      // Create both fleets
-      const results = [];
-      const errors = [];
-
-      for (let i = 0; i < splitData.splits.length; i++) {
-        const split = splitData.splits[i];
-
-        const payload = {
-          ...basePayload,
+      // Build fleets array
+      const fleets = splitData.splits.map((split, index) => {
+        const fleet = {
+          unit_exca: splitData.excavatorId
+            ? parseInt(splitData.excavatorId)
+            : null,
+          loading_location: splitData.loadingLocationId
+            ? parseInt(splitData.loadingLocationId)
+            : null,
           dumping_location: split.dumpingLocationId
             ? parseInt(split.dumpingLocationId)
             : null,
+          coal_type: splitData.coalTypeId
+            ? parseInt(splitData.coalTypeId)
+            : null,
+          pic_work_unit: splitData.workUnitId
+            ? parseInt(splitData.workUnitId)
+            : null,
           distance: split.distance || 0,
-          // Note: pair_dt_op akan diisi nanti saat edit/assign DT
-          pair_dt_op: split.pairDtOp || [],
+          measurement_type: split.measurementType || splitData.measurement_type,
+          isSplit: true,
+          created_at: now,
+          pair_dt_op: (split.pairDtOp || []).map((pair) => ({
+            truckId: parseInt(pair.truckId),
+            operatorId: parseInt(pair.operatorId),
+          })),
         };
 
-        try {
-          const response = await offlineService.post(
-            "/v1/custom/setting-fleet",
-            payload,
-          );
-
-          if (response.status === "success") {
-            const fleetId =
-              response.data?.data?.id_setting_fleet ||
-              response.data?.id_setting_fleet;
-
-            logger.info(`✅ Split fleet ${i + 1} created, ID:`, fleetId);
-
-            results.push({
-              success: true,
-              fleetId,
-              splitIndex: i,
-              dumpingLocationId: split.dumpingLocationId,
-              distance: split.distance,
-            });
-          } else {
-            errors.push({
-              splitIndex: i,
-              error: "Failed to create fleet",
-            });
-          }
-        } catch (error) {
-          const errorMessage =
-            error?.response?.data?.message ||
-            error?.response?.data?.error?.message ||
-            error?.response?.data?.error ||
-            error?.message ||
-            "Terjadi kesalahan";
-
-          logger.error(`❌ Failed to create split fleet ${i + 1}`, {
-            error: errorMessage,
-            details: error.response?.data,
-          });
-
-          errors.push({
-            splitIndex: i,
-            error: errorMessage,
-          });
+        // Add checkers
+        if (
+          split.checkerIds &&
+          Array.isArray(split.checkerIds) &&
+          split.checkerIds.length > 0
+        ) {
+          fleet.checkers = split.checkerIds.map((id) => parseInt(id));
+        } else if (
+          splitData.checkerIds &&
+          Array.isArray(splitData.checkerIds) &&
+          splitData.checkerIds.length > 0
+        ) {
+          fleet.checkers = splitData.checkerIds.map((id) => parseInt(id));
         }
-      }
 
-      // Clear cache after creating both fleets
-      await offlineService.clearCache("fleets_");
+        // Add inspectors (CRITICAL)
+        if (
+          split.inspectorIds &&
+          Array.isArray(split.inspectorIds) &&
+          split.inspectorIds.length > 0
+        ) {
+          fleet.inspectors = split.inspectorIds.map((id) => parseInt(id));
+        } else if (
+          splitData.inspectorIds &&
+          Array.isArray(splitData.inspectorIds) &&
+          splitData.inspectorIds.length > 0
+        ) {
+          fleet.inspectors = splitData.inspectorIds.map((id) => parseInt(id));
+        }
 
-      // Return result
-      if (errors.length === 0) {
-        logger.info("✅ All split fleets created successfully", {
-          count: results.length,
+        if (splitData.createdByUserId) {
+          fleet.created_by_user = parseInt(splitData.createdByUserId);
+        }
+
+        if (split.measurementType === "Timbangan" && splitData.weightBridgeId) {
+          fleet.weigh_bridge = parseInt(splitData.weightBridgeId);
+        }
+
+        // ✅ NEW: Add transfer metadata if applicable
+        if (split.moveFromFleets && split.moveFromFleets.length > 0) {
+          fleet.isTransfer = true;
+          fleet.moveFromFleets = split.moveFromFleets;
+        }
+
+        logger.info(`📦 Fleet ${index + 1} prepared`, {
+          dumping: split.dumpingLocationId,
+          measurement: split.measurementType,
+          pairsCount: fleet.pair_dt_op.length,
+          hasInspectors: !!fleet.inspectors,
+          isTransfer: fleet.isTransfer || false, // ✅ NEW
         });
+
+        return fleet;
+      });
+
+      // Call BULK endpoint
+      const payload = { fleets };
+
+      logger.info("📡 Calling BULK create endpoint", {
+        fleetsCount: fleets.length,
+        endpoint: "/v1/custom/setting-fleet/bulk",
+      });
+
+      const response = await offlineService.post(
+        "/v1/custom/setting-fleet/bulk",
+        payload,
+      );
+
+      // Handle response
+      if (response.status === "success") {
+        const results = response.data || [];
+
+        logger.info("✅ All split fleets created successfully via BULK", {
+          count: results.length,
+          fleetIds: results.map((r) => r.id_setting_fleet),
+        });
+
+        await offlineService.clearCache("fleets_");
 
         return {
           success: true,
-          data: results,
+          data: results.map((r, i) => ({
+            success: true,
+            fleetId: r.id_setting_fleet,
+            splitIndex: i,
+            dumpingLocationId: splitData.splits[i].dumpingLocationId,
+            distance: r.distance,
+            measurementType: r.measurement_type,
+          })),
           message: `Berhasil membuat ${results.length} fleet`,
         };
-      } else if (results.length > 0) {
-        // Partial success
+      }
+
+      // Partial success
+      if (response.partialSuccess) {
         logger.warn("⚠️ Partial split fleet creation", {
-          success: results.length,
-          failed: errors.length,
+          message: response.message,
         });
 
         return {
           success: false,
           partialSuccess: true,
-          data: results,
-          errors,
-          message: `${results.length} fleet berhasil dibuat, ${errors.length} gagal`,
-        };
-      } else {
-        // All failed
-        logger.error("❌ All split fleet creation failed");
-
-        return {
-          success: false,
-          errors,
-          message: "Gagal membuat semua fleet",
+          data: response.data || [],
+          errors: response.errors || [],
+          message: response.message,
         };
       }
+
+      // Failed
+      return {
+        success: false,
+        error: response.message || "Gagal membuat fleet",
+      };
     } catch (error) {
       const errorMessage =
         error?.response?.data?.message ||
@@ -180,6 +173,219 @@ export const fleetSplitService = {
       logger.error("❌ Failed to create split fleets", {
         error: errorMessage,
         details: error.response?.data,
+      });
+
+      return {
+        success: false,
+        error: errorMessage,
+      };
+    }
+  },
+
+  async bulkEditFleets(fleetsData) {
+    try {
+      if (!Array.isArray(fleetsData) || fleetsData.length === 0) {
+        throw new Error("Fleet data harus berupa array dan tidak boleh kosong");
+      }
+
+      logger.info("✏️ Bulk editing fleets", {
+        count: fleetsData.length,
+        fleetIds: fleetsData.map((f) => f.id || "NEW"),
+      });
+
+      // Transform to backend format
+      const fleets = fleetsData.map((fleet, index) => {
+        const isNewFleet = !fleet.id;
+        const payload = {};
+
+        // ✅ Include ID for existing fleets
+        if (!isNewFleet) {
+          payload.id = parseInt(fleet.id);
+        }
+
+        // ✅ REQUIRED fields for ALL fleets (new or update)
+        // These fields MUST be present for creation
+        if (fleet.excavatorId !== undefined) {
+          payload.unit_exca = parseInt(fleet.excavatorId);
+        }
+
+        if (fleet.loadingLocationId !== undefined) {
+          payload.loading_location = parseInt(fleet.loadingLocationId);
+        }
+
+        if (fleet.dumpingLocationId !== undefined) {
+          payload.dumping_location = parseInt(fleet.dumpingLocationId);
+        }
+
+        if (fleet.coalTypeId !== undefined) {
+          payload.coal_type = parseInt(fleet.coalTypeId);
+        }
+
+        if (fleet.workUnitId !== undefined) {
+          payload.pic_work_unit = parseInt(fleet.workUnitId);
+        }
+
+        if (fleet.distance !== undefined) {
+          payload.distance = fleet.distance || 0;
+        }
+
+        if (fleet.measurementType !== undefined) {
+          payload.measurement_type = fleet.measurementType;
+        }
+
+        // ✅ For NEW fleets: add creation metadata
+        if (isNewFleet) {
+          payload.isSplit = true;
+          payload.created_at = new Date().toISOString();
+
+          if (fleet.createdByUserId !== undefined) {
+            payload.created_by_user = parseInt(fleet.createdByUserId);
+          }
+        }
+
+        // Inspectors
+        if (fleet.inspectorIds !== undefined) {
+          payload.inspectors =
+            Array.isArray(fleet.inspectorIds) && fleet.inspectorIds.length > 0
+              ? fleet.inspectorIds.map((id) => parseInt(id))
+              : [];
+        }
+
+        // Checkers
+        if (fleet.checkerIds !== undefined) {
+          payload.checkers =
+            Array.isArray(fleet.checkerIds) && fleet.checkerIds.length > 0
+              ? fleet.checkerIds.map((id) => parseInt(id))
+              : [];
+        }
+
+        // Pair DT Op
+        if (fleet.pairDtOp !== undefined) {
+          payload.pair_dt_op = Array.isArray(fleet.pairDtOp)
+            ? fleet.pairDtOp.map((pair) => ({
+                truckId: parseInt(pair.truckId),
+                operatorId: parseInt(pair.operatorId),
+              }))
+            : [];
+        }
+
+        if (
+          fleet.weightBridgeId !== undefined &&
+          fleet.measurementType === "Timbangan"
+        ) {
+          payload.weigh_bridge = parseInt(fleet.weightBridgeId);
+        }
+
+        // ✅ Add transfer metadata
+        if (fleet.moveFromFleets && fleet.moveFromFleets.length > 0) {
+          payload.isTransfer = true;
+          payload.moveFromFleets = fleet.moveFromFleets;
+        }
+
+        logger.info(`📦 Fleet ${index + 1} payload prepared`, {
+          isNewFleet,
+          hasId: !!payload.id,
+          hasExcavator: !!payload.unit_exca,
+          hasLoading: !!payload.loading_location,
+          hasDumping: !!payload.dumping_location,
+          pairCount: payload.pair_dt_op?.length || 0,
+        });
+
+        return payload;
+      });
+
+      // Call bulk edit endpoint
+      const response = await offlineService.put(
+        "/v1/custom/setting-fleet/bulk",
+        { fleets },
+      );
+
+      if (response.status === "success") {
+        logger.info("✅ Fleets bulk edited successfully", {
+          count: fleetsData.length,
+        });
+
+        await offlineService.clearCache("fleets_");
+
+        return {
+          success: true,
+          data: response.data || [],
+          message: `Berhasil update ${fleetsData.length} fleet`,
+        };
+      }
+
+      return {
+        success: false,
+        error: response.message || "Gagal update fleet",
+      };
+    } catch (error) {
+      const errorMessage =
+        error?.response?.data?.message ||
+        error?.response?.data?.error?.message ||
+        error?.response?.data?.error ||
+        error?.message ||
+        "Terjadi kesalahan";
+
+      logger.error("❌ Failed to bulk edit fleets", {
+        error: errorMessage,
+        details: error.response?.data,
+      });
+
+      return {
+        success: false,
+        error: errorMessage,
+      };
+    }
+  },
+
+  // bulkDeleteFleets tetap sama, tidak perlu perubahan
+  async bulkDeleteFleets(fleetIds) {
+    try {
+      if (!Array.isArray(fleetIds) || fleetIds.length === 0) {
+        throw new Error("Fleet IDs harus berupa array dan tidak boleh kosong");
+      }
+
+      logger.info("🗑️ Bulk deleting fleets", {
+        count: fleetIds.length,
+        fleetIds,
+      });
+
+      const response = await offlineService.post(
+        "/v1/custom/setting-fleet/bulk-delete",
+        { fleetIds: fleetIds.map((id) => parseInt(id)) },
+      );
+
+      if (response.status === "success") {
+        logger.info("✅ Fleets bulk deleted successfully", {
+          count: fleetIds.length,
+        });
+
+        await offlineService.clearCache("fleets_");
+
+        return {
+          success: true,
+          data: response.data || [],
+          message:
+            response.message || `Berhasil delete ${fleetIds.length} fleet`,
+        };
+      }
+
+      return {
+        success: false,
+        error: response.message || "Gagal delete fleet",
+      };
+    } catch (error) {
+      const errorMessage =
+        error?.response?.data?.message ||
+        error?.response?.data?.error?.message ||
+        error?.response?.data?.error ||
+        error?.message ||
+        "Terjadi kesalahan";
+
+      logger.error("❌ Failed to bulk delete fleets", {
+        error: errorMessage,
+        details: error.response?.data,
+        fleetIds,
       });
 
       return {

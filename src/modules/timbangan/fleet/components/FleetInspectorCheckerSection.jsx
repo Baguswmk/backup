@@ -3,6 +3,7 @@ import { Label } from "@/shared/components/ui/label";
 import MultiSearchableSelect from "@/shared/components/MultiSearchableSelect";
 import { InfoCard } from "@/shared/components/InfoCard";
 import SearchableSelect from "@/shared/components/SearchableSelect";
+
 const FleetInspectorCheckerSection = ({
   inspectorItems,
   checkerItems,

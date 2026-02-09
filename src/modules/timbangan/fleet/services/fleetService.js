@@ -2,11 +2,6 @@ import { offlineService } from "@/shared/services/offlineService";
 import { masterDataService } from "@/modules/timbangan/masterData/services/masterDataService";
 import { logger } from "@/shared/services/log";
 
-const CACHE_TTL = {
-  FLEET_DATA: 5 * 60 * 1000,
-  MASTERS: 5 * 60 * 1000,
-};
-
 const pendingRequests = new Map();
 
 const extractErrorMessage = (error) => {
@@ -135,17 +130,17 @@ export const fleetService = {
         forceRefresh,
       });
 
-     if (forceRefresh) {
-      logger.info('🗑️ Force refresh: clearing all fleet cache');
-      
-      await Promise.all([
-        offlineService.clearCache(cacheKey),              
-        offlineService.clearCacheByPrefix('fleets_'),    
-        offlineService.clearCacheByPrefix('setting-fleets'),
-      ]);
-      
-      logger.info('✅ Fleet cache cleared');
-    }
+      if (forceRefresh) {
+        logger.info("🗑️ Force refresh: clearing all fleet cache");
+
+        await Promise.all([
+          offlineService.clearCache(cacheKey),
+          offlineService.clearCacheByPrefix("fleets_"),
+          offlineService.clearCacheByPrefix("setting-fleets"),
+        ]);
+
+        logger.info("✅ Fleet cache cleared");
+      }
 
       const requestPromise = (async () => {
         try {
@@ -238,7 +233,7 @@ export const fleetService = {
           ? parseInt(configData.workUnitId)
           : null,
         created_at: now,
-        measurement_type: configData.measurement_type,
+        measurement_type: configData.measurementType,
         pair_dt_op: configData.pairDtOp.map((pair) => ({
           truckId: parseInt(pair.truckId),
           operatorId: parseInt(pair.operatorId),
@@ -269,12 +264,25 @@ export const fleetService = {
         payload.created_by_user = parseInt(configData.createdByUserId);
       }
 
-      if (
-        configData.measurement_type === "Timbangan" &&
-        configData.weightBridgeId
-      ) {
-        payload.weigh_bridge = parseInt(configData.weightBridgeId);
+      // ✅ NEW: Add transfer metadata
+      if (configData.isTransfer) {
+        payload.isTransfer = true;
       }
+
+      if (
+        configData.moveFromFleets &&
+        Array.isArray(configData.moveFromFleets) &&
+        configData.moveFromFleets.length > 0
+      ) {
+        payload.moveFromFleets = configData.moveFromFleets;
+      }
+
+      logger.info("📡 Creating fleet config", {
+        excavatorId: payload.unit_exca,
+        pairsCount: payload.pair_dt_op.length,
+        isTransfer: payload.isTransfer || false,
+        transfersCount: payload.moveFromFleets?.length || 0,
+      });
 
       const response = await offlineService.post(
         "/v1/custom/setting-fleet",
@@ -453,6 +461,19 @@ export const fleetService = {
         });
       }
 
+      // ✅ NEW: Add transfer metadata for EDIT mode
+      if (updates.isTransfer) {
+        payload.isTransfer = true;
+      }
+
+      if (
+        updates.moveFromFleets &&
+        Array.isArray(updates.moveFromFleets) &&
+        updates.moveFromFleets.length > 0
+      ) {
+        payload.moveFromFleets = updates.moveFromFleets;
+      }
+
       const endpoint = `/v1/custom/setting-fleet/${configId}`;
 
       logger.info("📡 Sending update request", {
@@ -461,6 +482,8 @@ export const fleetService = {
         hasPairDtOp: !!payload.pair_dt_op,
         hasInspectors: !!payload.inspectors,
         hasCheckers: !!payload.checkers,
+        isTransfer: payload.isTransfer || false,
+        transfersCount: payload.moveFromFleets?.length || 0,
       });
 
       const response = await offlineService.put(endpoint, payload);
@@ -762,6 +785,12 @@ export const fleetService = {
       const item = apiResponse.data || apiResponse;
       const attr = item.attributes || item;
 
+      // ✅ CRITICAL FIX: Validate item has id before proceeding
+      if (!item || !item.id) {
+        console.error("❌ Invalid fleet item - missing id:", item);
+        throw new Error("Fleet data is missing required id field");
+      }
+
       const normalizeUser = (userData) => {
         if (!userData) return { name: null, id: null };
 
@@ -785,10 +814,13 @@ export const fleetService = {
         if (!userData) return [];
 
         if (Array.isArray(userData.data)) {
-          return userData.data.map((user) => ({
-            name: user.attributes?.username || user.attributes?.name || null,
-            id: user.id?.toString() || null,
-          }));
+          // ✅ FIX: Filter out undefined/null objects before mapping
+          return userData.data
+            .filter((user) => user && user.id) // Skip undefined/null objects
+            .map((user) => ({
+              name: user.attributes?.username || user.attributes?.name || null,
+              id: user.id?.toString() || null,
+            }));
         }
 
         const single = normalizeUser(userData);
@@ -827,6 +859,8 @@ export const fleetService = {
           status: dt.attributes?.status || "ON DUTY",
           type_dt: dt.attributes?.type_dt || "Tronton",
           unit_logs: dt.attributes?.unit_logs?.data || [],
+          workUnit: dt.attributes?.work_unit?.data?.attributes?.name || "",
+          workUnitId: dt.attributes?.work_unit?.data?.id?.toString() || "",
         }));
       });
 
@@ -836,7 +870,7 @@ export const fleetService = {
       const excavatorCompany = excavatorCompanyData?.attributes?.name || null;
 
       return {
-        id: item.id.toString(),
+        id: item.id?.toString() || "", // ✅ FIX: Added optional chaining
 
         excavator: attr.unit_exca?.data?.attributes?.hull_no || "",
         excavatorId: attr.unit_exca?.data?.id?.toString() || "",

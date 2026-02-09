@@ -2,7 +2,6 @@ import React from "react";
 import { Label } from "@/shared/components/ui/label";
 import { Input } from "@/shared/components/ui/input";
 import { Checkbox } from "@/shared/components/ui/checkbox";
-import { Button } from "@/shared/components/ui/button";
 import { Alert, AlertDescription } from "@/shared/components/ui/alert";
 import { InfoCard } from "@/shared/components/InfoCard";
 import SearchableSelect from "@/shared/components/SearchableSelect";
@@ -10,9 +9,8 @@ import {
   SEARCH_PLACEHOLDERS,
   CARD_TITLES,
 } from "@/modules/timbangan/fleet/constant/fleetConstants";
-import { Truck, User, AlertCircle, Loader2, ArrowRight } from "lucide-react";
-import {  getDumptruckStatus} from "@/modules/timbangan/fleet/utils/FleetDumptruckHelper";
-import { showToast } from "@/shared/utils/toast";
+import { Truck, User, AlertCircle, Loader2 } from "lucide-react";
+import { getDumptruckStatus } from "@/modules/timbangan/fleet/utils/FleetDumptruckHelper";
 
 const FleetUnitSelectionSection = ({
   fleetData,
@@ -37,44 +35,13 @@ const FleetUnitSelectionSection = ({
   getAvailableOperatorCount,
   handleOperatorChange,
   handleUnitToggle,
-  // Props tambahan untuk split mode
-  isSplitMode,
-  setFleet2SelectedUnits,
-  setFleet2UnitOperators,
-  setSelectedUnits,
-  setUnitOperators,
 }) => {
-  // Handler untuk memindahkan semua DT dari Fleet 1 ke Fleet 2
-  const handleMergeFleet1ToFleet2 = () => {
-    if (selectedUnits.length === 0) {
-      showToast("Tidak ada dump truck di Fleet 1 untuk dipindahkan", "info");
-      return;
-    }
-
-    // Pindahkan semua unit dari Fleet 1 ke Fleet 2
-    setFleet2SelectedUnits((prev) => [...prev, ...selectedUnits]);
-    
-    // Pindahkan semua operator
-    setFleet2UnitOperators((prev) => ({
-      ...prev,
-      ...unitOperators,
-    }));
-
-    // Kosongkan Fleet 1
-    setSelectedUnits([]);
-    setUnitOperators({});
-
-    showToast(
-      `Berhasil memindahkan ${selectedUnits.length} dump truck ke Fleet 2`,
-      "success"
-    );
-  };
 
   if (!fleetData.excavator) {
     return null;
   }
 
-  // ✅ TAMBAHAN: Hitung jumlah DT di fleet saat edit
+  // ✅ Hitung jumlah DT di fleet saat edit
   const currentDTCount = isEdit && editingConfig?.dumpTrucks 
     ? editingConfig.dumpTrucks.length 
     : 0;
@@ -99,7 +66,7 @@ const FleetUnitSelectionSection = ({
           />
         </div>
 
-        {/* ✅ TAMBAHAN: Warning jika fleet akan kosong */}
+        {/* ✅ Warning jika fleet akan kosong */}
         {willBeEmpty && (
           <Alert className="bg-orange-50 dark:bg-orange-900/20 border-orange-200 dark:border-orange-800">
             <AlertCircle className="h-4 w-4 text-orange-600 dark:text-orange-400" />
@@ -148,28 +115,8 @@ const FleetUnitSelectionSection = ({
           </div>
         )}
 
-        {/* TOMBOL GABUNGKAN KE FLEET 2 - Hanya muncul di Split Mode */}
-        {isSplitMode && selectedUnits.length > 0 && (
-          <div className="p-3 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 rounded-lg border-2 border-blue-300 dark:border-blue-700">
-            <Button
-              type="button"
-              onClick={handleMergeFleet1ToFleet2}
-              disabled={isSaving || selectedUnits.length === 0}
-              className="w-full cursor-pointer disabled:cursor-not-allowed bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white dark:from-blue-600 dark:to-purple-600 dark:hover:from-blue-700 dark:hover:to-purple-700"
-            >
-              <ArrowRight className="w-4 h-4 mr-2" />
-              Gabungkan Semua ke Fleet 2
-              {selectedUnits.length > 0 && (
-                <span className="ml-2 px-2 py-0.5 bg-white/20 rounded-full text-xs font-semibold">
-                  {selectedUnits.length} DT
-                </span>
-              )}
-            </Button>
-            <p className="text-xs text-center text-gray-600 dark:text-gray-400 mt-2">
-              💡 Pindahkan semua dump truck Fleet 1 → Fleet 2 (termasuk operator)
-            </p>
-          </div>
-        )}
+        {/* ✅ REMOVED: Tombol "Gabungkan ke Fleet 2" sudah tidak diperlukan 
+            karena logic split sudah dipindah ke FleetSplitSettingsSection */}
 
         {!isLoadingFilteredUnits && filteredUnits.length > 0 && (
           <div className="rounded-lg max-h-96 overflow-y-auto">
@@ -182,16 +129,16 @@ const FleetUnitSelectionSection = ({
                   </span>
                 </div>
                 {selectedUnitsList.map((unit) => {
+                  const isSelected = true;
                   const hasOperatorError = errors[`operator_${unit.id}`];
-
-                  const currentExcavator = masters?.excavators?.find(
-                    (e) => String(e.id) === String(fleetData.excavator),
+                  
+                  const dtStatus = getDumptruckStatus(
+                    unit.id,
+                    selectedUnits,
+                    usedDumptrucksMap,
+                    isEdit ? editingConfig?.id : null,
                   );
-                  const isDifferentCompany =
-                    isEdit &&
-                    currentExcavator &&
-                    String(unit.companyId) !==
-                      String(currentExcavator.companyId);
+                  const isUsedInOtherFleet = dtStatus === "used-other";
 
                   const isPendingTransfer = pendingTransfers.some(
                     (t) => String(t.dumpTruckId) === String(unit.id),
@@ -201,105 +148,120 @@ const FleetUnitSelectionSection = ({
                     <div
                       key={unit.id}
                       className={`p-3 transition-colors ${
-                        isDifferentCompany
-                          ? "bg-yellow-50 dark:bg-yellow-900/20 border-l-4 border-yellow-500"
-                          : "bg-blue-50 dark:bg-blue-900/20"
+                        isSelected
+                          ? "bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-500"
+                          : isUsedInOtherFleet
+                            ? "hover:bg-orange-50 dark:hover:bg-orange-900/10"
+                            : "hover:bg-gray-50 dark:hover:bg-gray-700"
                       }`}
                     >
                       <div className="flex items-start gap-3">
                         <div className="pt-1">
                           <Checkbox
-                            checked={true}
+                            checked={isSelected}
                             onCheckedChange={() => handleUnitToggle(unit)}
                             disabled={isSaving}
                             className="dark:text-gray-200"
                           />
                         </div>
-                        <Truck className="w-4 h-4 text-blue-600 dark:text-blue-400 mt-1" />
+                        <Truck
+                          className={`w-4 h-4 mt-1 ${
+                            isSelected
+                              ? "text-blue-600 dark:text-blue-400"
+                              : isUsedInOtherFleet
+                                ? "text-orange-500 dark:text-orange-400"
+                                : "text-gray-400 dark:text-gray-500"
+                          }`}
+                        />
                         <div className="flex-1 space-y-2">
-                          <div className="flex items-start justify-between">
-                            <div
-                              className="cursor-pointer flex-1"
-                              onClick={() => {
-                                if (!isSaving) {
-                                  handleUnitToggle(unit);
-                                }
-                              }}
-                            >
-                              <div className="flex items-center gap-2">
-                                <p className="font-medium text-sm dark:text-gray-200">
-                                  {unit.hull_no}
-                                </p>
-                                {isDifferentCompany && (
-                                  <span className="text-xs bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 px-2 py-0.5 rounded">
-                                    ⚠️ Beda Company
-                                  </span>
-                                )}
-                                {isPendingTransfer && (
-                                  <span className="text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 px-2 py-0.5 rounded">
-                                    🔄 Sedang Transfer
-                                  </span>
-                                )}
-                              </div>
-                              <p className="text-xs text-gray-500 dark:text-gray-400">
-                                {unit.company} • {unit.workUnit}
+                          <div
+                            className="cursor-pointer"
+                            onClick={() => {
+                              if (!isSaving) {
+                                handleUnitToggle(unit);
+                              }
+                            }}
+                          >
+                            <div className="flex items-center gap-2">
+                              <p className="font-medium text-sm dark:text-gray-200">
+                                {unit.hull_no}
                               </p>
-                            </div>
-                          </div>
-
-                          <div className="space-y-1">
-                            <Label className="text-xs flex items-center gap-1 dark:text-gray-300">
-                              <User className="w-3 h-3" />
-                              Operator *
-                              {unit.company && (
-                                <span className="text-gray-500">
-                                  ({unit.company})
+                              {isSelected && !unit.operatorId && (
+                                <span className="text-xs bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 px-2 py-0.5 rounded">
+                                  ⚠️ Pilih Operator
                                 </span>
                               )}
-                            </Label>
-
-                            <SearchableSelect
-                              items={getOperatorOptionsForUnit(unit)}
-                              value={unitOperators[unit.id] || ""}
-                              onChange={(operatorId) =>
-                                handleOperatorChange(unit.id, operatorId)
-                              }
-                              placeholder="Pilih operator"
-                              emptyText={
-                                getAvailableOperatorCount(unit) === 0
-                                  ? `Semua operator ${unit.company} sudah dipilih`
-                                  : `Tidak ada operator untuk ${
-                                      unit.company || "company ini"
-                                    }`
-                              }
-                              disabled={
-                                isSaving ||
-                                getAvailableOperatorCount(unit) === 0
-                              }
-                              error={!!hasOperatorError}
-                            />
-
-                            {getAvailableOperatorCount(unit) > 0 &&
-                              !unitOperators[unit.id] && (
-                                <p className="text-xs text-blue-600 dark:text-blue-400">
-                                  {getAvailableOperatorCount(unit)} operator
-                                  tersedia
-                                </p>
+                              {isPendingTransfer && (
+                                <span className="text-xs bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 px-2 py-0.5 rounded">
+                                  🔄 Akan Dipindahkan
+                                </span>
                               )}
-
-                            {getAvailableOperatorCount(unit) === 0 &&
-                              !unitOperators[unit.id] && (
-                                <p className="text-xs text-orange-600 dark:text-orange-400">
-                                  ⚠️ Semua operator sudah dipilih di DT lain
-                                </p>
+                              {!isSelected && isUsedInOtherFleet && (
+                                <span className="text-xs bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400 px-2 py-0.5 rounded">
+                                  ⚠️ Digunakan Fleet Lain
+                                </span>
                               )}
-
-                            {hasOperatorError && (
-                              <p className="text-xs text-red-500 dark:text-red-400">
-                                {hasOperatorError}
-                              </p>
-                            )}
+                            </div>
+                            <p className="text-xs text-gray-500 dark:text-gray-400">
+                              {unit.company} 
+                            </p>
                           </div>
+
+                          {isSelected && (
+                            <div className="space-y-1">
+                              <Label className="text-xs flex items-center gap-1 dark:text-gray-300">
+                                <User className="w-3 h-3" />
+                                Operator *
+                                {unit.company && (
+                                  <span className="text-gray-500">
+                                    ({unit.company})
+                                  </span>
+                                )}
+                              </Label>
+
+                              <SearchableSelect
+                                items={getOperatorOptionsForUnit(unit.id)}
+                                value={unitOperators[unit.id] || ""}
+                                onChange={(operatorId) =>
+                                  handleOperatorChange(unit.id, operatorId)
+                                }
+                                placeholder="Pilih operator"
+                                emptyText={
+                                  getAvailableOperatorCount(unit.id) === 0
+                                    ? `Semua operator ${unit.company} sudah dipilih`
+                                    : `Tidak ada operator untuk ${
+                                        unit.company || "company ini"
+                                      }`
+                                }
+                                disabled={
+                                  isSaving ||
+                                  getAvailableOperatorCount(unit.id) === 0
+                                }
+                                error={!!hasOperatorError}
+                              />
+
+                        {getAvailableOperatorCount(unit.id) > 0 &&
+  !unitOperators[unit.id] && (
+    <p className="text-xs text-blue-600 dark:text-blue-400">
+      {getAvailableOperatorCount(unit.id)} operator
+      tersedia
+    </p>
+  )}
+
+  {getAvailableOperatorCount(unit.id) === 0 &&
+  !unitOperators[unit.id] && (
+    <p className="text-xs text-orange-600 dark:text-orange-400">
+      ⚠️ Semua operator sudah dipilih di DT lain
+    </p>
+  )}
+
+                              {hasOperatorError && (
+                                <p className="text-xs text-red-500 dark:text-red-400">
+                                  {hasOperatorError}
+                                </p>
+                              )}
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -403,14 +365,14 @@ const FleetUnitSelectionSection = ({
                               </Label>
 
                               <SearchableSelect
-                                items={getOperatorOptionsForUnit(unit)}
+                                items={getOperatorOptionsForUnit(unit.id)}
                                 value={unitOperators[unit.id] || ""}
                                 onChange={(operatorId) =>
                                   handleOperatorChange(unit.id, operatorId)
                                 }
                                 placeholder="Pilih operator"
                                 emptyText={
-                                  getAvailableOperatorCount(unit) === 0
+                                  getAvailableOperatorCount(unit.id) === 0
                                     ? `Semua operator ${unit.company} sudah dipilih`
                                     : `Tidak ada operator untuk ${
                                         unit.company || "company ini"
@@ -418,20 +380,20 @@ const FleetUnitSelectionSection = ({
                                 }
                                 disabled={
                                   isSaving ||
-                                  getAvailableOperatorCount(unit) === 0
+                                  getAvailableOperatorCount(unit.id) === 0
                                 }
                                 error={!!hasOperatorError}
                               />
 
-                              {getAvailableOperatorCount(unit) > 0 &&
+                              {getAvailableOperatorCount(unit.id) > 0 &&
                                 !unitOperators[unit.id] && (
                                   <p className="text-xs text-blue-600 dark:text-blue-400">
-                                    {getAvailableOperatorCount(unit)} operator
+                                    {getAvailableOperatorCount(unit.id)} operator
                                     tersedia
                                   </p>
                                 )}
 
-                              {getAvailableOperatorCount(unit) === 0 &&
+                              {getAvailableOperatorCount(unit.id) === 0 &&
                                 !unitOperators[unit.id] && (
                                   <p className="text-xs text-orange-600 dark:text-orange-400">
                                     ⚠️ Semua operator sudah dipilih di DT lain

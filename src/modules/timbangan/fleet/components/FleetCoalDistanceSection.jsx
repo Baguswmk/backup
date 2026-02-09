@@ -73,4 +73,3 @@ const FleetCoalDistanceSection = ({
 };
 
 export default FleetCoalDistanceSection;
-

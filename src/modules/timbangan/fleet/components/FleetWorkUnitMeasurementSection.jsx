@@ -10,8 +10,6 @@ const FleetWorkUnitMeasurementSection = ({
   setFleetData,
   errors,
   isSaving,
-  isEdit,
-  setCheckerIds,
 }) => {
   return (
     <InfoCard
@@ -46,9 +44,6 @@ const FleetWorkUnitMeasurementSection = ({
           value={fleetData.measurementType}
           onChange={(val) => {
             setFleetData((p) => ({ ...p, measurementType: val || "" }));
-            if (!isEdit) {
-              setCheckerIds([]);
-            }
           }}
           placeholder="Pilih measurement type"
           emptyText="Measurement type tidak ditemukan"
@@ -66,4 +61,3 @@ const FleetWorkUnitMeasurementSection = ({
 };
 
 export default FleetWorkUnitMeasurementSection;
-

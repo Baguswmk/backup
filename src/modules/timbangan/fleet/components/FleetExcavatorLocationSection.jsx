@@ -81,4 +81,3 @@ const FleetExcavatorLocationSection = ({
 };
 
 export default FleetExcavatorLocationSection;
-
