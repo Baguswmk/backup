@@ -107,6 +107,7 @@ const FleetManagement = ({ Type }) => {
   const configSearch = useDebouncedValue(configSearchInput, DEBOUNCE_TIME);
   const [isSaving, setIsSaving] = useState(false);
   const [filterExpanded, setFilterExpanded] = useState(false);
+  const [pageSize, setPageSize] = useState(10); // Added pageSize state
 
   const allFleetConfigs = useRitaseStore(
     useCallback((state) => state.fleetConfigs ?? EMPTY_ARRAY, []),
@@ -189,17 +190,16 @@ const FleetManagement = ({ Type }) => {
   }, [searchFilteredConfigs, activeFilters]);
 
   const finalPaginatedConfigs = useMemo(() => {
-    const start = (configPage - 1) * PAGE_SIZE;
-    return finalFilteredConfigs.slice(start, start + PAGE_SIZE);
-  }, [finalFilteredConfigs, configPage]);
+    const start = (configPage - 1) * pageSize;
+    return finalFilteredConfigs.slice(start, start + pageSize);
+  }, [finalFilteredConfigs, configPage, pageSize]);
 
   const totalPages = useMemo(() => {
-    const pageSize = 10;
     if (finalFilteredConfigs.length === 0) return 1;
     const calculated = Math.ceil(finalFilteredConfigs.length / pageSize);
 
     return calculated;
-  }, [finalFilteredConfigs.length]);
+  }, [finalFilteredConfigs.length, pageSize]);
 
   const finalHasActiveFilters = useMemo(
     () =>
@@ -506,7 +506,6 @@ const FleetManagement = ({ Type }) => {
 
         if (relatedFleets.length > 0) {
           fleetsToEdit = relatedFleets;
-
         } else {
           console.warn(
             "⚠️ No related split fleets found, editing single fleet",
@@ -969,6 +968,8 @@ const FleetManagement = ({ Type }) => {
         onViewFleet={handleViewFleetSetting}
         onEditFleet={!isReadOnly ? handleEditFleetSetting : undefined}
         onDeleteFleet={!isReadOnly ? handleDeleteFleetSetting : undefined}
+        itemsPerPage={pageSize}
+        onItemsPerPageChange={setPageSize}
       />
 
       {/* 4. MMCT Additional Sections - Only shown when MMCT is selected */}

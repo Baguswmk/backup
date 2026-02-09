@@ -97,7 +97,7 @@ const FleetModal = ({
     coalType: "",
     distance: 0,
     workUnit: "",
-    measurementType: "",
+    measurementType: "Timbangan",
   });
 
   const [errors, setErrors] = useState({});
@@ -191,7 +191,7 @@ const FleetModal = ({
         coalType: config.coalTypeId || "",
         distance: config.distance || 0,
         workUnit: config.workUnitId || "",
-        measurementType: config.measurementType || "",
+        measurementType: config.measurementType || "Timbangan",
         weightBridge: config.weightBridgeId || "",
       });
 
@@ -219,7 +219,7 @@ const FleetModal = ({
         setIsSplitMode(true);
 
         // ✅ FIX MASALAH 2: Populate each fleet in the split
-          fleetsToEdit.forEach((fleet, index) => {
+        fleetsToEdit.forEach((fleet, index) => {
           if (index === 0) {
             // First fleet is primary, populate units
             if (fleet.units && fleet.units.length > 0) {
@@ -270,7 +270,7 @@ const FleetModal = ({
             updateFleetInUniverse(newFleetId, {
               // ✅ Data fields (matching fleet2Data pattern)
               dumpingLocation: fleet.dumpingLocationId || "",
-              measurementType: fleet.measurementType || "",
+              measurementType: fleet.measurementType || "Timbangan",
               distance: fleet.distance ?? 0,
               workUnit: fleet.workUnitId || "",
               coalType: fleet.coalTypeId || "",
@@ -280,7 +280,6 @@ const FleetModal = ({
               selectedUnits: units,
               unitOperators: operators,
             });
-
           }
         });
       } else {
@@ -303,7 +302,6 @@ const FleetModal = ({
             const unitId = unit.dumpTruckId || unit.id;
             if (unit.operatorId) {
               operators[unitId] = unit.operatorId;
-
             }
           });
 
@@ -342,8 +340,16 @@ const FleetModal = ({
   const filteredUnits = useMemo(() => {
     if (!fleetData.excavator) return [];
 
-    let units = fleetFilteredUnits;
+    let units = [];
 
+    if (showAllUnits) {
+      units = masterUnits.filter((u) => u.type === "DUMP_TRUCK");
+    } else {
+      units = fleetFilteredUnits;
+    }
+
+    // ✅ Hanya filter available units jika showAllUnits = false
+    // (Jika show all, biarkan user melihat semua, termasuk yang sudah terpakai - status akan ditangani oleh UI)
     if (!showAllUnits) {
       const currentFleetIds = isEdit ? fleetsToEdit.map((f) => f.id) : null;
 
@@ -370,29 +376,41 @@ const FleetModal = ({
     usedDumptrucksMap,
     isEdit,
     fleetsToEdit,
+    masterUnits, // ✅ Added missing dependency
   ]);
 
   const filteredUnitsForActiveFleet = useMemo(() => {
     if (!isSplitMode || !activeFleetId) return [];
 
-    let units = fleetFilteredUnits;
+    let units = [];
 
-    const currentFleetIds = isEdit ? fleetsToEdit.map((f) => f.id) : null;
+    if (showAllUnits) {
+      units = masterUnits.filter((u) => u.type === "DUMP_TRUCK");
+    } else {
+      units = fleetFilteredUnits;
+    }
 
-    units = filterAvailableDumptrucks(
-      units,
-      usedDumptrucksMap,
-      currentFleetIds,
-    );
+    // ✅ Hanya filter available units jika showAllUnits = false
+    if (!showAllUnits) {
+      const currentFleetIds = isEdit ? fleetsToEdit.map((f) => f.id) : null;
+
+      units = filterAvailableDumptrucks(
+        units,
+        usedDumptrucksMap,
+        currentFleetIds,
+      );
+    }
 
     return units;
   }, [
     isSplitMode,
     activeFleetId,
     fleetFilteredUnits,
+    showAllUnits,
     usedDumptrucksMap,
     isEdit,
     fleetsToEdit,
+    masterUnits, // ✅ Added missing dependency
   ]);
 
   const selectedUnitsList = useMemo(() => {
@@ -434,7 +452,6 @@ const FleetModal = ({
       const operatorsByCompany = allOperators.filter(
         (op) => String(op.companyId) === String(unit.companyId),
       );
-
 
       const availableOps = operatorsByCompany.filter((op) => {
         const opId = String(op.id);
@@ -607,7 +624,7 @@ const FleetModal = ({
       coalType: "",
       distance: 0,
       workUnit: "",
-      measurementType: "",
+      measurementType: "Timbangan",
     });
     setDistanceText("");
     setInspectorIds([]);
@@ -815,7 +832,6 @@ const FleetModal = ({
 
           // ✅ NEW: Detect cross-fleet transfers for single fleet - NOW SUPPORTS EDIT MODE
           const detectSingleFleetTransfers = () => {
-
             if (
               !availableDumptruckSettings ||
               availableDumptruckSettings.length === 0
@@ -824,7 +840,6 @@ const FleetModal = ({
             }
 
             const transferMap = new Map(); // fleetId -> [truckIds]
-
 
             if (!selectedUnits || selectedUnits.length === 0) {
               return [];
@@ -856,7 +871,6 @@ const FleetModal = ({
                     transferMap.set(fleetId, []);
                   }
                   transferMap.get(fleetId).push(parseInt(truckId));
-
                 }
               });
             });
@@ -899,7 +913,6 @@ const FleetModal = ({
             payload.isTransfer = true;
             payload.moveFromFleets = crossFleetTransfers;
           }
-
         }
 
         // ===== SAVE =====
@@ -923,13 +936,9 @@ const FleetModal = ({
 
             result = await handleSaveFleet(payload, editConfig);
           }
-
         } else {
-
-
           result = await handleSaveFleet(payload, null);
         }
-
 
         if (result && result.success) {
           showToast.success(
@@ -1081,7 +1090,7 @@ const FleetModal = ({
     [masters?.dumpingLocations],
   );
 
-const workUnitItems = useMemo(
+  const workUnitItems = useMemo(
     () =>
       (masters?.workUnits || []).map((wu) => ({
         value: String(wu.id),
@@ -1248,7 +1257,13 @@ const workUnitItems = useMemo(
 
                 <Button
                   type="button"
-                  onClick={() => addFleetToUniverse()}
+                  onClick={() => {
+                    const newFleetId = addFleetToUniverse();
+                    updateFleetInUniverse(newFleetId, {
+                      inspectorIds: inspectorIds || [],
+                      measurementType: "Timbangan",
+                    });
+                  }}
                   disabled={isSaving || fleetsUniverse.length >= 3}
                   className="gap-2 bg-green-600 hover:bg-green-700 dark:bg-green-600 dark:hover:bg-green-700 text-white font-medium px-4 py-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
@@ -1338,6 +1353,8 @@ const workUnitItems = useMemo(
                 errors={errors}
                 isSaving={isSaving}
                 setErrors={setErrors}
+                showAllUnits={showAllUnits}
+                setShowAllUnits={setShowAllUnits}
               />
             )}
 

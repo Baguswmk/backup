@@ -62,12 +62,11 @@ const FleetSplitSettingsSection = ({
   errors,
   isSaving,
   setErrors,
+  showAllUnits,
+  setShowAllUnits,
 }) => {
-  // ✅ Local search and filter state
+  // ✅ Local search state
   const [searchQuery, setSearchQuery] = useState("");
-  const [showAllUnits, setShowAllUnits] = useState(false);
-
-  // ✅ Get active fleet from universe
   const activeFleet = useMemo(() => {
     return fleetsUniverse.find((f) => f.id === activeFleetId);
   }, [fleetsUniverse, activeFleetId]);

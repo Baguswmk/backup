@@ -37,7 +37,9 @@ const FleetTable = ({
   currentPage = 1,
   pageSize = 10,
   totalPages = 1,
+
   onPageChange,
+  onPageSizeChange,
   isHistoryMode = false,
   isPickingMode = false,
   selectedIds = [],
@@ -285,12 +287,15 @@ const FleetTable = ({
         </table>
       </div>
 
-      {configs.length > pageSize && (
+      {configs.length > 10 && (
         <Pagination
           currentPage={currentPage}
           totalPages={totalPages}
           onPageChange={onPageChange}
           isLoading={false}
+          itemsPerPage={pageSize}
+          onItemsPerPageChange={onPageSizeChange}
+          totalItems={configs.length}
         />
       )}
     </>

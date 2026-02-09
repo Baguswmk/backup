@@ -38,8 +38,6 @@ import EmptyState from "@/shared/components/EmptyState";
 import { formatDate } from "@/shared/utils/date";
 import StatusBadge from "@/shared/components/StatusBadge";
 
-const ITEMS_PER_PAGE = 10;
-
 const FleetTableCollapsible = ({
   configs = [],
   isLoading = false,
@@ -60,6 +58,8 @@ const FleetTableCollapsible = ({
   onToggleSelect,
   allPageSelected = false,
   onSelectAllPage,
+  pageSize = 10,
+  onPageSizeChange,
 }) => {
   const [activeTab, setActiveTab] = useState("excavator");
   const [expandedGroups, setExpandedGroups] = useState({});
@@ -121,14 +121,14 @@ const FleetTableCollapsible = ({
 
   // Paginated groups
   const paginatedGroups = useMemo(() => {
-    const startIdx = (currentPage - 1) * ITEMS_PER_PAGE;
-    const endIdx = startIdx + ITEMS_PER_PAGE;
+    const startIdx = (currentPage - 1) * pageSize;
+    const endIdx = startIdx + pageSize;
     return groupedData.slice(startIdx, endIdx);
-  }, [groupedData, currentPage]);
+  }, [groupedData, currentPage, pageSize]);
 
   const totalPages = useMemo(() => {
-    return Math.ceil(groupedData.length / ITEMS_PER_PAGE);
-  }, [groupedData]);
+    return Math.ceil(groupedData.length / pageSize);
+  }, [groupedData, pageSize]);
 
   // Get icon based on tab
   const getTabIcon = (tab) => {
@@ -199,7 +199,10 @@ const FleetTableCollapsible = ({
                 >
                   <span className="truncate">
                     {dtCount > 0 ? (
-                      <StatusBadge status={`${dtCount} Unit`} variant="default" />
+                      <StatusBadge
+                        status={`${dtCount} Unit`}
+                        variant="default"
+                      />
                     ) : (
                       <span className="text-gray-400">Kosong</span>
                     )}
@@ -315,7 +318,10 @@ const FleetTableCollapsible = ({
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <Badge variant="secondary" className="dark:bg-gray-700 dark:text-neutral-50">
+                <Badge
+                  variant="secondary"
+                  className="dark:bg-gray-700 dark:text-neutral-50"
+                >
                   {group.count}
                 </Badge>
                 {isExpanded ? (
@@ -343,7 +349,7 @@ const FleetTableCollapsible = ({
                           onCheckedChange={() => {
                             const groupIds = group.items.map((c) => c.id);
                             const allSelected = groupIds.every((id) =>
-                              selectedIds.includes(id)
+                              selectedIds.includes(id),
                             );
 
                             if (allSelected) {
@@ -394,8 +400,8 @@ const FleetTableCollapsible = ({
                   {group.items.map((config, index) =>
                     renderFleetRow(
                       config,
-                      index + 1 + groupIndex * ITEMS_PER_PAGE
-                    )
+                      index + 1 + groupIndex * ITEMS_PER_PAGE,
+                    ),
                   )}
                 </tbody>
               </table>
@@ -461,37 +467,37 @@ const FleetTableCollapsible = ({
         }}
         className="w-full"
       >
-       <TabsList className="grid w-full grid-cols-5 mb-4 gap-2 bg-gray-100 dark:bg-gray-800">
-          <TabsTrigger 
-            value="excavator" 
+        <TabsList className="grid w-full grid-cols-5 mb-4 gap-2 bg-gray-100 dark:bg-gray-800">
+          <TabsTrigger
+            value="excavator"
             className="flex items-center cursor-pointer dark:hover:bg-slate-900 gap-2 dark:text-neutral-50 data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 data-[state=active]:text-gray-900 dark:data-[state=active]:text-gray-100"
           >
             <Truck className="w-4 h-4" />
             <span className="hidden sm:inline">Excavator</span>
           </TabsTrigger>
-          <TabsTrigger 
-            value="loading" 
+          <TabsTrigger
+            value="loading"
             className="flex items-center cursor-pointer dark:hover:bg-slate-900 gap-2 dark:text-neutral-50 data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 data-[state=active]:text-gray-900 dark:data-[state=active]:text-gray-100"
           >
             <MapPin className="w-4 h-4" />
             <span className="hidden sm:inline">Loading</span>
           </TabsTrigger>
-          <TabsTrigger 
-            value="dumping" 
+          <TabsTrigger
+            value="dumping"
             className="flex items-center cursor-pointer dark:hover:bg-slate-900 gap-2 dark:text-neutral-50 data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 data-[state=active]:text-gray-900 dark:data-[state=active]:text-gray-100"
           >
             <MapPin className="w-4 h-4" />
             <span className="hidden sm:inline">Dumping</span>
           </TabsTrigger>
-          <TabsTrigger 
-            value="mitra" 
+          <TabsTrigger
+            value="mitra"
             className="flex items-center cursor-pointer dark:hover:bg-slate-900 gap-2 dark:text-neutral-50 data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 data-[state=active]:text-gray-900 dark:data-[state=active]:text-gray-100"
           >
             <Building2 className="w-4 h-4" />
             <span className="hidden sm:inline">Mitra</span>
           </TabsTrigger>
-          <TabsTrigger 
-            value="all" 
+          <TabsTrigger
+            value="all"
             className="flex items-center cursor-pointer dark:hover:bg-slate-900 gap-2 dark:text-neutral-50 data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 data-[state=active]:text-gray-900 dark:data-[state=active]:text-gray-100"
           >
             <Settings className="w-4 h-4" />
@@ -512,18 +518,21 @@ const FleetTableCollapsible = ({
                 {/* Collapsible Groups */}
                 <div className="space-y-4">
                   {paginatedGroups.map((group, index) =>
-                    renderGroup(group, index)
+                    renderGroup(group, index),
                   )}
                 </div>
 
                 {/* Pagination */}
-                {totalPages > 1 && (
+                {(totalPages > 1 || groupedData.length > 10) && (
                   <div className="mt-4">
                     <Pagination
                       currentPage={currentPage}
                       totalPages={totalPages}
                       onPageChange={onPageChange}
                       isLoading={isRefreshing}
+                      itemsPerPage={pageSize}
+                      onItemsPerPageChange={onPageSizeChange}
+                      totalItems={groupedData.length} // Note: This might need adjustment based on group counting
                     />
                   </div>
                 )}

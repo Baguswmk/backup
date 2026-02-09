@@ -78,10 +78,11 @@ export const RitaseTable = ({
   const [loadingLocations, setLoadingLocations] = useState([]);
   const [dumpingLocations, setDumpingLocations] = useState([]);
 
-  const pageSize = 10;
+  const [pageSize, setPageSize] = useState(10); // Added pageSize state
 
   const accessibleShipments = useMemo(() => {
     if (!isSatkerRestricted) return shipments;
+    if (!filterDataBySatker) return shipments; // Add safe check
     return filterDataBySatker(shipments);
   }, [shipments, isSatkerRestricted, filterDataBySatker]);
 
@@ -313,7 +314,7 @@ export const RitaseTable = ({
   const paginatedShipments = useMemo(() => {
     const start = (currentPage - 1) * pageSize;
     return filteredShipments.slice(start, start + pageSize);
-  }, [filteredShipments, currentPage]);
+  }, [filteredShipments, currentPage, pageSize]);
 
   const totalPages = Math.ceil(filteredShipments.length / pageSize);
 
@@ -903,12 +904,15 @@ export const RitaseTable = ({
                 </div>
 
                 {/* Pagination */}
-                {totalPages > 1 && (
+                {(totalPages > 1 || filteredShipments.length > 10) && (
                   <Pagination
                     currentPage={currentPage}
                     totalPages={totalPages}
                     onPageChange={setCurrentPage}
                     isLoading={isLoading}
+                    itemsPerPage={pageSize}
+                    onItemsPerPageChange={setPageSize}
+                    totalItems={filteredShipments.length}
                   />
                 )}
 

@@ -18,7 +18,8 @@ const FleetSettingTable = ({
   onViewFleet,
   onEditFleet,
   onDeleteFleet,
-  itemsPerPage = 3,
+  itemsPerPage = 10,
+  onItemsPerPageChange,
 }) => {
   const [currentPage, setCurrentPage] = useState(1);
   const [tooltipState, setTooltipState] = useState({
@@ -204,11 +205,16 @@ const FleetSettingTable = ({
         rows: processedRows,
         totalTronton,
         totalTrintin,
-       totalDumptrucks: processedRows
-      .filter(fleet => fleet.isFirstInGroup)
-      .reduce((sum, fleet) => {
-        return sum + (fleet.isMergedGroup ? fleet.groupDumptruckCount : (fleet.dumptruckCount || 0));
-      }, 0),
+        totalDumptrucks: processedRows
+          .filter((fleet) => fleet.isFirstInGroup)
+          .reduce((sum, fleet) => {
+            return (
+              sum +
+              (fleet.isMergedGroup
+                ? fleet.groupDumptruckCount
+                : fleet.dumptruckCount || 0)
+            );
+          }, 0),
       };
     });
 
@@ -238,7 +244,8 @@ const FleetSettingTable = ({
     const spaceBelow = viewportHeight - rect.bottom;
     const spaceAbove = rect.top;
 
-      const position = spaceBelow >= 400? "bottom" : spaceAbove > 300? "top" : "bottom";
+    const position =
+      spaceBelow >= 400 ? "bottom" : spaceAbove > 300 ? "top" : "bottom";
 
     setTooltipState({
       visible: true,
@@ -261,37 +268,38 @@ const FleetSettingTable = ({
     }
   };
 
-const handleTooltipClick = (fleet, event) => {
-  event.stopPropagation();
-  if (tooltipState.locked && tooltipState.fleetId === fleet.id) {
-    setTooltipState({
-      visible: false,
-      fleetId: null,
-      position: "bottom",
-      data: [],
-      locked: false,
-    });
-  } else {
-    const rect = event.currentTarget.getBoundingClientRect();
-    const viewportHeight = window.innerHeight;
-    const spaceBelow = viewportHeight - rect.bottom;
-    const spaceAbove = rect.top;
+  const handleTooltipClick = (fleet, event) => {
+    event.stopPropagation();
+    if (tooltipState.locked && tooltipState.fleetId === fleet.id) {
+      setTooltipState({
+        visible: false,
+        fleetId: null,
+        position: "bottom",
+        data: [],
+        locked: false,
+      });
+    } else {
+      const rect = event.currentTarget.getBoundingClientRect();
+      const viewportHeight = window.innerHeight;
+      const spaceBelow = viewportHeight - rect.bottom;
+      const spaceAbove = rect.top;
 
-    const position = spaceBelow >= 400 ? "bottom" : spaceAbove > 300 ? "top" : "bottom";
+      const position =
+        spaceBelow >= 400 ? "bottom" : spaceAbove > 300 ? "top" : "bottom";
 
-    const tooltipData = fleet.isMergedGroup 
-      ? fleet.splitFleets.flatMap(f => f.units || [])
-      : fleet.units || [];
+      const tooltipData = fleet.isMergedGroup
+        ? fleet.splitFleets.flatMap((f) => f.units || [])
+        : fleet.units || [];
 
-    setTooltipState({
-      visible: true,
-      fleetId: fleet.id,
-      position: position, 
-      data: tooltipData, 
-      locked: true,
-    });
-  }
-};
+      setTooltipState({
+        visible: true,
+        fleetId: fleet.id,
+        position: position,
+        data: tooltipData,
+        locked: true,
+      });
+    }
+  };
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -563,12 +571,17 @@ const handleTooltipClick = (fleet, event) => {
                                 <div
                                   className="inline-block cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
                                   onMouseEnter={(e) => {
-  const tooltipData = fleet.isMergedGroup 
-    ? fleet.splitFleets.flatMap(f => f.units || [])
-    : fleet.units || [];
-  
-  handleTooltipShow({...fleet, units: tooltipData}, e);
-}}
+                                    const tooltipData = fleet.isMergedGroup
+                                      ? fleet.splitFleets.flatMap(
+                                          (f) => f.units || [],
+                                        )
+                                      : fleet.units || [];
+
+                                    handleTooltipShow(
+                                      { ...fleet, units: tooltipData },
+                                      e,
+                                    );
+                                  }}
                                   onMouseLeave={handleTooltipHide}
                                   onClick={(e) => handleTooltipClick(fleet, e)}
                                   ref={
@@ -578,10 +591,9 @@ const handleTooltipClick = (fleet, event) => {
                                   }
                                 >
                                   <span className="text-gray-900 dark:text-gray-100">
-                                      {fleet.isMergedGroup 
-          ? fleet.groupDumptruckCount 
-          : (fleet.dumptruckCount || "-")
-        }
+                                    {fleet.isMergedGroup
+                                      ? fleet.groupDumptruckCount
+                                      : fleet.dumptruckCount || "-"}
                                   </span>
 
                                   {/* Tooltip */}
@@ -838,12 +850,15 @@ const handleTooltipClick = (fleet, event) => {
       )}
 
       {/* Pagination */}
-      {groupedFleetData.length > 0 && totalPages > 1 && (
+      {groupedFleetData.length > 0 && (
         <Pagination
           currentPage={currentPage}
           totalPages={totalPages}
           onPageChange={handlePageChange}
           isLoading={isLoading}
+          itemsPerPage={itemsPerPage}
+          onItemsPerPageChange={onItemsPerPageChange}
+          totalItems={groupedFleetData.length}
         />
       )}
     </div>

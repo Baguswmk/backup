@@ -126,10 +126,16 @@ const AggregatedRitase = ({
   const [searchDumpingPoint, setSearchDumpingPoint] = useState("");
   const [searchLoadingPoint, setSearchLoadingPoint] = useState("");
   const [searchDumptruck, setSearchDumptruck] = useState("");
+  const [pageSize, setPageSize] = useState(10); // Added pageSize state
 
   // Filtered ritase data based on search
   const filteredRitaseBySearch = useMemo(() => {
-    if (!searchExcavator && !searchDumpingPoint && !searchLoadingPoint && !searchDumptruck) {
+    if (
+      !searchExcavator &&
+      !searchDumpingPoint &&
+      !searchLoadingPoint &&
+      !searchDumptruck
+    ) {
       return filteredRitaseData;
     }
 
@@ -148,7 +154,10 @@ const AggregatedRitase = ({
           ?.toLowerCase()
           .includes(searchLoadingPoint.toLowerCase());
       const matchDumptruck =
-        !searchDumptruck || ritase.unit_dump_truck?.toLowerCase().includes(searchDumptruck.toLowerCase());
+        !searchDumptruck ||
+        ritase.unit_dump_truck
+          ?.toLowerCase()
+          .includes(searchDumptruck.toLowerCase());
 
       return matchExcavator && matchDumping && matchLoading && matchDumptruck;
     });
@@ -157,7 +166,7 @@ const AggregatedRitase = ({
     searchExcavator,
     searchDumpingPoint,
     searchLoadingPoint,
-    searchDumptruck
+    searchDumptruck,
   ]);
 
   // Reset search filters
@@ -170,14 +179,22 @@ const AggregatedRitase = ({
 
   // Check if any search is active
   const hasActiveSearch =
-    searchExcavator || searchDumpingPoint || searchLoadingPoint || searchDumptruck;
+    searchExcavator ||
+    searchDumpingPoint ||
+    searchLoadingPoint ||
+    searchDumptruck;
 
   // Reset page to 1 when search changes
   useEffect(() => {
     if (hasActiveSearch && onPageChange) {
       onPageChange(1);
     }
-  }, [searchExcavator, searchDumpingPoint, searchLoadingPoint, searchDumptruck]);
+  }, [
+    searchExcavator,
+    searchDumpingPoint,
+    searchLoadingPoint,
+    searchDumptruck,
+  ]);
 
   const groupedData = useMemo(() => {
     // Extract summaries data from new structure
@@ -288,14 +305,14 @@ const AggregatedRitase = ({
   }, [groupedData, searchExcavator, searchDumpingPoint, searchLoadingPoint]);
 
   const paginatedData = useMemo(() => {
-    const startIdx = (currentPage - 1) * ITEMS_PER_PAGE;
-    const endIdx = startIdx + ITEMS_PER_PAGE;
+    const startIdx = (currentPage - 1) * pageSize;
+    const endIdx = startIdx + pageSize;
     return filteredGroupedData.slice(startIdx, endIdx);
-  }, [filteredGroupedData, currentPage]);
+  }, [filteredGroupedData, currentPage, pageSize]);
 
   const totalPages = useMemo(() => {
-    return Math.ceil(filteredGroupedData.length / ITEMS_PER_PAGE);
-  }, [filteredGroupedData]);
+    return Math.ceil(filteredGroupedData.length / pageSize);
+  }, [filteredGroupedData, pageSize]);
 
   const handleEdit = (ritase) => {
     // ✅ Reset state first to ensure clean slate
@@ -1030,9 +1047,9 @@ const AggregatedRitase = ({
                         )}
                       </div>
                     </div>
-                   {/* Search by DT */}
+                    {/* Search by DT */}
 
-                       <div className="space-y-1.5">
+                    <div className="space-y-1.5">
                       <label className="text-xs font-medium text-gray-600 dark:text-gray-400">
                         Dumptruck
                       </label>
@@ -1056,7 +1073,6 @@ const AggregatedRitase = ({
                       </div>
                     </div>
                   </div>
-                 
 
                   {hasActiveSearch && (
                     <div className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400">
@@ -1118,13 +1134,16 @@ const AggregatedRitase = ({
                     </div>
                   ) : (
                     <>
-                      {totalPages > 1 && (
+                      {(totalPages > 1 || aggregatedData.length > 10) && (
                         <div className="mt-4">
                           <Pagination
                             currentPage={currentPage}
                             totalPages={totalPages}
                             onPageChange={onPageChange}
                             isLoading={isRefreshing}
+                            itemsPerPage={pageSize}
+                            onItemsPerPageChange={setPageSize}
+                            totalItems={aggregatedData.length}
                           />
                         </div>
                       )}
@@ -1158,13 +1177,17 @@ const AggregatedRitase = ({
                     ) : (
                       <>
                         {renderGroupedView()}
-                        {totalPages > 1 && (
+                        {(totalPages > 1 ||
+                          filteredGroupedData.length > 10) && (
                           <div className="mt-4">
                             <Pagination
                               currentPage={currentPage}
                               totalPages={totalPages}
                               onPageChange={onPageChange}
                               isLoading={isRefreshing}
+                              itemsPerPage={pageSize}
+                              onItemsPerPageChange={setPageSize}
+                              totalItems={filteredGroupedData.length}
                             />
                           </div>
                         )}

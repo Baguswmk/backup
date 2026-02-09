@@ -49,15 +49,17 @@ const FleetList = ({
   onResetFilters,
   hasActiveFilters,
 }) => {
+  const [pageSize, setPageSize] = React.useState(10); // Added pageSize state
+
   const paginatedData = useMemo(() => {
-    const startIdx = (currentPage - 1) * ITEMS_PER_PAGE;
-    const endIdx = startIdx + ITEMS_PER_PAGE;
+    const startIdx = (currentPage - 1) * pageSize;
+    const endIdx = startIdx + pageSize;
     return filteredFleetConfigs.slice(startIdx, endIdx);
-  }, [filteredFleetConfigs, currentPage]);
+  }, [filteredFleetConfigs, currentPage, pageSize]);
 
   const totalPages = useMemo(() => {
-    return Math.ceil(filteredFleetConfigs.length / ITEMS_PER_PAGE);
-  }, [filteredFleetConfigs]);
+    return Math.ceil(filteredFleetConfigs.length / pageSize);
+  }, [filteredFleetConfigs, pageSize]);
 
   return (
     <Card
@@ -233,12 +235,15 @@ const FleetList = ({
               </Table>
             </div>
 
-            {totalPages > 1 && (
+            {(totalPages > 1 || filteredFleetConfigs.length > 10) && (
               <Pagination
                 currentPage={currentPage}
                 totalPages={totalPages}
                 onPageChange={onPageChange}
                 isLoading={isRefreshing}
+                itemsPerPage={pageSize}
+                onItemsPerPageChange={setPageSize}
+                totalItems={filteredFleetConfigs.length}
               />
             )}
           </>

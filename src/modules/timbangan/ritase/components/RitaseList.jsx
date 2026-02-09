@@ -73,19 +73,21 @@ const RitaseList = ({
   const [isDuplicateModalOpen, setIsDuplicateModalOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isDeletingRitase, setIsDeletingRitase] = useState(false);
+  const [pageSize, setPageSize] = useState(10); // Added pageSize state
+
   const getInputButtonText = () => {
     return userRole === USER_ROLES.OPERATOR_JT ? "Timbang" : "Input Data";
   };
 
   const paginatedData = useMemo(() => {
-    const startIdx = (currentPage - 1) * ITEMS_PER_PAGE;
-    const endIdx = startIdx + ITEMS_PER_PAGE;
+    const startIdx = (currentPage - 1) * pageSize;
+    const endIdx = startIdx + pageSize;
     return filteredRitaseData.slice(startIdx, endIdx);
-  }, [filteredRitaseData, currentPage]);
+  }, [filteredRitaseData, currentPage, pageSize]);
 
   const totalPages = useMemo(() => {
-    return Math.ceil(filteredRitaseData.length / ITEMS_PER_PAGE);
-  }, [filteredRitaseData]);
+    return Math.ceil(filteredRitaseData.length / pageSize);
+  }, [filteredRitaseData, pageSize]);
 
   const handleViewDetail = (ritase) => {
     setSelectedRitase(ritase);
@@ -355,12 +357,15 @@ const RitaseList = ({
                 </Table>
               </div>
 
-              {totalPages > 1 && (
+              {(totalPages > 1 || filteredRitaseData.length > 10) && (
                 <Pagination
                   currentPage={currentPage}
                   totalPages={totalPages}
                   onPageChange={onPageChange}
                   isLoading={false}
+                  itemsPerPage={pageSize}
+                  onItemsPerPageChange={setPageSize}
+                  totalItems={filteredRitaseData.length}
                 />
               )}
             </>
@@ -528,8 +533,7 @@ const RitaseList = ({
                   data={selectedRitase}
                   variant="ghost"
                   size="sm"
-                >
-                </PrintTicketButton>
+                ></PrintTicketButton>
                 <Button
                   onClick={() => {
                     setIsDetailDialogOpen(false);
