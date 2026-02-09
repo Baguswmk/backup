@@ -1081,12 +1081,13 @@ const FleetModal = ({
     [masters?.dumpingLocations],
   );
 
-  const workUnitItems = useMemo(
+const workUnitItems = useMemo(
     () =>
-      masters?.workUnits?.map((w) => ({
-        value: String(w.id),
-        label: w.satker || w.subsatker || w.name,
-      })) || [],
+      (masters?.workUnits || []).map((wu) => ({
+        value: String(wu.id),
+        label: wu.subsatker || wu.name || `Work Unit #${wu.id}`,
+        hint: wu.name && wu.subsatker !== wu.name ? wu.name : undefined,
+      })),
     [masters?.workUnits],
   );
 
