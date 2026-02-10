@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import { fleetTransferService } from "@/modules/timbangan/fleet/services/fleetTransferService";
+import { fleetService } from "@/modules/timbangan/fleet/services/fleetService";
 import { showToast } from "@/shared/utils/toast";
 import { logger } from "@/shared/services/log";
 
@@ -33,11 +33,7 @@ export const useFleetWithTransfer = (user, onSuccess) => {
           transfersCount: fleetData.moveFromFleets?.length || 0,
         });
 
-        const result = await fleetTransferService.saveFleetWithTransfer(
-          fleetData,
-          false, // isEdit = false
-          null, // currentFleetId = null
-        );
+        const result = await fleetService.createFleetConfig(fleetData);
 
         if (result.success) {
           showToast.success("Fleet berhasil dibuat");
@@ -105,11 +101,7 @@ export const useFleetWithTransfer = (user, onSuccess) => {
           transfersCount: fleetData.moveFromFleets?.length || 0,
         });
 
-        const result = await fleetTransferService.saveFleetWithTransfer(
-          fleetData,
-          true, // isEdit = true
-          fleetId,
-        );
+        const result = await fleetService.updateFleetConfig(fleetId, fleetData);
 
         if (result.success) {
           showToast.success("Fleet berhasil diupdate");
@@ -188,16 +180,16 @@ export const useFleetWithTransfer = (user, onSuccess) => {
           hasEditConfig: !!editConfig,
         });
 
-   // ✅ Check if ANY fleet has ID (not ALL)
-const someHaveIds = fleetData.some((f) => f.id);
+        // ✅ Check if ANY fleet has ID (not ALL)
+        const someHaveIds = fleetData.some((f) => f.id);
 
-if (someHaveIds) {
-  // If ANY fleet has ID, use bulk edit (handles mixed)
-  return handleBulkEditFleets(fleetData);
-} else {
-  // Only if NO fleets have ID, use bulk create
-  return handleBulkCreateFleets(fleetData);
-}
+        if (someHaveIds) {
+          // If ANY fleet has ID, use bulk edit (handles mixed)
+          return handleBulkEditFleets(fleetData);
+        } else {
+          // Only if NO fleets have ID, use bulk create
+          return handleBulkCreateFleets(fleetData);
+        }
       }
 
       // SINGLE FLEET MODE (existing logic)
@@ -344,60 +336,61 @@ if (someHaveIds) {
     [onSuccess],
   );
 
-/**
- * ✅ NEW: Handle bulk delete fleets
- */
-const handleBulkDeleteFleets = useCallback(
-  async (fleetIds) => {
-    setIsSaving(true);
+  /**
+   * ✅ NEW: Handle bulk delete fleets
+   */
+  const handleBulkDeleteFleets = useCallback(
+    async (fleetIds) => {
+      setIsSaving(true);
 
-    try {
-      logger.info("🗑️ Bulk deleting fleets", {
-        count: fleetIds.length,
-        fleetIds,
-      });
+      try {
+        logger.info("🗑️ Bulk deleting fleets", {
+          count: fleetIds.length,
+          fleetIds,
+        });
 
-      const { fleetSplitService } = await import("../services/fleetSplitService");
+        const { fleetSplitService } =
+          await import("../services/fleetSplitService");
 
-      const result = await fleetSplitService.bulkDeleteFleets(fleetIds);
+        const result = await fleetSplitService.bulkDeleteFleets(fleetIds);
 
-      if (result.success) {
-        showToast.success(`Berhasil delete ${fleetIds.length} fleet`);
+        if (result.success) {
+          showToast.success(`Berhasil delete ${fleetIds.length} fleet`);
 
-        // ✅ TRIGGER REFETCH
-        if (onSuccess) {
-          logger.info("🔄 Triggering refetch after bulk delete");
-          await onSuccess();
+          // ✅ TRIGGER REFETCH
+          if (onSuccess) {
+            logger.info("🔄 Triggering refetch after bulk delete");
+            await onSuccess();
+          }
+
+          return result;
+        } else {
+          showToast.error(result.error || "Gagal delete fleet");
+          return result;
         }
+      } catch (error) {
+        logger.error("❌ Bulk delete fleets error", { error: error.message });
+        showToast.error(error.message || "Gagal delete fleet");
 
-        return result;
-      } else {
-        showToast.error(result.error || "Gagal delete fleet");
-        return result;
+        return {
+          success: false,
+          error: error.message,
+        };
+      } finally {
+        setIsSaving(false);
       }
-    } catch (error) {
-      logger.error("❌ Bulk delete fleets error", { error: error.message });
-      showToast.error(error.message || "Gagal delete fleet");
+    },
+    [onSuccess],
+  );
 
-      return {
-        success: false,
-        error: error.message,
-      };
-    } finally {
-      setIsSaving(false);
-    }
-  },
-  [onSuccess]
-);
-
-// Export
-return {
-  isSaving,
-  handleCreateFleet,
-  handleUpdateFleet,
-  handleSaveFleet,
-  handleBulkCreateFleets,
-  handleBulkEditFleets,
-  handleBulkDeleteFleets, // ✅ EXPORT
-};
+  // Export
+  return {
+    isSaving,
+    handleCreateFleet,
+    handleUpdateFleet,
+    handleSaveFleet,
+    handleBulkCreateFleets,
+    handleBulkEditFleets,
+    handleBulkDeleteFleets, // ✅ EXPORT
+  };
 };

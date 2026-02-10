@@ -53,11 +53,6 @@ export const beltScaleServices = {
     }
   },
 
-  /**
-   * Submit Beltscale adjustment ke backend
-   * Endpoint: /v1/custom/ritase/calculate-beltscale
-   * @param {Object} adjustmentData - {setting_fleet: Array<number>, beltscale: number, created_by_user}
-   */
   async submitBeltscaleAdjustment(adjustmentData) {
     try {
       const { date, shift, dumping_location, beltscale, created_by_user } =
@@ -131,9 +126,6 @@ export const beltScaleServices = {
     }
   },
 
-  /**
-   * Get Beltscale adjustment history (optional - if you want to show history)
-   */
   async getBeltscaleHistory(filters = {}) {
     try {
       const params = {

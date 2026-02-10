@@ -1,4 +1,5 @@
 import { apiClient } from "@/shared/services/api";
+import { offlineService } from "@/shared/services/offlineService";
 import { logger } from "@/shared/services/log";
 import { ROLE_CONFIG } from "@/shared/permissions/roleConfig";
 
@@ -26,8 +27,6 @@ export const authService = {
             "company",
             "work_unit",
             "weigh_bridge",
-            "app_access",
-            "permissions",
           ],
         },
       });
@@ -39,7 +38,7 @@ export const authService = {
       if (targetApp) {
         const hasAccess = this.validateAppAccess(
           normalizedUser.role,
-          targetApp
+          targetApp,
         );
 
         if (!hasAccess) {
@@ -97,7 +96,7 @@ export const authService = {
 
   normalizeUserData(rawUser) {
     const role = this.normalizeRole(
-      rawUser.role?.name || rawUser.role_custom || rawUser.role || "user"
+      rawUser.role?.name || rawUser.role_custom || rawUser.role || "user",
     );
 
     return {
@@ -182,7 +181,7 @@ export const authService = {
     return {
       id: workUnitData.id || workUnit.id || null,
       subsatker: String(
-        attributes.subsatker || workUnit.subsatker || ""
+        attributes.subsatker || workUnit.subsatker || "",
       ).trim(),
       satker: String(attributes.satker || workUnit.satker || "").trim(),
       name: String(attributes.name || workUnit.name || "").trim(),
@@ -238,7 +237,7 @@ export const authService = {
       operator_jt: "operator_jt",
       evaluator: "evaluator",
       mitra: "mitra",
-      ccr:"ccr",
+      ccr: "ccr",
 
       // Timbangan FOB/FOT roles
       operator_timbangan_fob: "operator_timbangan_fob",
@@ -307,8 +306,10 @@ export const authService = {
         populate.push("app_access", "permissions");
       }
 
-      const response = await apiClient.get("/users/me", {
+      const response = await offlineService.get("/users/me", {
         params: { populate },
+        cacheKey: `user_profile_me`,
+        ttl: offlineService.CACHE_CONFIG.SHORT,
       });
 
       const normalizedUser = this.normalizeUserData(response.data);
@@ -316,6 +317,7 @@ export const authService = {
       logger.info("Profile fetched", {
         userId: normalizedUser.id,
         role: normalizedUser.role,
+        fromCache: response.fromCache,
       });
 
       return {
@@ -326,11 +328,10 @@ export const authService = {
       logger.error("Get profile failed", { error: error.message });
       return {
         success: false,
-        message: error.response?.data?.error?.message || error.message,
+        message: error?.response?.data?.error?.message || error.message,
       };
     }
   },
-
 
   isAdminRole(role) {
     return ROLE_CONFIG.isRoleInGroup(role, "ADMIN");

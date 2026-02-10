@@ -15,6 +15,9 @@ const CACHE_CONFIG = {
   TIMBANGAN_TODAY: 5 * 60 * 1000,
   TIMBANGAN_HISTORY: 30 * 60 * 1000,
   MASTERS: 60 * 60 * 1000,
+  SHORT: 5 * 60 * 1000, // 5 minutes
+  MEDIUM: 30 * 60 * 1000, // 30 minutes
+  LONG: 60 * 60 * 1000, // 1 hour
   MAX_AGE_DAYS: 7,
   MAX_ENTRIES: 100,
   CLEANUP_INTERVAL: 1 * 60 * 60 * 1000,
@@ -43,7 +46,7 @@ const isDateRangeToday = (dateRange) => {
 const getTTLForDate = (dateRange, type) => {
   const isTodayRange = isDateRangeToday(dateRange);
 
-   if (type === "timbangan") {
+  if (type === "timbangan") {
     return isTodayRange
       ? CACHE_CONFIG.TIMBANGAN_TODAY
       : CACHE_CONFIG.TIMBANGAN_HISTORY;
@@ -569,10 +572,10 @@ async function patch(url, data, config = {}) {
   });
 }
 
-async function del(url, data = null, config = {}) {  
+async function del(url, data = null, config = {}) {
   const { bypassQueue = true, ...restConfig } = config;
 
-  return apiCall(url, "DELETE", data, {  
+  return apiCall(url, "DELETE", data, {
     bypassQueue,
     ...restConfig,
   });
@@ -668,7 +671,6 @@ async function syncQueueItem(item) {
     if (item.data) {
       config.data = {
         ...item.data,
-        
       };
     }
     if (item.options?.params) config.params = item.options.params;
@@ -883,15 +885,14 @@ export const offlineService = {
   patch,
   delete: del,
 
-   addToQueue,
+  addToQueue,
   getQueue,
   getPendingCount,
   syncAllPending,
   retryFailed,
-  deleteQueueItem,      
-  deleteFailedItem,     
-  getFailedQueue,       
-
+  deleteQueueItem,
+  deleteFailedItem,
+  getFailedQueue,
 
   setCache,
   getCache,

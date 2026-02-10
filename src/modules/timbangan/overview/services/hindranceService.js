@@ -17,17 +17,13 @@ export const hindranceService = {
     try {
       logger.info("📋 Fetching hindrance categories");
 
-      const response = await offlineService.get(
-        "/hindrances",
-        {
-          params:{
-            populate:[ "hindrance_category" ],
-          },
-          ttl: 5 * 60 * 1000,
-        }
-      );
+      const response = await offlineService.get("/hindrances", {
+        params: {
+          populate: ["hindrance_category"],
+        },
+        ttl: offlineService.CACHE_CONFIG.SHORT,
+      });
 
-       
       logger.info("✅ Hindrance categories fetched", {
         count: response.data?.length || 0,
       });
@@ -45,7 +41,7 @@ export const hindranceService = {
       throw new Error(
         error?.response?.data?.message ||
           error.message ||
-          "Gagal mengambil data kategori kendala"
+          "Gagal mengambil data kategori kendala",
       );
     }
   },
@@ -80,8 +76,8 @@ export const hindranceService = {
       const response = await offlineService.get(
         `/v1/custom/hindrance-detail?${queryParams.toString()}`,
         {
-          ttl: 1 * 60 * 1000,
-        }
+          ttl: offlineService.CACHE_CONFIG.SHORT,
+        },
       );
 
       // Response structure: Array of { [exca_hull_no]: [{ [hour]: [...data] }] }
@@ -103,7 +99,7 @@ export const hindranceService = {
       throw new Error(
         error?.response?.data?.message ||
           error.message ||
-          "Gagal mengambil data kendala"
+          "Gagal mengambil data kendala",
       );
     }
   },
@@ -130,12 +126,7 @@ export const hindranceService = {
       if (!hindrance_category || !hindrance) {
         throw new Error("Kategori dan kendala harus diisi");
       }
-      if (
-        !exca_hull_no ||
-        !date ||
-        !shift ||
-        !hour_data
-      ) {
+      if (!exca_hull_no || !date || !shift || !hour_data) {
         throw new Error("Data wajib tidak lengkap");
       }
 
@@ -168,7 +159,7 @@ export const hindranceService = {
         payload,
         {
           invalidateCache: true,
-        }
+        },
       );
 
       logger.info("✅ Hindrance detail created", {
@@ -189,7 +180,7 @@ export const hindranceService = {
       throw new Error(
         error?.response?.data?.message ||
           error.message ||
-          "Gagal menyimpan kendala"
+          "Gagal menyimpan kendala",
       );
     }
   },
@@ -214,7 +205,7 @@ export const hindranceService = {
         data,
         {
           invalidateCache: true,
-        }
+        },
       );
 
       logger.info("✅ Hindrance detail updated", { id });
@@ -233,7 +224,7 @@ export const hindranceService = {
       throw new Error(
         error?.response?.data?.message ||
           error.message ||
-          "Gagal memperbarui kendala"
+          "Gagal memperbarui kendala",
       );
     }
   },
@@ -254,7 +245,7 @@ export const hindranceService = {
         `/v1/custom/hindrance-detail/${id}`,
         {
           invalidateCache: true,
-        }
+        },
       );
 
       logger.info("✅ Hindrance detail deleted", { id });
@@ -273,7 +264,7 @@ export const hindranceService = {
       throw new Error(
         error?.response?.data?.message ||
           error.message ||
-          "Gagal menghapus kendala"
+          "Gagal menghapus kendala",
       );
     }
   },
@@ -301,7 +292,7 @@ export const hindranceService = {
         },
         {
           invalidateCache: true,
-        }
+        },
       );
 
       logger.info("✅ Approval status updated");
@@ -319,7 +310,7 @@ export const hindranceService = {
       throw new Error(
         error?.response?.data?.message ||
           error.message ||
-          "Gagal memperbarui status persetujuan"
+          "Gagal memperbarui status persetujuan",
       );
     }
   },
@@ -344,7 +335,7 @@ export const hindranceService = {
         data,
         {
           invalidateCache: true,
-        }
+        },
       );
 
       logger.info("✅ Revision updated", { id });
@@ -363,7 +354,7 @@ export const hindranceService = {
       throw new Error(
         error?.response?.data?.message ||
           error.message ||
-          "Gagal memperbarui revisi"
+          "Gagal memperbarui revisi",
       );
     }
   },
@@ -408,7 +399,7 @@ export const hindranceService = {
       // 1. Direct array: [{id: 5, url: "...", ...}]
       // 2. Wrapped in data: {data: [{id: 5, url: "...", ...}]}
       // 3. Wrapped with single object: {data: {id: 5, url: "...", ...}}
-      
+
       let uploadedFile = null;
 
       // Case 1: Response is direct array
@@ -420,7 +411,7 @@ export const hindranceService = {
         uploadedFile = response.data[0];
       }
       // Case 3: Response has data property that is object
-      else if (response.data && typeof response.data === 'object') {
+      else if (response.data && typeof response.data === "object") {
         uploadedFile = response.data;
       }
       // Case 4: Response is direct object
@@ -430,9 +421,12 @@ export const hindranceService = {
 
       // Validate uploadedFile
       if (!uploadedFile || !uploadedFile.id) {
-        console.error("❌ Upload response structure:", JSON.stringify(response, null, 2));
+        console.error(
+          "❌ Upload response structure:",
+          JSON.stringify(response, null, 2),
+        );
         throw new Error(
-          "Upload berhasil tetapi ID tidak ditemukan dalam response. Periksa struktur response API."
+          "Upload berhasil tetapi ID tidak ditemukan dalam response. Periksa struktur response API.",
         );
       }
 
@@ -460,7 +454,7 @@ export const hindranceService = {
       throw new Error(
         error?.response?.data?.message ||
           error.message ||
-          "Gagal mengupload foto"
+          "Gagal mengupload foto",
       );
     }
   },

@@ -4,18 +4,18 @@ import { buildCacheKey } from "@/shared/utils/cache";
 const MASTER_DATA_CACHE = {
   data: {},
   TTL: {
-    units: 5 * 60 * 1000,
-    operators: 5 * 60 * 1000,
-    companies: 60 * 60 * 1000,
-    locations: 60 * 60 * 1000,
-    "work-units": 5 * 60 * 1000,
-    "coal-types": 60 * 60 * 1000,
-    "weigh-bridge": 60 * 60 * 1000,
-    users: 5 * 60 * 1000,
+    units: offlineService.CACHE_CONFIG.SHORT,
+    operators: offlineService.CACHE_CONFIG.SHORT,
+    companies: offlineService.CACHE_CONFIG.MASTERS,
+    locations: offlineService.CACHE_CONFIG.MASTERS,
+    "work-units": offlineService.CACHE_CONFIG.SHORT,
+    "coal-types": offlineService.CACHE_CONFIG.MASTERS,
+    "weigh-bridge": offlineService.CACHE_CONFIG.MASTERS,
+    users: offlineService.CACHE_CONFIG.SHORT,
   },
 
   //   TTL: {
-  //   units: 15 * 1000,              // 15 detik 
+  //   units: 15 * 1000,              // 15 detik
   //   operators: 15 * 1000,          // 15 detik
   //   companies: 30 * 1000,          // 30 detik
   //   locations: 30 * 1000,          // 30 detik
@@ -24,6 +24,7 @@ const MASTER_DATA_CACHE = {
   //   "weigh-bridge": 30 * 1000,     // 30 detik
   //   users: 15 * 1000,              // 15 detik
   // },
+
   isValid(category) {
     const cached = this.data[category];
     if (!cached) return false;
@@ -113,8 +114,27 @@ const emitCacheUpdate = (category, action = "updated", id = null) => {
   }
 };
 
+const pendingRequests = new Map();
+
 export const masterDataService = {
   cache: MASTER_DATA_CACHE,
+
+  async _fetchWithDeduplication(cacheKey, fetchFn) {
+    if (pendingRequests.has(cacheKey)) {
+      return pendingRequests.get(cacheKey);
+    }
+
+    const promise = (async () => {
+      try {
+        return await fetchFn();
+      } finally {
+        pendingRequests.delete(cacheKey);
+      }
+    })();
+
+    pendingRequests.set(cacheKey, promise);
+    return promise;
+  },
 
   onUpdate(callback) {
     cacheUpdateListeners.add(callback);
@@ -232,38 +252,34 @@ export const masterDataService = {
       }
     }
 
-    try {
-      const response = await offlineService.get("/users", {
-        params: {
-          populate: "*",
-          sort: "username:asc",
-        },
-        cacheKey: "users",
-        ttl: 15 * 60 * 1000,
-        forceRefresh,
-      });
+    return this._fetchWithDeduplication("users", async () => {
+      try {
+        const response = await offlineService.get("/users", {
+          params: {
+            populate: ["role", "username"],
+            sort: "username:asc",
+          },
+          cacheKey: "users",
+          ttl: offlineService.CACHE_CONFIG.SHORT,
+          forceRefresh,
+        });
 
-      const data = response.map((user) => ({
-        id: user.id,
-        username: user.username,
-        email: user.email,
-        firstName: user.firstName || null,
-        lastName: user.lastName || null,
-        fullName:
-          user.firstName && user.lastName
-            ? `${user.firstName} ${user.lastName}`
-            : user.username,
-        role: user.role?.name || null,
-        blocked: user.blocked || false,
-      }));
+        const data = response.map((user) => ({
+          id: user.id,
+          username: user.username,
+          email: user.email,
+          role: user.role?.name || null,
+          blocked: user.blocked || false,
+        }));
 
-      MASTER_DATA_CACHE.set("users", data);
+        MASTER_DATA_CACHE.set("users", data);
 
-      return data;
-    } catch (error) {
-      console.error("Error fetching users:", error);
-      throw new Error("Failed to fetch users");
-    }
+        return data;
+      } catch (error) {
+        console.error("Error fetching users:", error);
+        throw new Error("Failed to fetch users");
+      }
+    });
   },
 
   async fetchCompanies(options = {}) {
@@ -276,27 +292,29 @@ export const masterDataService = {
       }
     }
 
-    const response = await offlineService.get("/companies", {
-      params: {
-        pagination: { pageSize: 100 },
-        sort: ["name:asc"],
-      },
-      cacheKey: "companies",
-      ttl: 35 * 60 * 1000,
-      forceRefresh,
+    return this._fetchWithDeduplication("companies", async () => {
+      const response = await offlineService.get("/companies", {
+        params: {
+          pagination: { pageSize: 100 },
+          sort: ["name:asc"],
+        },
+        cacheKey: "companies",
+        ttl: offlineService.CACHE_CONFIG.MASTERS,
+        forceRefresh,
+      });
+
+      const data = response.data.map((item) => ({
+        id: item.id,
+        name: item.attributes.name,
+        createdAt: item.attributes.createdAt,
+      }));
+
+      const sorted = sortAlphabetically(data, "name");
+
+      MASTER_DATA_CACHE.set("companies", sorted);
+
+      return sorted;
     });
-
-    const data = response.data.map((item) => ({
-      id: item.id,
-      name: item.attributes.name,
-      createdAt: item.attributes.createdAt,
-    }));
-
-    const sorted = sortAlphabetically(data, "name");
-
-    MASTER_DATA_CACHE.set("companies", sorted);
-
-    return sorted;
   },
 
   async createCompany(data) {
@@ -332,77 +350,83 @@ export const masterDataService = {
     return { success: true };
   },
 
-async fetchUnits(filters = {}) {
-  const { forceRefresh = false, type, userRole, userCompanyId } = filters;
+  async fetchUnits(filters = {}) {
+    const { forceRefresh = false, type, userRole, userCompanyId } = filters;
 
-  const cacheKey = buildCacheKey("units", { type, userRole, userCompanyId });
+    const cacheKey = buildCacheKey("units", { type, userRole, userCompanyId });
 
-  if (!forceRefresh) {
-    const cached = MASTER_DATA_CACHE.get(cacheKey);
-    if (cached) {
-      return cached;
+    if (!forceRefresh) {
+      const cached = MASTER_DATA_CACHE.get(cacheKey);
+      if (cached) {
+        return cached;
+      }
     }
-  }
 
-  const params = {
-    pagination: { pageSize: 7500 },
-    sort: ["hull_no:asc"],
-  };
-
-  params.populate = getPopulateFields("units", userRole);
-
-  if (type) {
-    params.filters = {
-      type: { $eq: type },
-    };
-  }
-
-  if (userRole === "operator_jt") {
-    if (!type || type === "DUMP_TRUCK") {
-      params.filters = {
-        ...params.filters,
-        type: { $eq: "DUMP_TRUCK" },
+    return this._fetchWithDeduplication(cacheKey, async () => {
+      const params = {
+        pagination: { pageSize: 7500 },
+        sort: ["hull_no:asc"],
       };
-    }
-    params.pagination.pageSize = 200;
-  }
 
-  if (shouldFilterByCompany(userRole) && userCompanyId) {
-    params.filters = {
-      ...params.filters,
-      company: { id: { $eq: userCompanyId } },
-    };
-  }
+      params.populate = getPopulateFields("units", userRole);
 
-  const response = await offlineService.get("/units", {
-    params,
-    cacheKey,
-    ttl: 15 * 60 * 1000,
-    forceRefresh,
-  });
+      if (type) {
+        params.filters = {
+          type: { $eq: type },
+        };
+      }
 
-  const data = response.data.map((item) => ({
-    id: item.id,
-    hull_no: item.attributes.hull_no,
-    type: item.attributes.type,
-    company: item.attributes.company?.data?.attributes?.name || "-",
-    companyId: item.attributes.company?.data?.id,
-    workUnit: item.attributes.work_unit?.data?.attributes?.satker || item.attributes.work_unit?.data?.attributes?.subsatker || "-",
-    workUnitId: item.attributes.work_unit?.data?.id,
-    settingDumpTruckId: item.attributes.setting_dump_truck?.data?.id,
-    tare_weight: item.attributes.tare_weight || null,
-    tare_weight_updated_date: item.attributes.tare_weight_updated_date || null,
-    rfid: item.attributes.rfid || null,
-    bypass_tonnage: item.attributes.bypass_tonnage || null,
-    updatedAt: item.attributes.updatedAt || null,
-  }));
+      if (userRole === "operator_jt") {
+        if (!type || type === "DUMP_TRUCK") {
+          params.filters = {
+            ...params.filters,
+            type: { $eq: "DUMP_TRUCK" },
+          };
+        }
+        params.pagination.pageSize = 200;
+      }
 
-  const sorted = sortAlphabetically(data, "hull_no");
+      if (shouldFilterByCompany(userRole) && userCompanyId) {
+        params.filters = {
+          ...params.filters,
+          company: { id: { $eq: userCompanyId } },
+        };
+      }
 
-  MASTER_DATA_CACHE.set(cacheKey, sorted);
+      const response = await offlineService.get("/units", {
+        params,
+        cacheKey,
+        ttl: offlineService.CACHE_CONFIG.SHORT,
+        forceRefresh,
+      });
 
-  return sorted;
-},
+      const data = response.data.map((item) => ({
+        id: item.id,
+        hull_no: item.attributes.hull_no,
+        type: item.attributes.type,
+        company: item.attributes.company?.data?.attributes?.name || "-",
+        companyId: item.attributes.company?.data?.id,
+        workUnit:
+          item.attributes.work_unit?.data?.attributes?.satker ||
+          item.attributes.work_unit?.data?.attributes?.subsatker ||
+          "-",
+        workUnitId: item.attributes.work_unit?.data?.id,
+        settingDumpTruckId: item.attributes.setting_dump_truck?.data?.id,
+        tare_weight: item.attributes.tare_weight || null,
+        tare_weight_updated_date:
+          item.attributes.tare_weight_updated_date || null,
+        rfid: item.attributes.rfid || null,
+        bypass_tonnage: item.attributes.bypass_tonnage || null,
+        updatedAt: item.attributes.updatedAt || null,
+      }));
+
+      const sorted = sortAlphabetically(data, "hull_no");
+
+      MASTER_DATA_CACHE.set(cacheKey, sorted);
+
+      return sorted;
+    });
+  },
 
   async createUnit(data) {
     const payload = {
@@ -520,39 +544,41 @@ async fetchUnits(filters = {}) {
       }
     }
 
-    const params = {
-      pagination: { pageSize: 7500 },
-      sort: ["name:asc"],
-    };
-
-    params.populate = getPopulateFields("operators", userRole);
-
-    if (shouldFilterByCompany(userRole) && userCompanyId) {
-      params.filters = {
-        company: { id: { $eq: userCompanyId } },
+    return this._fetchWithDeduplication(cacheKey, async () => {
+      const params = {
+        pagination: { pageSize: 7500 },
+        sort: ["name:asc"],
       };
-    }
 
-    const response = await offlineService.get("/operators", {
-      params,
-      cacheKey,
-      ttl: 15 * 60 * 1000,
-      forceRefresh,
+      params.populate = getPopulateFields("operators", userRole);
+
+      if (shouldFilterByCompany(userRole) && userCompanyId) {
+        params.filters = {
+          company: { id: { $eq: userCompanyId } },
+        };
+      }
+
+      const response = await offlineService.get("/operators", {
+        params,
+        cacheKey,
+        ttl: offlineService.CACHE_CONFIG.SHORT,
+        forceRefresh,
+      });
+
+      const data = response.data.map((item) => ({
+        id: item.id,
+        name: item.attributes.name,
+        company: item.attributes.company?.data?.attributes?.name || "-",
+        companyId: item.attributes.company?.data?.id,
+        ritaseCount: item.attributes.ritases?.data?.length || 0,
+      }));
+
+      const sorted = sortAlphabetically(data, "name");
+
+      MASTER_DATA_CACHE.set(cacheKey, sorted);
+
+      return sorted;
     });
-
-    const data = response.data.map((item) => ({
-      id: item.id,
-      name: item.attributes.name,
-      company: item.attributes.company?.data?.attributes?.name || "-",
-      companyId: item.attributes.company?.data?.id,
-      ritaseCount: item.attributes.ritases?.data?.length || 0,
-    }));
-
-    const sorted = sortAlphabetically(data, "name");
-
-    MASTER_DATA_CACHE.set(cacheKey, sorted);
-
-    return sorted;
   },
 
   async createOperator(data) {
@@ -608,35 +634,37 @@ async fetchUnits(filters = {}) {
       }
     }
 
-    const params = {
-      pagination: { pageSize: 7500 },
-      sort: ["name:asc"],
-    };
-
-    if (type) {
-      params.filters = {
-        type: { $eq: type },
+    return this._fetchWithDeduplication(cacheKey, async () => {
+      const params = {
+        pagination: { pageSize: 7500 },
+        sort: ["name:asc"],
       };
-    }
 
-    const response = await offlineService.get("/locations", {
-      params,
-      cacheKey,
-      ttl: 35 * 60 * 1000,
-      forceRefresh,
+      if (type) {
+        params.filters = {
+          type: { $eq: type },
+        };
+      }
+
+      const response = await offlineService.get("/locations", {
+        params,
+        cacheKey,
+        ttl: offlineService.CACHE_CONFIG.MASTERS,
+        forceRefresh,
+      });
+
+      const data = response.data.map((item) => ({
+        id: item.id,
+        name: item.attributes.name,
+        type: item.attributes.type,
+      }));
+
+      const sorted = sortAlphabetically(data, "name");
+
+      MASTER_DATA_CACHE.set(cacheKey, sorted);
+
+      return sorted;
     });
-
-    const data = response.data.map((item) => ({
-      id: item.id,
-      name: item.attributes.name,
-      type: item.attributes.type,
-    }));
-
-    const sorted = sortAlphabetically(data, "name");
-
-    MASTER_DATA_CACHE.set(cacheKey, sorted);
-
-    return sorted;
   },
 
   async createLocation(data) {
@@ -682,32 +710,35 @@ async fetchUnits(filters = {}) {
       }
     }
 
-    const params = {
-      pagination: { pageSize: 7500 },
-      sort: ["satker:asc"],
-    };
+    return this._fetchWithDeduplication(cacheKey, async () => {
+      const params = {
+        pagination: { pageSize: 7500 },
+        sort: ["satker:asc"],
+      };
 
-    params.populate = getPopulateFields("work-units", userRole);
+      params.populate = getPopulateFields("work-units", userRole);
 
-    const response = await offlineService.get("/work-units", {
-      params,
-      cacheKey,
-      ttl: 30 * 60 * 1000,
-      forceRefresh,
+      const response = await offlineService.get("/work-units", {
+        params,
+        cacheKey,
+        ttl: offlineService.CACHE_CONFIG.MEDIUM,
+        forceRefresh,
+      });
+
+      const data = response.data.map((item) => ({
+        id: item.id,
+        satker: item.attributes.satker,
+        subsatker: item.attributes.subsatker,
+        locationIds:
+          item.attributes.locations?.data?.map((loc) => loc.id) || [],
+      }));
+
+      const sorted = sortAlphabetically(data, "satker");
+
+      MASTER_DATA_CACHE.set(cacheKey, sorted);
+
+      return sorted;
     });
-
-    const data = response.data.map((item) => ({
-      id: item.id,
-      satker: item.attributes.satker,
-      subsatker: item.attributes.subsatker,
-      locationIds: item.attributes.locations?.data?.map((loc) => loc.id) || [],
-    }));
-
-    const sorted = sortAlphabetically(data, "satker");
-
-    MASTER_DATA_CACHE.set(cacheKey, sorted);
-
-    return sorted;
   },
 
   async createWorkUnit(data) {
@@ -765,26 +796,28 @@ async fetchUnits(filters = {}) {
       }
     }
 
-    const response = await offlineService.get("/coal-types", {
-      params: {
-        pagination: { pageSize: 1000 },
-        sort: ["name:asc"],
-      },
-      cacheKey: "coal_types",
-      ttl: 30 * 60 * 1000,
-      forceRefresh,
+    return this._fetchWithDeduplication("coal-types", async () => {
+      const response = await offlineService.get("/coal-types", {
+        params: {
+          pagination: { pageSize: 1000 },
+          sort: ["name:asc"],
+        },
+        cacheKey: "coal_types",
+        ttl: offlineService.CACHE_CONFIG.MEDIUM,
+        forceRefresh,
+      });
+
+      const data = response.data.map((item) => ({
+        id: item.id,
+        name: item.attributes.name,
+      }));
+
+      const sorted = sortAlphabetically(data, "name");
+
+      MASTER_DATA_CACHE.set("coal-types", sorted);
+
+      return sorted;
     });
-
-    const data = response.data.map((item) => ({
-      id: item.id,
-      name: item.attributes.name,
-    }));
-
-    const sorted = sortAlphabetically(data, "name");
-
-    MASTER_DATA_CACHE.set("coal-types", sorted);
-
-    return sorted;
   },
 
   async createCoalType(data) {
@@ -830,42 +863,44 @@ async fetchUnits(filters = {}) {
       }
     }
 
-    const params = {
-      pagination: { pageSize: 1000 },
-      sort: ["name:asc"],
-    };
-
-    params.populate = getPopulateFields("weigh-bridge", userRole);
-
-    const response = await offlineService.get("/weigh-bridges", {
-      params,
-      cacheKey,
-      ttl: 35 * 60 * 1000,
-      forceRefresh,
-    });
-
-    const data = response.data.map((item) => {
-      const operators =
-        item.attributes.operators?.data?.map((op) => ({
-          id: op.id,
-          username: op.attributes.username,
-          name: op.attributes.name,
-          email: op.attributes.email,
-        })) || [];
-
-      return {
-        id: item.id,
-        name: item.attributes.name,
-        createdAt: item.attributes.createdAt,
-        operators,
+    return this._fetchWithDeduplication(cacheKey, async () => {
+      const params = {
+        pagination: { pageSize: 1000 },
+        sort: ["name:asc"],
       };
+
+      params.populate = getPopulateFields("weigh-bridge", userRole);
+
+      const response = await offlineService.get("/weigh-bridges", {
+        params,
+        cacheKey,
+        ttl: 35 * 60 * 1000,
+        forceRefresh,
+      });
+
+      const data = response.data.map((item) => {
+        const operators =
+          item.attributes.operators?.data?.map((op) => ({
+            id: op.id,
+            username: op.attributes.username,
+            name: op.attributes.name,
+            email: op.attributes.email,
+          })) || [];
+
+        return {
+          id: item.id,
+          name: item.attributes.name,
+          createdAt: item.attributes.createdAt,
+          operators,
+        };
+      });
+
+      const sorted = sortAlphabetically(data, "name");
+
+      MASTER_DATA_CACHE.set(cacheKey, sorted);
+
+      return sorted;
     });
-
-    const sorted = sortAlphabetically(data, "name");
-
-    MASTER_DATA_CACHE.set(cacheKey, sorted);
-
-    return sorted;
   },
 
   async createWeightBridge(data) {

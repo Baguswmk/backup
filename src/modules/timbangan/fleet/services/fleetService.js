@@ -168,6 +168,7 @@ export const fleetService = {
               pagination: { pageSize: 500 },
             },
             cacheKey,
+            ttl: offlineService.CACHE_CONFIG.FLEET_TODAY,
             forceRefresh,
           });
 

@@ -8,31 +8,31 @@ export const dashboardService = {
    * @param {Object} params - { start_date, end_date, shift, forceRefresh }
    * @returns {Promise<Object>} Dashboard data with summary and tableData
    */
-async getDashboardDaily(params = {}) {
-  try {
-    const {
-      startDate,
-      endDate,
-      shift = "All",
-      forceRefresh = false,
-    } = params;
+  async getDashboardDaily(params = {}) {
+    try {
+      const {
+        startDate,
+        endDate,
+        shift = "All",
+        forceRefresh = false,
+      } = params;
 
-    if (!startDate || !endDate) {
-      throw new Error("Parameter startDate dan endDate harus diisi");
-    }
+      if (!startDate || !endDate) {
+        throw new Error("Parameter startDate dan endDate harus diisi");
+      }
 
-    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
-    if (!dateRegex.test(startDate) || !dateRegex.test(endDate)) {
-      throw new Error("Format tanggal harus YYYY-MM-DD");
-    }
+      const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+      if (!dateRegex.test(startDate) || !dateRegex.test(endDate)) {
+        throw new Error("Format tanggal harus YYYY-MM-DD");
+      }
 
-    const queryParams = new URLSearchParams();
-    queryParams.append("startDate", startDate);
-    queryParams.append("endDate", endDate);
-    
-    if (shift) {
-      queryParams.append("shift", shift);
-    }
+      const queryParams = new URLSearchParams();
+      queryParams.append("startDate", startDate);
+      queryParams.append("endDate", endDate);
+
+      if (shift) {
+        queryParams.append("shift", shift);
+      }
 
       const cacheKey = buildCacheKey("dashboard_daily", {
         start: startDate,
@@ -52,7 +52,7 @@ async getDashboardDaily(params = {}) {
         `/v1/overview/dashboard-daily?${queryParams.toString()}`,
         {
           cacheKey,
-          ttl: 2 * 60 * 1000,
+          ttl: offlineService.CACHE_CONFIG.SHORT,
           forceRefresh,
         },
       );

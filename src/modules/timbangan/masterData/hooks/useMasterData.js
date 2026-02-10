@@ -35,7 +35,7 @@ export const useMasterData = (category) => {
     if (!isMountedRef.current) return;
 
     // ✅ Check apakah sudah ada yang di-load
-    const alreadyLoaded = 
+    const alreadyLoaded =
       masterDataLoadedRef.current.companies &&
       masterDataLoadedRef.current.workUnits &&
       masterDataLoadedRef.current.locations &&
@@ -163,7 +163,9 @@ export const useMasterData = (category) => {
 
     // ✅ Debounce: Cegah spam refresh
     if (timeSinceLastRefresh < DEBOUNCE_TIME) {
-      const remainingTime = Math.ceil((DEBOUNCE_TIME - timeSinceLastRefresh) / 1000);
+      const remainingTime = Math.ceil(
+        (DEBOUNCE_TIME - timeSinceLastRefresh) / 1000,
+      );
       showToast.info(`Tunggu ${remainingTime} detik untuk refresh lagi`);
       return;
     }
@@ -303,7 +305,11 @@ export const useMasterData = (category) => {
   }, [category, loadData]);
 
   useEffect(() => {
-    loadAllMasterData();
+    const timer = setTimeout(() => {
+      loadAllMasterData();
+    }, 500);
+
+    return () => clearTimeout(timer);
   }, [loadAllMasterData]);
 
   useEffect(() => {
