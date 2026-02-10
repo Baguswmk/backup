@@ -91,6 +91,7 @@ const FleetManagement = ({ Type }) => {
     createFleetConfig,
     updateConfig,
     masters,
+    mastersLoading,
     deleteConfig,
     refresh: refreshFleet,
   } = useFleet(user ? { user } : null, measurementType);
@@ -223,7 +224,6 @@ const FleetManagement = ({ Type }) => {
 
   const isConfigsLoading = fleetLoading && !fleetRefreshing;
   const isRefreshing = fleetRefreshing;
-  const mastersLoading = false;
 
   const getFleetDumptruckCount = useCallback(
     (fleetId) => {
@@ -924,6 +924,8 @@ const FleetManagement = ({ Type }) => {
         onManageFleet={() => openModal("fleetSelection")}
         fleetCounts={fleetCounts}
         fleetData={finalFilteredConfigs}
+        masters={masters}
+        mastersLoading={mastersLoading}
       />
 
       {userRole?.toLowerCase() === "ccr" && !userSatker && (

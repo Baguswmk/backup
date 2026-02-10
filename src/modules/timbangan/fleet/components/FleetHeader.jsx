@@ -19,17 +19,16 @@ const FleetHeader = ({
   isSatkerRestricted,
   userSatker,
   isRefreshing,
-  canRead,
   canCreate,
   shouldShowButton,
   getDisabledMessage,
   onRefresh,
   onCreate,
-  onManageFleet,
-  fleetCounts,
   fleetData = [],
   selectedSatker,
   selectedUrutkan,
+  masters,
+  mastersLoading,
 }) => {
   const { refreshAllMasterData, isRefreshingMasterData } = useMasterData();
 
@@ -137,6 +136,8 @@ const FleetHeader = ({
       {/* MMCT Equipment List Modal */}
       {isCCR && (
         <MMCTEquipmentListModal
+        masters={masters}
+        mastersLoading={mastersLoading}
           isOpen={showMMCTEquipmentModal}
           onClose={() => setShowMMCTEquipmentModal(false)}
         />

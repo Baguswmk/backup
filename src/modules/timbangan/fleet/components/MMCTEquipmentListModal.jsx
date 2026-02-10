@@ -24,7 +24,6 @@ import {
 } from "lucide-react";
 import { showToast } from "@/shared/utils/toast";
 import { useUnitLog } from "@/modules/timbangan/fleet/hooks/useUnitLog";
-import { useFleet } from "@/modules/timbangan/fleet/hooks/useFleet";
 import MultiSearchableSelect from "@/shared/components/MultiSearchableSelect";
 
 const EQUIPMENT_CATEGORIES = {
@@ -73,7 +72,7 @@ const MAIN_TABS = {
   },
 };
 
-const MMCTEquipmentListModal = ({ isOpen, onClose }) => {
+const MMCTEquipmentListModal = ({ isOpen, onClose, masters, mastersLoading }) => {
   const [activeMainTab, setActiveMainTab] = useState("unit");
   const [tempEquipmentLists, setTempEquipmentLists] = useState({
     dt_service: [],
@@ -100,9 +99,6 @@ const MMCTEquipmentListModal = ({ isOpen, onClose }) => {
     bulkAddToMMCTList,
     loadMMCTEquipmentLists,
   } = useUnitLog();
-
-  // Get master data for dropdowns
-  const { masters, mastersLoading } = useFleet();
 
   // Sync temp state with actual data
   useEffect(() => {
