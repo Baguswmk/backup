@@ -29,14 +29,12 @@ const FleetModalsManager = ({
   onCloseDeleteDialog,
   onConfirmDelete,
   deleteTarget,
-  getDumptruckCount,
   getDumptruckList,
-deleteActionType = "delete",
-  // Split Fleet Modal props
+  deleteActionType = "delete",
   showSplitModal,
   onCloseSplitModal,
   onSaveSplit,
-
+  mastersLoading,
   isSaving,
 }) => {
   return (
@@ -49,7 +47,7 @@ deleteActionType = "delete",
           editingConfig={selectedConfig}
           onSave={onSaveConfig}
           masters={masters}
-          mastersLoading={false}
+          mastersLoading={mastersLoading}
           fleetType={fleetType}
           availableDumptruckSettings={availableDumptruckSettings}
         />
@@ -61,6 +59,8 @@ deleteActionType = "delete",
           isOpen={showSplitModal}
           onClose={onCloseSplitModal}
           onSave={onSaveSplit}
+          masters={masters}
+          mastersLoading={mastersLoading}
           availableDumptruckSettings={availableDumptruckSettings}
         />
       )}

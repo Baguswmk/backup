@@ -978,6 +978,8 @@ const FleetManagement = ({ Type }) => {
       <MMCTAdditionalSections
         selectedSatker={selectedSatker}
         fleetData={filteredFleetData}
+        masters={masters}
+        mastersLoading={mastersLoading}
       />
 
       <FleetModalsManager
@@ -986,6 +988,7 @@ const FleetManagement = ({ Type }) => {
         selectedConfig={getModalState("config").data}
         onSaveConfig={handleSaveConfig}
         masters={masters}
+        mastersLoading={mastersLoading}
         canUpdate={canUpdate && !isReadOnly}
         fleetType={Type}
         showDetailModal={getModalState("detail").isOpen}

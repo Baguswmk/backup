@@ -26,9 +26,8 @@ import MultiSearchableSelect from "@/shared/components/MultiSearchableSelect";
 /**
  * Modal untuk menambah Unit Log (Breakdown/Service) - Support Multiple Units
  */
-const CreateUnitLogModal = ({ isOpen, onClose, unit, onSuccess }) => {
+const CreateUnitLogModal = ({ isOpen, onClose, unit, onSuccess, mastersLoading , masters }) => {
   const { createUnitLog, isSaving } = useUnitLog();
-  const { masters, mastersLoading } = useFleet();
   
   const [formData, setFormData] = useState({
     entry_date: "",

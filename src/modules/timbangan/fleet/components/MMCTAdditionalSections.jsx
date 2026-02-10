@@ -5,7 +5,7 @@ import { Button } from "@/shared/components/ui/button";
 import { useUnitLog } from "@/modules/timbangan/fleet/hooks/useUnitLog";
 import { CreateUnitLogModal, VerifyUnitLogModal } from "@/modules/timbangan/fleet/components/UnitLogModal";
 
-const MMCTAdditionalSections = ({ selectedSatker, fleetData = [], onRefresh }) => {
+const MMCTAdditionalSections = ({ selectedSatker, fleetData = [], onRefresh, masters, mastersLoading }) => {
   
   const { activeUnitLogs, isLoading, mmctEquipmentLists, refreshMMCT } = useUnitLog();
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -370,6 +370,8 @@ const getExcavatorStatus = (excavatorName) => {
           setIsCreateModalOpen(false);
           setSelectedUnit(null);
         }}
+        masters={masters}
+        mastersLoading={mastersLoading}
         unit={selectedUnit}
         onSuccess={() => {
           setIsCreateModalOpen(false);

@@ -24,9 +24,10 @@ const FleetSplitModal = ({
   onClose,
   onSave,
   availableDumptruckSettings = [],
+  masters,
+  mastersLoading,
 }) => {
   const { user } = useAuthStore();
-  const { masters, mastersLoading } = useFleet(user ? { user } : null, null);
 
   const [splitData, setSplitData] = useState({
     excavator: "",

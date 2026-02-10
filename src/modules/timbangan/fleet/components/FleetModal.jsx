@@ -47,6 +47,8 @@ const FleetModal = ({
   onSave,
   fleetType = "Timbangan",
   availableDumptruckSettings = [],
+  masters,
+  mastersLoading,
 }) => {
   const { user } = useAuthStore();
 
@@ -60,12 +62,6 @@ const FleetModal = ({
   }, [isEditingMergedGroup, editingConfig]);
   const isEdit = fleetsToEdit.length > 0;
 
-  const { masters, mastersLoading, deleteConfig } = useFleet(
-    user ? { user } : null,
-    null,
-  );
-  const { data: masterUnits, isLoading: masterUnitsLoading } =
-    useMasterData("units");
 
   const {
     isSplitMode,
@@ -76,19 +72,16 @@ const FleetModal = ({
     removeFleetFromUniverse,
     setActiveUniverseFleet,
     activeFleetId,
-    getActiveFleet,
     getFleetNumber,
     resetSplitMode,
     validateSplitConfiguration,
     prepareBulkPayload,
   } = useFleetSplit();
 
-  const { handleSaveFleet, isSaving: isSavingTransfer } = useFleetWithTransfer(
+  const { handleSaveFleet } = useFleetWithTransfer(
     user,
     onSave,
   );
-
-  const permissions = useFleetPermissions();
 
   const [fleetData, setFleetData] = useState({
     excavator: "",
@@ -150,7 +143,6 @@ const FleetModal = ({
       document.body.style.overflow = "unset";
     };
   }, [isOpen]);
-
   // ✅ FIXED: Filter units by excavator helper
   const filterUnitsByExcavator = useCallback(
     async (excavatorId) => {
@@ -163,9 +155,8 @@ const FleetModal = ({
           return [];
         }
 
-        const filtered = masterUnits.filter(
+        const filtered = masters?.dumpTruck?.filter(
           (unit) =>
-            unit.type === "DUMP_TRUCK" &&
             String(unit.companyId) === String(excavator.companyId),
         );
 
@@ -175,12 +166,12 @@ const FleetModal = ({
         return [];
       }
     },
-    [masters, masterUnits],
+    [masters],
   );
 
   // ✅ FIXED: Populate form data when editing (IMPROVED VERSION)
   useEffect(() => {
-    if (isEdit && fleetsToEdit.length > 0 && isOpen && masters && masterUnits) {
+    if (isEdit && fleetsToEdit.length > 0 && isOpen && masters) {
       const config = fleetsToEdit[0]; // Use first fleet for primary data
 
       // Populate main fleet data
@@ -313,7 +304,7 @@ const FleetModal = ({
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isEdit, fleetsToEdit, isOpen, masters, masterUnits]);
+  }, [isEdit, fleetsToEdit, isOpen, masters]);
 
   const handleExcavatorChange = useCallback(
     async (excavatorId) => {
@@ -343,7 +334,7 @@ const FleetModal = ({
     let units = [];
 
     if (showAllUnits) {
-      units = masterUnits.filter((u) => u.type === "DUMP_TRUCK");
+      units = masters?.dumpTruck;
     } else {
       units = fleetFilteredUnits;
     }
@@ -376,7 +367,6 @@ const FleetModal = ({
     usedDumptrucksMap,
     isEdit,
     fleetsToEdit,
-    masterUnits, // ✅ Added missing dependency
   ]);
 
   const filteredUnitsForActiveFleet = useMemo(() => {
@@ -385,7 +375,7 @@ const FleetModal = ({
     let units = [];
 
     if (showAllUnits) {
-      units = masterUnits.filter((u) => u.type === "DUMP_TRUCK");
+      units = masters?.dumpTruck;
     } else {
       units = fleetFilteredUnits;
     }
@@ -410,7 +400,6 @@ const FleetModal = ({
     usedDumptrucksMap,
     isEdit,
     fleetsToEdit,
-    masterUnits, // ✅ Added missing dependency
   ]);
 
   const selectedUnitsList = useMemo(() => {
@@ -441,7 +430,7 @@ const FleetModal = ({
 
   const getOperatorOptionsForUnit = useCallback(
     (unitId) => {
-      const unit = masterUnits.find((u) => String(u.id) === String(unitId));
+      const unit = masters?.dumpTruck.find((u) => String(u.id) === String(unitId));
 
       if (!unit || !unit.companyId) {
         return [];
@@ -472,7 +461,7 @@ const FleetModal = ({
         label: op.name,
       }));
     },
-    [masterUnits, masters?.operators, unitOperators],
+    [ masters?.operators, unitOperators],
   );
 
   const getAvailableOperatorCount = useCallback(
@@ -495,7 +484,7 @@ const FleetModal = ({
       } else {
         // Called with unitId (from other places)
         unitId = unitIdOrObject;
-        unit = masterUnits.find((u) => String(u.id) === String(unitId));
+        unit = masters?.dumpTruck.find((u) => String(u.id) === String(unitId));
       }
 
       if (!unit || !unit.companyId) return [];
@@ -533,9 +522,7 @@ const FleetModal = ({
         value: String(op.id),
         label: op.name,
       }));
-    },
-    [masterUnits, masters?.operators, unitOperators, fleetsUniverse],
-  );
+    }, [ masters?.operators, unitOperators, fleetsUniverse]);
 
   const handleOperatorChange = useCallback((unitId, operatorId) => {
     setUnitOperators((prev) => ({
@@ -1152,7 +1139,7 @@ const FleetModal = ({
           disabled={isSaving}
         />
 
-        {mastersLoading || masterUnitsLoading ? (
+        {mastersLoading  ? (
           <LoadingOverlay isVisible={true} message="Memuat data master..." />
         ) : (
           <div className="flex-1 overflow-y-auto p-6 space-y-6">
