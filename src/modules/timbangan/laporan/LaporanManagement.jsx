@@ -3,11 +3,11 @@ import LaporanCard from "@/modules/timbangan/laporan/components/LaporanCard";
 import { useLaporan } from "@/modules/timbangan/laporan/hooks/useLaporan";
 import { getFilteredLaporanConfig } from "@/modules/timbangan/laporan/config/LaporanConfig";
 import { useMasterData } from "@/modules/timbangan/masterData/hooks/useMasterData";
-import { useAuth } from "@/modules/auth/hooks/useAuth"; 
+import useAuthStore from "@/modules/auth/store/authStore";
 
 const LaporanManagement = () => {
   const { downloadLaporan, isFormatDownloading } = useLaporan();
-  const { user } = useAuth(); 
+  const user = useAuthStore((state) => state.user);
 
   const {
     data: dumpTruckData,
@@ -22,7 +22,6 @@ const LaporanManagement = () => {
   const isRehandling = useMemo(() => {
     return user?.work_unit?.satker === "Mine-Mouth Coal Transportation";
   }, [user]);
-
 
   const filteredLaporanConfig = useMemo(() => {
     return getFilteredLaporanConfig(isRehandling);
@@ -99,7 +98,12 @@ const LaporanManagement = () => {
             showSpphFilter={laporan.showSpphFilter}
             showDumpTruckFilter={laporan.showDumpTruckFilter}
             onDownload={(format, params) =>
-              handleDownload(laporan.type, format, params, laporan.rehandlingType)
+              handleDownload(
+                laporan.type,
+                format,
+                params,
+                laporan.rehandlingType,
+              )
             }
             isDownloading={(format) =>
               isFormatDownloading(laporan.type, format)
