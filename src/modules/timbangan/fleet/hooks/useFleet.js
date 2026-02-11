@@ -4,12 +4,12 @@ import { masterDataService } from "@/modules/timbangan/masterData/services/maste
 import { useRitaseStore } from "@/modules/timbangan/ritase/store/ritaseStore";
 import { offlineService } from "@/shared/services/offlineService";
 import { withErrorHandling } from "@/shared/utils/errorHandler";
+import useAuthStore from "@/modules/auth/store/authStore";
 
 const getUserRoleInfo = (user) => {
   if (!user) return { role: "Unknown", identifier: "N/A" };
 
   const role = user.role?.toLowerCase();
-
   switch (role) {
     case "super_admin":
       return { role: "Super Admin", identifier: "All Data" };
@@ -63,19 +63,16 @@ export const useFleet = (userAuth = null, measurementType = null) => {
   const [availableUnits, setAvailableUnits] = useState([]);
   const [filteredUnitsByFleet, setFilteredUnitsByFleet] = useState({});
 
-  // ✅ FIX 1: Add initialization guard refs
   const isInitializedRef = useRef(false);
-  const initializingRef = useRef(false); // NEW: Prevent concurrent initialization
+  const initializingRef = useRef(false); 
   const abortControllerRef = useRef(null);
 
   const loadingStateRef = useRef({
     masters: false,
     fleets: false,
   });
-
-  const user = useMemo(() => userAuth?.user, [userAuth]);
+  const user = useAuthStore((state) => state.user);
   const userRoleInfo = useMemo(() => getUserRoleInfo(user), [user]);
-
   const dumptruckStats = useMemo(() => {
     const total = availableUnits.length;
     return { total };
@@ -85,7 +82,6 @@ export const useFleet = (userAuth = null, measurementType = null) => {
     async (options = {}) => {
       const { forceRefresh = false } = options;
 
-      // ✅ FIX 2: Better guard - check both loading state AND force refresh
       if (loadingStateRef.current.masters && !forceRefresh) {
         return { success: true, fromCache: true };
       }
@@ -540,8 +536,6 @@ export const useFleet = (userAuth = null, measurementType = null) => {
     [fleetConfigs],
   );
 
-  // Bulk delete: hapus semua fleet sekaligus berdasarkan array of IDs
-  // Dipakai untuk delete merged (split) rows dari tabel
   const bulkDeleteConfigs = useCallback(
     async (configIds) => {
       if (!Array.isArray(configIds) || configIds.length === 0) {
@@ -656,9 +650,7 @@ export const useFleet = (userAuth = null, measurementType = null) => {
     return unsubscribe;
   }, [loadMasters]);
 
-  // ✅ FIX 3: Main initialization useEffect - COMPLETELY REWRITTEN
   useEffect(() => {
-    // Skip if already initialized or currently initializing
     if (isInitializedRef.current || initializingRef.current) {
       return;
     }
@@ -666,7 +658,6 @@ export const useFleet = (userAuth = null, measurementType = null) => {
     let isMounted = true;
 
     const initializeData = async () => {
-      // Double-check before starting
       if (initializingRef.current) {
         return;
       }
@@ -674,15 +665,15 @@ export const useFleet = (userAuth = null, measurementType = null) => {
       initializingRef.current = true;
 
       try {
-        // ✅ Step 1: Load masters FIRST and WAIT for completion
         await loadMasters();
 
         if (!isMounted) {
           return;
         }
 
-        // ✅ Step 2: Load fleets AFTER masters complete
-        await preloadAllFleets();
+        if (userRoleInfo !== "Operator JT"){
+          await preloadAllFleets();
+        }
 
         if (isMounted) {
           isInitializedRef.current = true;
@@ -694,7 +685,6 @@ export const useFleet = (userAuth = null, measurementType = null) => {
       }
     };
 
-    // ✅ FIX 4: Restore debounce and user dependency
     const timeoutId = setTimeout(() => {
       initializeData();
     }, 500);
@@ -706,7 +696,7 @@ export const useFleet = (userAuth = null, measurementType = null) => {
         abortControllerRef.current.abort();
       }
     };
-  }, [loadMasters, preloadAllFleets, user]); // ✅ FIX 5: Restored user dependency
+  }, [loadMasters, preloadAllFleets, user]); 
 
   return {
     fleetConfigs,

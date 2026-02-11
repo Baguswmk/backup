@@ -1,10 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
 
-/**
- * ✅ REFACTORED: Universal fleet management hook
- * - Manages multiple secondary fleets via fleetsUniverse
- * - No more fleet2Data legacy code
- */
 export const useFleetSplit = () => {
   const [isSplitMode, setIsSplitMode] = useState(false);
 
@@ -107,11 +102,6 @@ export const useFleetSplit = () => {
     }
   }, [fleetsUniverse, activeFleetId]);
 
-  /**
-   * ✅ Validate split configuration before save
-   * @param {Array} primarySelectedUnits - Selected units from primary fleet (Fleet 1)
-   * @returns {Object} { valid: boolean, error?: string }
-   */
   const validateSplitConfiguration = useCallback(
     (primarySelectedUnits = []) => {
       if (fleetsUniverse.length === 0) {
@@ -500,20 +490,11 @@ export const useFleetSplit = () => {
     [fleetsUniverse],
   );
 
-  /**
-   * ✅ Get active fleet object
-   * @returns {Object|null} Active fleet or null
-   */
   const getActiveFleet = useCallback(() => {
     if (!activeFleetId) return null;
     return fleetsUniverse.find((f) => f.id === activeFleetId) || null;
   }, [activeFleetId, fleetsUniverse]);
 
-  /**
-   * ✅ Get fleet label (Fleet 2, Fleet 3, etc.)
-   * @param {string} fleetId - Fleet ID
-   * @returns {number} Fleet number (2, 3, 4...)
-   */
   const getFleetNumber = useCallback(
     (fleetId) => {
       const index = fleetsUniverse.findIndex((f) => f.id === fleetId);

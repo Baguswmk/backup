@@ -12,6 +12,7 @@ import {
 import { useMasterData } from "../../masterData/hooks/useMasterData";
 import MMCTEquipmentListModal from "./MMCTEquipmentListModal";
 import ExportFleetButtons from "./ExportFleetButtons";
+import useAuthStore from "@/modules/auth/store/authStore";
 
 const FleetHeader = ({
   type,
@@ -31,6 +32,7 @@ const FleetHeader = ({
   mastersLoading,
 }) => {
   const { refreshAllMasterData, isRefreshingMasterData } = useMasterData();
+  const { user } = useAuthStore();
 
   // State untuk MMCT Equipment List Modal
   const [showMMCTEquipmentModal, setShowMMCTEquipmentModal] = useState(false);
@@ -47,6 +49,14 @@ const FleetHeader = ({
             <Settings className="w-6 h-6" />
             Fleet Management - {type}
           </h1>
+           <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-0">
+            <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
+              Selamat datang,{" "}
+              <span className="font-semibold text-gray-900 dark:text-white">
+                {user?.name || user?.username || "User"}
+              </span>
+            </p>
+          </div>
 
           <div className="flex items-center gap-2 mt-2">
             <Badge
