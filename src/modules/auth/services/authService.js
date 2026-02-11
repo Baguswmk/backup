@@ -26,7 +26,7 @@ export const authService = {
             "role",
             "company",
             "work_unit",
-            "weigh_bridge",
+            
           ],
         },
       });
@@ -60,11 +60,11 @@ export const authService = {
       logger.info("Login successful", {
         userId: normalizedUser.id,
         username: normalizedUser.username,
+        name: normalizedUser.name,
         role: normalizedUser.role,
         targetApp: targetApp || "hub",
         company: normalizedUser.company?.name,
         workUnit: normalizedUser.work_unit?.subsatker,
-        weightBridge: normalizedUser.weigh_bridge?.name,
       });
 
       return {
@@ -96,7 +96,7 @@ export const authService = {
 
   normalizeUserData(rawUser) {
     const role = this.normalizeRole(
-      rawUser.role?.name || rawUser.role_custom || rawUser.role || "user",
+      rawUser.role?.name ||rawUser.role || "user",
     );
 
     return {
@@ -106,16 +106,14 @@ export const authService = {
       email: this.normalizeEmail(rawUser.email),
       confirmed: Boolean(rawUser.confirmed),
       blocked: Boolean(rawUser.blocked),
-
+      name: rawUser.name,
       // Role information
       role: role,
-      role_custom: rawUser.role_custom || null,
       is_admin: this.isAdminRole(role),
 
       // Related entities - normalized
       company: this.normalizeCompany(rawUser.company),
       work_unit: this.normalizeWorkUnit(rawUser.work_unit),
-      weigh_bridge: this.normalizeWeightBridge(rawUser.weigh_bridge),
 
       // Timestamps
       createdAt: this.normalizeDate(rawUser.createdAt),
@@ -163,8 +161,6 @@ export const authService = {
     return {
       id: companyData.id || company.id || null,
       name: String(attributes.name || company.name || "").trim(),
-      code: String(attributes.code || company.code || "").trim(),
-      type: String(attributes.type || company.type || "").trim(),
     };
   },
 
@@ -264,7 +260,7 @@ export const authService = {
   async validateToken(token, appContext = null) {
     try {
       const params = {
-        populate: ["role", "company", "work_unit", "weigh_bridge"],
+        populate: ["role", "company", "work_unit"],
       };
 
       const response = await apiClient.get("/users/me", {
@@ -300,7 +296,7 @@ export const authService = {
 
   async getProfile(includeAppAccess = true) {
     try {
-      const populate = ["role", "company", "work_unit", "weigh_bridge"];
+      const populate = ["role", "company", "work_unit"];
 
       if (includeAppAccess) {
         populate.push("app_access", "permissions");
