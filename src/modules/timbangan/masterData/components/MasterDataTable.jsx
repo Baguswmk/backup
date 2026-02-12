@@ -2,6 +2,7 @@ import { Button } from "@/shared/components/ui/button";
 import { Badge } from "@/shared/components/ui/badge";
 import { Edit, Trash2, Scale, Database, Lock } from "lucide-react";
 import LoadingContent from "@/shared/components/LoadingContent";
+import Pagination from "@/shared/components/Pagination";
 
 const MasterDataTable = ({
   data,
@@ -15,6 +16,13 @@ const MasterDataTable = ({
   canEdit = false,
   canDelete = false,
   canWeigh = false,
+  // Pagination props
+  currentPage,
+  totalPages,
+  onPageChange,
+  itemsPerPage,
+  onItemsPerPageChange,
+  totalItems,
 }) => {
   if (isLoading) {
     return <LoadingContent />;
@@ -71,6 +79,19 @@ const MasterDataTable = ({
         canWeigh={canWeigh}
         hasAnyAction={hasAnyAction}
       />
+
+      {/* Pagination */}
+      {totalPages > 0 && (
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={onPageChange}
+          isLoading={isLoading}
+          itemsPerPage={itemsPerPage}
+          onItemsPerPageChange={onItemsPerPageChange}
+          totalItems={totalItems}
+        />
+      )}
     </>
   );
 };

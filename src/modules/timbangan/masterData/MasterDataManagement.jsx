@@ -79,8 +79,6 @@ const COLOR_CLASS = {
   teal: "text-teal-600",
 };
 
-const PAGE_SIZE = 10;
-
 const initialUI = {
   searchQuery: "",
   showModal: false,
@@ -90,6 +88,7 @@ const initialUI = {
   deletingItem: null,
   isDeleting: false,
   currentPage: 1,
+  itemsPerPage: 10,
   showTareModal: false,
   tareMode: null,
   weighingUnit: null,
@@ -249,10 +248,10 @@ const MasterDataManagement = () => {
 
   const totalItems = filteredData.length;
   const paginatedData = useMemo(() => {
-    if (totalItems <= PAGE_SIZE) return filteredData;
-    const startIdx = (ui.currentPage - 1) * PAGE_SIZE;
-    return filteredData.slice(startIdx, startIdx + PAGE_SIZE);
-  }, [filteredData, ui.currentPage, totalItems]);
+    if (totalItems <= ui.itemsPerPage) return filteredData;
+    const startIdx = (ui.currentPage - 1) * ui.itemsPerPage;
+    return filteredData.slice(startIdx, startIdx + ui.itemsPerPage);
+  }, [filteredData, ui.currentPage, ui.itemsPerPage, totalItems]);
 
   const columns = useMemo(() => {
     const columnMap = {
@@ -773,7 +772,7 @@ const MasterDataManagement = () => {
                 onDelete={handleAskDelete}
                 onWeigh={handleWeigh}
                 isLoading={isLoading}
-                rowStart={(ui.currentPage - 1) * PAGE_SIZE}
+                rowStart={(ui.currentPage - 1) * ui.itemsPerPage}
                 category={activeCategory}
                 canEdit={permissions.canUpdate && !isOnlyTareWeight}
                 canDelete={permissions.canDelete}
@@ -783,11 +782,16 @@ const MasterDataManagement = () => {
               />
             )}
 
-            {totalItems > PAGE_SIZE && (
+            {totalItems > 0 && (
               <Pagination
                 currentPage={ui.currentPage}
-                totalPages={Math.ceil(totalItems / PAGE_SIZE)}
+                totalPages={Math.ceil(totalItems / ui.itemsPerPage)}
                 onPageChange={(page) => setUI({ currentPage: page })}
+                itemsPerPage={ui.itemsPerPage}
+                onItemsPerPageChange={(newSize) =>
+                  setUI({ itemsPerPage: newSize, currentPage: 1 })
+                }
+                totalItems={totalItems}
                 isLoading={false}
               />
             )}

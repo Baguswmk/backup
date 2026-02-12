@@ -152,10 +152,6 @@ export const useMasterData = (category) => {
     return await loadData(true);
   }, [loadData]);
 
-  /**
-   * ✅ BARU: Refresh ALL master data dengan debounce protection
-   * Mencegah spam refresh dalam 2 detik
-   */
   const refreshAllMasterData = useCallback(async () => {
     const now = Date.now();
     const timeSinceLastRefresh = now - lastRefreshTimeRef.current;

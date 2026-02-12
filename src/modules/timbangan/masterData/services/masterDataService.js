@@ -4,6 +4,7 @@ import { buildCacheKey } from "@/shared/utils/cache";
 const MASTER_DATA_CACHE = {
   data: {},
   TTL: {
+    all: offlineService.CACHE_CONFIG.SHORT, // Cache untuk semua data master
     units: offlineService.CACHE_CONFIG.SHORT,
     operators: offlineService.CACHE_CONFIG.SHORT,
     companies: offlineService.CACHE_CONFIG.MASTERS,
@@ -13,17 +14,6 @@ const MASTER_DATA_CACHE = {
     "weigh-bridge": offlineService.CACHE_CONFIG.MASTERS,
     users: offlineService.CACHE_CONFIG.SHORT,
   },
-
-  //   TTL: {
-  //   units: 15 * 1000,              // 15 detik
-  //   operators: 15 * 1000,          // 15 detik
-  //   companies: 30 * 1000,          // 30 detik
-  //   locations: 30 * 1000,          // 30 detik
-  //   "work-units": 15 * 1000,       // 15 detik
-  //   "coal-types": 30 * 1000,       // 30 detik
-  //   "weigh-bridge": 30 * 1000,     // 30 detik
-  //   users: 15 * 1000,              // 15 detik
-  // },
 
   isValid(category) {
     const cached = this.data[category];
@@ -71,23 +61,6 @@ const sortAlphabetically = (data, key = "name") => {
     const valB = String(b[key] || "").toLowerCase();
     return valA.localeCompare(valB);
   });
-};
-
-const getPopulateFields = (category, userRole) => {
-  if (userRole === "operator_jt") {
-    if (category === "units") {
-      return ["company", "work_unit"];
-    }
-  }
-
-  const populateMap = {
-    units: ["company", "work_unit"],
-    operators: ["company", "ritases"],
-    "work-units": ["locations"],
-    "weigh-bridge": ["operators"],
-  };
-
-  return populateMap[category] || ["*"];
 };
 
 const shouldFilterByCompany = (userRole) => {
@@ -141,6 +114,92 @@ export const masterDataService = {
     return () => cacheUpdateListeners.delete(callback);
   },
 
+  /**
+   * ✅ NEW: Fetch semua master data sekaligus dari endpoint baru
+   * Endpoint: GET /v1/custom/master-data
+   */
+  async fetchAllMastersFromNewAPI(options = {}) {
+    const { forceRefresh = false} = options;
+    const cacheKey = "all_master_data";
+
+    // Check cache jika tidak force refresh
+    if (!forceRefresh) {
+      const cached = MASTER_DATA_CACHE.get(cacheKey);
+      if (cached) {
+        return cached;
+      }
+    }
+
+    return this._fetchWithDeduplication(cacheKey, async () => {
+      try {
+
+        const response = await offlineService.get("/v1/custom/master-data", {
+          cacheKey,
+          ttl: offlineService.CACHE_CONFIG.SHORT,
+          forceRefresh,
+        });
+
+        const masterData = response.data?.data || response.data || response;
+
+        const excavators = masterData.units
+          ?.filter((unit) => unit.type === "EXCAVATOR")
+          .sort((a, b) => (a.hull_no || "").localeCompare(b.hull_no || "")) || [];
+
+        const dumptrucks = masterData.units
+          ?.filter((unit) => unit.type === "DUMP_TRUCK")
+          .sort((a, b) => (a.hull_no || "").localeCompare(b.hull_no || "")) || [];
+
+        // Sort data
+        const locations = sortAlphabetically(masterData.locations || [], "name");
+        const operators = sortAlphabetically(masterData.operators || [], "name");
+        const companies = sortAlphabetically(masterData.companies || [], "name");
+        const coalTypes = sortAlphabetically(masterData.coal_types || [], "name");
+        const users = (masterData.users || []).sort((a, b) => 
+          (a.username || "").localeCompare(b.username || "")
+        );
+        const workUnits = (masterData.work_units || []).sort((a, b) =>
+          (a.satker || "").localeCompare(b.satker || "")
+        );
+
+        // Cache individual categories
+        MASTER_DATA_CACHE.set("units_EXCAVATOR", excavators);
+        MASTER_DATA_CACHE.set("units_DUMP_TRUCK", dumptrucks);
+        MASTER_DATA_CACHE.set("locations", locations);
+        MASTER_DATA_CACHE.set("operators", operators);
+        MASTER_DATA_CACHE.set("companies", companies);
+        MASTER_DATA_CACHE.set("work_units", workUnits);
+        MASTER_DATA_CACHE.set("coal-types", coalTypes);
+        MASTER_DATA_CACHE.set("users", users);
+
+        const result = {
+          excavators,
+          dumptrucks,
+          locations,
+          operators,
+          companies,
+          workUnits,
+          coalTypes,
+          users,
+        };
+
+        // Cache hasil gabungan
+        MASTER_DATA_CACHE.set(cacheKey, result);
+
+        return result;
+      } catch (error) {
+        console.error("❌ Error fetching master data from new API:", error);
+        throw new Error("Failed to fetch master data: " + error.message);
+      }
+    });
+  },
+
+  /**
+   * ✅ UPDATED: fetchAllMasters sekarang menggunakan API baru
+   */
+  async fetchAllMasters(options = {}) {
+    return this.fetchAllMastersFromNewAPI(options);
+  },
+
   _isAllCached() {
     const categories = [
       "units_EXCAVATOR",
@@ -150,73 +209,10 @@ export const masterDataService = {
       "companies",
       "work_units",
       "coal-types",
-      "weight_bridges",
       "users",
     ];
 
     return categories.every((cat) => this.cache.isValid(cat));
-  },
-
-  async fetchAllMasters(options = {}) {
-    const { forceRefresh = false, userRole, userCompanyId } = options;
-
-    if (!forceRefresh && this._isAllCached()) {
-      return {
-        excavators: this.cache.get("units_EXCAVATOR"),
-        dumptrucks: this.cache.get("units_DUMP_TRUCK"),
-        locations: this.cache.get("locations"),
-        operators: this.cache.get("operators"),
-        companies: this.cache.get("companies"),
-        workUnits: this.cache.get("work_units"),
-        coalTypes: this.cache.get("coal-types"),
-        weighBridges: this.cache.get("weight_bridges"),
-        users: this.cache.get("users"),
-      };
-    }
-
-    const [
-      excavators,
-      dumptrucks,
-      locations,
-      operators,
-      companies,
-      workUnits,
-      coalTypes,
-      weighBridges,
-      users,
-    ] = await Promise.all([
-      this.fetchUnits({
-        type: "EXCAVATOR",
-        forceRefresh,
-        userRole,
-        userCompanyId,
-      }),
-      this.fetchUnits({
-        type: "DUMP_TRUCK",
-        forceRefresh,
-        userRole,
-        userCompanyId,
-      }),
-      this.fetchLocations({ forceRefresh, userRole }),
-      this.fetchOperators({ forceRefresh, userRole, userCompanyId }),
-      this.fetchCompanies({ forceRefresh }),
-      this.fetchWorkUnits({ forceRefresh, userRole }),
-      this.fetchCoalTypes({ forceRefresh }),
-      this.fetchWeightBridges({ forceRefresh, userRole }),
-      this.fetchUsers({ forceRefresh, userRole }),
-    ]);
-
-    return {
-      excavators,
-      dumptrucks,
-      locations,
-      operators,
-      companies,
-      workUnits,
-      coalTypes,
-      weighBridges,
-      users,
-    };
   },
 
   getStaleCache() {
@@ -228,7 +224,6 @@ export const masterDataService = {
       companies: this.cache.data["companies"]?.data || [],
       workUnits: this.cache.data["work_units"]?.data || [],
       coalTypes: this.cache.data["coal-types"]?.data || [],
-      weighBridges: this.cache.data["weight_bridges"]?.data || [],
       users: this.cache.data["users"]?.data || [],
     };
   },
@@ -242,6 +237,9 @@ export const masterDataService = {
     return MASTER_DATA_CACHE.getInfo();
   },
 
+  /**
+   * ✅ UPDATED: Fetch individual data dengan fallback ke API baru
+   */
   async fetchUsers(options = {}) {
     const { forceRefresh = false } = options;
 
@@ -252,34 +250,16 @@ export const masterDataService = {
       }
     }
 
-    return this._fetchWithDeduplication("users", async () => {
-      try {
-        const response = await offlineService.get("/users", {
-          params: {
-            populate: ["role", "username"],
-            sort: "username:asc",
-          },
-          cacheKey: "users",
-          ttl: offlineService.CACHE_CONFIG.SHORT,
-          forceRefresh,
-        });
+    // Coba ambil dari cache all_master_data dulu
+    const allMasterData = MASTER_DATA_CACHE.get("all_master_data");
+    if (allMasterData?.users) {
+      MASTER_DATA_CACHE.set("users", allMasterData.users);
+      return allMasterData.users;
+    }
 
-        const data = response.map((user) => ({
-          id: user.id,
-          username: user.username,
-          email: user.email,
-          role: user.role?.name || null,
-          blocked: user.blocked || false,
-        }));
-
-        MASTER_DATA_CACHE.set("users", data);
-
-        return data;
-      } catch (error) {
-        console.error("Error fetching users:", error);
-        throw new Error("Failed to fetch users");
-      }
-    });
+    // Jika tidak ada, fetch semua master data
+    const result = await this.fetchAllMastersFromNewAPI(options);
+    return result.users;
   },
 
   async fetchCompanies(options = {}) {
@@ -292,498 +272,135 @@ export const masterDataService = {
       }
     }
 
-    return this._fetchWithDeduplication("companies", async () => {
-      const response = await offlineService.get("/companies", {
-        params: {
-          pagination: { pageSize: 100 },
-          sort: ["name:asc"],
-        },
-        cacheKey: "companies",
-        ttl: offlineService.CACHE_CONFIG.MASTERS,
-        forceRefresh,
-      });
+    const allMasterData = MASTER_DATA_CACHE.get("all_master_data");
+    if (allMasterData?.companies) {
+      MASTER_DATA_CACHE.set("companies", allMasterData.companies);
+      return allMasterData.companies;
+    }
 
-      const data = response.data.map((item) => ({
-        id: item.id,
-        name: item.attributes.name,
-        createdAt: item.attributes.createdAt,
-      }));
-
-      const sorted = sortAlphabetically(data, "name");
-
-      MASTER_DATA_CACHE.set("companies", sorted);
-
-      return sorted;
-    });
+    const result = await this.fetchAllMastersFromNewAPI(options);
+    return result.companies;
   },
 
-  async createCompany(data) {
-    const response = await offlineService.post("/companies", {
-      data,
-      clientTimestamp: new Date().toISOString(),
-    });
-
-    MASTER_DATA_CACHE.clear("companies");
-    emitCacheUpdate("companies", "created", response.data.id);
-
-    return response.data;
-  },
-
-  async updateCompany(id, data) {
-    const response = await offlineService.put(`/companies/${id}`, {
-      data,
-      clientTimestamp: new Date().toISOString(),
-    });
-
-    MASTER_DATA_CACHE.clear("companies");
-    emitCacheUpdate("companies", "updated", id);
-
-    return response.data;
-  },
-
-  async deleteCompany(id) {
-    await offlineService.delete(`/companies/${id}`);
-
-    MASTER_DATA_CACHE.clear("companies");
-    emitCacheUpdate("companies", "deleted", id);
-
-    return { success: true };
-  },
-
-  async fetchUnits(filters = {}) {
-    const { forceRefresh = false, type, userRole, userCompanyId } = filters;
-
-    const cacheKey = buildCacheKey("units", { type, userRole, userCompanyId });
+  async fetchLocations(options = {}) {
+    const { forceRefresh = false } = options;
 
     if (!forceRefresh) {
-      const cached = MASTER_DATA_CACHE.get(cacheKey);
+      const cached = MASTER_DATA_CACHE.get("locations");
       if (cached) {
         return cached;
       }
     }
 
-    return this._fetchWithDeduplication(cacheKey, async () => {
-      const params = {
-        pagination: { pageSize: 7500 },
-        sort: ["hull_no:asc"],
-      };
-
-      params.populate = getPopulateFields("units", userRole);
-
-      if (type) {
-        params.filters = {
-          type: { $eq: type },
-        };
-      }
-
-      if (userRole === "operator_jt") {
-        if (!type || type === "DUMP_TRUCK") {
-          params.filters = {
-            ...params.filters,
-            type: { $eq: "DUMP_TRUCK" },
-          };
-        }
-        params.pagination.pageSize = 200;
-      }
-
-      if (shouldFilterByCompany(userRole) && userCompanyId) {
-        params.filters = {
-          ...params.filters,
-          company: { id: { $eq: userCompanyId } },
-        };
-      }
-
-      const response = await offlineService.get("/units", {
-        params,
-        cacheKey,
-        ttl: offlineService.CACHE_CONFIG.SHORT,
-        forceRefresh,
-      });
-
-      const data = response.data.map((item) => ({
-        id: item.id,
-        hull_no: item.attributes.hull_no,
-        type: item.attributes.type,
-        company: item.attributes.company?.data?.attributes?.name || "-",
-        companyId: item.attributes.company?.data?.id,
-        workUnit:
-          item.attributes.work_unit?.data?.attributes?.satker ||
-          item.attributes.work_unit?.data?.attributes?.subsatker ||
-          "-",
-        workUnitId: item.attributes.work_unit?.data?.id,
-        settingDumpTruckId: item.attributes.setting_dump_truck?.data?.id,
-        tare_weight: item.attributes.tare_weight || null,
-        tare_weight_updated_date:
-          item.attributes.tare_weight_updated_date || null,
-        rfid: item.attributes.rfid || null,
-        bypass_tonnage: item.attributes.bypass_tonnage || null,
-        updatedAt: item.attributes.updatedAt || null,
-      }));
-
-      const sorted = sortAlphabetically(data, "hull_no");
-
-      MASTER_DATA_CACHE.set(cacheKey, sorted);
-
-      return sorted;
-    });
-  },
-
-  async createUnit(data) {
-    const payload = {
-      hull_no: data.hull_no,
-      type: data.type,
-      company: data.companyId ? parseInt(data.companyId) : null,
-      work_unit: data.workUnitId ? parseInt(data.workUnitId) : null,
-      clientTimestamp: new Date().toISOString(),
-    };
-
-    if (data.settingDumpTruckId) {
-      payload.setting_dump_truck = parseInt(data.settingDumpTruckId);
+    const allMasterData = MASTER_DATA_CACHE.get("all_master_data");
+    if (allMasterData?.locations) {
+      MASTER_DATA_CACHE.set("locations", allMasterData.locations);
+      return allMasterData.locations;
     }
 
-    if (data.tare_weight !== undefined && data.tare_weight !== null) {
-      payload.tare_weight = parseFloat(data.tare_weight);
-    }
-
-    if (
-      data.rfid !== undefined &&
-      data.rfid !== null &&
-      data.rfid.trim() !== ""
-    ) {
-      payload.rfid = data.rfid.trim();
-    }
-
-    if (
-      data.bypass_tonnage !== undefined &&
-      data.bypass_tonnage !== null &&
-      data.bypass_tonnage !== ""
-    ) {
-      payload.bypass_tonnage = parseFloat(data.bypass_tonnage);
-    }
-
-    const response = await offlineService.post("/units", { data: payload });
-
-    MASTER_DATA_CACHE.clear("units");
-    emitCacheUpdate("units", "created", response.data.id);
-
-    return response.data;
-  },
-
-  async updateUnit(id, data) {
-    const payload = {
-      clientTimestamp: new Date().toISOString(),
-    };
-
-    if (data.hull_no !== undefined) {
-      payload.hull_no = data.hull_no;
-    }
-
-    if (data.type !== undefined) {
-      payload.type = data.type;
-    }
-
-    if (data.companyId !== undefined) {
-      payload.company = data.companyId ? parseInt(data.companyId) : null;
-    }
-
-    if (data.workUnitId !== undefined) {
-      payload.work_unit = data.workUnitId ? parseInt(data.workUnitId) : null;
-    }
-
-    if (data.settingDumpTruckId !== undefined) {
-      payload.setting_dump_truck = data.settingDumpTruckId
-        ? parseInt(data.settingDumpTruckId)
-        : null;
-    }
-
-    if (data.tare_weight !== undefined) {
-      payload.tare_weight =
-        data.tare_weight !== null ? parseFloat(data.tare_weight) : null;
-    }
-
-    if (data.rfid !== undefined) {
-      payload.rfid =
-        data.rfid && data.rfid.trim() !== "" ? data.rfid.trim() : null;
-    }
-
-    if (data.bypass_tonnage !== undefined) {
-      payload.bypass_tonnage =
-        data.bypass_tonnage !== null && data.bypass_tonnage !== ""
-          ? parseFloat(data.bypass_tonnage)
-          : null;
-    }
-
-    const response = await offlineService.put(`/units/${id}`, {
-      data: payload,
-    });
-
-    MASTER_DATA_CACHE.clear("units");
-    emitCacheUpdate("units", "updated", id);
-
-    return response.data;
-  },
-
-  async deleteUnit(id) {
-    await offlineService.delete(`/units/${id}`);
-
-    MASTER_DATA_CACHE.clear("units");
-    emitCacheUpdate("units", "deleted", id);
-
-    return { success: true };
+    const result = await this.fetchAllMastersFromNewAPI(options);
+    return result.locations;
   },
 
   async fetchOperators(options = {}) {
     const { forceRefresh = false, userRole, userCompanyId } = options;
 
-    const cacheKey = buildCacheKey("operators", { userRole, userCompanyId });
-
     if (!forceRefresh) {
-      const cached = MASTER_DATA_CACHE.get(cacheKey);
+      const cached = MASTER_DATA_CACHE.get("operators");
       if (cached) {
+        // Filter by company jika diperlukan
+        if (shouldFilterByCompany(userRole) && userCompanyId) {
+          return cached.filter((op) => op.id_company === userCompanyId);
+        }
         return cached;
       }
     }
 
-    return this._fetchWithDeduplication(cacheKey, async () => {
-      const params = {
-        pagination: { pageSize: 7500 },
-        sort: ["name:asc"],
-      };
+    const allMasterData = MASTER_DATA_CACHE.get("all_master_data");
+    if (allMasterData?.operators) {
+      let operators = allMasterData.operators;
+      
+      if (shouldFilterByCompany(userRole) && userCompanyId) {
+        operators = operators.filter((op) => op.id_company === userCompanyId);
+      }
+      
+      MASTER_DATA_CACHE.set("operators", operators);
+      return operators;
+    }
 
-      params.populate = getPopulateFields("operators", userRole);
+    const result = await this.fetchAllMastersFromNewAPI(options);
+    let operators = result.operators;
+
+    if (shouldFilterByCompany(userRole) && userCompanyId) {
+      operators = operators.filter((op) => op.id_company === userCompanyId);
+    }
+
+    return operators;
+  },
+
+  async fetchUnits(options = {}) {
+    const { forceRefresh = false, type, userRole, userCompanyId } = options;
+    const cacheKey = type ? `units_${type}` : "units";
+
+    if (!forceRefresh) {
+      const cached = MASTER_DATA_CACHE.get(cacheKey);
+      if (cached) {
+        // Filter by company jika diperlukan
+        if (shouldFilterByCompany(userRole) && userCompanyId) {
+          return cached.filter((unit) => unit.id_company === userCompanyId);
+        }
+        return cached;
+      }
+    }
+
+    const allMasterData = MASTER_DATA_CACHE.get("all_master_data");
+    if (allMasterData) {
+      let units = type === "EXCAVATOR" 
+        ? allMasterData.excavators 
+        : type === "DUMP_TRUCK" 
+        ? allMasterData.dumptrucks 
+        : [...(allMasterData.excavators || []), ...(allMasterData.dumptrucks || [])];
 
       if (shouldFilterByCompany(userRole) && userCompanyId) {
-        params.filters = {
-          company: { id: { $eq: userCompanyId } },
-        };
+        units = units.filter((unit) => unit.id_company === userCompanyId);
       }
 
-      const response = await offlineService.get("/operators", {
-        params,
-        cacheKey,
-        ttl: offlineService.CACHE_CONFIG.SHORT,
-        forceRefresh,
-      });
-
-      const data = response.data.map((item) => ({
-        id: item.id,
-        name: item.attributes.name,
-        company: item.attributes.company?.data?.attributes?.name || "-",
-        companyId: item.attributes.company?.data?.id,
-        ritaseCount: item.attributes.ritases?.data?.length || 0,
-      }));
-
-      const sorted = sortAlphabetically(data, "name");
-
-      MASTER_DATA_CACHE.set(cacheKey, sorted);
-
-      return sorted;
-    });
-  },
-
-  async createOperator(data) {
-    const payload = {
-      name: data.name,
-      company: data.companyId ? parseInt(data.companyId) : null,
-      clientTimestamp: new Date().toISOString(),
-    };
-
-    const response = await offlineService.post("/operators", { data: payload });
-
-    MASTER_DATA_CACHE.clear("operators");
-    emitCacheUpdate("operators", "created", response.data.id);
-
-    return response.data;
-  },
-
-  async updateOperator(id, data) {
-    const payload = {
-      name: data.name,
-      company: data.companyId ? parseInt(data.companyId) : null,
-      clientTimestamp: new Date().toISOString(),
-    };
-
-    const response = await offlineService.put(`/operators/${id}`, {
-      data: payload,
-    });
-
-    MASTER_DATA_CACHE.clear("operators");
-    emitCacheUpdate("operators", "updated", id);
-
-    return response.data;
-  },
-
-  async deleteOperator(id) {
-    await offlineService.delete(`/operators/${id}`);
-
-    MASTER_DATA_CACHE.clear("operators");
-    emitCacheUpdate("operators", "deleted", id);
-
-    return { success: true };
-  },
-
-  async fetchLocations(filters = {}) {
-    const { forceRefresh = false, type, userRole } = filters;
-
-    const cacheKey = buildCacheKey("locations", { type, userRole });
-
-    if (!forceRefresh) {
-      const cached = MASTER_DATA_CACHE.get(cacheKey);
-      if (cached) {
-        return cached;
-      }
+      MASTER_DATA_CACHE.set(cacheKey, units);
+      return units;
     }
 
-    return this._fetchWithDeduplication(cacheKey, async () => {
-      const params = {
-        pagination: { pageSize: 7500 },
-        sort: ["name:asc"],
-      };
+    const result = await this.fetchAllMastersFromNewAPI(options);
+    let units = type === "EXCAVATOR" 
+      ? result.excavators 
+      : type === "DUMP_TRUCK" 
+      ? result.dumptrucks 
+      : [...(result.excavators || []), ...(result.dumptrucks || [])];
 
-      if (type) {
-        params.filters = {
-          type: { $eq: type },
-        };
-      }
+    if (shouldFilterByCompany(userRole) && userCompanyId) {
+      units = units.filter((unit) => unit.id_company === userCompanyId);
+    }
 
-      const response = await offlineService.get("/locations", {
-        params,
-        cacheKey,
-        ttl: offlineService.CACHE_CONFIG.MASTERS,
-        forceRefresh,
-      });
-
-      const data = response.data.map((item) => ({
-        id: item.id,
-        name: item.attributes.name,
-        type: item.attributes.type,
-      }));
-
-      const sorted = sortAlphabetically(data, "name");
-
-      MASTER_DATA_CACHE.set(cacheKey, sorted);
-
-      return sorted;
-    });
-  },
-
-  async createLocation(data) {
-    const response = await offlineService.post("/locations", {
-      data: { ...data, clientTimestamp: new Date().toISOString() },
-    });
-
-    MASTER_DATA_CACHE.clear("locations");
-    emitCacheUpdate("locations", "created", response.data.id);
-
-    return response.data;
-  },
-
-  async updateLocation(id, data) {
-    const response = await offlineService.put(`/locations/${id}`, {
-      data: { ...data, clientTimestamp: new Date().toISOString() },
-    });
-
-    MASTER_DATA_CACHE.clear("locations");
-    emitCacheUpdate("locations", "updated", id);
-
-    return response.data;
-  },
-
-  async deleteLocation(id) {
-    await offlineService.delete(`/locations/${id}`);
-
-    MASTER_DATA_CACHE.clear("locations");
-    emitCacheUpdate("locations", "deleted", id);
-
-    return { success: true };
+    return units;
   },
 
   async fetchWorkUnits(options = {}) {
-    const { forceRefresh = false, userRole } = options;
-
-    const cacheKey = buildCacheKey("work_units", { userRole });
+    const { forceRefresh = false } = options;
 
     if (!forceRefresh) {
-      const cached = MASTER_DATA_CACHE.get(cacheKey);
+      const cached = MASTER_DATA_CACHE.get("work_units");
       if (cached) {
         return cached;
       }
     }
 
-    return this._fetchWithDeduplication(cacheKey, async () => {
-      const params = {
-        pagination: { pageSize: 7500 },
-        sort: ["satker:asc"],
-      };
+    const allMasterData = MASTER_DATA_CACHE.get("all_master_data");
+    if (allMasterData?.workUnits) {
+      MASTER_DATA_CACHE.set("work_units", allMasterData.workUnits);
+      return allMasterData.workUnits;
+    }
 
-      params.populate = getPopulateFields("work-units", userRole);
-
-      const response = await offlineService.get("/work-units", {
-        params,
-        cacheKey,
-        ttl: offlineService.CACHE_CONFIG.MEDIUM,
-        forceRefresh,
-      });
-
-      const data = response.data.map((item) => ({
-        id: item.id,
-        satker: item.attributes.satker,
-        subsatker: item.attributes.subsatker,
-        locationIds:
-          item.attributes.locations?.data?.map((loc) => loc.id) || [],
-      }));
-
-      const sorted = sortAlphabetically(data, "satker");
-
-      MASTER_DATA_CACHE.set(cacheKey, sorted);
-
-      return sorted;
-    });
-  },
-
-  async createWorkUnit(data) {
-    const payload = {
-      satker: data.satker,
-      subsatker: data.subsatker,
-      locations: data.locationIds || [],
-      clientTimestamp: new Date().toISOString(),
-    };
-
-    const response = await offlineService.post("/work-units", {
-      data: payload,
-    });
-
-    MASTER_DATA_CACHE.clear("work-units");
-    emitCacheUpdate("work-units", "created", response.data.id);
-
-    return response.data;
-  },
-
-  async updateWorkUnit(id, data) {
-    const payload = {
-      satker: data.satker,
-      subsatker: data.subsatker,
-      locations: data.locationIds || [],
-      clientTimestamp: new Date().toISOString(),
-    };
-
-    const response = await offlineService.put(`/work-units/${id}`, {
-      data: payload,
-    });
-
-    MASTER_DATA_CACHE.clear("work-units");
-    emitCacheUpdate("work-units", "updated", id);
-
-    return response.data;
-  },
-
-  async deleteWorkUnit(id) {
-    await offlineService.delete(`/work-units/${id}`);
-
-    MASTER_DATA_CACHE.clear("work-units");
-    emitCacheUpdate("work-units", "deleted", id);
-
-    return { success: true };
+    const result = await this.fetchAllMastersFromNewAPI(options);
+    return result.workUnits;
   },
 
   async fetchCoalTypes(options = {}) {
@@ -796,64 +413,22 @@ export const masterDataService = {
       }
     }
 
-    return this._fetchWithDeduplication("coal-types", async () => {
-      const response = await offlineService.get("/coal-types", {
-        params: {
-          pagination: { pageSize: 1000 },
-          sort: ["name:asc"],
-        },
-        cacheKey: "coal_types",
-        ttl: offlineService.CACHE_CONFIG.MEDIUM,
-        forceRefresh,
-      });
+    const allMasterData = MASTER_DATA_CACHE.get("all_master_data");
+    if (allMasterData?.coalTypes) {
+      MASTER_DATA_CACHE.set("coal-types", allMasterData.coalTypes);
+      return allMasterData.coalTypes;
+    }
 
-      const data = response.data.map((item) => ({
-        id: item.id,
-        name: item.attributes.name,
-      }));
-
-      const sorted = sortAlphabetically(data, "name");
-
-      MASTER_DATA_CACHE.set("coal-types", sorted);
-
-      return sorted;
-    });
+    const result = await this.fetchAllMastersFromNewAPI(options);
+    return result.coalTypes;
   },
 
-  async createCoalType(data) {
-    const response = await offlineService.post("/coal-types", {
-      data: { ...data, clientTimestamp: new Date().toISOString() },
-    });
-
-    MASTER_DATA_CACHE.clear("coal-types");
-    emitCacheUpdate("coal-types", "created", response.data.id);
-
-    return response.data;
-  },
-
-  async updateCoalType(id, data) {
-    const response = await offlineService.put(`/coal-types/${id}`, {
-      data: { ...data, clientTimestamp: new Date().toISOString() },
-    });
-
-    MASTER_DATA_CACHE.clear("coal-types");
-    emitCacheUpdate("coal-types", "updated", id);
-
-    return response.data;
-  },
-
-  async deleteCoalType(id) {
-    await offlineService.delete(`/coal-types/${id}`);
-
-    MASTER_DATA_CACHE.clear("coal-types");
-    emitCacheUpdate("coal-types", "deleted", id);
-
-    return { success: true };
-  },
-
+  /**
+   * ⚠️ DEPRECATED: fetchWeightBridges tidak ada di API baru
+   * Keeping for backward compatibility
+   */
   async fetchWeightBridges(options = {}) {
     const { forceRefresh = false, userRole } = options;
-
     const cacheKey = buildCacheKey("weight_bridges", { userRole });
 
     if (!forceRefresh) {
@@ -867,9 +442,8 @@ export const masterDataService = {
       const params = {
         pagination: { pageSize: 1000 },
         sort: ["name:asc"],
+        populate: ["operators"],
       };
-
-      params.populate = getPopulateFields("weigh-bridge", userRole);
 
       const response = await offlineService.get("/weigh-bridges", {
         params,
@@ -896,11 +470,270 @@ export const masterDataService = {
       });
 
       const sorted = sortAlphabetically(data, "name");
-
       MASTER_DATA_CACHE.set(cacheKey, sorted);
 
       return sorted;
     });
+  },
+
+  // =====================================
+  // CREATE, UPDATE, DELETE METHODS
+  // (Tetap menggunakan endpoint individual)
+  // =====================================
+
+  async createCompany(data) {
+    const response = await offlineService.post("/companies", {
+      data: { ...data, clientTimestamp: new Date().toISOString() },
+    });
+
+    MASTER_DATA_CACHE.clear("companies");
+    MASTER_DATA_CACHE.clear("all_master_data");
+    emitCacheUpdate("companies", "created", response.data.id);
+
+    return response.data;
+  },
+
+  async updateCompany(id, data) {
+    const response = await offlineService.put(`/companies/${id}`, {
+      data: { ...data, clientTimestamp: new Date().toISOString() },
+    });
+
+    MASTER_DATA_CACHE.clear("companies");
+    MASTER_DATA_CACHE.clear("all_master_data");
+    emitCacheUpdate("companies", "updated", id);
+
+    return response.data;
+  },
+
+  async deleteCompany(id) {
+    await offlineService.delete(`/companies/${id}`);
+
+    MASTER_DATA_CACHE.clear("companies");
+    MASTER_DATA_CACHE.clear("all_master_data");
+    emitCacheUpdate("companies", "deleted", id);
+
+    return { success: true };
+  },
+
+  async createUnit(data) {
+    const payload = {
+      hull_no: data.hull_no,
+      type: data.type,
+      tare_weight: parseFloat(data.tare_weight) || 0,
+      rfid: data.rfid || null,
+      bypass_tonnage: parseFloat(data.bypass_tonnage) || 0,
+      spph: data.spph || null,
+      type_dt: data.type_dt || null,
+      status: data.status || "ACTIVE",
+      company: data.companyId ? parseInt(data.companyId) : null,
+      work_unit: data.workUnitId ? parseInt(data.workUnitId) : null,
+      clientTimestamp: new Date().toISOString(),
+    };
+
+    const response = await offlineService.post("/units", { data: payload });
+
+    MASTER_DATA_CACHE.clear("units");
+    MASTER_DATA_CACHE.clear("units_EXCAVATOR");
+    MASTER_DATA_CACHE.clear("units_DUMP_TRUCK");
+    MASTER_DATA_CACHE.clear("all_master_data");
+    emitCacheUpdate("units", "created", response.data.id);
+
+    return response.data;
+  },
+
+  async updateUnit(id, data) {
+    const payload = {
+      hull_no: data.hull_no,
+      type: data.type,
+      tare_weight: parseFloat(data.tare_weight) || 0,
+      rfid: data.rfid || null,
+      bypass_tonnage: parseFloat(data.bypass_tonnage) || 0,
+      spph: data.spph || null,
+      type_dt: data.type_dt || null,
+      status: data.status || "ACTIVE",
+      company: data.companyId ? parseInt(data.companyId) : null,
+      work_unit: data.workUnitId ? parseInt(data.workUnitId) : null,
+      clientTimestamp: new Date().toISOString(),
+    };
+
+    const response = await offlineService.put(`/units/${id}`, { data: payload });
+
+    MASTER_DATA_CACHE.clear("units");
+    MASTER_DATA_CACHE.clear("units_EXCAVATOR");
+    MASTER_DATA_CACHE.clear("units_DUMP_TRUCK");
+    MASTER_DATA_CACHE.clear("all_master_data");
+    emitCacheUpdate("units", "updated", id);
+
+    return response.data;
+  },
+
+  async deleteUnit(id) {
+    await offlineService.delete(`/units/${id}`);
+
+    MASTER_DATA_CACHE.clear("units");
+    MASTER_DATA_CACHE.clear("units_EXCAVATOR");
+    MASTER_DATA_CACHE.clear("units_DUMP_TRUCK");
+    MASTER_DATA_CACHE.clear("all_master_data");
+    emitCacheUpdate("units", "deleted", id);
+
+    return { success: true };
+  },
+
+  async createOperator(data) {
+    const payload = {
+      name: data.name,
+      company: data.companyId ? parseInt(data.companyId) : null,
+      clientTimestamp: new Date().toISOString(),
+    };
+
+    const response = await offlineService.post("/operators", { data: payload });
+
+    MASTER_DATA_CACHE.clear("operators");
+    MASTER_DATA_CACHE.clear("all_master_data");
+    emitCacheUpdate("operators", "created", response.data.id);
+
+    return response.data;
+  },
+
+  async updateOperator(id, data) {
+    const payload = {
+      name: data.name,
+      company: data.companyId ? parseInt(data.companyId) : null,
+      clientTimestamp: new Date().toISOString(),
+    };
+
+    const response = await offlineService.put(`/operators/${id}`, { data: payload });
+
+    MASTER_DATA_CACHE.clear("operators");
+    MASTER_DATA_CACHE.clear("all_master_data");
+    emitCacheUpdate("operators", "updated", id);
+
+    return response.data;
+  },
+
+  async deleteOperator(id) {
+    await offlineService.delete(`/operators/${id}`);
+
+    MASTER_DATA_CACHE.clear("operators");
+    MASTER_DATA_CACHE.clear("all_master_data");
+    emitCacheUpdate("operators", "deleted", id);
+
+    return { success: true };
+  },
+
+  async createLocation(data) {
+    const response = await offlineService.post("/locations", {
+      data: { ...data, clientTimestamp: new Date().toISOString() },
+    });
+
+    MASTER_DATA_CACHE.clear("locations");
+    MASTER_DATA_CACHE.clear("all_master_data");
+    emitCacheUpdate("locations", "created", response.data.id);
+
+    return response.data;
+  },
+
+  async updateLocation(id, data) {
+    const response = await offlineService.put(`/locations/${id}`, {
+      data: { ...data, clientTimestamp: new Date().toISOString() },
+    });
+
+    MASTER_DATA_CACHE.clear("locations");
+    MASTER_DATA_CACHE.clear("all_master_data");
+    emitCacheUpdate("locations", "updated", id);
+
+    return response.data;
+  },
+
+  async deleteLocation(id) {
+    await offlineService.delete(`/locations/${id}`);
+
+    MASTER_DATA_CACHE.clear("locations");
+    MASTER_DATA_CACHE.clear("all_master_data");
+    emitCacheUpdate("locations", "deleted", id);
+
+    return { success: true };
+  },
+
+  async createWorkUnit(data) {
+    const payload = {
+      satker: data.satker,
+      subsatker: data.subsatker,
+      locations: data.locationIds || [],
+      clientTimestamp: new Date().toISOString(),
+    };
+
+    const response = await offlineService.post("/work-units", { data: payload });
+
+    MASTER_DATA_CACHE.clear("work-units");
+    MASTER_DATA_CACHE.clear("work_units");
+    MASTER_DATA_CACHE.clear("all_master_data");
+    emitCacheUpdate("work-units", "created", response.data.id);
+
+    return response.data;
+  },
+
+  async updateWorkUnit(id, data) {
+    const payload = {
+      satker: data.satker,
+      subsatker: data.subsatker,
+      locations: data.locationIds || [],
+      clientTimestamp: new Date().toISOString(),
+    };
+
+    const response = await offlineService.put(`/work-units/${id}`, { data: payload });
+
+    MASTER_DATA_CACHE.clear("work-units");
+    MASTER_DATA_CACHE.clear("work_units");
+    MASTER_DATA_CACHE.clear("all_master_data");
+    emitCacheUpdate("work-units", "updated", id);
+
+    return response.data;
+  },
+
+  async deleteWorkUnit(id) {
+    await offlineService.delete(`/work-units/${id}`);
+
+    MASTER_DATA_CACHE.clear("work-units");
+    MASTER_DATA_CACHE.clear("work_units");
+    MASTER_DATA_CACHE.clear("all_master_data");
+    emitCacheUpdate("work-units", "deleted", id);
+
+    return { success: true };
+  },
+
+  async createCoalType(data) {
+    const response = await offlineService.post("/coal-types", {
+      data: { ...data, clientTimestamp: new Date().toISOString() },
+    });
+
+    MASTER_DATA_CACHE.clear("coal-types");
+    MASTER_DATA_CACHE.clear("all_master_data");
+    emitCacheUpdate("coal-types", "created", response.data.id);
+
+    return response.data;
+  },
+
+  async updateCoalType(id, data) {
+    const response = await offlineService.put(`/coal-types/${id}`, {
+      data: { ...data, clientTimestamp: new Date().toISOString() },
+    });
+
+    MASTER_DATA_CACHE.clear("coal-types");
+    MASTER_DATA_CACHE.clear("all_master_data");
+    emitCacheUpdate("coal-types", "updated", id);
+
+    return response.data;
+  },
+
+  async deleteCoalType(id) {
+    await offlineService.delete(`/coal-types/${id}`);
+
+    MASTER_DATA_CACHE.clear("coal-types");
+    MASTER_DATA_CACHE.clear("all_master_data");
+    emitCacheUpdate("coal-types", "deleted", id);
+
+    return { success: true };
   },
 
   async createWeightBridge(data) {
@@ -910,9 +743,7 @@ export const masterDataService = {
       clientTimestamp: new Date().toISOString(),
     };
 
-    const response = await offlineService.post("/weigh-bridges", {
-      data: payload,
-    });
+    const response = await offlineService.post("/weigh-bridges", { data: payload });
 
     MASTER_DATA_CACHE.clear("weigh-bridge");
     emitCacheUpdate("weigh-bridge", "created", response.data.id);
@@ -927,9 +758,7 @@ export const masterDataService = {
       clientTimestamp: new Date().toISOString(),
     };
 
-    const response = await offlineService.put(`/weigh-bridges/${id}`, {
-      data: payload,
-    });
+    const response = await offlineService.put(`/weigh-bridges/${id}`, { data: payload });
 
     MASTER_DATA_CACHE.clear("weigh-bridge");
     emitCacheUpdate("weigh-bridge", "updated", id);
@@ -945,6 +774,10 @@ export const masterDataService = {
 
     return { success: true };
   },
+
+  // =====================================
+  // GENERIC METHODS
+  // =====================================
 
   async fetchData(category, filters = {}) {
     const methodMap = {
