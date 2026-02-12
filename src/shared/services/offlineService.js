@@ -7,6 +7,7 @@ const STORES = {
   QUEUE: "offline_queue",
   CACHE: "api_cache",
   FAILED: "failed_queue",
+  SENT: "sent_queue",
 };
 
 const CACHE_CONFIG = {
@@ -26,12 +27,15 @@ const CACHE_CONFIG = {
 
 const CACHE_CLEANUP_INTERVAL = 5 * 60 * 1000;
 const CACHE_MAX_AGE = 60 * 60 * 1000;
+const SENT_DATA_RETENTION = 8 * 60 * 60 * 1000; // 8 hours
+const SENT_CLEANUP_INTERVAL = 5 * 60 * 1000; // Check every 5 minutes
 
 let dbInstance = null;
 const eventBus = new EventTarget();
 
 let cacheCleanupTimer = null;
 let autoCacheCleanupTimer = null;
+let sentCleanupTimer = null; // Timer for sent data cleanup
 const activeListeners = new Map();
 
 const coalescedEvents = new Map();
@@ -137,6 +141,14 @@ async function getDB() {
         });
         failedStore.createIndex("retryCount", "retryCount");
       }
+
+      if (!db.objectStoreNames.contains(STORES.SENT)) {
+        const sentStore = db.createObjectStore(STORES.SENT, {
+          keyPath: "id",
+        });
+        sentStore.createIndex("sentAt", "sentAt");
+        sentStore.createIndex("timestamp", "timestamp");
+      }
     },
   });
 
@@ -190,6 +202,67 @@ async function cleanupStaleCache() {
   } catch (error) {
     console.error("❌ Stale cache cleanup error:", error);
     return { success: false, error: error.message };
+  }
+}
+
+/**
+ * ✅ NEW: Cleanup expired sent data (older than 8 hours)
+ */
+async function cleanupExpiredSentData() {
+  try {
+    const db = await getDB();
+    const tx = db.transaction(STORES.SENT, "readwrite");
+    const store = tx.objectStore(STORES.SENT);
+    const index = store.index("sentAt");
+
+    const expiryThreshold = Date.now() - SENT_DATA_RETENTION;
+    let deletedCount = 0;
+
+    const expiredEntries = await index.getAll(
+      IDBKeyRange.upperBound(expiryThreshold)
+    );
+
+    for (const entry of expiredEntries) {
+      await store.delete(entry.id);
+      deletedCount++;
+    }
+
+    await tx.done;
+
+    if (deletedCount > 0) {
+      emitCoalescedEvent("sent:cleaned", { deletedCount });
+      emitCoalescedEvent("queue:updated");
+    }
+
+    return { success: true, deletedCount };
+  } catch (error) {
+    console.error("❌ Sent data cleanup error:", error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * ✅ NEW: Start automatic cleanup for sent data
+ */
+function startSentDataCleanup() {
+  if (sentCleanupTimer) return;
+
+  // Run immediately
+  cleanupExpiredSentData();
+
+  // Then run periodically
+  sentCleanupTimer = setInterval(() => {
+    cleanupExpiredSentData();
+  }, SENT_CLEANUP_INTERVAL);
+}
+
+/**
+ * ✅ NEW: Stop automatic cleanup for sent data
+ */
+function stopSentDataCleanup() {
+  if (sentCleanupTimer) {
+    clearInterval(sentCleanupTimer);
+    sentCleanupTimer = null;
   }
 }
 
@@ -298,74 +371,35 @@ async function getCacheStats() {
         fleet: fleetCache.length,
         timbangan: timbanganCache.length,
         master: masterCache.length,
-        other:
-          allCache.length -
-          fleetCache.length -
-          timbanganCache.length -
-          masterCache.length,
+        other: allCache.length - fleetCache.length - timbanganCache.length - masterCache.length,
       },
 
-      oldestTimestamp:
-        allCache.length > 0
-          ? Math.min(...allCache.map((c) => c.timestamp))
-          : null,
-      newestTimestamp:
-        allCache.length > 0
-          ? Math.max(...allCache.map((c) => c.timestamp))
-          : null,
-
-      totalSize: allCache.reduce((sum, item) => {
-        return sum + JSON.stringify(item.data).length;
-      }, 0),
-
-      averageAge:
-        allCache.length > 0
-          ? (now -
-              allCache.reduce((sum, c) => sum + c.timestamp, 0) /
-                allCache.length) /
-            1000 /
-            60
-          : 0,
+      oldestEntry: allCache.reduce((oldest, curr) =>
+        !oldest || curr.timestamp < oldest.timestamp ? curr : oldest,
+        null
+      ),
+      
+      newestEntry: allCache.reduce((newest, curr) =>
+        !newest || curr.timestamp > newest.timestamp ? curr : newest,
+        null
+      ),
     };
 
     return stats;
   } catch (error) {
-    console.error("❌ Failed to get cache stats:", error);
+    console.error("❌ Cache stats error:", error);
     return null;
   }
 }
 
 function startCacheCleanup() {
-  if (cacheCleanupTimer) {
-    return;
-  }
+  if (cacheCleanupTimer) return;
 
-  cleanupExpiredCache();
+  cleanupStaleCache();
 
-  cacheCleanupTimer = setInterval(async () => {
-    await cleanupExpiredCache();
-
-    const runCount = Math.floor(Date.now() / CACHE_CLEANUP_INTERVAL);
-    if (runCount % 6 === 0) {
-      await cleanupStaleCache();
-    }
+  cacheCleanupTimer = setInterval(() => {
+    cleanupStaleCache();
   }, CACHE_CLEANUP_INTERVAL);
-}
-
-function startAutoCleanup() {
-  if (!CACHE_CONFIG.AUTO_CLEANUP_ENABLED) {
-    return;
-  }
-
-  if (autoCacheCleanupTimer) {
-    return;
-  }
-
-  cleanupOldCache();
-
-  autoCacheCleanupTimer = setInterval(async () => {
-    await cleanupOldCache();
-  }, CACHE_CONFIG.CLEANUP_INTERVAL);
 }
 
 function stopCacheCleanup() {
@@ -373,248 +407,275 @@ function stopCacheCleanup() {
     clearInterval(cacheCleanupTimer);
     cacheCleanupTimer = null;
   }
+}
 
+function startAutoCleanup() {
+  if (!CACHE_CONFIG.AUTO_CLEANUP_ENABLED) return;
+  if (autoCacheCleanupTimer) return;
+
+  cleanupOldCache();
+
+  autoCacheCleanupTimer = setInterval(() => {
+    cleanupOldCache();
+  }, CACHE_CONFIG.CLEANUP_INTERVAL);
+}
+
+function stopAutoCleanup() {
   if (autoCacheCleanupTimer) {
     clearInterval(autoCacheCleanupTimer);
     autoCacheCleanupTimer = null;
   }
 }
 
+async function clearStoreChunked(storeName, chunkSize = 500) {
+  try {
+    const db = await getDB();
+    let hasMore = true;
+    let totalDeleted = 0;
+
+    while (hasMore) {
+      const tx = db.transaction(storeName, "readwrite");
+      const store = tx.objectStore(STORES.CACHE);
+
+      const keys = await store.getAllKeys(null, chunkSize);
+
+      if (keys.length === 0) {
+        hasMore = false;
+        await tx.done;
+        break;
+      }
+
+      await Promise.all(keys.map((key) => store.delete(key)));
+      totalDeleted += keys.length;
+
+      await tx.done;
+
+      if (keys.length < chunkSize) {
+        hasMore = false;
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    }
+
+    return { success: true, deletedCount: totalDeleted };
+  } catch (error) {
+    console.error(`❌ Clear ${storeName} error:`, error);
+    return { success: false, error: error.message };
+  }
+}
+
 async function* chunkArray(array, size) {
   for (let i = 0; i < array.length; i += size) {
     yield array.slice(i, i + size);
-    await new Promise((resolve) => setTimeout(resolve, 0));
   }
 }
 
-async function clearStoreChunked(storeName, chunkSize = 50) {
-  const db = await getDB();
-  const tx = db.transaction(storeName, "readonly");
-  const allKeys = await tx.store.getAllKeys();
-
-  for await (const chunk of chunkArray(allKeys, chunkSize)) {
-    const delTx = db.transaction(storeName, "readwrite");
-    await Promise.all(chunk.map((key) => delTx.store.delete(key)));
-    await delTx.done;
-    await new Promise((resolve) => setTimeout(resolve, 0));
-  }
-}
-
-function generateCacheKey(url, config = {}) {
-  const { params, filters } = config;
-  const parts = [url];
-
-  if (params) {
-    parts.push(JSON.stringify(params));
-  }
-
-  if (filters) {
-    parts.push(JSON.stringify(filters));
-  }
-
-  return parts.join("|");
-}
-
-async function apiCall(url, method = "GET", data = null, options = {}) {
-  const {
-    cacheKey = null,
-    ttl = 5 * 60 * 1000,
-    bypassQueue = false,
-    forceRefresh = false,
-    params = null,
-  } = options;
-
+async function apiCall(url, options = {}) {
   const isOnline = navigator.onLine;
-  const effectiveCacheKey =
-    cacheKey || (method === "GET" ? generateCacheKey(url, { params }) : null);
+  const queueOffline = options.queueOffline !== false;
 
-  if (forceRefresh && method === "GET" && effectiveCacheKey) {
-    const db = await getDB();
-    await db.delete(STORES.CACHE, effectiveCacheKey);
+  if (!isOnline && queueOffline) {
+    const queueItem = {
+      url,
+      method: options.method || "GET",
+      data: options.data,
+      options: {
+        ...options,
+        queueOffline: undefined,
+      },
+      timestamp: Date.now(),
+      clientTimestamp: new Date().toISOString(),
+      retryCount: 0,
+      status: "pending",
+    };
+
+    await addToQueue(queueItem);
+
+    throw new Error("OFFLINE_QUEUED");
   }
 
-  if (method === "GET" && effectiveCacheKey && !forceRefresh) {
-    const cached = await getCache(effectiveCacheKey);
-    if (cached) {
-      return cached;
+  try {
+    const response = await apiClient(url, options);
+    return response;
+  } catch (error) {
+    if (!isOnline && queueOffline) {
+      const queueItem = {
+        url,
+        method: options.method || "GET",
+        data: options.data,
+        options: {
+          ...options,
+          queueOffline: undefined,
+        },
+        timestamp: Date.now(),
+        clientTimestamp: new Date().toISOString(),
+        retryCount: 0,
+        status: "pending",
+      };
+
+      await addToQueue(queueItem);
+      throw new Error("OFFLINE_QUEUED");
     }
+
+    throw error;
   }
-
-  if (isOnline) {
-    try {
-      const config = { method, ...options };
-      if (data) config.data = data;
-      if (params) config.params = params;
-
-      const response = await apiClient(url, config);
-
-      if (method === "GET" && effectiveCacheKey) {
-        await setCache(effectiveCacheKey, response.data, ttl);
-      }
-
-      return response.data;
-    } catch (error) {
-      let errorMessage = "Request failed";
-      let errorDetails = {};
-
-      if (error.response) {
-        const responseData = error.response.data;
-
-        errorMessage =
-          responseData?.message ||
-          responseData?.error?.message ||
-          responseData?.error ||
-          error.message ||
-          "Request failed";
-
-        errorDetails = {
-          status: error.response.status,
-          data: responseData,
-        };
-
-        console.error(`❌ API call failed: ${method} ${url}`, {
-          message: errorMessage,
-          status: error.response.status,
-          data: responseData,
-        });
-      } else if (error.request) {
-        errorMessage = "No response from server";
-        console.error(`❌ No response: ${method} ${url}`, error.request);
-      } else {
-        errorMessage = error.message;
-        console.error(`❌ Request error: ${method} ${url}`, error.message);
-      }
-
-      const isValidationError =
-        error.response?.status >= 400 && error.response?.status < 500;
-
-      if (!bypassQueue && ["POST", "PUT", "PATCH"].includes(method)) {
-        if (isValidationError) {
-          const enhancedError = new Error(errorMessage);
-          enhancedError.response = error.response;
-          enhancedError.validationError = true;
-          enhancedError.details = errorDetails;
-          throw enhancedError;
-        } else {
-          await addToQueue({ url, method, data, options });
-          emitCoalescedEvent("queue:updated");
-          throw new Error("Request queued for offline sync");
-        }
-      }
-
-      const enhancedError = new Error(errorMessage);
-      enhancedError.response = error.response;
-      enhancedError.details = errorDetails;
-      throw enhancedError;
-    }
-  }
-
-  if (bypassQueue) {
-    throw new Error("Network unavailable and bypass queue enabled");
-  }
-
-  if (["POST", "PUT", "PATCH"].includes(method)) {
-    await addToQueue({ url, method, data, options });
-    emitCoalescedEvent("queue:updated");
-    throw new Error("Request queued for offline sync");
-  }
-
-  if (method === "GET" && effectiveCacheKey) {
-    const cached = await getCache(effectiveCacheKey, true);
-    if (cached) {
-      return cached;
-    }
-  }
-
-  throw new Error("No cache available and network is offline");
 }
 
-async function get(url, config = {}) {
-  const {
-    cacheKey,
-    ttl = 5 * 60 * 1000,
-    forceRefresh = false,
-    ...restConfig
-  } = config;
-
-  return apiCall(url, "GET", null, {
-    cacheKey,
-    ttl,
-    forceRefresh,
-    ...restConfig,
-  });
+async function get(url, options = {}) {
+  return apiCall(url, { ...options, method: "GET" });
 }
 
-async function post(url, data, config = {}) {
-  const { bypassQueue = false, ...restConfig } = config;
-
-  return apiCall(url, "POST", data, {
-    bypassQueue,
-    ...restConfig,
-  });
+async function post(url, data, options = {}) {
+  return apiCall(url, { ...options, method: "POST", data });
 }
 
-async function put(url, data, config = {}) {
-  const { bypassQueue = false, ...restConfig } = config;
-
-  return apiCall(url, "PUT", data, {
-    bypassQueue,
-    ...restConfig,
-  });
+async function put(url, data, options = {}) {
+  return apiCall(url, { ...options, method: "PUT", data });
 }
 
-async function patch(url, data, config = {}) {
-  const { bypassQueue = false, ...restConfig } = config;
-
-  return apiCall(url, "PATCH", data, {
-    bypassQueue,
-    ...restConfig,
-  });
+async function patch(url, data, options = {}) {
+  return apiCall(url, { ...options, method: "PATCH", data });
 }
 
-async function del(url, data = null, config = {}) {
-  const { bypassQueue = true, ...restConfig } = config;
-
-  return apiCall(url, "DELETE", data, {
-    bypassQueue,
-    ...restConfig,
-  });
+async function del(url, options = {}) {
+  return apiCall(url, { ...options, method: "DELETE" });
 }
 
-async function addToQueue(request) {
+async function addToQueue(item) {
   const db = await getDB();
-  const item = {
-    ...request,
-    timestamp: Date.now(),
-    clientTimestamp: request.data?.clientTimestamp || new Date().toISOString(),
+
+  const queueItem = {
+    ...item,
     createdAtClient: new Date().toISOString(),
-    status: "pending",
-    retryCount: 0,
+    id: undefined,
   };
 
-  await db.add(STORES.QUEUE, item);
+  await db.add(STORES.QUEUE, queueItem);
+
+  emitCoalescedEvent("queue:updated", { action: "added" });
 }
 
 async function getQueue() {
   const db = await getDB();
-  return db.getAllFromIndex(STORES.QUEUE, "status", "pending");
+  return await db.getAll(STORES.QUEUE);
 }
 
 async function getPendingCount() {
-  const queue = await getQueue();
-  return queue.length;
+  const db = await getDB();
+  return await db.count(STORES.QUEUE);
+}
+
+/**
+ * ✅ NEW: Add item to sent queue with timestamp
+ */
+async function addToSentQueue(item) {
+  try {
+    const db = await getDB();
+    const sentItem = {
+      ...item,
+      sentAt: Date.now(),
+      sentTimestamp: new Date().toISOString(),
+    };
+
+    await db.put(STORES.SENT, sentItem);
+    emitCoalescedEvent("queue:updated");
+    return { success: true };
+  } catch (error) {
+    console.error("Failed to add to sent queue:", error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * ✅ NEW: Get sent queue data
+ */
+async function getSentQueue() {
+  try {
+    const db = await getDB();
+    const sentItems = await db.getAll(STORES.SENT);
+    
+    // Sort by sentAt descending (newest first)
+    return sentItems.sort((a, b) => b.sentAt - a.sentAt);
+  } catch (error) {
+    console.error("Failed to get sent queue:", error);
+    return [];
+  }
+}
+
+/**
+ * ✅ NEW: Delete item from sent queue
+ */
+async function deleteSentItem(id) {
+  try {
+    const db = await getDB();
+    await db.delete(STORES.SENT, id);
+    emitCoalescedEvent("queue:updated");
+    return { success: true };
+  } catch (error) {
+    console.error("Failed to delete sent item:", error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * ✅ NEW: Get stats for all queues
+ */
+async function getQueueStats() {
+  try {
+    const db = await getDB();
+    
+    const [pendingCount, failedCount, sentCount] = await Promise.all([
+      db.count(STORES.QUEUE),
+      db.count(STORES.FAILED),
+      db.count(STORES.SENT),
+    ]);
+
+    return {
+      pending: pendingCount,
+      failed: failedCount,
+      sent: sentCount,
+      total: pendingCount + failedCount + sentCount,
+    };
+  } catch (error) {
+    console.error("Failed to get queue stats:", error);
+    return { pending: 0, failed: 0, sent: 0, total: 0 };
+  }
+}
+
+async function syncSelected(ids) {
+  if (!ids || ids.length === 0) {
+    return { success: true, synced: 0 };
+  }
+
+  const db = await getDB();
+  const queue = await db.getAll(STORES.QUEUE);
+  const selected = queue.filter((item) => ids.includes(item.id));
+
+  if (selected.length === 0) {
+    return { success: true, synced: 0 };
+  }
+
+  const results = await processSyncQueue(selected);
+
+  emitCoalescedEvent("queue:updated", { source: "syncSelected" });
+
+  return results;
 }
 
 async function syncAllPending() {
-  if (!navigator.onLine) {
-    return { success: false, error: "Network offline" };
-  }
-
   const queue = await getQueue();
+
   if (queue.length === 0) {
     return { success: true, synced: 0, failed: 0 };
   }
 
+  const result = await processSyncQueue(queue);
+  emitCoalescedEvent("queue:updated", { source: "syncAll" });
+
+  return result;
+}
+
+async function processSyncQueue(queue) {
   emitCoalescedEvent("sync:start", { total: queue.length });
 
   const BATCH_SIZE = 15;
@@ -678,6 +739,10 @@ async function syncQueueItem(item) {
     await apiClient(item.url, config);
 
     await db.delete(STORES.QUEUE, item.id);
+
+    // Add to sent queue for retention
+    await addToSentQueue(item);
+
     return { success: true, item };
   } catch (error) {
     if (item.retryCount >= 2) {
@@ -772,6 +837,7 @@ async function clearAll() {
     clearStoreChunked(STORES.QUEUE),
     clearStoreChunked(STORES.CACHE),
     clearStoreChunked(STORES.FAILED),
+    clearStoreChunked(STORES.SENT),
   ]);
   emitCoalescedEvent("offline:cleared");
 }
@@ -831,6 +897,8 @@ function removeAllListeners() {
 
 function cleanup() {
   stopCacheCleanup();
+  stopAutoCleanup();
+  stopSentDataCleanup(); // Stop sent data cleanup
   cleanupCoalescedEvents();
   removeAllListeners();
 }
@@ -838,6 +906,7 @@ function cleanup() {
 if (typeof window !== "undefined") {
   startCacheCleanup();
   startAutoCleanup();
+  startSentDataCleanup(); // Start automatic sent data cleanup
 
   window.addEventListener("beforeunload", cleanup);
 }
@@ -889,10 +958,17 @@ export const offlineService = {
   getQueue,
   getPendingCount,
   syncAllPending,
+  syncSelected,
   retryFailed,
   deleteQueueItem,
   deleteFailedItem,
   getFailedQueue,
+  
+  // New sent queue functions
+  getSentQueue,
+  deleteSentItem,
+  getQueueStats,
+  cleanupExpiredSentData,
 
   setCache,
   getCache,
@@ -915,4 +991,5 @@ export const offlineService = {
   getTTLForDate,
   isDateRangeToday,
   CACHE_CONFIG,
+  SENT_DATA_RETENTION,
 };

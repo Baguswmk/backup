@@ -16,6 +16,8 @@ import {
   ChevronUp,
   Trash2,
   List,
+  CheckCircle,
+  XCircle,
 } from "lucide-react";
 import { format } from "date-fns";
 import { id as localeId } from "date-fns/locale";
@@ -37,7 +39,11 @@ export const OfflineSyncStatus = () => {
   const [showDetails, setShowDetails] = useState(false);
   const [isClearing, setIsClearing] = useState(false);
   const [showConfirmClear, setShowConfirmClear] = useState(false);
-  const [queueDetails, setQueueDetails] = useState({ pending: [], failed: [] });
+  const [queueDetails, setQueueDetails] = useState({
+    pending: [],
+    failed: [],
+    sent: [],
+  });
   const [loadingDetails, setLoadingDetails] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
 
@@ -46,7 +52,7 @@ export const OfflineSyncStatus = () => {
     if (showDetails && getQueueDetails) {
       loadQueueDetails();
     }
-  }, [showDetails]);
+  }, [showDetails, syncStatus.lastSync]);
 
   const loadQueueDetails = async () => {
     setLoadingDetails(true);
@@ -83,7 +89,7 @@ export const OfflineSyncStatus = () => {
 
     try {
       await clearOfflineData();
-      setQueueDetails({ pending: [], failed: [] });
+      setQueueDetails({ pending: [], failed: [], sent: [] });
     } catch (error) {
       console.error("Clear error:", error);
     } finally {
@@ -121,10 +127,14 @@ export const OfflineSyncStatus = () => {
     const colors = {
       POST: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300",
       PUT: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300",
-      PATCH: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300",
+      PATCH:
+        "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300",
       DELETE: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300",
     };
-    return colors[method] || "bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-300";
+    return (
+      colors[method] ||
+      "bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-300"
+    );
   };
 
   const formatUrl = (url) => {
@@ -137,12 +147,14 @@ export const OfflineSyncStatus = () => {
   const getTransactionData = (item) => {
     const data = item.data || {};
     return {
-      unit: data.unit_dump_truck || data.unit || "-",
+      unit: data.hull_no || data.unit || "-",
       grossWeight: data.gross_weight || 0,
       tareWeight: data.tare_weight || 0,
-      netWeight: data.net_weight || (data.gross_weight && data.tare_weight 
-        ? (data.gross_weight - data.tare_weight) 
-        : 0),
+      netWeight:
+        data.net_weight ||
+        (data.gross_weight && data.tare_weight
+          ? data.gross_weight - data.tare_weight
+          : 0),
       timestamp: item.clientTimestamp || item.createdAtClient || item.timestamp,
     };
   };
@@ -151,6 +163,9 @@ export const OfflineSyncStatus = () => {
     if (!weight || weight === 0) return "-";
     return `${weight.toFixed(2)} ton`;
   };
+
+  const totalItems =
+    syncStatus.pendingCount + syncStatus.failedCount + syncStatus.sentCount;
 
   return (
     <div className="fixed bottom-4 right-4 z-50 max-w-md">
@@ -177,9 +192,10 @@ export const OfflineSyncStatus = () => {
                 <div className="font-semibold text-sm dark:text-gray-200">
                   {isOnline ? "Online" : "Offline"}
                 </div>
-                {hasPendingData && (
+                {totalItems > 0 && (
                   <div className="text-xs text-gray-500 dark:text-gray-400">
-                    {syncStatus.pendingCount} data pending
+                    {syncStatus.pendingCount}P · {syncStatus.failedCount}F ·{" "}
+                    {syncStatus.sentCount}S
                   </div>
                 )}
               </div>
@@ -210,122 +226,150 @@ export const OfflineSyncStatus = () => {
 
         {/* Expanded Content */}
         {isExpanded && (
-          <div className="border-t dark:border-gray-700 p-3 space-y-3">
-            {/* Status Info */}
-            <div className="space-y-2 text-sm">
-              <div className="flex items-center justify-between">
-                <span className="text-gray-600 dark:text-gray-400 flex items-center gap-1">
-                  <Database className="w-4 h-4" />
-                  Data Pending:
-                </span>
-                <span className="font-medium dark:text-gray-200">
+          <div className="p-3 space-y-3 border-t dark:border-gray-700">
+            {/* Stats Grid */}
+            <div className="grid grid-cols-3 gap-2">
+              <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded p-2">
+                <div className="flex items-center gap-1 mb-1">
+                  <Clock className="w-3 h-3 text-yellow-600 dark:text-yellow-400" />
+                  <span className="text-[10px] font-medium text-yellow-700 dark:text-yellow-300">
+                    Pending
+                  </span>
+                </div>
+                <div className="text-lg font-bold text-yellow-900 dark:text-yellow-100">
                   {syncStatus.pendingCount}
-                </span>
+                </div>
               </div>
 
-              {syncStatus.failedCount > 0 && (
-                <div className="flex items-center justify-between text-red-600 dark:text-red-400">
-                  <span className="flex items-center gap-1">
-                    <AlertCircle className="w-4 h-4" />
-                    Gagal:
+              <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded p-2">
+                <div className="flex items-center gap-1 mb-1">
+                  <XCircle className="w-3 h-3 text-red-600 dark:text-red-400" />
+                  <span className="text-[10px] font-medium text-red-700 dark:text-red-300">
+                    Gagal
                   </span>
-                  <span className="font-medium">{syncStatus.failedCount}</span>
                 </div>
-              )}
+                <div className="text-lg font-bold text-red-900 dark:text-red-100">
+                  {syncStatus.failedCount}
+                </div>
+              </div>
 
-              {syncStatus.lastSync && (
-                <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
-                  <span className="flex items-center gap-1">
-                    <Clock className="w-3 h-3" />
-                    Sync Terakhir:
-                  </span>
-                  <span>
-                    {format(new Date(syncStatus.lastSync), "HH:mm:ss", {
-                      locale: localeId,
-                    })}
+              <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded p-2">
+                <div className="flex items-center gap-1 mb-1">
+                  <CheckCircle className="w-3 h-3 text-green-600 dark:text-green-400" />
+                  <span className="text-[10px] font-medium text-green-700 dark:text-green-300">
+                    Terkirim
                   </span>
                 </div>
-              )}
+                <div className="text-lg font-bold text-green-900 dark:text-green-100">
+                  {syncStatus.sentCount}
+                </div>
+              </div>
             </div>
 
-            {/* Detail List Toggle */}
-            {hasPendingData && (
+            {/* Last Sync Time */}
+            {syncStatus.lastSync && (
+              <div className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1">
+                <Database className="w-3 h-3" />
+                Terakhir sync:{" "}
+                {format(new Date(syncStatus.lastSync), "dd/MM HH:mm", {
+                  locale: localeId,
+                })}
+              </div>
+            )}
+
+            {/* Details Toggle */}
+            {totalItems > 0 && (
               <Button
                 size="sm"
                 variant="outline"
                 onClick={handleToggleDetails}
-                className="w-full dark:border-gray-600 dark:hover:bg-gray-700 dark:text-gray-200 cursor-pointer"
+                className="w-full text-xs dark:border-gray-600 dark:hover:bg-gray-700 cursor-pointer"
               >
-                <List className="w-4 h-4 mr-2" />
+                <List className="w-3 h-3 mr-1" />
                 {showDetails ? "Sembunyikan Detail" : "Lihat Detail Transaksi"}
               </Button>
             )}
 
-            {/* Transaction Details List */}
+            {/* Queue Details */}
             {showDetails && (
-              <div className="max-h-64 overflow-y-auto space-y-2 border dark:border-gray-700 rounded p-2 bg-gray-50 dark:bg-gray-900/50">
+              <div className="max-h-64 overflow-y-auto space-y-2 border dark:border-gray-700 rounded p-2">
                 {loadingDetails ? (
                   <div className="flex items-center justify-center py-4">
-                    <Loader2 className="w-5 h-5 animate-spin text-blue-600 dark:text-blue-400" />
+                    <Loader2 className="w-4 h-4 animate-spin text-gray-400" />
                   </div>
                 ) : (
                   <>
                     {/* Pending Items */}
                     {queueDetails.pending.length > 0 && (
-                      <div className="space-y-2">
-                        <div className="text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase">
-                          Pending ({queueDetails.pending.length})
+                      <div>
+                        <div className="text-[10px] font-semibold text-yellow-700 dark:text-yellow-300 mb-1 flex items-center gap-1">
+                          <Clock className="w-3 h-3" />
+                          PENDING ({queueDetails.pending.length})
                         </div>
                         {queueDetails.pending.map((item) => {
                           const txData = getTransactionData(item);
                           return (
                             <div
                               key={item.id}
-                              className="bg-white dark:bg-gray-800 rounded border dark:border-gray-700 p-2 text-xs"
+                              className="bg-yellow-50 dark:bg-yellow-900/10 border border-yellow-200 dark:border-yellow-800 rounded p-2 mb-2"
                             >
                               <div className="flex items-start justify-between gap-2">
-                                <div className="flex-1 min-w-0">
-                                  <div className="flex items-center gap-2 mb-1">
-                                    <Badge className={getMethodBadgeColor(item.method)}>
+                                <div className="flex-1 min-w-0 text-xs">
+                                  <div className="flex items-center gap-1 mb-1">
+                                    <Badge
+                                      className={getMethodBadgeColor(
+                                        item.method
+                                      )}
+                                    >
                                       {item.method}
                                     </Badge>
                                     <span className="text-gray-600 dark:text-gray-400 truncate font-medium">
                                       {txData.unit}
                                     </span>
                                   </div>
-                                  
+
                                   <div className="grid grid-cols-3 gap-2 mb-1 text-gray-700 dark:text-gray-300">
                                     <div>
-                                      <div className="text-gray-500 dark:text-gray-500 text-[10px]">Gross</div>
-                                      <div className="font-medium">{formatWeight(txData.grossWeight)}</div>
+                                      <div className="text-gray-500 dark:text-gray-500 text-[10px]">
+                                        Gross
+                                      </div>
+                                      <div className="font-medium text-[11px]">
+                                        {formatWeight(txData.grossWeight)}
+                                      </div>
                                     </div>
                                     <div>
-                                      <div className="text-gray-500 dark:text-gray-500 text-[10px]">Tare</div>
-                                      <div className="font-medium">{formatWeight(txData.tareWeight)}</div>
+                                      <div className="text-gray-500 dark:text-gray-500 text-[10px]">
+                                        Tare
+                                      </div>
+                                      <div className="font-medium text-[11px]">
+                                        {formatWeight(txData.tareWeight)}
+                                      </div>
                                     </div>
                                     <div>
-                                      <div className="text-gray-500 dark:text-gray-500 text-[10px]">Net</div>
-                                      <div className="font-medium">{formatWeight(txData.netWeight)}</div>
+                                      <div className="text-gray-500 dark:text-gray-500 text-[10px]">
+                                        Net
+                                      </div>
+                                      <div className="font-medium text-[11px]">
+                                        {formatWeight(txData.netWeight)}
+                                      </div>
                                     </div>
                                   </div>
 
-                                  <div className="text-gray-500 dark:text-gray-500 flex items-center gap-1">
+                                  <div className="text-gray-500 dark:text-gray-500 flex items-center gap-1 text-[10px]">
                                     <Clock className="w-3 h-3" />
-                                    {format(new Date(txData.timestamp), "dd/MM HH:mm:ss", {
-                                      locale: localeId,
-                                    })}
+                                    {format(
+                                      new Date(txData.timestamp),
+                                      "dd/MM HH:mm:ss",
+                                      { locale: localeId }
+                                    )}
                                   </div>
-                                  
-                                  {item.retryCount > 0 && (
-                                    <div className="text-orange-600 dark:text-orange-400 text-xs mt-1">
-                                      Retry: {item.retryCount}x
-                                    </div>
-                                  )}
                                 </div>
                                 <Button
                                   size="sm"
                                   variant="ghost"
-                                  onClick={() => handleDeleteItem(item.id, 'pending')}
+                                  onClick={() =>
+                                    handleDeleteItem(item.id, "pending")
+                                  }
                                   disabled={deletingId === item.id}
                                   className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
                                 >
@@ -344,21 +388,26 @@ export const OfflineSyncStatus = () => {
 
                     {/* Failed Items */}
                     {queueDetails.failed.length > 0 && (
-                      <div className="space-y-2 mt-3">
-                        <div className="text-xs font-semibold text-red-600 dark:text-red-400 uppercase">
-                          Gagal ({queueDetails.failed.length})
+                      <div>
+                        <div className="text-[10px] font-semibold text-red-700 dark:text-red-300 mb-1 flex items-center gap-1">
+                          <XCircle className="w-3 h-3" />
+                          GAGAL ({queueDetails.failed.length})
                         </div>
                         {queueDetails.failed.map((item) => {
                           const txData = getTransactionData(item);
                           return (
                             <div
                               key={item.id}
-                              className="bg-red-50 dark:bg-red-900/20 rounded border border-red-200 dark:border-red-800 p-2 text-xs"
+                              className="bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-800 rounded p-2 mb-2"
                             >
                               <div className="flex items-start justify-between gap-2">
-                                <div className="flex-1 min-w-0">
-                                  <div className="flex items-center gap-2 mb-1">
-                                    <Badge className={getMethodBadgeColor(item.method)}>
+                                <div className="flex-1 min-w-0 text-xs">
+                                  <div className="flex items-center gap-1 mb-1">
+                                    <Badge
+                                      className={getMethodBadgeColor(
+                                        item.method
+                                      )}
+                                    >
                                       {item.method}
                                     </Badge>
                                     <span className="text-gray-600 dark:text-gray-400 truncate font-medium">
@@ -368,28 +417,42 @@ export const OfflineSyncStatus = () => {
 
                                   <div className="grid grid-cols-3 gap-2 mb-1 text-gray-700 dark:text-gray-300">
                                     <div>
-                                      <div className="text-gray-500 dark:text-gray-500 text-[10px]">Gross</div>
-                                      <div className="font-medium">{formatWeight(txData.grossWeight)}</div>
+                                      <div className="text-gray-500 dark:text-gray-500 text-[10px]">
+                                        Gross
+                                      </div>
+                                      <div className="font-medium text-[11px]">
+                                        {formatWeight(txData.grossWeight)}
+                                      </div>
                                     </div>
                                     <div>
-                                      <div className="text-gray-500 dark:text-gray-500 text-[10px]">Tare</div>
-                                      <div className="font-medium">{formatWeight(txData.tareWeight)}</div>
+                                      <div className="text-gray-500 dark:text-gray-500 text-[10px]">
+                                        Tare
+                                      </div>
+                                      <div className="font-medium text-[11px]">
+                                        {formatWeight(txData.tareWeight)}
+                                      </div>
                                     </div>
                                     <div>
-                                      <div className="text-gray-500 dark:text-gray-500 text-[10px]">Net</div>
-                                      <div className="font-medium">{formatWeight(txData.netWeight)}</div>
+                                      <div className="text-gray-500 dark:text-gray-500 text-[10px]">
+                                        Net
+                                      </div>
+                                      <div className="font-medium text-[11px]">
+                                        {formatWeight(txData.netWeight)}
+                                      </div>
                                     </div>
                                   </div>
 
-                                  <div className="text-gray-500 dark:text-gray-500 flex items-center gap-1">
+                                  <div className="text-gray-500 dark:text-gray-500 flex items-center gap-1 text-[10px]">
                                     <Clock className="w-3 h-3" />
-                                    {format(new Date(txData.timestamp), "dd/MM HH:mm:ss", {
-                                      locale: localeId,
-                                    })}
+                                    {format(
+                                      new Date(txData.timestamp),
+                                      "dd/MM HH:mm:ss",
+                                      { locale: localeId }
+                                    )}
                                   </div>
 
                                   {item.error && (
-                                    <div className="text-red-600 dark:text-red-400 text-xs mt-1 truncate">
+                                    <div className="text-red-600 dark:text-red-400 text-[10px] mt-1 truncate">
                                       Error: {item.error}
                                     </div>
                                   )}
@@ -397,7 +460,9 @@ export const OfflineSyncStatus = () => {
                                 <Button
                                   size="sm"
                                   variant="ghost"
-                                  onClick={() => handleDeleteItem(item.id, 'failed')}
+                                  onClick={() =>
+                                    handleDeleteItem(item.id, "failed")
+                                  }
                                   disabled={deletingId === item.id}
                                   className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
                                 >
@@ -414,11 +479,81 @@ export const OfflineSyncStatus = () => {
                       </div>
                     )}
 
-                    {queueDetails.pending.length === 0 && queueDetails.failed.length === 0 && (
-                      <div className="text-center py-4 text-gray-500 dark:text-gray-400 text-xs">
-                        Tidak ada transaksi offline
+                    {/* Sent Items */}
+                    {queueDetails.sent.length > 0 && (
+                      <div>
+                        <div className="text-[10px] font-semibold text-green-700 dark:text-green-300 mb-1 flex items-center gap-1">
+                          <CheckCircle className="w-3 h-3" />
+                          TERKIRIM ({queueDetails.sent.length})
+                          <span className="text-gray-500 dark:text-gray-400 font-normal ml-1">
+                            - Tersimpan 8 jam
+                          </span>
+                        </div>
+                        {queueDetails.sent.slice(0, 3).map((item) => {
+                          const txData = getTransactionData(item);
+                          return (
+                            <div
+                              key={item.id}
+                              className="bg-green-50 dark:bg-green-900/10 border border-green-200 dark:border-green-800 rounded p-2 mb-2"
+                            >
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="flex-1 min-w-0 text-xs">
+                                  <div className="flex items-center gap-1 mb-1">
+                                    <Badge
+                                      className={getMethodBadgeColor(
+                                        item.method
+                                      )}
+                                    >
+                                      {item.method}
+                                    </Badge>
+                                    <span className="text-gray-600 dark:text-gray-400 truncate font-medium">
+                                      {txData.unit}
+                                    </span>
+                                  </div>
+
+                                  <div className="text-gray-500 dark:text-gray-500 flex items-center gap-1 text-[10px]">
+                                    <CheckCircle className="w-3 h-3" />
+                                    {format(
+                                      new Date(item.sentAt || txData.timestamp),
+                                      "dd/MM HH:mm:ss",
+                                      { locale: localeId }
+                                    )}
+                                  </div>
+                                </div>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() =>
+                                    handleDeleteItem(item.id, "sent")
+                                  }
+                                  disabled={deletingId === item.id}
+                                  className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
+                                >
+                                  {deletingId === item.id ? (
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                  ) : (
+                                    <Trash2 className="w-4 h-4" />
+                                  )}
+                                </Button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                        {queueDetails.sent.length > 3 && (
+                          <div className="text-[10px] text-gray-500 dark:text-gray-400 text-center">
+                            +{queueDetails.sent.length - 3} lainnya
+                          </div>
+                        )}
                       </div>
                     )}
+
+                    {queueDetails.pending.length === 0 &&
+                      queueDetails.failed.length === 0 &&
+                      queueDetails.sent.length === 0 && (
+                        <div className="text-center py-4 text-gray-500 dark:text-gray-400 text-xs">
+                          Tidak ada transaksi offline
+                        </div>
+                      )}
                   </>
                 )}
               </div>
@@ -431,8 +566,8 @@ export const OfflineSyncStatus = () => {
                 className="py-2 dark:bg-orange-900/20 dark:border-orange-700"
               >
                 <AlertDescription className="text-xs dark:text-gray-300">
-                  Mode offline aktif. Data akan disimpan lokal dan disinkronkan
-                  otomatis saat online.
+                  Mode offline aktif. Data akan disimpan lokal. Sinkronisasi
+                  manual saat online.
                 </AlertDescription>
               </Alert>
             )}
@@ -507,7 +642,7 @@ export const OfflineSyncStatus = () => {
                   </Button>
                 )}
 
-                {hasPendingData && (
+                {totalItems > 0 && (
                   <Button
                     size="sm"
                     variant="destructive"
@@ -536,7 +671,7 @@ export const OfflineSyncStatus = () => {
               {isOnline ? (
                 <span className="flex items-center gap-1">
                   <Wifi className="w-3 h-3" />
-                  Auto-sync aktif setiap 5 menit
+                  Online
                 </span>
               ) : (
                 <span className="flex items-center gap-1">

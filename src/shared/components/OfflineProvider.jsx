@@ -26,8 +26,9 @@ export const OfflineProvider = ({ children }) => {
     lastSync: null,
     pendingCount: 0,
     failedCount: 0,
+    sentCount: 0,
   });
-  const [autoSyncEnabled, setAutoSyncEnabled] = useState(true);
+  const [autoSyncEnabled, setAutoSyncEnabled] = useState(false);
 
   const isSyncingRef = useRef(false);
   const syncTimeoutRef = useRef(null);
@@ -105,16 +106,15 @@ export const OfflineProvider = ({ children }) => {
 
   const loadPendingCount = useCallback(async () => {
     try {
-      const count = await offlineService.getPendingCount();
-      const failedCount = await offlineService.getFailedQueue?.()
-        .then(failed => failed.length)
-        .catch(() => 0);
-      
-      batchStateUpdate({ 
-        pendingCount: count,
-        failedCount: failedCount 
+      const stats = await offlineService.getQueueStats();
+
+      batchStateUpdate({
+        pendingCount: stats.pending,
+        failedCount: stats.failed,
+        sentCount: stats.sent,
       });
-      return count;
+      
+      return stats.pending;
     } catch (error) {
       console.error("Failed to load pending count:", error);
       return 0;
@@ -153,6 +153,9 @@ export const OfflineProvider = ({ children }) => {
         }
       }
 
+      // Reload counts to update sent count
+      await loadPendingCount();
+
       return result;
     } catch (error) {
       console.error("❌ Sync failed:", error);
@@ -162,7 +165,7 @@ export const OfflineProvider = ({ children }) => {
     } finally {
       isSyncingRef.current = false;
     }
-  }, [isOnline, batchStateUpdate]);
+  }, [isOnline, batchStateUpdate, loadPendingCount]);
 
   const retryFailed = useCallback(async () => {
     if (!isOnline) {
@@ -200,6 +203,7 @@ export const OfflineProvider = ({ children }) => {
         lastSync: null,
         pendingCount: 0,
         failedCount: 0,
+        sentCount: 0,
       });
 
       showToast.success("Data offline berhasil dihapus");
@@ -211,46 +215,54 @@ export const OfflineProvider = ({ children }) => {
     }
   }, [batchStateUpdate]);
 
-  // Fungsi baru untuk mendapatkan detail transaksi
+  // Fungsi untuk mendapatkan detail transaksi
   const getQueueDetails = useCallback(async () => {
     try {
       const pending = await offlineService.getQueue();
-      const failed = await offlineService.getFailedQueue?.() || [];
-      
+      const failed = (await offlineService.getFailedQueue?.()) || [];
+      const sent = (await offlineService.getSentQueue?.()) || [];
+
       return {
         pending: pending || [],
         failed: failed || [],
+        sent: sent || [],
       };
     } catch (error) {
       console.error("Failed to get queue details:", error);
-      return { pending: [], failed: [] };
+      return { pending: [], failed: [], sent: [] };
     }
   }, []);
 
-  // Fungsi baru untuk menghapus item spesifik
-  const deleteQueueItem = useCallback(async (id, type = 'pending') => {
-    try {
-      let result;
-      if (type === 'failed') {
-        result = await offlineService.deleteFailedItem?.(id);
-      } else {
-        result = await offlineService.deleteQueueItem?.(id);
-      }
+  // Fungsi untuk menghapus item spesifik
+  const deleteQueueItem = useCallback(
+    async (id, type = "pending") => {
+      try {
+        let result;
+        if (type === "failed") {
+          result = await offlineService.deleteFailedItem?.(id);
+        } else if (type === "sent") {
+          result = await offlineService.deleteSentItem?.(id);
+        } else {
+          result = await offlineService.deleteQueueItem?.(id);
+        }
 
-      if (result?.success) {
-        showToast.success("Data berhasil dihapus");
-        await loadPendingCount();
-        return { success: true };
-      } else {
-        throw new Error("Delete operation failed");
+        if (result?.success) {
+          showToast.success("Data berhasil dihapus");
+          await loadPendingCount();
+          return { success: true };
+        } else {
+          throw new Error("Delete operation failed");
+        }
+      } catch (error) {
+        console.error("Failed to delete item:", error);
+        showToast.error("Gagal menghapus data");
+        return { success: false, error: error.message };
       }
-    } catch (error) {
-      console.error("Failed to delete item:", error);
-      showToast.error("Gagal menghapus data");
-      return { success: false, error: error.message };
-    }
-  }, [loadPendingCount]);
+    },
+    [loadPendingCount],
+  );
 
+  // Event listeners
   useEffect(() => {
     const handleQueueUpdated = () => {
       loadPendingCount();
@@ -268,23 +280,39 @@ export const OfflineProvider = ({ children }) => {
         isSyncing: false,
         lastSync: new Date().toISOString(),
       });
+      // Reload to update sent count
+      loadPendingCount();
+    };
+
+    const handleSentCleaned = (detail) => {
+      if (detail.deletedCount > 0) {
+        showToast.info(
+          `🗑️ ${detail.deletedCount} data terkirim yang sudah lebih dari 8 jam telah dihapus`,
+          { duration: 5000 }
+        );
+        loadPendingCount();
+      }
     };
 
     offlineService.on("queue:updated", handleQueueUpdated);
     offlineService.on("sync:progress", handleSyncProgress);
     offlineService.on("sync:done", handleSyncDone);
+    offlineService.on("sent:cleaned", handleSentCleaned);
 
     return () => {
       offlineService.off("queue:updated", handleQueueUpdated);
       offlineService.off("sync:progress", handleSyncProgress);
       offlineService.off("sync:done", handleSyncDone);
+      offlineService.off("sent:cleaned", handleSentCleaned);
     };
   }, [loadPendingCount, batchStateUpdate]);
 
+  // Load initial counts
   useEffect(() => {
     loadPendingCount();
   }, [loadPendingCount]);
 
+  // Auto sync interval
   useEffect(() => {
     if (!autoSyncEnabled || !isOnline) return;
 
@@ -311,8 +339,7 @@ export const OfflineProvider = ({ children }) => {
     clearOfflineData,
     loadPendingCount,
     setAutoSyncEnabled,
-    
-    // Fungsi baru
+
     getQueueDetails,
     deleteQueueItem,
 
