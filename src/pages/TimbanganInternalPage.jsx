@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from "react";
+import React, { useState, useMemo, useCallback, useEffect } from "react";
 import { useAuth } from "@/modules/auth/hooks/useAuth";
 import useAuthStore from "@/modules/auth/store/authStore";
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -28,33 +28,33 @@ import { OfflineSyncStatus } from "@/shared/components/OfflineSyncStatus";
 import { queryClient } from "@/shared/config/queryClient";
 import RitaseHistory from "@/modules/timbangan/ritase/RitaseHistory";
 import BeltscaleManagement from "@/modules/timbangan/ritase/BeltScaleManagement";
+import TimbanganManagement from "@/modules/timbangan/timbangan/TimbanganManagement";
+
 const TimbanganInternalPage = () => {
   const { isAuthenticated } = useAuth();
   const { user } = useAuthStore();
   const userRole = user?.role;
   const getDefaultMenu = () => {
     if (userRole === "operator_jt" || userRole === "checker") {
-      return "Ritase";
+      return "Timbangan";
     }
     return "Setting Fleet";
   };
 
   const [activeMenu, setActiveMenu] = useState(getDefaultMenu());
-
   const menuItems = useMemo(
     () => [
       {
         name: "Setting Fleet",
         icon: Cog,
-        roles: [
-          "pic",
-          "pengawas",
-          "evaluator",
-          "admin",
-          "super_admin",
-          "ccr",
-        ],
+        roles: ["pic", "pengawas", "evaluator", "admin", "super_admin", "ccr"],
         locationId: "Setting Fleet",
+      },
+      {
+        name: "Timbangan",
+        icon: Scale,
+        roles: ["checker", "operator_jt"],
+        locationId: "timbangan",
       },
       {
         name: "Ritase",
@@ -104,13 +104,13 @@ const TimbanganInternalPage = () => {
       {
         name: "Overview",
         icon: BarChart3,
-        roles: ["admin", "super_admin","ccr", "pengawas",],
+        roles: ["admin", "super_admin", "ccr", "pengawas"],
         locationId: "overview",
       },
       {
         name: "Laporan",
         icon: BarChart3,
-        roles: ["admin", "super_admin", "ccr", "pengawas",],
+        roles: ["admin", "super_admin", "ccr", "pengawas"],
         locationId: "laporan",
       },
       {
@@ -123,12 +123,33 @@ const TimbanganInternalPage = () => {
     [],
   );
 
-  const isMenuAccessible = useCallback(
+    const isMenuAccessible = useCallback(
     (menuItem) => {
       return menuItem?.roles?.includes(userRole);
     },
     [userRole],
   );
+
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const menuParam = urlParams.get("menu");
+
+    if (menuParam) {
+      const targetMenu = menuItems.find((item) => item.name === menuParam);
+
+      if (targetMenu && isMenuAccessible(targetMenu)) {
+        setActiveMenu(menuParam);
+      } else {
+        const defaultMenu = getDefaultMenu();
+        if (menuParam !== defaultMenu) {
+          const newUrl = new URL(window.location);
+          newUrl.searchParams.set("menu", defaultMenu);
+          window.history.replaceState({}, "", newUrl);
+        }
+        setActiveMenu(defaultMenu);
+      }
+    }
+  }, [menuItems, isMenuAccessible]);
 
   const hasAnyAccess = useMemo(() => {
     const checkAccess = (items) => {
@@ -182,7 +203,7 @@ const TimbanganInternalPage = () => {
                 onClick={handleBackToHub}
                 variant="outline"
                 className={cn(
-                    "mt-4 w-full transition-all duration-200",
+                  "mt-4 w-full transition-all duration-200",
                   "hover:bg-red-50 dark:hover:bg-red-900/30",
                   "border-red-300 dark:border-red-700",
                   "text-red-600 dark:text-red-400",
@@ -250,6 +271,8 @@ const TimbanganInternalPage = () => {
               {/* Fleet */}
               {activeMenu === "Setting Fleet" ? (
                 <FleetManagement Type="Setting Fleet" />
+              ) : activeMenu === "Timbangan" ? (
+                <TimbanganManagement Type="Timbangan" />
               ) : activeMenu === "Ritase" ? (
                 <RitaseManagement Type="Ritase" />
               ) : activeMenu === "Ritase History" ? (

@@ -161,7 +161,7 @@ export const ROLE_PERMISSIONS = {
     ],
     fleet: [PERMISSIONS.READ, PERMISSIONS.CREATE, PERMISSIONS.UPDATE, PERMISSIONS.DELETE],
     masterData: [PERMISSIONS.READ, PERMISSIONS.CREATE, PERMISSIONS.UPDATE],
-    masterDataCategories: ["units", "alatLoader"],
+    masterDataCategories: ["units", "alatLoader","operators", "companies", "work-units", "coal-types", "locations"],
     fleetTypes: ["Setting Fleet"],
     autoWeighBridge: true,
     autoMeasurementType: "Timbangan",
