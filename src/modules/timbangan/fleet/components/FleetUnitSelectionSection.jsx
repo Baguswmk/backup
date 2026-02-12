@@ -36,6 +36,7 @@ const FleetUnitSelectionSection = ({
   handleOperatorChange,
   handleUnitToggle,
 }) => {
+  
 
   if (!fleetData.excavator) {
     return null;

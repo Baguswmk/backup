@@ -62,7 +62,6 @@ const FleetModal = ({
   }, [isEditingMergedGroup, editingConfig]);
   const isEdit = fleetsToEdit.length > 0;
 
-
   const {
     isSplitMode,
     setIsSplitMode,
@@ -78,10 +77,7 @@ const FleetModal = ({
     prepareBulkPayload,
   } = useFleetSplit();
 
-  const { handleSaveFleet } = useFleetWithTransfer(
-    user,
-    onSave,
-  );
+  const { handleSaveFleet } = useFleetWithTransfer(user, onSave);
 
   const [fleetData, setFleetData] = useState({
     excavator: "",
@@ -143,7 +139,7 @@ const FleetModal = ({
       document.body.style.overflow = "unset";
     };
   }, [isOpen]);
-  // ✅ FIXED: Filter units by excavator helper
+  // ✅ FIX 1: filterUnitsByExcavator
   const filterUnitsByExcavator = useCallback(
     async (excavatorId) => {
       try {
@@ -151,16 +147,15 @@ const FleetModal = ({
           (e) => String(e.id) === String(excavatorId),
         );
 
-        if (!excavator || !excavator.companyId) {
+        if (!excavator || !excavator.id_company) {
           return [];
         }
 
         const filtered = masters?.dumpTruck?.filter(
-          (unit) =>
-            String(unit.companyId) === String(excavator.companyId),
+          (unit) => String(unit.id_company) === String(excavator.id_company),
         );
 
-        return filtered;
+        return filtered ?? [];
       } catch (error) {
         console.error("Failed to filter units:", error);
         return [];
@@ -334,20 +329,28 @@ const FleetModal = ({
     let units = [];
 
     if (showAllUnits) {
-      units = masters?.dumpTruck;
+      units = masters?.dumpTruck ?? [];
     } else {
-      units = fleetFilteredUnits;
+      units = fleetFilteredUnits ?? []; // ✅ fallback ke [] kalau undefined
     }
 
-    // ✅ Hanya filter available units jika showAllUnits = false
-    // (Jika show all, biarkan user melihat semua, termasuk yang sudah terpakai - status akan ditangani oleh UI)
+    // ✅ Filter available, tapi TETAP include selectedUnits
     if (!showAllUnits) {
       const currentFleetIds = isEdit ? fleetsToEdit.map((f) => f.id) : null;
+      const selectedUnitIds = new Set(selectedUnits.map((u) => String(u.id)));
 
       units = filterAvailableDumptrucks(
         units,
         usedDumptrucksMap,
         currentFleetIds,
+      ).concat(
+        // ✅ Re-add selected units yang mungkin ter-filter out
+        units.filter(
+          (u) =>
+            selectedUnitIds.has(String(u.id)) &&
+            !filterAvailableDumptrucks([u], usedDumptrucksMap, currentFleetIds)
+              .length,
+        ),
       );
     }
 
@@ -367,6 +370,7 @@ const FleetModal = ({
     usedDumptrucksMap,
     isEdit,
     fleetsToEdit,
+    selectedUnits, // ✅ tambah ini
   ]);
 
   const filteredUnitsForActiveFleet = useMemo(() => {
@@ -430,29 +434,29 @@ const FleetModal = ({
 
   const getOperatorOptionsForUnit = useCallback(
     (unitId) => {
-      const unit = masters?.dumpTruck.find((u) => String(u.id) === String(unitId));
+      const unit = masters?.dumpTruck?.find(
+        (u) => String(u.id) === String(unitId),
+      );
 
-      if (!unit || !unit.companyId) {
+      // ✅ Gunakan id_company, bukan companyId
+      if (!unit || !unit.id_company) {
         return [];
       }
 
-      // Step 1: Filter operators by company
       const allOperators = masters?.operators || [];
+
+      // ✅ Filter operator by id_company
       const operatorsByCompany = allOperators.filter(
-        (op) => String(op.companyId) === String(unit.companyId),
+        (op) =>
+          String(op.id_company ?? op.companyId) === String(unit.id_company),
       );
 
       const availableOps = operatorsByCompany.filter((op) => {
         const opId = String(op.id);
-
         for (const [dtId, assignedOpId] of Object.entries(unitOperators)) {
           if (String(dtId) === String(unitId)) continue;
-
-          if (String(assignedOpId) === opId) {
-            return false;
-          }
+          if (String(assignedOpId) === opId) return false;
         }
-
         return true;
       });
 
@@ -461,9 +465,8 @@ const FleetModal = ({
         label: op.name,
       }));
     },
-    [ masters?.operators, unitOperators],
+    [masters?.dumpTruck, masters?.operators, unitOperators],
   );
-
   const getAvailableOperatorCount = useCallback(
     (unitId) => {
       return getOperatorOptionsForUnit(unitId).length;
@@ -472,37 +475,36 @@ const FleetModal = ({
   );
 
   // ✅ NEW: Wrapper for split mode that also considers universe fleet operators
+  // ✅ FIX 2: getOperatorOptionsForUnitInUniverse
   const getOperatorOptionsForUnitInUniverse = useCallback(
     (unitIdOrObject) => {
-      // ✅ Handle both unitId (string) and unit (object)
       let unitId, unit;
 
       if (typeof unitIdOrObject === "object" && unitIdOrObject !== null) {
-        // Called with unit object (from FleetSplitSettingsSection)
         unit = unitIdOrObject;
         unitId = unit.id;
       } else {
-        // Called with unitId (from other places)
         unitId = unitIdOrObject;
-        unit = masters?.dumpTruck.find((u) => String(u.id) === String(unitId));
+        unit = masters?.dumpTruck?.find((u) => String(u.id) === String(unitId));
       }
 
-      if (!unit || !unit.companyId) return [];
-      // Step 1: Filter operators by company
+      // ✅ Ganti companyId → id_company
+      if (!unit || !unit.id_company) return [];
+
       const operatorsByCompany =
         masters?.operators?.filter(
-          (op) => String(op.companyId) === String(unit.companyId),
+          (op) =>
+            String(op.id_company ?? op.companyId) === String(unit.id_company),
         ) || [];
+
       const allAssignedOperators = new Set();
 
-      // Add from primary fleet
       Object.entries(unitOperators).forEach(([dtId, opId]) => {
         if (String(dtId) !== String(unitId)) {
           allAssignedOperators.add(String(opId));
         }
       });
 
-      // Add from all universe fleets
       fleetsUniverse.forEach((fleet) => {
         if (fleet.unitOperators) {
           Object.entries(fleet.unitOperators).forEach(([dtId, opId]) => {
@@ -513,7 +515,6 @@ const FleetModal = ({
         }
       });
 
-      // Step 3: Filter out assigned operators
       const availableOps = operatorsByCompany.filter((op) => {
         return !allAssignedOperators.has(String(op.id));
       });
@@ -522,7 +523,9 @@ const FleetModal = ({
         value: String(op.id),
         label: op.name,
       }));
-    }, [ masters?.operators, unitOperators, fleetsUniverse]);
+    },
+    [masters?.dumpTruck, masters?.operators, unitOperators, fleetsUniverse],
+  );
 
   const handleOperatorChange = useCallback((unitId, operatorId) => {
     setUnitOperators((prev) => ({
@@ -1139,7 +1142,7 @@ const FleetModal = ({
           disabled={isSaving}
         />
 
-        {mastersLoading  ? (
+        {mastersLoading ? (
           <LoadingOverlay isVisible={true} message="Memuat data master..." />
         ) : (
           <div className="flex-1 overflow-y-auto p-6 space-y-6">

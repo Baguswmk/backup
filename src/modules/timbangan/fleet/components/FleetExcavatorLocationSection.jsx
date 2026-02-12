@@ -13,6 +13,7 @@ const FleetExcavatorLocationSection = ({
   isSaving,
   handleExcavatorChange,
 }) => {
+
   return (
     <InfoCard
       title="Excavator & Lokasi"

@@ -317,10 +317,17 @@ export const fleetService = {
         payload,
       );
 
-      if (response.status === "success") {
-        const fleetId =
-          response.data?.data?.id_setting_fleet ||
-          response.data?.id_setting_fleet;
+      
+      const responseData = response?.data ?? response;
+const isSuccess =
+  responseData?.status === "success" ||
+  response?.status === 200 ||
+  response?.status === 201;
+
+if (isSuccess) {
+  const fleetId =
+    responseData?.data?.id_setting_fleet ||
+    responseData?.id_setting_fleet;
 
         logger.info("✅ Fleet created, ID:", fleetId);
 

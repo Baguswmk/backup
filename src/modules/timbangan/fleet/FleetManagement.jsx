@@ -88,8 +88,6 @@ const FleetManagement = ({ Type }) => {
     fleetConfigs,
     isLoading: fleetLoading,
     isRefreshing: fleetRefreshing,
-    createFleetConfig,
-    updateConfig,
     masters,
     mastersLoading,
     deleteConfig,
