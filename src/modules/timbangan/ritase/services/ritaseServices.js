@@ -1,5 +1,4 @@
 import { offlineService } from "@/shared/services/offlineService";
-import { masterDataService } from "@/modules/timbangan/masterData/services/masterDataService";
 import { logger } from "@/shared/services/log";
 import { buildDateRangeCacheKey } from "@/shared/utils/cache";
 import { formatWeight } from "@/shared/utils/number";
@@ -272,7 +271,32 @@ export const ritaseServices = {
         forceRefresh: filters.forceRefresh || false,
       });
 
-      const data = response.data.map((item) => {
+      // ✅ FIX: Handle different response structures
+      logger.info("🔍 Ritase response structure", {
+        hasData: !!response.data,
+        isArray: Array.isArray(response.data),
+        dataType: typeof response.data,
+        dataKeys: response.data ? Object.keys(response.data).slice(0, 5) : null,
+      });
+
+      let dataArray = response.data;
+      
+      // If response.data is an object with nested data array (Strapi v4)
+      if (!Array.isArray(response.data) && response.data?.data) {
+        logger.info("📦 Detected nested data structure in ritases, extracting...");
+        dataArray = response.data.data;
+      }
+      
+      // Ensure it's an array
+      if (!Array.isArray(dataArray)) {
+        logger.warn("⚠️ Ritase response is not an array, returning empty", {
+          type: typeof dataArray,
+          value: dataArray
+        });
+        return { success: true, data: [] };
+      }
+
+      const data = dataArray.map((item) => {
         const attr = item.attributes;
 
         return {

@@ -53,6 +53,7 @@ const RitaseHeader = ({
   };
 
   const isCCR = userRole.toLowerCase().includes("ccr");
+  const isOperatorJT = userRole.toLowerCase().includes("operator jt");
   
   return (
     <div className="space-y-4">
@@ -68,7 +69,7 @@ const RitaseHeader = ({
           <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
             Selamat datang,{" "}
             <span className="font-semibold text-gray-900 dark:text-white">
-              {user?.username || "User"}
+              {user?.name || user?.username || "User"}
             </span>
           </p>
           {userRole === USER_ROLES.OPERATOR_JT && (
@@ -130,7 +131,7 @@ const RitaseHeader = ({
         </Button>
 
         {/* Input/Timbang Button */}
-        {!isCCR && (
+        {!isCCR && !isOperatorJT && (
           <Button
             onClick={onOpenInputModal}
             disabled={isInitialLoading || filteredFleetCount === 0}

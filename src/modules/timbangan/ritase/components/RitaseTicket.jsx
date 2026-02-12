@@ -32,6 +32,9 @@ const RitaseTicket = forwardRef(({ data }, ref) => {
     );
   }
 
+  // Get operator name from localStorage (SIB name)
+  const operatorSibName = localStorage.getItem("operator_sib_name");
+
   const ticketData = {
     hullNo: getFirstTruthyValue(
       data,
@@ -45,7 +48,8 @@ const RitaseTicket = forwardRef(({ data }, ref) => {
       "unit_exca",
       "excavator",
     ),
-    operator: getFirstTruthyValue(data, "operator", "operator_name"),
+    // Use SIB name from localStorage, fallback to data operator
+    operator: operatorSibName || getFirstTruthyValue(data, "operator", "operator_name"),
     loadingLocation: getFirstTruthyValue(
       data,
       "fleet_loading",

@@ -567,8 +567,25 @@ export const useRitaseStore = create(
           });
 
           if (result.success) {
+            // ✅ FIX: Ensure result.data is an array
+            let fleetConfigs = result.data;
+            
+            // Handle nested Strapi response
+            if (!Array.isArray(fleetConfigs) && fleetConfigs?.data) {
+              fleetConfigs = fleetConfigs.data;
+            }
+            
+            // Ensure it's an array
+            if (!Array.isArray(fleetConfigs)) {
+              console.warn("⚠️ Fleet configs is not an array, using empty array", {
+                type: typeof fleetConfigs,
+                value: fleetConfigs
+              });
+              fleetConfigs = [];
+            }
+
             set({
-              fleetConfigs: result.data,
+              fleetConfigs: fleetConfigs,
               selectedFleetIds: [],
               dtIndex: {},
               isLoading: false,
@@ -578,7 +595,7 @@ export const useRitaseStore = create(
 
             get().cleanupOldHiddenDumptrucks();
 
-            return { success: true, data: result.data };
+            return { success: true, data: fleetConfigs };
           }
 
           throw new Error(result.error || "Gagal memuat konfigurasi fleet");
@@ -649,8 +666,25 @@ export const useRitaseStore = create(
           const result = await ritaseServices.fetchTimbanganData(filters);
 
           if (result.success) {
+            // ✅ FIX: Ensure result.data is an array
+            let ritaseData = result.data;
+            
+            // Handle nested Strapi response {data: {data: [...], meta: {...}}}
+            if (!Array.isArray(ritaseData) && ritaseData?.data) {
+              ritaseData = ritaseData.data;
+            }
+            
+            // Ensure it's an array
+            if (!Array.isArray(ritaseData)) {
+              console.warn("⚠️ Ritase data is not an array, using empty array", {
+                type: typeof ritaseData,
+                value: ritaseData
+              });
+              ritaseData = [];
+            }
+
             set({
-              ritaseData: result.data,
+              ritaseData: ritaseData,
               isLoading: false,
               lastFetchTimestamp: new Date().toISOString(),
             });

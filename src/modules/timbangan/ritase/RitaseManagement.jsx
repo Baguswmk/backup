@@ -543,6 +543,38 @@ const RitaseManagement = () => {
 
         <RitaseSummary summaryData={summaryData} isLoading={isInitialLoading} />
 
+        {!isCCR && (
+          <RitaseList
+            userRole={userRole}
+            filteredRitaseData={filteredRitaseData}
+            isInitialLoading={isInitialLoading}
+            isRefreshing={isRefreshing}
+            currentPage={currentRitasePage}
+            onPageChange={handleRitasePageChange}
+            onOpenInputModal={handleOpenInputModal}
+            filteredFleetCount={filteredFleetConfigs.length}
+            isFilterExpanded={isRitaseFilterExpanded}
+            setIsFilterExpanded={setIsRitaseFilterExpanded}
+            selectedExcavators={selectedRitaseExcavators}
+            setSelectedExcavators={setSelectedRitaseExcavators}
+            selectedCompanies={selectedRitaseCompanies}
+            setSelectedCompanies={setSelectedRitaseCompanies}
+            selectedLoadingPoints={selectedRitaseLoadingPoints}
+            setSelectedLoadingPoints={setSelectedRitaseLoadingPoints}
+            selectedDumpingPoints={selectedRitaseDumpingPoints}
+            setSelectedDumpingPoints={setSelectedRitaseDumpingPoints}
+            filterOptions={ritaseFilterOptions}
+            onResetFilters={handleResetRitaseFilters}
+            hasActiveFilters={hasActiveRitaseFilters}
+            onPrintTicket={handlePrintTicket}
+            onRefreshData={handleRefreshAfterEdit}
+            onUpdateRitase={handleRefreshAfterEdit}
+            onDeleteRitase={handleDeleteRitase}
+            onDuplicateRitase={handleDuplicateRitase}
+            refreshButtonRef={refreshButtonRef}
+          />
+        )}
+
         {/* Aggregated Ritase */}
         <AggregatedRitase
           aggregatedData={aggregatedRitaseData}
@@ -578,38 +610,7 @@ const RitaseManagement = () => {
           refreshButtonRef={refreshButtonRef}
         />
 
-        {/* Ritase List - Only shown for non-CCR roles */}
-        {!isCCR && (
-          <RitaseList
-            userRole={userRole}
-            filteredRitaseData={filteredRitaseData}
-            isInitialLoading={isInitialLoading}
-            isRefreshing={isRefreshing}
-            currentPage={currentRitasePage}
-            onPageChange={handleRitasePageChange}
-            onOpenInputModal={handleOpenInputModal}
-            filteredFleetCount={filteredFleetConfigs.length}
-            isFilterExpanded={isRitaseFilterExpanded}
-            setIsFilterExpanded={setIsRitaseFilterExpanded}
-            selectedExcavators={selectedRitaseExcavators}
-            setSelectedExcavators={setSelectedRitaseExcavators}
-            selectedCompanies={selectedRitaseCompanies}
-            setSelectedCompanies={setSelectedRitaseCompanies}
-            selectedLoadingPoints={selectedRitaseLoadingPoints}
-            setSelectedLoadingPoints={setSelectedRitaseLoadingPoints}
-            selectedDumpingPoints={selectedRitaseDumpingPoints}
-            setSelectedDumpingPoints={setSelectedRitaseDumpingPoints}
-            filterOptions={ritaseFilterOptions}
-            onResetFilters={handleResetRitaseFilters}
-            hasActiveFilters={hasActiveRitaseFilters}
-            onPrintTicket={handlePrintTicket}
-            onRefreshData={handleRefreshAfterEdit}
-            onUpdateRitase={handleRefreshAfterEdit}
-            onDeleteRitase={handleDeleteRitase}
-            onDuplicateRitase={handleDuplicateRitase}
-            refreshButtonRef={refreshButtonRef}
-          />
-        )}
+   
       </div>
 
       {/* Input Modal */}
