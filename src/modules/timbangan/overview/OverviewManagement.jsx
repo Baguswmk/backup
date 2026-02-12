@@ -91,7 +91,8 @@ const OverviewManagement = () => {
     summaryData: hookSummaryData,
     tableData: hookTableData,
   } = useDashboardDaily(hookParams, true);
-  useEffect(() => {
+
+    useEffect(() => {
     if (isLoading) {
       if (!cachedData) {
         setIsRefreshing(false);

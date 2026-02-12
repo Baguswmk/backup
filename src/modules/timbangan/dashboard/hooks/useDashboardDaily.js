@@ -72,20 +72,29 @@ export const useDashboardDaily = (params = {}, autoFetch = true) => {
 
             if (
               err.name === "AbortError" ||
-              err.message === "Component unmounted"
+              err?.message === "Component unmounted"
             ) {
               return;
             }
 
-            setData(null);
-            setError(err.message);
+            // ✅ FIX: Extract error message safely
+            const errorMessage = 
+              err?.response?.data?.message || 
+              err?.message || 
+              err?.error || 
+              String(err) || 
+              "Terjadi kesalahan";
 
+            setData(null);
+            setError(errorMessage);
+
+            // Only show toast for unexpected errors
             if (
-              !err.message.includes("tidak ditemukan") &&
-              !err.message.includes("harus diisi") &&
-              !err.message.includes("tidak valid")
+              !errorMessage.includes("tidak ditemukan") &&
+              !errorMessage.includes("harus diisi") &&
+              !errorMessage.includes("tidak valid")
             ) {
-              showToast.error(err.message);
+              showToast.error(errorMessage);
             }
           },
         },
@@ -179,10 +188,10 @@ export const useDashboardDaily = (params = {}, autoFetch = true) => {
     clearCache,
 
     hasData: data !== null && data?.success && data?.data !== null,
-    isEmpty: data?.data?.tableData?.length === 0,
-    summaryData: data?.data?.summary || null,
-    tableData: data?.data?.tableData || [],
+    isEmpty: data?.data?.data?.tableData?.length === 0,
+    summaryData: data?.data?.data?.summary || null,
+    tableData: data?.data?.data?.tableData || [],
   };
 };
 
-export default useDashboardDaily;
+export default useDashboardDaily; 

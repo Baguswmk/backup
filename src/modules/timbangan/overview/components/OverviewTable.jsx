@@ -42,7 +42,10 @@ const getHoursByShift = (shift) => {
     case "All":
     default:
       // 06:00 - 05:59:59 hari berikutnya (24 jam)
-      return [6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 0, 1, 2, 3, 4, 5];
+      return [
+        6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 0,
+        1, 2, 3, 4, 5,
+      ];
   }
 };
 
@@ -72,6 +75,8 @@ const OverviewTable = ({
   searchQuery = "",
   onSearchChange,
   searchPlaceholder = "Cari excavator, loading, dumping...",
+  onItemsPerPageChange,
+  totalItems,
 }) => {
   // Mendapatkan jam-jam yang harus ditampilkan berdasarkan shift
   const displayHours = useMemo(() => {
@@ -105,7 +110,8 @@ const OverviewTable = ({
               variant="secondary"
               className="dark:bg-gray-700 dark:text-gray-200"
             >
-              {shift === "All" ? "Semua Shift" : shift} ({displayHours.length} jam)
+              {shift === "All" ? "Semua Shift" : shift} ({displayHours.length}{" "}
+              jam)
             </Badge>
             <Badge
               variant="secondary"
@@ -121,7 +127,8 @@ const OverviewTable = ({
         <TableToolbar
           dateRange={dateRange}
           onDateRangeChange={onDateRangeChange}
-          shift={shift}
+          currentShift={shift}
+          viewingShift={shift}
           onShiftChange={onShiftChange}
           searchQuery={searchQuery}
           onSearchChange={onSearchChange}
@@ -228,7 +235,10 @@ const OverviewTable = ({
                 ))
               ) : data.length === 0 && !isLoading ? (
                 <tr>
-                  <td colSpan={6 + displayHours.length} className="px-3 py-8 text-center">
+                  <td
+                    colSpan={6 + displayHours.length}
+                    className="px-3 py-8 text-center"
+                  >
                     <div className="flex flex-col items-center justify-center gap-2">
                       <svg
                         className="w-12 h-12 text-gray-300 dark:text-gray-600"
@@ -292,7 +302,7 @@ const OverviewTable = ({
                           className="px-2 py-3 text-center border-r border-gray-200 dark:border-gray-700"
                         >
                           {hasData ? (
-                            <button
+                            <Button
                               onClick={() => onViewHourDetail(row, hour)}
                               className={`inline-block px-2 py-1 rounded text-xs font-medium cursor-pointer hover:opacity-80 transition-all hover:scale-105 ${
                                 isBelowThreshold
@@ -306,7 +316,7 @@ const OverviewTable = ({
                               } - Klik untuk detail`}
                             >
                               {formatWeight(value, 2)}
-                            </button>
+                            </Button>
                           ) : (
                             <span className="text-gray-300 dark:text-gray-600 font-medium">
                               -
@@ -326,29 +336,43 @@ const OverviewTable = ({
                     {/* Loading & Dumping */}
                     <td className="px-3 py-3 text-gray-700 dark:text-gray-300 border-r border-gray-200 dark:border-gray-700">
                       <div className="space-y-1">
-                        {Array.isArray(row.loading_locations) && row.loading_locations.length > 0 ? (
+                        {Array.isArray(row.loading_locations) &&
+                        row.loading_locations.length > 0 ? (
                           row.loading_locations.map((location, idx) => (
                             <div key={idx} className="flex items-start gap-1.5">
-                              <span className="text-blue-500 dark:text-blue-400 text-xs mt-0.5">•</span>
-                              <span className="text-xs leading-relaxed">{location}</span>
+                              <span className="text-blue-500 dark:text-blue-400 text-xs mt-0.5">
+                                •
+                              </span>
+                              <span className="text-xs leading-relaxed">
+                                {location}
+                              </span>
                             </div>
                           ))
                         ) : (
-                          <span className="text-gray-400 dark:text-gray-500 text-xs">-</span>
+                          <span className="text-gray-400 dark:text-gray-500 text-xs">
+                            -
+                          </span>
                         )}
                       </div>
                     </td>
                     <td className="px-3 py-3 text-gray-700 dark:text-gray-300 border-r border-gray-200 dark:border-gray-700">
                       <div className="space-y-1">
-                        {Array.isArray(row.dumping_locations) && row.dumping_locations.length > 0 ? (
+                        {Array.isArray(row.dumping_locations) &&
+                        row.dumping_locations.length > 0 ? (
                           row.dumping_locations.map((location, idx) => (
                             <div key={idx} className="flex items-start gap-1.5">
-                              <span className="text-green-500 dark:text-green-400 text-xs mt-0.5">•</span>
-                              <span className="text-xs leading-relaxed">{location}</span>
+                              <span className="text-green-500 dark:text-green-400 text-xs mt-0.5">
+                                •
+                              </span>
+                              <span className="text-xs leading-relaxed">
+                                {location}
+                              </span>
                             </div>
                           ))
                         ) : (
-                          <span className="text-gray-400 dark:text-gray-500 text-xs">-</span>
+                          <span className="text-gray-400 dark:text-gray-500 text-xs">
+                            -
+                          </span>
                         )}
                       </div>
                     </td>
@@ -394,12 +418,16 @@ const OverviewTable = ({
         </div>
 
         {/* Pagination */}
-        {totalPages > 1 && (
+        {/* Pagination & Limit Selector */}
+        {data.length > 0 && (
           <Pagination
             currentPage={currentPage}
             totalPages={totalPages}
             onPageChange={onPageChange}
             isLoading={isLoading}
+            itemsPerPage={itemsPerPage}
+            onItemsPerPageChange={onItemsPerPageChange}
+            totalItems={totalItems}
           />
         )}
       </CardContent>

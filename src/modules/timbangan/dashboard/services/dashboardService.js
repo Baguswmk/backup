@@ -1,6 +1,5 @@
 import { offlineService } from "@/shared/services/offlineService";
 import { logger } from "@/shared/services/log";
-import { buildCacheKey } from "@/shared/utils/cache";
 
 export const dashboardService = {
   /**
@@ -34,24 +33,16 @@ export const dashboardService = {
         queryParams.append("shift", shift);
       }
 
-      const cacheKey = buildCacheKey("dashboard_daily", {
-        start: startDate,
-        end: endDate,
-        shift: shift,
-      });
-
       logger.info("📊 Fetching dashboard daily data", {
         startDate,
         endDate,
         shift,
-        cacheKey,
         forceRefresh,
       });
 
       const response = await offlineService.get(
         `/v1/overview/dashboard-daily?${queryParams.toString()}`,
         {
-          cacheKey,
           ttl: offlineService.CACHE_CONFIG.SHORT,
           forceRefresh,
         },
