@@ -453,7 +453,9 @@ export const OfflineSyncStatus = () => {
 
                                   {item.error && (
                                     <div className="text-red-600 dark:text-red-400 text-[10px] mt-1 truncate">
-                                      Error: {item.error}
+                                      Error: {typeof item.error === "object"
+                                        ? (item.error?.message || JSON.stringify(item.error))
+                                        : item.error}
                                     </div>
                                   )}
                                 </div>

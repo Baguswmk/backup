@@ -9,6 +9,29 @@ import React, {
 import { offlineService } from "@/shared/services/offlineService";
 import { showToast } from "@/shared/utils/toast";
 
+/**
+ * Always returns a plain string safe to pass to showToast / render in JSX.
+ * Axios error objects have keys like config, request, response, status — 
+ * passing them directly to sonner causes "Objects are not valid as a React child".
+ */
+function safeMsg(value, fallback = "Terjadi kesalahan") {
+  if (!value) return fallback;
+  if (typeof value === "string") return value;
+  if (typeof value === "number") return String(value);
+  // Axios error or any Error instance
+  if (value instanceof Error) return value.message || fallback;
+  // Plain object — try common message fields
+  if (typeof value === "object") {
+    return (
+      value?.response?.data?.message ||
+      value?.response?.data?.error ||
+      value?.message ||
+      fallback
+    );
+  }
+  return fallback;
+}
+
 const OfflineContext = createContext(null);
 
 export const useOffline = () => {
@@ -194,6 +217,170 @@ export const OfflineProvider = ({ children }) => {
     }
   }, [isOnline, loadPendingCount]);
 
+  /**
+   * ✅ NEW: Sync single item by ID
+   */
+  const syncSingle = useCallback(
+    async (itemId) => {
+      if (!isOnline) {
+        showToast.warning("Tidak ada koneksi internet");
+        return { success: false, error: "No internet connection" };
+      }
+
+      if (!itemId) {
+        showToast.error("ID item tidak valid");
+        return { success: false, error: "Invalid item ID" };
+      }
+
+      try {
+        // Get the item from queue
+        const queue = await offlineService.getQueue();
+        const item = queue.find((q) => q.id === itemId);
+
+        if (!item) {
+          showToast.error("Data tidak ditemukan");
+          return { success: false, error: "Item not found" };
+        }
+
+        // Sync this single item
+        const result = await offlineService.syncQueueItem(item);
+
+        if (result.success) {
+          showToast.success("✅ Data berhasil disinkronkan");
+          await loadPendingCount();
+          return { success: true };
+        } else {
+          const errMsg = safeMsg(result.error, "Gagal menyinkronkan data");
+          showToast.error(errMsg);
+          return { success: false, error: errMsg };
+        }
+      } catch (error) {
+        console.error("Failed to sync single item:", error);
+        showToast.error("Gagal menyinkronkan data");
+        return { success: false, error: error.message };
+      }
+    },
+    [isOnline, loadPendingCount],
+  );
+
+  /**
+   * Retry a single failed item by ID — only syncs that one item,
+   * does NOT touch any other pending or failed items.
+   */
+  const retrySingle = useCallback(
+    async (itemId) => {
+      if (!isOnline) {
+        showToast.warning("Tidak ada koneksi internet");
+        return { success: false, error: "No internet connection" };
+      }
+
+      if (!itemId) {
+        showToast.error("ID item tidak valid");
+        return { success: false, error: "Invalid item ID" };
+      }
+
+      try {
+        const result = await offlineService.retrySingle(itemId);
+
+        if (result.success) {
+          showToast.success("✅ Data berhasil disinkronkan");
+          await loadPendingCount();
+          return { success: true };
+        } else {
+          const errMsg = safeMsg(result.error, "Gagal menyinkronkan data");
+          showToast.error(errMsg);
+          return { success: false, error: errMsg };
+        }
+      } catch (error) {
+        console.error("Failed to retry single item:", error);
+        showToast.error("Gagal menyinkronkan data");
+        return { success: false, error: error.message };
+      }
+    },
+    [isOnline, loadPendingCount],
+  );
+
+  /**
+   * ✅ NEW: Sync selected items (batch)
+   */
+  const syncSelected = useCallback(
+    async (itemIds) => {
+      if (!isOnline) {
+        showToast.warning("Tidak ada koneksi internet");
+        return { success: false, error: "No internet connection" };
+      }
+
+      if (!itemIds || itemIds.length === 0) {
+        showToast.warning("Tidak ada data yang dipilih");
+        return { success: false, error: "No items selected" };
+      }
+
+      if (isSyncingRef.current) {
+        showToast.warning("Sinkronisasi sedang berjalan");
+        return { success: false, error: "Sync already in progress" };
+      }
+
+      isSyncingRef.current = true;
+      batchStateUpdate({ isSyncing: true });
+
+      try {
+        const queue = await offlineService.getQueue();
+        const itemsToSync = queue.filter((q) => itemIds.includes(q.id));
+
+        if (itemsToSync.length === 0) {
+          showToast.warning("Data yang dipilih tidak ditemukan");
+          return { success: false, error: "Selected items not found" };
+        }
+
+        let synced = 0;
+        let failed = 0;
+
+        for (const item of itemsToSync) {
+          try {
+            const result = await offlineService.syncQueueItem(item);
+            if (result.success) {
+              synced++;
+            } else {
+              failed++;
+            }
+          } catch (error) {
+            console.error(`Failed to sync item ${item.id}:`, error);
+            failed++;
+          }
+        }
+
+        batchStateUpdate({
+          isSyncing: false,
+          lastSync: new Date().toISOString(),
+        });
+
+        if (synced > 0) {
+          showToast.success(`✅ ${synced} data berhasil disinkronkan`);
+        }
+        if (failed > 0) {
+          showToast.warning(`⚠️ ${failed} data gagal disinkronkan`);
+        }
+
+        await loadPendingCount();
+
+        return {
+          success: true,
+          synced,
+          failed,
+          total: itemsToSync.length,
+        };
+      } catch (error) {
+        console.error("Bulk sync failed:", error);
+        batchStateUpdate({ isSyncing: false });
+        showToast.error("Gagal menyinkronkan data");
+        return { success: false, error: error.message };
+      } finally {
+        isSyncingRef.current = false;
+      }
+    },
+    [isOnline, batchStateUpdate, loadPendingCount],
+  );
+
   const clearOfflineData = useCallback(async () => {
     try {
       await offlineService.clearAll();
@@ -335,6 +522,9 @@ export const OfflineProvider = ({ children }) => {
     autoSyncEnabled,
 
     syncPendingData,
+    syncSingle,
+    retrySingle,
+    syncSelected,
     retryFailed,
     clearOfflineData,
     loadPendingCount,
@@ -350,4 +540,4 @@ export const OfflineProvider = ({ children }) => {
   return (
     <OfflineContext.Provider value={value}>{children}</OfflineContext.Provider>
   );
-};
+};  
