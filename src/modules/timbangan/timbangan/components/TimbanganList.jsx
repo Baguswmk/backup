@@ -1,0 +1,1011 @@
+import React, { useEffect, useState, useMemo } from "react";
+  import { useOffline } from "@/shared/components/OfflineProvider";
+  import DeleteConfirmDialog from "@/shared/components/DeleteConfirmDialog";
+  import Pagination from "@/shared/components/Pagination";
+  import {
+    Card,
+    CardContent,
+    CardHeader,
+    CardTitle,
+  } from "@/shared/components/ui/card";
+  import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+  } from "@/shared/components/ui/table";
+  import { Button } from "@/shared/components/ui/button";
+  import { Badge } from "@/shared/components/ui/badge";
+  import {
+    List,
+    RefreshCw,
+    Trash2,
+    XCircle,
+    Clock,
+    CheckCircle,
+    AlertTriangle,
+  } from "lucide-react";
+  import { format } from "date-fns";
+  import { id as localeId } from "date-fns/locale";
+
+  export const TimbanganList = () => {
+    const { 
+      getQueueDetails, 
+      deleteQueueItem, 
+      retryFailed,
+      retrySingle,
+      syncStatus,
+      syncSingle,
+      syncSelected,
+      isOnline,
+    } = useOffline();
+    
+    const [items, setItems] = useState([]);
+    const [isLoading, setIsLoading] = useState(false);
+
+    const [currentPage, setCurrentPage] = useState(1);
+    const [itemsPerPage, setItemsPerPage] = useState(10);
+
+    const [deleteDialog, setDeleteDialog] = useState({
+      open: false,
+      item: null,
+    });
+
+    const [bulkDeleteDialog, setBulkDeleteDialog] = useState(false);
+    const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+
+    const [selectedIds, setSelectedIds] = useState([]);
+
+    const [isBulkSyncing, setIsBulkSyncing] = useState(false);
+    const [syncingIds, setSyncingIds] = useState([]);
+    const [syncError, setSyncError] = useState(null);
+
+    /**
+     * Returns true only for valid queue item objects (not Axios error objects).
+     * Axios errors have a `config` key; real queue items never do.
+     */
+    const isValidQueueItem = (i) =>
+      i !== null &&
+      typeof i === "object" &&
+      !Array.isArray(i) &&
+      typeof i.config === "undefined";
+
+    const loadData = async () => {
+      setIsLoading(true);
+      try {
+        const { pending, failed, sent } = await getQueueDetails();
+        const allItems = [
+          ...pending.filter(isValidQueueItem).map((i) => ({ ...i, status: "pending" })),
+          ...failed.filter(isValidQueueItem).map((i) => ({ ...i, status: "failed" })),
+          ...(sent || []).filter(isValidQueueItem).map((i) => ({ ...i, status: "sent" })),
+        ].sort((a, b) => {
+          const timeA = new Date(
+            a.clientTimestamp || a.createdAtClient || a.timestamp
+          ).getTime();
+          const timeB = new Date(
+            b.clientTimestamp || b.createdAtClient || b.timestamp
+          ).getTime();
+          return timeB - timeA;
+        });
+        setItems(allItems);
+      } catch (error) {
+        console.error("Failed to load queue:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    useEffect(() => {
+      loadData();
+      const interval = setInterval(loadData, 5000);
+      return () => clearInterval(interval);
+    }, [syncStatus.lastSync, syncStatus.pendingCount, syncStatus.sentCount]);
+
+    const paginatedItems = useMemo(() => {
+      if (itemsPerPage === items.length && items.length > 0) {
+        return items;
+      }
+
+      const start = (currentPage - 1) * itemsPerPage;
+      return items.slice(start, start + itemsPerPage);
+    }, [items, currentPage, itemsPerPage]);
+
+    const totalPages = Math.ceil(items.length / itemsPerPage);
+
+    const handlePageChange = (page) => {
+      setCurrentPage(page);
+    };
+
+    const handleItemsPerPageChange = (newSize) => {
+      setItemsPerPage(newSize);
+      setCurrentPage(1);
+    };
+
+    const handleDeleteClick = (item) => {
+      setDeleteDialog({
+        open: true,
+        item: item,
+      });
+    };
+
+    const confirmDelete = async () => {
+      if (deleteDialog.item) {
+        await deleteQueueItem(deleteDialog.item.id, deleteDialog.item.status);
+        setDeleteDialog({ open: false, item: null });
+        loadData();
+
+        const remainingItems = items.length - 1;
+        const maxPage = Math.ceil(remainingItems / itemsPerPage);
+        if (currentPage > maxPage && maxPage > 0) {
+          setCurrentPage(maxPage);
+        }
+      }
+    };
+
+    const deleteDialogConfig = {
+      title: "Hapus Data Timbangan",
+      warningMessage:
+        "Data timbangan ini akan dihapus permanen dari antrian lokal dan tidak dapat dikembalikan.",
+      step1Question: "Apakah Anda yakin ingin menghapus data timbangan ini?",
+      reasonsTitle: "Alasan penghapusan data:",
+      reasonOptions: [
+        { id: "duplicate", label: "Data duplikat / ganda" },
+        { id: "input_error", label: "Kesalahan input operator" },
+        { id: "system_test", label: "Data testing / percobaan" },
+        { id: "cancelled", label: "Transaksi dibatalkan" },
+      ],
+    };
+
+    const formatWeight = (val) =>
+      val ? `${parseFloat(val).toFixed(2)}` : "-";
+
+    const handleSelectAll = (checked) => {
+      if (checked) {
+        const allIds = items.map((i) => i.id);
+        setSelectedIds(allIds);
+      } else {
+        setSelectedIds([]);
+      }
+    };
+
+    const handleSelectOne = (id, checked) => {
+      if (checked) {
+        setSelectedIds((prev) => [...prev, id]);
+      } else {
+        setSelectedIds((prev) => prev.filter((currentId) => currentId !== id));
+      }
+    };
+
+    const handleBulkDelete = () => {
+      if (selectedIds.length === 0) return;
+      setBulkDeleteDialog(true);
+    };
+
+    const confirmBulkDelete = async () => {
+      setIsBulkDeleting(true);
+      try {
+        // Delete each selected item with its correct status
+        await Promise.all(
+          selectedIds.map((id) => {
+            const item = items.find((i) => i.id === id);
+            return deleteQueueItem(id, item?.status || "pending");
+          })
+        );
+        setSelectedIds([]);
+        setBulkDeleteDialog(false);
+        loadData();
+
+        const remainingItems = items.length - selectedIds.length;
+        const maxPage = Math.ceil(remainingItems / itemsPerPage);
+        if (currentPage > maxPage && maxPage > 0) {
+          setCurrentPage(maxPage);
+        }
+      } catch (e) {
+        console.error("Bulk delete failed", e);
+      } finally {
+        setIsBulkDeleting(false);
+      }
+    };
+
+    const bulkDeleteDialogConfig = {
+      title: `Hapus ${selectedIds.length} Data Timbangan`,
+      warningMessage: `Sebanyak ${selectedIds.length} data timbangan yang dipilih akan dihapus permanen dari antrian lokal dan tidak dapat dikembalikan.`,
+      step1Question: `Apakah Anda yakin ingin menghapus ${selectedIds.length} data timbangan yang dipilih?`,
+      reasonsTitle: "Alasan penghapusan data:",
+      reasonOptions: [
+        { id: "bulk_duplicate", label: "Data duplikat / ganda" },
+        { id: "bulk_input_error", label: "Kesalahan input operator" },
+        { id: "bulk_system_test", label: "Data testing / percobaan" },
+        { id: "bulk_cancelled", label: "Transaksi dibatalkan" },
+      ],
+    };
+
+    const handleBulkSync = async () => {
+      if (selectedIds.length === 0) return;
+
+      setIsBulkSyncing(true);
+      try {
+        await syncSelected(selectedIds);
+        setSelectedIds([]);
+        loadData();
+      } catch (e) {
+        console.error("Bulk sync failed", e);
+      } finally {
+        setIsBulkSyncing(false);
+      }
+    };
+
+    /**
+     * ✅ NEW: Sync single item
+     */
+    const handleSyncSingle = async (itemId) => {
+      if (!isOnline) {
+        return;
+      }
+
+      setSyncError(null);
+      setSyncingIds((prev) => [...prev, itemId]);
+      try {
+        await syncSingle(itemId);
+        loadData();
+      } catch (e) {
+        console.error("Sync single failed", e);
+        // Always extract a plain string — never store the raw Axios error object
+        // in state, as React cannot render objects as children and will crash.
+        const message =
+          e?.response?.data?.message ||
+          e?.response?.data?.error ||
+          e?.message ||
+          "Sinkronisasi gagal";
+        setSyncError(message);
+      } finally {
+        setSyncingIds((prev) => prev.filter((id) => id !== itemId));
+      }
+    };
+
+    /**
+     * Retry a single failed item — only syncs that one item,
+     * does NOT trigger a full syncAllPending.
+     */
+    const handleRetrySingle = async (itemId) => {
+      if (!isOnline) return;
+
+      setSyncError(null);
+      setSyncingIds((prev) => [...prev, itemId]);
+      try {
+        await retrySingle(itemId);
+        loadData();
+      } catch (e) {
+        console.error("Retry single failed", e);
+        const message =
+          e?.response?.data?.message ||
+          e?.response?.data?.error ||
+          e?.message ||
+          "Sinkronisasi gagal";
+        setSyncError(message);
+      } finally {
+        setSyncingIds((prev) => prev.filter((id) => id !== itemId));
+      }
+    };
+
+    /**
+     * Extract error info to display under status badge.
+     * - pending items: use lastError / lastErrorResponse
+     * - failed items:  use error / errorResponse
+     */
+    const getErrorInfo = (item) => {
+      if (item.status === "failed") {
+        const msg = item.errorResponse?.message || item.error || null;
+        const httpStatus = item.errorResponse?.httpStatus ?? null;
+        if (!msg) return null;
+        return { message: msg, httpStatus };
+      }
+      if (item.status === "pending" && item.retryCount > 0) {
+        const msg = item.lastErrorResponse?.message || item.lastError || null;
+        const httpStatus = item.lastErrorResponse?.httpStatus ?? null;
+        if (!msg) return null;
+        return { message: msg, httpStatus };
+      }
+      return null;
+    };
+
+    /**
+     * ✅ NEW: Get expiry warning for sent items
+     * Shows warning when data is close to being auto-deleted (within last hour)
+     */
+    const getExpiryWarning = (item) => {
+      if (item.status !== "sent" || !item.sentAt) return null;
+
+      // 8 hours retention
+      const retentionMs = 8 * 60 * 60 * 1000;
+      const warningThreshold = 7 * 60 * 60 * 1000; // Show warning in last hour
+
+      const age = Date.now() - item.sentAt;
+      const timeLeft = retentionMs - age;
+
+      // If already expired (shouldn't happen but just in case)
+      if (timeLeft <= 0) {
+        return {
+          show: true,
+          message: "Data akan segera dihapus",
+          urgent: true,
+        };
+      }
+
+      // Show warning in last hour
+      if (age >= warningThreshold) {
+        const minutesLeft = Math.ceil(timeLeft / (60 * 1000));
+        return {
+          show: true,
+          message: `Akan dihapus dalam ${minutesLeft} menit`,
+          urgent: minutesLeft <= 15, // Extra urgent if less than 15 minutes
+        };
+      }
+
+      return null;
+    };
+
+    /**
+     * ✅ NEW: Calculate statistics from items
+     */
+    const counts = useMemo(() => {
+      const stats = {
+        pending: items.filter((i) => i.status === "pending").length,
+        failed: items.filter((i) => i.status === "failed").length,
+        sent: items.filter((i) => i.status === "sent").length,
+      };
+
+      // Count items that will expire soon (within 1 hour)
+      const expiringItems = items.filter((i) => {
+        const warning = getExpiryWarning(i);
+        return warning?.show;
+      });
+
+      stats.expiringSoon = expiringItems.length;
+      stats.total = stats.pending + stats.failed + stats.sent;
+
+      return stats;
+    }, [items]);
+
+    return (
+      <>
+        {/* Sync Error Banner */}
+        {syncError && (
+          <div className="mb-4 flex items-start gap-3 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-lg p-4">
+            <XCircle className="w-5 h-5 text-red-600 dark:text-red-400 mt-0.5 flex-shrink-0" />
+            <div className="flex-1">
+              <p className="text-sm font-semibold text-red-800 dark:text-red-300">
+                Sinkronisasi Gagal
+              </p>
+              <p className="text-sm text-red-700 dark:text-red-400 mt-0.5">
+                {syncError}
+              </p>
+            </div>
+            <button
+              onClick={() => setSyncError(null)}
+              className="text-red-400 hover:text-red-600 dark:hover:text-red-300 text-lg leading-none"
+              aria-label="Tutup"
+            >
+              ×
+            </button>
+          </div>
+        )}
+
+        {/* Summary Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 my-6">
+          <Card className="bg-white dark:bg-gray-900 border-l-4 border-l-yellow-500 shadow-sm hover:shadow-md transition-shadow">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                    Pending
+                  </p>
+                  <h3 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mt-1">
+                    {counts.pending}
+                  </h3>
+                  <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                    Menunggu sinkronisasi
+                  </p>
+                </div>
+                <div className="relative">
+                  <Clock className="w-10 h-10 text-yellow-500 opacity-20" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-white dark:bg-gray-900 border-l-4 border-l-red-500 shadow-sm hover:shadow-md transition-shadow">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                    Gagal
+                  </p>
+                  <h3 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mt-1">
+                    {counts.failed}
+                  </h3>
+                  <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                    Perlu dicoba ulang
+                  </p>
+                </div>
+                <div className="relative">
+                  <XCircle className="w-10 h-10 text-red-500 opacity-20" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-white dark:bg-gray-900 border-l-4 border-l-green-500 shadow-sm hover:shadow-md transition-shadow">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                    Terkirim
+                  </p>
+                  <h3 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mt-1">
+                    {counts.sent}
+                  </h3>
+                  <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                    Tersimpan 8 jam
+                  </p>
+                </div>
+                <div className="relative">
+                  <CheckCircle className="w-10 h-10 text-green-500 opacity-20" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card
+            className={`bg-white dark:bg-gray-900 border-l-4 shadow-sm hover:shadow-md transition-shadow ${
+              counts.expiringSoon > 0
+                ? "border-l-orange-500"
+                : "border-l-gray-300 dark:border-l-gray-600"
+            }`}
+          >
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                    Segera Expire
+                  </p>
+                  <h3
+                    className={`text-2xl font-bold mt-1 ${
+                      counts.expiringSoon > 0
+                        ? "text-orange-600 dark:text-orange-400"
+                        : "text-gray-900 dark:text-gray-100"
+                    }`}
+                  >
+                    {counts.expiringSoon}
+                  </h3>
+                  <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                    {counts.expiringSoon > 0
+                      ? "< 1 jam lagi"
+                      : "Tidak ada"}
+                  </p>
+                </div>
+                <div className="relative">
+                  <AlertTriangle
+                    className={`w-10 h-10 ${
+                      counts.expiringSoon > 0
+                        ? "text-orange-500 opacity-30 animate-pulse"
+                        : "text-gray-400 opacity-20"
+                    }`}
+                  />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Warning Banner for Expiring Items */}
+        {counts.expiringSoon > 0 && (
+          <div className="mb-4 bg-orange-50 dark:bg-orange-950/30 border border-orange-200 dark:border-orange-800 rounded-lg p-4">
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="w-5 h-5 text-orange-600 dark:text-orange-400 mt-0.5 flex-shrink-0" />
+              <div>
+                <h4 className="text-sm font-semibold text-orange-800 dark:text-orange-300">
+                  Perhatian: Data Akan Segera Dihapus
+                </h4>
+                <p className="text-sm text-orange-700 dark:text-orange-400 mt-1">
+                  {counts.expiringSoon} data terkirim akan dihapus otomatis dalam
+                  kurang dari 1 jam. Data terkirim hanya disimpan selama 8 jam
+                  untuk menghemat penyimpanan lokal.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <Card className="bg-white dark:bg-gray-900 shadow-sm">
+          <CardHeader className="border-b border-gray-200 dark:border-gray-800">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
+                  <List className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                </div>
+                <div>
+                  <CardTitle className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                    Antrian Data Timbangan
+                  </CardTitle>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                    Total {counts.total} data dalam antrian
+                  </p>
+                </div>
+              </div>
+
+              {selectedIds.length > 0 && (
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-gray-600 dark:text-gray-400">
+                    {selectedIds.length} terpilih
+                  </span>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={handleBulkSync}
+                    disabled={isBulkSyncing}
+                    className="text-blue-600 hover:text-blue-700 dark:text-blue-400"
+                  >
+                    <RefreshCw
+                      className={`w-4 h-4 mr-1 ${isBulkSyncing ? "animate-spin" : ""}`}
+                    />
+                    Sync
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={handleBulkDelete}
+                    disabled={isBulkDeleting}
+                    className="text-red-600 hover:text-red-700 dark:text-red-400"
+                  >
+                    <Trash2 className="w-4 h-4 mr-1" />
+                    Hapus
+                  </Button>
+                </div>
+              )}
+            </div>
+          </CardHeader>
+
+          <CardContent className="p-6">
+            {/* Mobile View - Cards */}
+            <div className="md:hidden space-y-3">
+              {paginatedItems.length === 0 ? (
+                <div className="text-center py-12 text-gray-500 dark:text-gray-400">
+                  <List className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                  <p>Tidak ada antrian data saat ini.</p>
+                </div>
+              ) : (
+                paginatedItems.map((item, index) => {
+                  const data = item.data || {};
+                  const globalIndex = (currentPage - 1) * itemsPerPage + index + 1;
+                  const isSelected = selectedIds.includes(item.id);
+                  const expiryWarning = getExpiryWarning(item);
+                  const errorInfo = getErrorInfo(item);
+
+                  return (
+                    <Card
+                      key={item.id}
+                      className={`border ${
+                        isSelected
+                          ? "border-blue-500 bg-blue-50 dark:bg-blue-950/20"
+                          : "border-gray-200 dark:border-gray-800"
+                      } ${
+                        expiryWarning?.urgent
+                          ? "border-l-4 border-l-orange-500"
+                          : ""
+                      }`}
+                    >
+                      <CardContent className="p-4">
+                        <div className="flex items-start justify-between mb-3">
+                          <div className="flex items-start gap-3">
+                            <input
+                              type="checkbox"
+                              className="mt-1 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                              checked={isSelected}
+                              onChange={(e) =>
+                                handleSelectOne(item.id, e.target.checked)
+                              }
+                            />
+                            <div>
+                              <div className="font-medium text-gray-900 dark:text-gray-100">
+                                #{globalIndex} - {data.hull_no || "-"}
+                              </div>
+                              <div className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                                {data.timestamp
+                                  ? format(
+                                      new Date(data.timestamp),
+                                      "dd/MM/yyyy HH:mm:ss",
+                                      { locale: localeId }
+                                    )
+                                  : "-"}
+                              </div>
+                            </div>
+                          </div>
+                          <Badge
+                            variant={
+                              item.status === "failed"
+                                ? "destructive"
+                                : "secondary"
+                            }
+                            className={`flex items-center gap-1 text-xs font-medium ${
+                              item.status === "failed"
+                                ? "bg-red-100 dark:bg-red-950 text-red-700 dark:text-red-300 border-red-200 dark:border-red-800"
+                                : item.status === "sent"
+                                  ? "bg-green-100 dark:bg-green-950 text-green-700 dark:text-green-300 border-green-200 dark:border-green-800"
+                                  : "bg-yellow-100 dark:bg-yellow-950 text-yellow-700 dark:text-yellow-300 border-yellow-200 dark:border-yellow-800"
+                            }`}
+                          >
+                            {item.status === "pending" ? (
+                              <Clock className="w-3 h-3" />
+                            ) : item.status === "sent" ? (
+                              <CheckCircle className="w-3 h-3" />
+                            ) : (
+                              <XCircle className="w-3 h-3" />
+                            )}
+                            {item.status === "pending"
+                              ? "Pending"
+                              : item.status === "failed"
+                                ? "Gagal"
+                                : "Terkirim"}
+                          </Badge>
+                        </div>
+
+                        {expiryWarning?.show && (
+                          <div
+                            className={`flex items-center gap-2 text-xs mb-3 px-2 py-1.5 rounded ${
+                              expiryWarning.urgent
+                                ? "bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800"
+                                : "bg-orange-50 dark:bg-orange-950/30 text-orange-700 dark:text-orange-300 border border-orange-200 dark:border-orange-800"
+                            }`}
+                          >
+                            <AlertTriangle
+                              className={`w-4 h-4 flex-shrink-0 ${
+                                expiryWarning.urgent ? "animate-pulse" : ""
+                              }`}
+                            />
+                            <span className="font-medium">
+                              {expiryWarning.message}
+                            </span>
+                          </div>
+                        )}
+
+                        {errorInfo && (
+                          <div className={`flex items-start gap-1.5 text-[11px] px-2 py-1.5 rounded border mb-2 ${
+                            item.status === "failed"
+                              ? "bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-800 text-red-700 dark:text-red-400"
+                              : "bg-yellow-50 dark:bg-yellow-950/20 border-yellow-200 dark:border-yellow-800 text-yellow-700 dark:text-yellow-400"
+                          }`}>
+                            <XCircle className="w-3 h-3 flex-shrink-0 mt-0.5" />
+                            <span className="leading-tight">
+                              {errorInfo.httpStatus && (
+                                <span className="font-semibold mr-1">[{errorInfo.httpStatus}]</span>
+                              )}
+                              {errorInfo.message}
+                            </span>
+                          </div>
+                        )}
+
+                        <div className="grid grid-cols-3 gap-3 mb-3">
+                          <div>
+                            <div className="text-xs text-gray-500 dark:text-gray-400">
+                              Gross
+                            </div>
+                            <div className="font-mono text-sm font-medium text-gray-900 dark:text-gray-100">
+                              {formatWeight(data.gross_weight)}
+                            </div>
+                          </div>
+                          <div>
+                            <div className="text-xs text-gray-500 dark:text-gray-400">
+                              Tare
+                            </div>
+                            <div className="font-mono text-sm font-medium text-gray-900 dark:text-gray-100">
+                              {formatWeight(data.tare_weight)}
+                            </div>
+                          </div>
+                          <div>
+                            <div className="text-xs text-gray-500 dark:text-gray-400">
+                              Net
+                            </div>
+                            <div className="font-mono text-sm font-bold text-gray-900 dark:text-gray-100">
+                              {formatWeight(data.net_weight)}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex gap-2 pt-3 border-t border-gray-200 dark:border-gray-800">
+                          {item.status === "pending" && isOnline && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="flex-1 text-green-600 hover:text-green-700 dark:text-green-400"
+                              onClick={() => handleSyncSingle(item.id)}
+                              disabled={syncingIds.includes(item.id)}
+                            >
+                              <RefreshCw className={`w-3 h-3 mr-1 ${syncingIds.includes(item.id) ? 'animate-spin' : ''}`} />
+                              {syncingIds.includes(item.id) ? 'Syncing...' : 'Sync'}
+                            </Button>
+                          )}
+                          {item.status === "failed" && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="flex-1 text-blue-600 hover:text-blue-700 dark:text-blue-400"
+                              onClick={() => handleRetrySingle(item.id)}
+                              disabled={syncingIds.includes(item.id)}
+                            >
+                              <RefreshCw className={`w-3 h-3 mr-1 ${syncingIds.includes(item.id) ? 'animate-spin' : ''}`} />
+                              {syncingIds.includes(item.id) ? 'Retrying...' : 'Retry'}
+                            </Button>
+                          )}
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="flex-1 text-red-600 hover:text-red-700 dark:text-red-400"
+                            onClick={() => handleDeleteClick(item)}
+                          >
+                            <Trash2 className="w-3 h-3 mr-1" />
+                            Hapus
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })
+              )}
+            </div>
+
+            {/* Desktop View - Table */}
+            <div className="hidden md:block overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-gray-50 dark:bg-gray-800/50 hover:bg-gray-50 dark:hover:bg-gray-800/50">
+                    <TableHead className="w-[50px]">
+                      <input
+                        type="checkbox"
+                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                        checked={
+                          items.length > 0 && selectedIds.length === items.length
+                        }
+                        onChange={(e) => handleSelectAll(e.target.checked)}
+                      />
+                    </TableHead>
+                    <TableHead className="w-[50px] text-gray-700 dark:text-gray-300 font-semibold">
+                      No
+                    </TableHead>
+                    <TableHead className="text-gray-700 dark:text-gray-300 font-semibold">
+                      Unit DT
+                    </TableHead>
+                    <TableHead className="text-gray-700 dark:text-gray-300 font-semibold">
+                      Status
+                    </TableHead>
+                    <TableHead className="text-gray-700 dark:text-gray-300 font-semibold">
+                      Waktu
+                    </TableHead>
+                    <TableHead className="text-right text-gray-700 dark:text-gray-300 font-semibold">
+                      Gross
+                    </TableHead>
+                    <TableHead className="text-right text-gray-700 dark:text-gray-300 font-semibold">
+                      Tare
+                    </TableHead>
+                    <TableHead className="text-right text-gray-700 dark:text-gray-300 font-semibold">
+                      Net
+                    </TableHead>
+                    <TableHead className="text-center text-gray-700 dark:text-gray-300 font-semibold">
+                      Aksi
+                    </TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {paginatedItems.length === 0 ? (
+                    <TableRow className="hover:bg-gray-50 dark:hover:bg-gray-800/50">
+                      <TableCell
+                        colSpan={9}
+                        className="h-24 text-center text-gray-500 dark:text-gray-400"
+                      >
+                        Tidak ada antrian data saat ini.
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    paginatedItems.map((item, index) => {
+                      const data = item.data || {};
+                      const globalIndex =
+                        (currentPage - 1) * itemsPerPage + index + 1;
+                      const isSelected = selectedIds.includes(item.id);
+                      const expiryWarning = getExpiryWarning(item);
+                      const errorInfo = getErrorInfo(item);
+
+                      return (
+                        <TableRow
+                          key={item.id}
+                          className={`border-b border-gray-200 dark:border-gray-800 
+                            hover:bg-gray-50 dark:hover:bg-gray-800/50
+                            transition-colors duration-150 ${
+                              expiryWarning?.urgent
+                                ? "bg-orange-50/50 dark:bg-orange-950/10"
+                                : ""
+                            }`}
+                        >
+                          <TableCell>
+                            <input
+                              type="checkbox"
+                              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                              checked={isSelected}
+                              onChange={(e) =>
+                                handleSelectOne(item.id, e.target.checked)
+                              }
+                            />
+                          </TableCell>
+                          <TableCell className="font-medium text-gray-900 dark:text-gray-100">
+                            {globalIndex}
+                          </TableCell>
+                          <TableCell className="text-gray-700 dark:text-gray-300 font-medium">
+                            {data.hull_no || "-"}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex flex-col gap-1">
+                              <Badge
+                                variant={
+                                  item.status === "failed"
+                                    ? "destructive"
+                                    : "secondary"
+                                }
+                                className={`flex w-fit items-center gap-1 text-xs font-medium ${
+                                  item.status === "failed"
+                                    ? "bg-red-100 dark:bg-red-950 text-red-700 dark:text-red-300 border-red-200 dark:border-red-800"
+                                    : item.status === "sent"
+                                      ? "bg-green-100 dark:bg-green-950 text-green-700 dark:text-green-300 border-green-200 dark:border-green-800"
+                                      : "bg-yellow-100 dark:bg-yellow-950 text-yellow-700 dark:text-yellow-300 border-yellow-200 dark:border-yellow-800"
+                                }`}
+                              >
+                                {item.status === "pending" ? (
+                                  <Clock className="w-3 h-3" />
+                                ) : item.status === "sent" ? (
+                                  <CheckCircle className="w-3 h-3" />
+                                ) : (
+                                  <XCircle className="w-3 h-3" />
+                                )}
+                                {item.status === "pending"
+                                  ? "Pending"
+                                  : item.status === "failed"
+                                    ? "Gagal"
+                                    : "Terkirim"}
+                              </Badge>
+
+                              {expiryWarning?.show && (
+                                <div
+                                  className={`flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded border w-fit ${
+                                    expiryWarning.urgent
+                                      ? "text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800 animate-pulse"
+                                      : "text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-950/30 border-orange-200 dark:border-orange-800"
+                                  }`}
+                                >
+                                  <AlertTriangle className="w-3 h-3 flex-shrink-0" />
+                                  <span className="whitespace-nowrap">
+                                    {expiryWarning.message}
+                                  </span>
+                                </div>
+                              )}
+
+                              {errorInfo && (
+                                <div className={`flex items-start gap-1 text-[10px] px-1.5 py-0.5 rounded border w-fit max-w-[180px] ${
+                                  item.status === "failed"
+                                    ? "bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-800 text-red-600 dark:text-red-400"
+                                    : "bg-yellow-50 dark:bg-yellow-950/20 border-yellow-200 dark:border-yellow-800 text-yellow-700 dark:text-yellow-400"
+                                }`}>
+                                  <XCircle className="w-3 h-3 flex-shrink-0 mt-px" />
+                                  <span className="leading-tight break-words">
+                                    {errorInfo.httpStatus && (
+                                      <span className="font-semibold mr-0.5">[{errorInfo.httpStatus}]</span>
+                                    )}
+                                    {errorInfo.message}
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-gray-700 dark:text-gray-300 font-medium">
+                            {data.timestamp
+                              ? format(
+                                  new Date(data.timestamp),
+                                  "dd/MM/yyyy HH:mm:ss",
+                                  { locale: localeId }
+                                )
+                              : "-"}
+                          </TableCell>
+                          <TableCell className="text-right text-gray-700 dark:text-gray-300 font-mono">
+                            {formatWeight(data.gross_weight)}
+                          </TableCell>
+                          <TableCell className="text-right text-gray-700 dark:text-gray-300 font-mono">
+                            {formatWeight(data.tare_weight)}
+                          </TableCell>
+                          <TableCell className="text-right font-bold text-gray-900 dark:text-gray-100 font-mono">
+                            {formatWeight(data.net_weight)}
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <div className="flex justify-center gap-2">
+                              {item.status === "pending" && isOnline && (
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  className="h-8 w-8 text-green-600 hover:text-green-700 dark:text-green-400 dark:hover:text-green-300 
+                                    hover:bg-green-50 dark:hover:bg-green-900/20
+                                    transition-all duration-200"
+                                  title="Sync Now"
+                                  onClick={() => handleSyncSingle(item.id)}
+                                  disabled={syncingIds.includes(item.id)}
+                                >
+                                  <RefreshCw className={`w-4 h-4 ${syncingIds.includes(item.id) ? 'animate-spin' : ''}`} />
+                                </Button>
+                              )}
+                              {item.status === "failed" && (
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  className="h-8 w-8 text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 
+                                    hover:bg-blue-50 dark:hover:bg-blue-900/20
+                                    transition-all duration-200"
+                                  title="Retry"
+                                  onClick={() => handleRetrySingle(item.id)}
+                                  disabled={syncingIds.includes(item.id)}
+                                >
+                                  <RefreshCw className={`w-4 h-4 ${syncingIds.includes(item.id) ? 'animate-spin' : ''}`} />
+                                </Button>
+                              )}
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-8 w-8 text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 
+                                  hover:bg-red-50 dark:hover:bg-red-900/20
+                                  transition-all duration-200"
+                                onClick={() => handleDeleteClick(item)}
+                                title="Hapus"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={handlePageChange}
+              isLoading={isLoading}
+              itemsPerPage={itemsPerPage}
+              onItemsPerPageChange={handleItemsPerPageChange}
+              totalItems={items.length}
+            />
+          </CardContent>
+        </Card>
+
+        <DeleteConfirmDialog
+          isOpen={deleteDialog.open}
+          onClose={() => setDeleteDialog({ ...deleteDialog, open: false })}
+          onConfirm={confirmDelete}
+          target={null}
+          assignedCount={0}
+          customConfig={deleteDialogConfig}
+          actionType="delete"
+        />
+
+        <DeleteConfirmDialog
+          isOpen={bulkDeleteDialog}
+          onClose={() => setBulkDeleteDialog(false)}
+          onConfirm={confirmBulkDelete}
+          target={null}
+          assignedCount={0}
+          isProcessing={isBulkDeleting}
+          customConfig={bulkDeleteDialogConfig}
+          actionType="delete"
+        />
+      </>
+    );
+  };
