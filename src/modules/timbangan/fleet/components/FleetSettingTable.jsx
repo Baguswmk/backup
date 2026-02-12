@@ -18,7 +18,7 @@ const FleetSettingTable = ({
   onViewFleet,
   onEditFleet,
   onDeleteFleet,
-  itemsPerPage = 10,
+  itemsPerPage,
   onItemsPerPageChange,
 }) => {
   const [currentPage, setCurrentPage] = useState(1);
@@ -139,11 +139,12 @@ const FleetSettingTable = ({
 
             if (fleet.units && Array.isArray(fleet.units)) {
               fleet.units.forEach((unit) => {
-                if (unit.tareWeight >= 16) {
+                const unitType = unit.type_dt?.toLowerCase() || '';
+                if (unitType.includes('tronton')) {
                   fleetTronton++;
                   totalTronton++;
                   groupTronton++;
-                } else {
+                } else if (unitType.includes('trintin')) {
                   fleetTrintin++;
                   totalTrintin++;
                   groupTrintin++;
@@ -177,10 +178,12 @@ const FleetSettingTable = ({
 
           if (fleet.units && Array.isArray(fleet.units)) {
             fleet.units.forEach((unit) => {
-              if (unit.tareWeight >= 16) {
+              // Menggunakan type_dt dari unit untuk menentukan jenis dump truck
+              const unitType = unit.type_dt?.toLowerCase() || '';
+              if (unitType.includes('tronton')) {
                 fleetTronton++;
                 totalTronton++;
-              } else {
+              } else if (unitType.includes('trintin')) {
                 fleetTrintin++;
                 totalTrintin++;
               }
@@ -341,7 +344,7 @@ const FleetSettingTable = ({
   }, [paginatedGroups]);
 
   return (
-    <div className="w-full">
+<div className="w-full">
       <div className="mb-4 flex items-center gap-3">
         <div className="relative flex-1 max-w-md">
           <input
@@ -401,7 +404,7 @@ const FleetSettingTable = ({
       </div>
 
       <div className="rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm overflow-x-auto">
-        <table className="w-full text-sm bg-white dark:bg-gray-800">
+        <table className="w-full text-xs bg-white dark:bg-gray-800">
           <thead className="bg-linear-to-r from-blue-600 to-blue-700 dark:from-blue-700 dark:to-blue-800 text-white sticky top-0 z-10 shadow-md">
             <tr>
               <th className="px-4 py-3 text-left font-semibold border-r border-blue-500 dark:border-blue-600">
@@ -450,7 +453,7 @@ const FleetSettingTable = ({
           <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
             {isLoading ? (
               <tr>
-                <td colSpan="14" className="px-4 py-8">
+                <td colSpan="14" className="px-1 py-8">
                   <div className="flex items-center justify-center">
                     <Loader2 className="w-6 h-6 animate-spin text-blue-600 dark:text-blue-400" />
                     <span className="ml-3 text-gray-600 dark:text-gray-300">
@@ -469,7 +472,7 @@ const FleetSettingTable = ({
                       <tr className="bg-linear-to-r from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-600">
                         <td
                           colSpan="14"
-                          className="px-4 py-3 font-bold text-gray-800 dark:text-gray-100 text-base"
+                          className="px-1 py-1 font-bold text-gray-800 dark:text-gray-100 text-xs"
                         >
                           {group.groupLabel}: {group.location}
                         </td>
@@ -484,14 +487,14 @@ const FleetSettingTable = ({
                             className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                           >
                             {/* No - tampil per baris (TIDAK DI-MERGE) */}
-                            <td className="px-4 py-3 text-left border-r border-gray-300 dark:border-gray-600 dark:text-gray-200">
+                            <td className="px-1 py-1 text-left border-r border-gray-300 dark:border-gray-600 dark:text-gray-200">
                               {rowCounter}
                             </td>
 
                             {/* Excavator - merge untuk group yang sama */}
                             {fleet.isFirstInGroup && (
                               <td
-                                className="px-4 py-3 text-left border-r border-gray-300 dark:border-gray-600 align-middle"
+                                className="px-1 py-1 text-left border-r border-gray-300 dark:border-gray-600 align-middle"
                                 rowSpan={fleet.groupSize}
                               >
                                 <div className="font-medium text-gray-900 dark:text-gray-100">
@@ -503,7 +506,7 @@ const FleetSettingTable = ({
                             {/* Loading Point - merge untuk group yang sama */}
                             {fleet.isFirstInGroup && (
                               <td
-                                className="px-4 py-3 text-left border-r border-gray-300 dark:border-gray-600 align-middle"
+                                className="px-1 py-1 text-left border-r border-gray-300 dark:border-gray-600 align-middle"
                                 rowSpan={fleet.groupSize}
                               >
                                 <div className="text-gray-700 dark:text-gray-300">
@@ -511,7 +514,7 @@ const FleetSettingTable = ({
                                 </div>
                               </td>
                             )}
-                            <td className="px-4 py-3 text-left border-r border-gray-300 dark:border-gray-600">
+                            <td className="px-1 py-1 text-left border-r border-gray-300 dark:border-gray-600">
                               <div className="text-gray-700 dark:text-gray-300">
                                 {fleet.dumpingLocation}
                               </div>
@@ -519,7 +522,7 @@ const FleetSettingTable = ({
                             {/* Mitra - merge untuk group yang sama */}
                             {fleet.isFirstInGroup && (
                               <td
-                                className="px-4 py-3 text-left border-r border-gray-300 dark:border-gray-600 align-middle"
+                                className="px-1 py-1 text-left border-r border-gray-300 dark:border-gray-600 align-middle"
                                 rowSpan={fleet.groupSize}
                               >
                                 <div className="text-gray-700 dark:text-gray-300">
@@ -529,43 +532,43 @@ const FleetSettingTable = ({
                             )}
 
                             {/* Jenis Batubara - tampil per baris (TIDAK DI-MERGE) */}
-                            <td className="px-4 py-3 text-left border-r border-gray-300 dark:border-gray-600">
+                            <td className="px-1 py-1 text-left border-r border-gray-300 dark:border-gray-600">
                               <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-300">
                                 {fleet.coalType}
                               </span>
                             </td>
 
                             {/* Satker - tampil per baris (TIDAK DI-MERGE) */}
-                            <td className="px-4 py-3 text-left border-r border-gray-300 dark:border-gray-600">
+                            <td className="px-1 py-1 text-left border-r border-gray-300 dark:border-gray-600">
                               <div className="text-xs text-gray-600 dark:text-gray-400">
                                 {fleet.workUnit}
                               </div>
                             </td>
 
                             {/* Tipe Pengukuran - tampil per baris (TIDAK DI-MERGE) */}
-                            <td className="px-4 py-3 text-center border-r border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100">
+                            <td className="px-1 py-1 text-center border-r border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100">
                               {fleet.measurementType}
                             </td>
 
                             {/* Jarak - tampil per baris (TIDAK DI-MERGE) */}
-                            <td className="px-4 py-3 text-center border-r border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100">
+                            <td className="px-1 py-1 text-center border-r border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100">
                               {fleet.distance?.toLocaleString("id-ID")}
                             </td>
 
                             {/* Tronton - tampil per baris (TIDAK DI-MERGE) */}
-                            <td className="px-4 py-3 text-center border-r border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100">
+                            <td className="px-1 py-1 text-center border-r border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100">
                               {fleet.tronton}
                             </td>
 
                             {/* Trintin - tampil per baris (TIDAK DI-MERGE) */}
-                            <td className="px-4 py-3 text-center border-r border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100">
+                            <td className="px-1 py-1 text-center border-r border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100">
                               {fleet.trintin}
                             </td>
 
                             {/* Jumlah DT - tampil per baris (TIDAK DI-MERGE) */}
                             {fleet.isFirstInGroup && (
                               <td
-                                className="px-4 py-3 text-center border-r border-gray-300 dark:border-gray-600 relative"
+                                className="px-1 py-1 text-center border-r border-gray-300 dark:border-gray-600 relative"
                                 rowSpan={fleet.groupSize}
                               >
                                 <div
@@ -654,7 +657,7 @@ const FleetSettingTable = ({
                             {/* Ket. - "Split" for merged groups */}
                             {fleet.isFirstInGroup && (
                               <td
-                                className="px-4 py-3 text-center border-r border-gray-300 dark:border-gray-600 align-middle"
+                                className="px-1 py-1 text-center border-r border-gray-300 dark:border-gray-600 align-middle"
                                 rowSpan={fleet.groupSize}
                               >
                                 {fleet.isMergedGroup ? (
@@ -672,7 +675,7 @@ const FleetSettingTable = ({
                             {/* Aksi - merged for group */}
                             {fleet.isFirstInGroup && (
                               <td
-                                className="px-4 py-3 text-center"
+                                className="px-1 py-1 text-center"
                                 rowSpan={fleet.groupSize}
                               >
                                 <DropdownMenu>
@@ -761,51 +764,51 @@ const FleetSettingTable = ({
                       <tr className="bg-blue-50 dark:bg-blue-900/20 font-semibold">
                         <td
                           colSpan="8"
-                          className="px-4 py-3 text-right border-r border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100"
+                          className="px-1 py-1 text-right border-r border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100"
                         >
                           Jumlah Fleet {group.groupLabel || "Group"}{" "}
                           {group.location}
                         </td>
-                        <td className="px-4 py-3 text-center border-r border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100">
+                        <td className="px-1 py-1 text-center border-r border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100">
                           {group.totalTronton}
                         </td>
-                        <td className="px-4 py-3 text-center border-r border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100">
+                        <td className="px-1 py-1 text-center border-r border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100">
                           {group.totalTrintin}
                         </td>
-                        <td className="px-4 py-3 text-center border-r border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100">
+                        <td className="px-1 py-1 text-center border-r border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100">
                           {group.totalDumptrucks}
                         </td>
-                        <td colSpan="3" className="px-4 py-3 text-center"></td>
+                        <td colSpan="3" className="px-1 py-1 text-center"></td>
                       </tr>
 
                       {/* Spacing row */}
-                      <tr className="bg-gray-50 dark:bg-gray-800">
-                        <td colSpan="14" className="px-4 py-1"></td>
-                      </tr>
+                      {/* <tr className="bg-gray-50 dark:bg-gray-800">
+                        <td colSpan="14" className="px-1 py-1"></td>
+                      </tr> */}
                     </React.Fragment>
                   ));
                 })()}
 
                 {/* Grand Total - Always visible at bottom */}
                 {groupedFleetData.length > 0 && (
-                  <tr className="bg-green-50 dark:bg-green-900/20 font-bold text-md">
+                  <tr className="bg-green-50 dark:bg-green-900/20 font-bold text-xs">
                     <td
                       colSpan="8"
-                      className="px-4 py-4 text-right border-r border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100"
+                      className="px-1 py-1 text-right border-r border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100"
                     >
                       Total Semua {groupedFleetData[0]?.groupLabel || "Group"} (
                       {grandTotals.totalFleets} Fleet)
                     </td>
-                    <td className="px-4 py-4 text-center border-r border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100">
+                    <td className="px-1 py-1 text-center border-r border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100">
                       {grandTotals.totalTronton}
                     </td>
-                    <td className="px-4 py-4 text-center border-r border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100">
+                    <td className="px-1 py-1 text-center border-r border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100">
                       {grandTotals.totalTrintin}
                     </td>
-                    <td className="px-4 py-4 text-center border-r border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100">
+                    <td className="px-1 py-1 text-center border-r border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100">
                       {grandTotals.totalDumptrucks}
                     </td>
-                    <td colSpan="3" className="px-4 py-4 text-center"></td>
+                    <td colSpan="3" className="px-1 py-1 text-center"></td>
                   </tr>
                 )}
               </>

@@ -174,7 +174,29 @@ export const unitLogService = {
             forceRefresh,
           });
 
-          const unitLogs = response.data || [];
+          // ✅ FIX: Handle different response structures
+          logger.info("🔍 Unit logs response structure", {
+            hasData: !!response.data,
+            isArray: Array.isArray(response.data),
+            dataType: typeof response.data,
+            dataKeys: response.data ? Object.keys(response.data) : null,
+          });
+
+          let unitLogs = response.data;
+          
+          // If response.data is an object with nested data array (Strapi v4)
+          if (!Array.isArray(response.data) && response.data?.data) {
+            logger.info("📦 Detected nested data structure, extracting...");
+            unitLogs = response.data.data;
+          }
+          
+          // Ensure it's an array
+          if (!Array.isArray(unitLogs)) {
+            logger.warn("⚠️ Response is not an array, returning empty", {
+              type: typeof unitLogs,
+            });
+            unitLogs = [];
+          }
 
           logger.info(`✅ Active unit logs fetched: ${unitLogs.length}`, {
             cached: !forceRefresh,
@@ -551,41 +573,60 @@ export const unitLogService = {
       exca_bd: [],
     };
 
+    // ✅ FIX: Validate unitLogs is an array before forEach
+    if (!Array.isArray(unitLogs)) {
+      logger.error("❌ unitLogs is not an array in _groupMMCTByCategory", {
+        type: typeof unitLogs,
+        value: unitLogs,
+      });
+      return result;
+    }
+
     unitLogs.forEach((logItem) => {
-      // Handle both Strapi wrapped and direct data
-      const log = logItem.attributes || logItem;
-      const logId = logItem.id || log.id;
-      
-      // Get unit data
-      const unitData = log.unit?.data?.attributes || log.unit;
-      if (!unitData) return;
+      try {
+        // Handle both Strapi wrapped and direct data
+        const log = logItem.attributes || logItem;
+        const logId = logItem.id || log.id;
+        
+        // Get unit data
+        const unitData = log.unit?.data?.attributes || log.unit;
+        if (!unitData) {
+          logger.warn("⚠️ Unit data missing for log", { logId });
+          return;
+        }
 
-      const unitId = log.unit?.data?.id || unitData.id;
+        const unitId = log.unit?.data?.id || unitData.id;
 
-      // Determine if dump truck or excavator
-      const isDT = this._isDumpTruck(unitData);
-      const isService = log.status === "SERVICE";
+        // Determine if dump truck or excavator
+        const isDT = this._isDumpTruck(unitData);
+        const isService = log.status === "SERVICE";
 
-      // Determine category
-      let category = "";
-      if (isDT && isService) category = "dt_service";
-      else if (isDT && !isService) category = "dt_bd";
-      else if (!isDT && isService) category = "exca_service";
-      else if (!isDT && !isService) category = "exca_bd";
+        // Determine category
+        let category = "";
+        if (isDT && isService) category = "dt_service";
+        else if (isDT && !isService) category = "dt_bd";
+        else if (!isDT && isService) category = "exca_service";
+        else if (!isDT && !isService) category = "exca_bd";
 
-      if (category && result[category]) {
-        // Get company data
-        const companyData = unitData.company?.data?.attributes || unitData.company;
+        if (category && result[category]) {
+          // Get company data
+          const companyData = unitData.company?.data?.attributes || unitData.company;
 
-        result[category].push({
-          id: logId,
-          equipmentType: isDT ? "DUMP_TRUCK" : "EXCAVATOR",
-          equipmentId: unitId,
-          equipmentName: unitData.hull_no || "Unknown",
-          company: companyData?.name || "Unknown",
-          status: log.status,
-          description: log.description,
-          entryDate: log.entry_date,
+          result[category].push({
+            id: logId,
+            equipmentType: isDT ? "DUMP_TRUCK" : "EXCAVATOR",
+            equipmentId: unitId,
+            equipmentName: unitData.hull_no || "Unknown",
+            company: companyData?.name || "Unknown",
+            status: log.status,
+            description: log.description,
+            entryDate: log.entry_date,
+          });
+        }
+      } catch (error) {
+        logger.error("❌ Error processing unit log item", {
+          error: error.message,
+          logItem,
         });
       }
     });

@@ -12,7 +12,7 @@ export const generateFleetPDF = async ({
   userRole
 }) => {
   const doc = new jsPDF({
-    orientation: "landscape",
+    orientation: "portrait",
     unit: "mm",
     format: "a4"
   });
@@ -27,108 +27,192 @@ export const generateFleetPDF = async ({
   const shift = now.getHours() < 12 ? "I" : "II";
   const time = format(now, "HH:mm");
 
-  // Logo
-    doc.addImage(BUKIT_ASAM_LOGO, "PNG", 10, 10, 40, 10);
-
-  // Title in center
-  doc.setFontSize(14);
+  // ========== HEADER SECTION ==========
+  // Draw top border line
+  doc.setLineWidth(0.5);
+  doc.line(10, 10, pageWidth - 10, 10);
+  
+  // Logo (left)
+  doc.addImage(BUKIT_ASAM_LOGO, "PNG", 12, 13, 35, 7);
+  
+  // Title (center)
+  doc.setFontSize(8);
   doc.setFont("helvetica", "bold");
-  const title = `LAPORAN SETTING FLEET ${type?.toUpperCase() || 'COAL REHANDLING'}`;
-  doc.text(title, pageWidth / 2, 15, { align: "center" });
-
-  // Document info (top right)
-  doc.setFontSize(9);
+  const title = `LAPORAN SETTING FLEET ${type?.toUpperCase() || 'COAL REHANDLING'} REALTIME`;
+  doc.text(title, pageWidth / 2, 18, { align: "center" });
+  
+  // Document info box (right)
+  const docInfoX = pageWidth - 40;
+  doc.setFontSize(5);
   doc.setFont("helvetica", "normal");
-  doc.text(`No. Dok  : BAMSF`, pageWidth - 50, 10);
-  doc.text(`No. Rev   : 0`, pageWidth - 50, 15);
-  doc.text(`Halaman  : 1 dari 1`, pageWidth - 50, 20);
+  doc.text(`No. Dok`, docInfoX, 14);
+  doc.text(`: BAMSF`, docInfoX + 15, 14);
+  doc.text(`No. Rev`, docInfoX, 18);
+  doc.text(`: 0`, docInfoX + 15, 18);
+  doc.text(`Halaman`, docInfoX, 22);
+  doc.text(`: 1 dari 1`, docInfoX + 15, 22);
+  
+  // Draw bottom border of header
+  doc.line(10, 25, pageWidth - 10, 25);
 
-  // Info Section (below title)
-  doc.setFontSize(10);
+  // ========== INFO SECTION ==========
+  let infoY = 28;
+  doc.setFontSize(5);
   doc.setFont("helvetica", "normal");
-  const leftInfoX = 10;
-  const rightInfoX = pageWidth / 2 + 10;
-  let infoY = 35;
+  
+  // Left column
+  const col1X = 12;
+  const col1LabelWidth = 20;
+  doc.text(`Hari`, col1X, infoY);
+  doc.text(`: ${day}`, col1X + col1LabelWidth, infoY);
+  
+  doc.text(`Tanggal`, col1X, infoY + 2);
+  doc.text(`: ${date}`, col1X + col1LabelWidth, infoY + 2);
+  
+  doc.text(`Shift`, col1X, infoY + 4);
+  doc.text(`: ${shift}`, col1X + col1LabelWidth, infoY + 4);
+  
+  doc.text(`Jam`, col1X, infoY + 6);
+  doc.text(`: ${time}`, col1X + col1LabelWidth, infoY + 6);
+  
+  // Right column
+  const col2X = pageWidth / 2 + 10;
+  const col2LabelWidth = 35;
+  doc.text(`Group`, col2X, infoY);
+  doc.text(`: A`, col2X + col2LabelWidth, infoY);
+  
+  doc.text(`Satker`, col2X, infoY + 2);
+  doc.text(`: ${selectedSatker || 'PAB'}`, col2X + col2LabelWidth, infoY + 2);
+  
+  doc.text(`Urutkan Berdasarkan`, col2X, infoY + 4);
+  doc.text(`: ${selectedUrutkan === 'dumping' ? 'Dumping Point' : selectedUrutkan === 'mitra' ? 'Mitra' : 'Loading Point'}`, col2X + col2LabelWidth, infoY + 4);
 
-  // Left side info
-  doc.text(`Hari`, leftInfoX, infoY);
-  doc.text(`: ${day}`, leftInfoX + 25, infoY);
-  
-  doc.text(`Tanggal`, leftInfoX, infoY + 5);
-  doc.text(`: ${date}`, leftInfoX + 25, infoY + 5);
-  
-  doc.text(`Shift`, leftInfoX, infoY + 10);
-  doc.text(`: ${shift}`, leftInfoX + 25, infoY + 10);
-  
-  doc.text(`Jam`, leftInfoX, infoY + 15);
-  doc.text(`: ${time}`, leftInfoX + 25, infoY + 15);
-
-  // Right side info
-  doc.text(`Group`, rightInfoX, infoY);
-  doc.text(`: D`, rightInfoX + 50, infoY);
-  
-  doc.text(`Satker`, rightInfoX, infoY + 5);
-  doc.text(`: ${selectedSatker || 'MMCT'}`, rightInfoX + 50, infoY + 5);
-  
-  doc.text(`Urutkan Berdasarkan`, rightInfoX, infoY + 10);
-  doc.text(`: ${selectedUrutkan === 'dumping' ? 'Dumping Point' : 'Loading Point'}`, rightInfoX + 50, infoY + 10);
-
-  // Section 1: Setting Fleet
-  let currentY = infoY + 25;
-  doc.setFontSize(11);
+  // ========== SECTION 1: SETTING FLEET ==========
+  let currentY = infoY + 8;
+  doc.setFontSize(5);
   doc.setFont("helvetica", "bold");
-  doc.text("1. Setting Fleet", 10, currentY);
+  doc.text("1. Setting Fleet", 12, currentY);
+  
+  currentY += 2;
 
-  currentY += 5;
+  // Group data by area (based on loading/dumping location keywords)
+  const groupedByArea = groupFleetDataByArea(fleetData);
+  
+  // Calculate grand totals
+  let grandTotalTronton = 0;
+  let grandTotalTrintin = 0;
+  let grandTotalFleets = 0;
 
-  // Group data by location
-  const groupedData = groupFleetData(fleetData, selectedUrutkan);
-
-  // Process each location group
-  for (const [location, fleets] of Object.entries(groupedData)) {
-    // Location header
-    doc.setFontSize(10);
+  // Process each area group
+  for (const [areaName, areaFleets] of Object.entries(groupedByArea)) {
+    // Area header
+    doc.setFontSize(5);
     doc.setFont("helvetica", "bold");
-    doc.text(`Lokasi ${fleets[0].loadingLocation}, ${fleets[0].dumpingLocation}`, 10, currentY);
-    currentY += 5;
+    doc.text(`Lokasi ${areaName}`, 12, currentY);
+    currentY += 1;
 
-    // Fleet table for this location
     const tableData = [];
-    let totalTronton = 0;
-    let totalTrintin = 0;
-    let totalDumptruck = 0;
+    let areaTotalTronton = 0;
+    let areaTotalTrintin = 0;
+    let areaTotalFleets = 0;
+    let rowNum = 1;
 
-    fleets.forEach((fleet, idx) => {
-      const tronton = fleet.units?.filter(u => u.tareWeight >= 16).length || 0;
-      const trintin = fleet.units?.filter(u => u.tareWeight < 16).length || 0;
-      
-      totalTronton += tronton;
-      totalTrintin += trintin;
-      totalDumptruck += fleet.dumptruckCount || fleet.units?.length || 0;
-
-      tableData.push([
-        idx + 1,
-        fleet.excavator || "-",
-        fleet.loadingLocation || "-",
-        fleet.dumpingLocation || "-",
-        fleet.distance || "-",
-        fleet.excavatorCompany || "-",
-        fleet.measurementType || "-",
-        fleet.coalType || "-",
-        tronton || "-",
-        trintin || "-",
-        fleet.isSplit ? "Split" : "-"
-      ]);
+    // Group fleets by mitra within this area
+    const groupedByMitra = {};
+    areaFleets.forEach((fleet) => {
+      const mitra = fleet.excavatorCompany || "Unknown";
+      if (!groupedByMitra[mitra]) {
+        groupedByMitra[mitra] = [];
+      }
+      groupedByMitra[mitra].push(fleet);
     });
 
-    // Add subtotal row
+    // Process each mitra group
+    for (const [mitraName, mitraFleets] of Object.entries(groupedByMitra)) {
+      let mitraTotalTronton = 0;
+      let mitraTotalTrintin = 0;
+      let mitraTotalFleets = mitraFleets.length;
+
+      // Add all fleets for this mitra
+      mitraFleets.forEach((fleet) => {
+        const tronton = fleet.units?.filter(u => {
+          const unitType = u.type_dt?.toLowerCase() || '';
+          return unitType.includes('tronton');
+        }).length || 0;
+        
+        const trintin = fleet.units?.filter(u => {
+          const unitType = u.type_dt?.toLowerCase() || '';
+          return unitType.includes('trintin');
+        }).length || 0;
+        
+        mitraTotalTronton += tronton;
+        mitraTotalTrintin += trintin;
+        
+        tableData.push([
+          rowNum++,
+          fleet.excavator || "-",
+          fleet.loadingLocation || "-",
+          fleet.dumpingLocation || "-",
+          fleet.distance || "-",
+          fleet.excavatorCompany || "-",
+          fleet.measurementType || "-",
+          fleet.coalType || "-",
+          tronton || 0,
+          trintin || 0,
+          (tronton + trintin) || 0  
+        ]);
+      });
+
+      areaTotalTronton += mitraTotalTronton;
+      areaTotalTrintin += mitraTotalTrintin;
+      areaTotalFleets += mitraTotalFleets;
+    }
+
+    // Add total row for each mitra
+    for (const [mitraName, mitraFleets] of Object.entries(groupedByMitra)) {
+      let mitraTotalTronton = 0;
+      let mitraTotalTrintin = 0;
+      
+      mitraFleets.forEach((fleet) => {
+        const tronton = fleet.units?.filter(u => {
+          const unitType = u.type_dt?.toLowerCase() || '';
+          return unitType.includes('tronton');
+        }).length || 0;
+        
+        const trintin = fleet.units?.filter(u => {
+          const unitType = u.type_dt?.toLowerCase() || '';
+          return unitType.includes('trintin');
+        }).length || 0;
+        
+        mitraTotalTronton += tronton;
+        mitraTotalTrintin += trintin;
+      });
+      
+      tableData.push([
+        { content: '', styles: { fillColor: [240, 240, 240], fontStyle: 'bold' } },
+        { content: `Jumlah Fleet ${mitraName}`, colSpan: 7, styles: { halign: 'right', fontStyle: 'bold', fillColor: [240, 240, 240] } },
+        { content: mitraFleets.length + ' Fleet', styles: { halign: 'center', fontStyle: 'bold', fillColor: [240, 240, 240] } },
+        { content: 'Total DT', styles: { halign: 'center', fontStyle: 'bold', fillColor: [240, 240, 240], fontSize: 4.5 } },
+        { content: mitraTotalTronton, styles: { halign: 'center', fontStyle: 'bold', fillColor: [240, 240, 240] } },
+        { content: mitraTotalTrintin, styles: { halign: 'center', fontStyle: 'bold', fillColor: [240, 240, 240] } }
+      ]);
+    }
+
+    // Add area total row (after all mitra totals)
     tableData.push([
-      { content: `Jumlah Fleet Dumping Point ${location}`, colSpan: 8, styles: { halign: 'right', fontStyle: 'bold' } },
-      { content: totalTronton, styles: { halign: 'center', fontStyle: 'bold' } },
-      { content: totalTrintin, styles: { halign: 'center', fontStyle: 'bold' } },
-      { content: totalDumptruck + " Fleet", styles: { halign: 'center', fontStyle: 'bold' } }
+      { content: '', styles: { fillColor: [220, 220, 220], fontStyle: 'bold' } },
+      { content: `Jumlah Fleet ${areaName}`, colSpan: 7, styles: { halign: 'right', fontStyle: 'bold', fillColor: [220, 220, 220] } },
+      { content: areaTotalFleets + ' Fleet', styles: { halign: 'center', fontStyle: 'bold', fillColor: [220, 220, 220] } },
+      { content: 'Total DT', styles: { halign: 'center', fontStyle: 'bold', fillColor: [220, 220, 220] } },
+      { content: areaTotalTronton, styles: { halign: 'center', fontStyle: 'bold', fillColor: [220, 220, 220] } },
+      { content: areaTotalTrintin, styles: { halign: 'center', fontStyle: 'bold', fillColor: [220, 220, 220] } }
     ]);
 
+    grandTotalTronton += areaTotalTronton;
+    grandTotalTrintin += areaTotalTrintin;
+    grandTotalFleets += areaTotalFleets;
+
+    // Draw the table for this area
     autoTable(doc, {
       startY: currentY,
       head: [[
@@ -138,115 +222,193 @@ export const generateFleetPDF = async ({
         'Dumping Point',
         'Jarak',
         'Mitra',
-        'Pengukuran',
-        'Jenis BB',
-        'Tronton',
-        'Trintin',
+        'Ukur',
+        'BB',
+        'Tron',
+        'Trin',
         'Ket'
       ]],
       body: tableData,
       theme: 'grid',
       headStyles: {
-        fillColor: [200, 200, 200],
+        fillColor: [255, 255, 255],
         textColor: [0, 0, 0],
         fontStyle: 'bold',
         halign: 'center',
-        fontSize: 8
+        fontSize: 4.5,
+        cellPadding: 0.5,
+        lineColor: [0, 0, 0],
+        lineWidth: 0.1
       },
       bodyStyles: {
-        fontSize: 8,
-        halign: 'center'
+        fontSize: 4.5,
+        textColor: [0, 0, 0],
+        halign: 'center',
+        cellPadding: 0.5,
+        lineColor: [0, 0, 0],
+        lineWidth: 0.1
       },
       columnStyles: {
-        0: { cellWidth: 10, halign: 'center' },
-        1: { cellWidth: 25 },
-        2: { cellWidth: 30 },
-        3: { cellWidth: 30 },
-        4: { cellWidth: 15 },
-        5: { cellWidth: 25 },
-        6: { cellWidth: 20 },
-        7: { cellWidth: 20 },
-        8: { cellWidth: 15 },
-        9: { cellWidth: 15 },
-        10: { cellWidth: 15 }
+        0: { cellWidth: 5, halign: 'center' },
+        1: { cellWidth: 18, halign: 'left', fontSize: 4.5 },
+        2: { cellWidth: 30, halign: 'left', fontSize: 4.5 },
+        3: { cellWidth: 35, halign: 'left', fontSize: 4.5 },
+        4: { cellWidth: 10, halign: 'center' },
+        5: { cellWidth: 35, halign: 'center', fontSize: 4.5 },
+        6: { cellWidth: 15, halign: 'center' },
+        7: { cellWidth: 10, halign: 'center' },
+        8: { cellWidth: 10, halign: 'center' },
+        9: { cellWidth: 10, halign: 'center' },
+        10: { cellWidth: 10, halign: 'center' }
       },
-      margin: { left: 10, right: 10 },
+      margin: { left: 12, right: 12 },
       didDrawPage: function (data) {
         currentY = data.cursor.y;
       }
     });
 
-    currentY = doc.lastAutoTable.finalY + 5;
+    currentY = doc.lastAutoTable.finalY + 3;
+    
+    // Check if need new page
+    if (currentY > pageHeight) {
+      doc.addPage();
+      currentY = 20;
+    }
   }
 
-  // Section 2: Status Dumptruck
-  if (currentY > pageHeight - 60) {
+  // // Add grand total row
+  // if (Object.keys(groupedByArea).length > 0) {
+  //   const grandTotalData = [[
+  //     { content: '', styles: { fillColor: [180, 180, 180], fontStyle: 'bold' } },
+  //     { content: `Total Semua Lokasi`, colSpan: 7, styles: { halign: 'right', fontStyle: 'bold', fillColor: [180, 180, 180] } },
+  //     { content: grandTotalFleets + ' Fleet', styles: { halign: 'center', fontStyle: 'bold', fillColor: [180, 180, 180] } },
+  //     { content: 'Total DT', styles: { halign: 'center', fontStyle: 'bold', fillColor: [180, 180, 180] } },
+  //     { content: grandTotalTronton, styles: { halign: 'center', fontStyle: 'bold', fillColor: [180, 180, 180] } },
+  //     { content: grandTotalTrintin, styles: { halign: 'center', fontStyle: 'bold', fillColor: [180, 180, 180] } }
+  //   ]];
+
+  //   autoTable(doc, {
+  //     startY: currentY,
+  //     body: grandTotalData,
+  //     theme: 'grid',
+  //     bodyStyles: {
+  //       fontSize: 6,
+  //       fontStyle: 'bold',
+  //       cellPadding: 0.5,
+  //       lineColor: [0, 0, 0],
+  //       lineWidth: 0.1
+  //     },
+  //     columnStyles: {
+  //       0: { cellWidth: 7 },
+  //       1: { cellWidth: 20 },
+  //       2: { cellWidth: 30 },
+  //       3: { cellWidth: 30 },
+  //       4: { cellWidth: 10 },
+  //       5: { cellWidth: 20 },
+  //       6: { cellWidth: 15 },
+  //       7: { cellWidth: 10 },
+  //       8: { cellWidth: 10 },
+  //       9: { cellWidth: 10 },
+  //       10: { cellWidth: 10 }
+  //     },
+  //     margin: { left: 12, right: 12 }
+  //   });
+
+  //   currentY = doc.lastAutoTable.finalY + 5;
+  // }
+  
+  // Check if need new page before section 2
+  if (currentY > pageHeight - 80) {
     doc.addPage();
     currentY = 20;
   }
 
-  currentY += 5;
-  doc.setFontSize(11);
+  // ========== SECTION 2: STATUS DUMP TRUCK ==========
+  doc.setFontSize(5);
   doc.setFont("helvetica", "bold");
-  doc.text("2. Status Dumptruck", 10, currentY);
-  currentY += 5;
+  doc.text("2. Status Dump Truck", 12, currentY);
+  currentY += 1;
 
   const statusData = calculateDumptruckStatus(fleetData);
   
   autoTable(doc, {
     startY: currentY,
-    head: [[
-      { content: 'No', rowSpan: 2 },
-      { content: 'Mitra', rowSpan: 2 },
-      { content: 'Populasi', colSpan: 2 },
-      { content: 'Operasi', colSpan: 2 },
-      { content: 'Standby Ready', colSpan: 2 },
-      { content: 'Breakdown', colSpan: 2 },
-      { content: 'PM/Service', colSpan: 2 },
-      { content: 'Total Status', colSpan: 2 }
-    ], [
-      'Tronton', 'Trintin',
-      'Tronton', 'Trintin',
-      'Tronton', 'Trintin',
-      'Tronton', 'Trintin',
-      'Tronton', 'Trintin',
-      'Tronton', 'Trintin'
-    ]],
+    head: [
+      [
+        { content: 'No', rowSpan: 2 },
+        { content: 'Mitra', rowSpan: 2 },
+        { content: 'Populasi', colSpan: 2 },
+        { content: 'Operasi', colSpan: 2 },
+        { content: 'Standby', colSpan: 2 },
+        { content: 'BD', colSpan: 2 },
+        { content: 'PM', colSpan: 2 },
+        { content: 'Total', colSpan: 2 }
+      ],
+      [
+        'Ton', 'Tin',
+        'Ton', 'Tin',
+        'Ton', 'Tin',
+        'Ton', 'Tin',
+        'Ton', 'Tin',
+        'Ton', 'Tin'
+      ]
+    ],
     body: statusData.rows,
     theme: 'grid',
     headStyles: {
-      fillColor: [200, 200, 200],
+      fillColor: [255, 255, 255],
       textColor: [0, 0, 0],
       fontStyle: 'bold',
       halign: 'center',
-      fontSize: 8
+      fontSize: 4.5,
+      cellPadding: 0.5,
+      lineColor: [0, 0, 0],
+      lineWidth: 0.1
     },
     bodyStyles: {
-      fontSize: 8,
-      halign: 'center'
+      fontSize: 4.5,
+      halign: 'center',
+      cellPadding: 0.5,
+      lineColor: [0, 0, 0],
+      lineWidth: 0.1
     },
     columnStyles: {
-      0: { cellWidth: 10 },
-      1: { cellWidth: 30 }
+      0: { cellWidth: 6 },
+      1: { cellWidth: 25, fontSize: 4.5 },
+      2: { cellWidth: 9 },
+      3: { cellWidth: 9 },
+      4: { cellWidth: 9 },
+      5: { cellWidth: 9 },
+      6: { cellWidth: 9 },
+      7: { cellWidth: 9 },
+      8: { cellWidth: 9 },
+      9: { cellWidth: 9 },
+      10: { cellWidth: 9 },
+      11: { cellWidth: 9 },
+      12: { cellWidth: 9 },
+      13: { cellWidth: 9 }
     },
-    margin: { left: 10, right: 10 }
+    margin: { left: 12, right: 12 }
   });
 
-  currentY = doc.lastAutoTable.finalY + 10;
-
-  // Section 3: Status Exca Tidak Operasi
-  if (currentY > pageHeight - 40) {
+  currentY = doc.lastAutoTable.finalY + 5;
+  
+  // Check if need new page before section 3
+  if (currentY > pageHeight - 60) {
     doc.addPage();
     currentY = 20;
   }
 
-  doc.setFontSize(11);
+// ========== SECTION 3: STATUS EXCA TIDAK OPERASI ==========
+  const section3StartY = currentY;
+  
+  doc.setFontSize(5);
   doc.setFont("helvetica", "bold");
-  doc.text("3. Status Exca Tidak Operasi", 10, currentY);
-  currentY += 5;
+  doc.text("3. Status Exca Tidak Operasi", 12, currentY);
+  currentY += 1;
 
   const nonOperationalExca = fleetData.filter(f => 
-    f.status === "BREAKDOWN" || f.status === "SERVICE" || f.status === "STANDBY"
+    f.status === "BREAKDOWN" || f.status === "SERVICE" || f.status === "STANDBY" || f.status === "Standby"
   );
 
   const excaData = nonOperationalExca.map((fleet, idx) => [
@@ -267,64 +429,79 @@ export const generateFleetPDF = async ({
     body: excaData,
     theme: 'grid',
     headStyles: {
-      fillColor: [200, 200, 200],
+      fillColor: [255, 255, 255],
       textColor: [0, 0, 0],
       fontStyle: 'bold',
       halign: 'center',
-      fontSize: 8
+      fontSize: 4.5,
+      cellPadding: 0.5,
+      lineColor: [0, 0, 0],
+      lineWidth: 0.1
     },
     bodyStyles: {
-      fontSize: 8,
-      halign: 'center'
+      fontSize: 4.5,
+      halign: 'center',
+      cellPadding: 0.5,
+      lineColor: [0, 0, 0],
+      lineWidth: 0.1
     },
     columnStyles: {
-      0: { cellWidth: 15 },
-      1: { cellWidth: 40 },
-      2: { cellWidth: 50 },
-      3: { cellWidth: 50 },
-      4: { cellWidth: 30 }
+      0: { cellWidth: 5 },
+      1: { cellWidth: 18, fontSize: 4.5 },
+      2: { cellWidth: 35, fontSize: 4.5 },
+      3: { cellWidth: 30, fontSize: 4.5 },
+      4: { cellWidth: 8 }
     },
-    margin: { left: 10, right: 10 }
+    margin: { left: 12, right: 12 },
+    tableWidth: 96
   });
 
-  // Footer - Barcode section
-  currentY = doc.lastAutoTable.finalY + 10;
+  // ========== FOOTER: PETUGAS CCR (DI SAMPING KANAN SECTION 3) ==========
+  const footerX = pageWidth - 70;
+  const footerY = section3StartY;
   
-  if (currentY > pageHeight - 40) {
-    doc.addPage();
-    currentY = 20;
-  }
-
-  doc.setFontSize(10);
-  doc.setFont("helvetica", "bold");
-  doc.text("Petugas Central Control Room (CCR)", pageWidth - 70, currentY);
-  
-  currentY += 10;
-  doc.rect(pageWidth - 70, currentY, 50, 25);
-  doc.setFontSize(9);
+  doc.setFontSize(5);
   doc.setFont("helvetica", "normal");
-  doc.text("BARCODE", pageWidth - 45, currentY + 8, { align: 'center' });
-  doc.text(`Isi (Jam, Tanggal,`, pageWidth - 45, currentY + 13, { align: 'center' });
-  doc.text(`group dan Nama CCR)`, pageWidth - 45, currentY + 18, { align: 'center' });
-
-  currentY += 30;
-  doc.text("(..................................)", pageWidth - 45, currentY, { align: 'center' });
+  doc.text("Petugas Central Control Room (CCR)", footerX, footerY);
+  
+  // Draw signature box
+  doc.rect(footerX, footerY + 5, 50, 25);
+  doc.setFontSize(5);
+  doc.text("(................................)", footerX + 25, footerY + 35, { align: 'center' });
 
   // Save PDF
   const fileName = `Laporan_Setting_Fleet_${type}_${format(now, 'yyyyMMdd_HHmmss')}.pdf`;
   doc.save(fileName);
 };
 
-// Helper functions
-function groupFleetData(fleetData, groupBy) {
+// ========== HELPER FUNCTIONS ==========
+
+function groupFleetDataByArea(fleetData) {
   const grouped = {};
   
   fleetData.forEach(fleet => {
-    const key = groupBy === 'dumping' ? fleet.dumpingLocation : fleet.loadingLocation;
-    if (!grouped[key]) {
-      grouped[key] = [];
+    // Extract area name from loading or dumping location
+    const location = fleet.loadingLocation || fleet.dumpingLocation || '';
+    let areaName = 'Lainnya';
+    
+    // Check for common area keywords
+    if (location.includes('Banko Barat')) {
+      areaName = 'Banko Barat';
+    } else if (location.includes('Banko Tengah')) {
+      areaName = 'Banko Tengah';
+    } else if (location.includes('TAL') || (location.includes('MTB'))) {
+      areaName = 'TAL && MTB';
+    }  else if (location.includes('Pit')) {
+      const pitMatch = location.match(/Pit\s+\w+/i);
+      if (pitMatch) {
+        areaName = pitMatch[0];
+      }
     }
-    grouped[key].push(fleet);
+    
+    if (!grouped[areaName]) {
+      grouped[areaName] = [];
+    }
+    grouped[areaName].push(fleet);
   });
   
   return grouped;
@@ -347,7 +524,8 @@ function calculateDumptruckStatus(fleetData) {
     }
     
     fleet.units?.forEach(unit => {
-      const isTronton = unit.tareWeight >= 16;
+      const unitType = unit.type_dt?.toLowerCase() || '';
+      const isTronton = unitType.includes('tronton');
       const type = isTronton ? 'tronton' : 'trintin';
       
       // Population
@@ -397,8 +575,8 @@ function calculateDumptruckStatus(fleetData) {
   }, {});
   
   rows.push([
-    { content: 'Total Dumptruck', colSpan: 2, styles: { halign: 'right', fontStyle: 'bold' } },
-    ...Object.values(totals).map(val => ({ content: val, styles: { fontStyle: 'bold' } }))
+    { content: 'Total Dumptruck', colSpan: 2, styles: { halign: 'right', fontStyle: 'bold', fillColor: [220, 220, 220] } },
+    ...Object.values(totals).map(val => ({ content: val, styles: { fontStyle: 'bold', fillColor: [220, 220, 220] } }))
   ]);
   
   return { rows };

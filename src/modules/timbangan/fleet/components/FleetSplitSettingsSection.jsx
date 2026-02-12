@@ -28,11 +28,6 @@ import { showToast } from "@/shared/utils/toast";
  */
 const FleetSplitSettingsSection = ({
   isSplitMode,
-  isEdit,
-
-  // ✅ Primary fleet data (for reference)
-  primaryFleetInspectorIds,
-  primaryFleetCheckerIds,
 
   // ✅ Master data
   dumpLocItems,
@@ -44,7 +39,6 @@ const FleetSplitSettingsSection = ({
   fleetsUniverse,
   activeFleetId,
   updateFleetInUniverse,
-  setActiveUniverseFleet,
   getFleetNumber,
 
   // ✅ Unit management
@@ -117,55 +111,6 @@ const FleetSplitSettingsSection = ({
       activeFleetId,
       activeFleet,
       primaryUnitOperators,
-      updateFleetInUniverse,
-      setPrimarySelectedUnits,
-      setPrimaryUnitOperators,
-      isSaving,
-      fleetLabel,
-    ],
-  );
-
-  // ✅ Move unit from universe fleet to primary
-  const handleMoveUniverseToPrimary = useCallback(
-    (unit) => {
-      if (!activeFleetId || isSaving) return;
-
-      // Prevent if universe fleet will have 0 units
-      if (activeFleet?.selectedUnits?.length <= 1) {
-        showToast.warning(
-          `Fleet ${fleetLabel} harus memiliki minimal 1 dump truck`,
-        );
-        return;
-      }
-
-      const operatorId = activeFleet?.unitOperators?.[unit.id];
-
-      // Add to primary
-      setPrimarySelectedUnits((prev) => [...prev, unit]);
-      if (operatorId) {
-        setPrimaryUnitOperators((prev) => ({
-          ...prev,
-          [unit.id]: operatorId,
-        }));
-      }
-
-      // Remove from universe fleet
-      const updatedUnits = (activeFleet?.selectedUnits || []).filter(
-        (u) => String(u.id) !== String(unit.id),
-      );
-      const updatedOps = { ...(activeFleet?.unitOperators || {}) };
-      delete updatedOps[unit.id];
-
-      updateFleetInUniverse(activeFleetId, {
-        selectedUnits: updatedUnits,
-        unitOperators: updatedOps,
-      });
-
-      showToast.success("Dump truck dipindahkan ke Fleet 1");
-    },
-    [
-      activeFleetId,
-      activeFleet,
       updateFleetInUniverse,
       setPrimarySelectedUnits,
       setPrimaryUnitOperators,
@@ -353,46 +298,6 @@ const FleetSplitSettingsSection = ({
     setPrimaryUnitOperators,
     updateFleetInUniverse,
     isSaving,
-  ]);
-
-  // ✅ Merge all units from primary to universe
-  const handleMergePrimaryToUniverse = useCallback(() => {
-    if (!activeFleetId || isSaving) return;
-
-    if (!primarySelectedUnits || primarySelectedUnits.length === 0) {
-      showToast.info("Tidak ada dump truck di Fleet 1 untuk dipindahkan");
-      return;
-    }
-
-    // Move all units
-    updateFleetInUniverse(activeFleetId, {
-      selectedUnits: [
-        ...(activeFleet?.selectedUnits || []),
-        ...primarySelectedUnits,
-      ],
-      unitOperators: {
-        ...(activeFleet?.unitOperators || {}),
-        ...primaryUnitOperators,
-      },
-    });
-
-    // Clear primary
-    setPrimarySelectedUnits([]);
-    setPrimaryUnitOperators({});
-
-    showToast.success(
-      `Berhasil memindahkan ${primarySelectedUnits.length} dump truck ke Fleet ${fleetLabel}`,
-    );
-  }, [
-    activeFleetId,
-    activeFleet,
-    primarySelectedUnits,
-    primaryUnitOperators,
-    updateFleetInUniverse,
-    setPrimarySelectedUnits,
-    setPrimaryUnitOperators,
-    isSaving,
-    fleetLabel,
   ]);
 
   // ✅ Separate selected and unselected units (similar to FleetUnitSelectionSection)

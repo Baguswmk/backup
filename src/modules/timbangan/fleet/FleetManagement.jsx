@@ -881,6 +881,7 @@ const FleetManagement = ({ Type }) => {
                 ? userCompany?.name
                 : userWeighBridge?.name
           }
+          selectedSatker={selectedSatker}
           isRefreshing={false}
           canRead={false}
           canCreate={false}
@@ -914,6 +915,7 @@ const FleetManagement = ({ Type }) => {
               ? userCompany?.name
               : userWeighBridge?.name
         }
+        selectedSatker={selectedSatker}
         isRefreshing={isRefreshing}
         canRead={canRead}
         canCreate={canCreate && !isReadOnly}

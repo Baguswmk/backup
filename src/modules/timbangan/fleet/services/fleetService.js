@@ -172,7 +172,34 @@ export const fleetService = {
             forceRefresh,
           });
 
-          const configs = response.data.map((item) =>
+          // Debug: Check response structure
+          logger.info("🔍 Response structure", {
+            hasData: !!response.data,
+            isArray: Array.isArray(response.data),
+            dataType: typeof response.data,
+            dataKeys: response.data ? Object.keys(response.data) : null,
+            sample: response.data ? JSON.stringify(response.data).substring(0, 200) : null
+          });
+
+          // Handle different response structures
+          let dataArray = response.data;
+          
+          // If response.data is an object with nested data array (Strapi v4 format)
+          if (!Array.isArray(response.data) && response.data?.data) {
+            logger.info("📦 Detected nested data structure, extracting...");
+            dataArray = response.data.data;
+          }
+          
+          // If still not an array, return empty
+          if (!Array.isArray(dataArray)) {
+            logger.error("❌ Response.data is not an array", {
+              type: typeof dataArray,
+              value: dataArray
+            });
+            return { success: true, data: [] };
+          }
+
+          const configs = dataArray.map((item) =>
             this._transformFleetConfig(item),
           );
 
