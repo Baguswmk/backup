@@ -178,23 +178,25 @@ export const fleetService = {
             isArray: Array.isArray(response.data),
             dataType: typeof response.data,
             dataKeys: response.data ? Object.keys(response.data) : null,
-            sample: response.data ? JSON.stringify(response.data).substring(0, 200) : null
+            sample: response.data
+              ? JSON.stringify(response.data).substring(0, 200)
+              : null,
           });
 
           // Handle different response structures
           let dataArray = response.data;
-          
+
           // If response.data is an object with nested data array (Strapi v4 format)
           if (!Array.isArray(response.data) && response.data?.data) {
             logger.info("📦 Detected nested data structure, extracting...");
             dataArray = response.data.data;
           }
-          
+
           // If still not an array, return empty
           if (!Array.isArray(dataArray)) {
             logger.error("❌ Response.data is not an array", {
               type: typeof dataArray,
-              value: dataArray
+              value: dataArray,
             });
             return { success: true, data: [] };
           }
@@ -316,18 +318,16 @@ export const fleetService = {
         "/v1/custom/setting-fleet",
         payload,
       );
-
-      
       const responseData = response?.data ?? response;
-const isSuccess =
-  responseData?.status === "success" ||
-  response?.status === 200 ||
-  response?.status === 201;
-
-if (isSuccess) {
-  const fleetId =
-    responseData?.data?.id_setting_fleet ||
-    responseData?.id_setting_fleet;
+      const isSuccess =
+        response.status === "success" ||
+        responseData?.status === "success" ||
+        response?.status === 200 ||
+        response?.status === 201;
+      if (isSuccess) {
+        const fleetId =
+          responseData?.data?.id_setting_fleet ||
+          responseData?.id_setting_fleet;
 
         logger.info("✅ Fleet created, ID:", fleetId);
 

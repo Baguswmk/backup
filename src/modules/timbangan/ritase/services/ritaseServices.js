@@ -280,18 +280,20 @@ export const ritaseServices = {
       });
 
       let dataArray = response.data;
-      
+
       // If response.data is an object with nested data array (Strapi v4)
       if (!Array.isArray(response.data) && response.data?.data) {
-        logger.info("📦 Detected nested data structure in ritases, extracting...");
+        logger.info(
+          "📦 Detected nested data structure in ritases, extracting...",
+        );
         dataArray = response.data.data;
       }
-      
+
       // Ensure it's an array
       if (!Array.isArray(dataArray)) {
         logger.warn("⚠️ Ritase response is not an array, returning empty", {
           type: typeof dataArray,
-          value: dataArray
+          value: dataArray,
         });
         return { success: true, data: [] };
       }

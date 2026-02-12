@@ -8,6 +8,7 @@ import React, {
 } from "react";
 import { offlineService } from "@/shared/services/offlineService";
 import { showToast } from "@/shared/utils/toast";
+import { timbanganService } from "@/modules/timbangan/timbangan/services/TimbanganService";
 
 /**
  * Always returns a plain string safe to pass to showToast / render in JSX.
@@ -129,7 +130,7 @@ export const OfflineProvider = ({ children }) => {
 
   const loadPendingCount = useCallback(async () => {
     try {
-      const stats = await offlineService.getQueueStats();
+      const stats = await timbanganService.getSentQueue();
 
       batchStateUpdate({
         pendingCount: stats.pending,
@@ -407,7 +408,7 @@ export const OfflineProvider = ({ children }) => {
     try {
       const pending = await offlineService.getQueue();
       const failed = (await offlineService.getFailedQueue?.()) || [];
-      const sent = (await offlineService.getSentQueue?.()) || [];
+      const sent = (await timbanganService.getSentQueue?.()) || [];
 
       return {
         pending: pending || [],
