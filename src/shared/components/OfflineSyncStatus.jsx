@@ -33,6 +33,7 @@ export const OfflineSyncStatus = () => {
     hasPendingData,
     getQueueDetails,
     deleteQueueItem,
+    isTimbanganPage, // ✅ NEW: Context detection
   } = useOffline();
 
   const [isExpanded, setIsExpanded] = useState(false);
@@ -164,8 +165,10 @@ export const OfflineSyncStatus = () => {
     return `${weight.toFixed(2)} ton`;
   };
 
-  const totalItems =
-    syncStatus.pendingCount + syncStatus.failedCount + syncStatus.sentCount;
+  // ✅ Context-aware total items calculation
+  const totalItems = isTimbanganPage
+    ? syncStatus.pendingCount + syncStatus.failedCount + syncStatus.sentCount
+    : syncStatus.pendingCount;
 
   return (
     <div className="fixed bottom-4 right-4 z-50 max-w-md">
@@ -192,10 +195,19 @@ export const OfflineSyncStatus = () => {
                 <div className="font-semibold text-sm dark:text-gray-200">
                   {isOnline ? "Online" : "Offline"}
                 </div>
+                {/* ✅ Context-aware badge display */}
                 {totalItems > 0 && (
                   <div className="text-xs text-gray-500 dark:text-gray-400">
-                    {syncStatus.pendingCount}P · {syncStatus.failedCount}F ·{" "}
-                    {syncStatus.sentCount}S
+                    {isTimbanganPage ? (
+                      // Timbangan: Show P · F · S
+                      <>
+                        {syncStatus.pendingCount}P · {syncStatus.failedCount}F ·{" "}
+                        {syncStatus.sentCount}S
+                      </>
+                    ) : (
+                      // Other pages: Show only pending
+                      <>{syncStatus.pendingCount} pending</>
+                    )}
                   </div>
                 )}
               </div>
@@ -227,44 +239,60 @@ export const OfflineSyncStatus = () => {
         {/* Expanded Content */}
         {isExpanded && (
           <div className="p-3 space-y-3 border-t dark:border-gray-700">
-            {/* Stats Grid */}
-            <div className="grid grid-cols-3 gap-2">
-              <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded p-2">
-                <div className="flex items-center gap-1 mb-1">
-                  <Clock className="w-3 h-3 text-yellow-600 dark:text-yellow-400" />
-                  <span className="text-[10px] font-medium text-yellow-700 dark:text-yellow-300">
-                    Pending
+            {/* Stats Grid - ✅ Context-aware */}
+            {isTimbanganPage ? (
+              // Timbangan: Show all 3 stats
+              <div className="grid grid-cols-3 gap-2">
+                <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded p-2">
+                  <div className="flex items-center gap-1 mb-1">
+                    <Clock className="w-3 h-3 text-yellow-600 dark:text-yellow-400" />
+                    <span className="text-[10px] font-medium text-yellow-700 dark:text-yellow-300">
+                      Pending
+                    </span>
+                  </div>
+                  <div className="text-lg font-bold text-yellow-900 dark:text-yellow-100">
+                    {syncStatus.pendingCount}
+                  </div>
+                </div>
+
+                <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded p-2">
+                  <div className="flex items-center gap-1 mb-1">
+                    <XCircle className="w-3 h-3 text-red-600 dark:text-red-400" />
+                    <span className="text-[10px] font-medium text-red-700 dark:text-red-300">
+                      Gagal
+                    </span>
+                  </div>
+                  <div className="text-lg font-bold text-red-900 dark:text-red-100">
+                    {syncStatus.failedCount}
+                  </div>
+                </div>
+
+                <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded p-2">
+                  <div className="flex items-center gap-1 mb-1">
+                    <CheckCircle className="w-3 h-3 text-green-600 dark:text-green-400" />
+                    <span className="text-[10px] font-medium text-green-700 dark:text-green-300">
+                      Terkirim
+                    </span>
+                  </div>
+                  <div className="text-lg font-bold text-green-900 dark:text-green-100">
+                    {syncStatus.sentCount}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              // Other pages: Show only pending
+              <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded p-3">
+                <div className="flex items-center gap-2 mb-2">
+                  <Clock className="w-4 h-4 text-yellow-600 dark:text-yellow-400" />
+                  <span className="text-sm font-medium text-yellow-700 dark:text-yellow-300">
+                    Pending Sync
                   </span>
                 </div>
-                <div className="text-lg font-bold text-yellow-900 dark:text-yellow-100">
+                <div className="text-2xl font-bold text-yellow-900 dark:text-yellow-100">
                   {syncStatus.pendingCount}
                 </div>
               </div>
-
-              <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded p-2">
-                <div className="flex items-center gap-1 mb-1">
-                  <XCircle className="w-3 h-3 text-red-600 dark:text-red-400" />
-                  <span className="text-[10px] font-medium text-red-700 dark:text-red-300">
-                    Gagal
-                  </span>
-                </div>
-                <div className="text-lg font-bold text-red-900 dark:text-red-100">
-                  {syncStatus.failedCount}
-                </div>
-              </div>
-
-              <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded p-2">
-                <div className="flex items-center gap-1 mb-1">
-                  <CheckCircle className="w-3 h-3 text-green-600 dark:text-green-400" />
-                  <span className="text-[10px] font-medium text-green-700 dark:text-green-300">
-                    Terkirim
-                  </span>
-                </div>
-                <div className="text-lg font-bold text-green-900 dark:text-green-100">
-                  {syncStatus.sentCount}
-                </div>
-              </div>
-            </div>
+            )}
 
             {/* Last Sync Time */}
             {syncStatus.lastSync && (
@@ -283,7 +311,7 @@ export const OfflineSyncStatus = () => {
                 size="sm"
                 variant="outline"
                 onClick={handleToggleDetails}
-                className="w-full text-xs dark:border-gray-600 dark:hover:bg-gray-700 cursor-pointer"
+                className="w-full text-xs dark:border-gray-600 dark:hover:bg-gray-700 cursor-pointer dark:text-neutral-50"
               >
                 <List className="w-3 h-3 mr-1" />
                 {showDetails ? "Sembunyikan Detail" : "Lihat Detail Transaksi"}
@@ -299,14 +327,14 @@ export const OfflineSyncStatus = () => {
                   </div>
                 ) : (
                   <>
-                    {/* Pending Items */}
+                    {/* Pending Items - Always show */}
                     {queueDetails.pending.length > 0 && (
                       <div>
                         <div className="text-[10px] font-semibold text-yellow-700 dark:text-yellow-300 mb-1 flex items-center gap-1">
                           <Clock className="w-3 h-3" />
-                          PENDING ({queueDetails.pending.length})
+                          MENUNGGU ({queueDetails.pending.length})
                         </div>
-                        {queueDetails.pending.map((item) => {
+                        {queueDetails.pending.slice(0, 3).map((item) => {
                           const txData = getTransactionData(item);
                           return (
                             <div
@@ -328,32 +356,35 @@ export const OfflineSyncStatus = () => {
                                     </span>
                                   </div>
 
-                                  <div className="grid grid-cols-3 gap-2 mb-1 text-gray-700 dark:text-gray-300">
-                                    <div>
-                                      <div className="text-gray-500 dark:text-gray-500 text-[10px]">
-                                        Gross
+                                  {/* ✅ Show weight details only for timbangan */}
+                                  {isTimbanganPage && (
+                                    <div className="grid grid-cols-3 gap-2 mb-1 text-gray-700 dark:text-gray-300">
+                                      <div>
+                                        <div className="text-gray-500 dark:text-gray-500 text-[10px]">
+                                          Gross
+                                        </div>
+                                        <div className="font-medium text-[11px]">
+                                          {formatWeight(txData.grossWeight)}
+                                        </div>
                                       </div>
-                                      <div className="font-medium text-[11px]">
-                                        {formatWeight(txData.grossWeight)}
+                                      <div>
+                                        <div className="text-gray-500 dark:text-gray-500 text-[10px]">
+                                          Tare
+                                        </div>
+                                        <div className="font-medium text-[11px]">
+                                          {formatWeight(txData.tareWeight)}
+                                        </div>
+                                      </div>
+                                      <div>
+                                        <div className="text-gray-500 dark:text-gray-500 text-[10px]">
+                                          Net
+                                        </div>
+                                        <div className="font-medium text-[11px]">
+                                          {formatWeight(txData.netWeight)}
+                                        </div>
                                       </div>
                                     </div>
-                                    <div>
-                                      <div className="text-gray-500 dark:text-gray-500 text-[10px]">
-                                        Tare
-                                      </div>
-                                      <div className="font-medium text-[11px]">
-                                        {formatWeight(txData.tareWeight)}
-                                      </div>
-                                    </div>
-                                    <div>
-                                      <div className="text-gray-500 dark:text-gray-500 text-[10px]">
-                                        Net
-                                      </div>
-                                      <div className="font-medium text-[11px]">
-                                        {formatWeight(txData.netWeight)}
-                                      </div>
-                                    </div>
-                                  </div>
+                                  )}
 
                                   <div className="text-gray-500 dark:text-gray-500 flex items-center gap-1 text-[10px]">
                                     <Clock className="w-3 h-3" />
@@ -383,22 +414,137 @@ export const OfflineSyncStatus = () => {
                             </div>
                           );
                         })}
+                        {queueDetails.pending.length > 3 && (
+                          <div className="text-[10px] text-gray-500 dark:text-gray-400 text-center">
+                            +{queueDetails.pending.length - 3} lainnya
+                          </div>
+                        )}
                       </div>
                     )}
 
-                    {/* Failed Items */}
-                    {queueDetails.failed.length > 0 && (
+                    {/* Failed Items - ✅ ONLY for Timbangan */}
+                    {isTimbanganPage && queueDetails.failed.length > 0 && (
                       <div>
                         <div className="text-[10px] font-semibold text-red-700 dark:text-red-300 mb-1 flex items-center gap-1">
                           <XCircle className="w-3 h-3" />
                           GAGAL ({queueDetails.failed.length})
                         </div>
-                        {queueDetails.failed.map((item) => {
+                        {queueDetails.failed.slice(0, 3).map((item) => {
                           const txData = getTransactionData(item);
                           return (
                             <div
                               key={item.id}
                               className="bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-800 rounded p-2 mb-2"
+                            >
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="flex-1 min-w-0 text-xs">
+                                  <div className="flex items-center gap-1 mb-1">
+                                    <Badge
+                                      className={getMethodBadgeColor(
+                                        item.method
+                                      )}
+                                    >
+                                      {item.method}
+                                    </Badge>
+                                    <span className="text-gray-600 dark:text-gray-400 truncate font-medium">
+                                      {txData.unit}
+                                    </span>
+                                  </div>
+
+                                  {/* ✅ Error Message */}
+                                  <div className="text-red-600 dark:text-red-400 text-[10px] mb-1 flex items-start gap-1">
+                                    <AlertCircle className="w-3 h-3 flex-shrink-0 mt-0.5" />
+                                    <span className="line-clamp-2">
+                                      {item.error || "Unknown error"}
+                                    </span>
+                                  </div>
+
+                                  <div className="grid grid-cols-3 gap-2 mb-1 text-gray-700 dark:text-gray-300">
+                                    <div>
+                                      <div className="text-gray-500 dark:text-gray-500 text-[10px]">
+                                        Gross
+                                      </div>
+                                      <div className="font-medium text-[11px]">
+                                        {formatWeight(txData.grossWeight)}
+                                      </div>
+                                    </div>
+                                    <div>
+                                      <div className="text-gray-500 dark:text-gray-500 text-[10px]">
+                                        Tare
+                                      </div>
+                                      <div className="font-medium text-[11px]">
+                                        {formatWeight(txData.tareWeight)}
+                                      </div>
+                                    </div>
+                                    <div>
+                                      <div className="text-gray-500 dark:text-gray-500 text-[10px]">
+                                        Net
+                                      </div>
+                                      <div className="font-medium text-[11px]">
+                                        {formatWeight(txData.netWeight)}
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  <div className="text-gray-500 dark:text-gray-500 flex items-center gap-1 text-[10px]">
+                                    <XCircle className="w-3 h-3" />
+                                    {format(
+                                      new Date(
+                                        item.failedAt || txData.timestamp
+                                      ),
+                                      "dd/MM HH:mm:ss",
+                                      { locale: localeId }
+                                    )}
+                                    {item.retryCount > 0 && (
+                                      <span className="ml-1">
+                                        · Retry: {item.retryCount}x
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() =>
+                                    handleDeleteItem(item.id, "failed")
+                                  }
+                                  disabled={deletingId === item.id}
+                                  className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
+                                >
+                                  {deletingId === item.id ? (
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                  ) : (
+                                    <Trash2 className="w-4 h-4" />
+                                  )}
+                                </Button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                        {queueDetails.failed.length > 3 && (
+                          <div className="text-[10px] text-gray-500 dark:text-gray-400 text-center">
+                            +{queueDetails.failed.length - 3} lainnya
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Sent Items - ✅ ONLY for Timbangan */}
+                    {isTimbanganPage && queueDetails.sent.length > 0 && (
+                      <div>
+                        <div className="text-[10px] font-semibold text-green-700 dark:text-green-300 mb-1 flex items-center gap-1">
+                          <CheckCircle className="w-3 h-3" />
+                          TERKIRIM ({queueDetails.sent.length})
+                          <span className="text-gray-500 dark:text-gray-400 font-normal ml-1">
+                            - Tersimpan 8 jam
+                          </span>
+                        </div>
+                        {queueDetails.sent.slice(0, 3).map((item) => {
+                          const txData = getTransactionData(item);
+                          return (
+                            <div
+                              key={item.id}
+                              className="bg-green-50 dark:bg-green-900/10 border border-green-200 dark:border-green-800 rounded p-2 mb-2"
                             >
                               <div className="flex items-start justify-between gap-2">
                                 <div className="flex-1 min-w-0 text-xs">
@@ -440,77 +586,6 @@ export const OfflineSyncStatus = () => {
                                         {formatWeight(txData.netWeight)}
                                       </div>
                                     </div>
-                                  </div>
-
-                                  <div className="text-gray-500 dark:text-gray-500 flex items-center gap-1 text-[10px]">
-                                    <Clock className="w-3 h-3" />
-                                    {format(
-                                      new Date(txData.timestamp),
-                                      "dd/MM HH:mm:ss",
-                                      { locale: localeId }
-                                    )}
-                                  </div>
-
-                                  {item.error && (
-                                    <div className="text-red-600 dark:text-red-400 text-[10px] mt-1 truncate">
-                                      Error: {typeof item.error === "object"
-                                        ? (item.error?.message || JSON.stringify(item.error))
-                                        : item.error}
-                                    </div>
-                                  )}
-                                </div>
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  onClick={() =>
-                                    handleDeleteItem(item.id, "failed")
-                                  }
-                                  disabled={deletingId === item.id}
-                                  className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
-                                >
-                                  {deletingId === item.id ? (
-                                    <Loader2 className="w-4 h-4 animate-spin" />
-                                  ) : (
-                                    <Trash2 className="w-4 h-4" />
-                                  )}
-                                </Button>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-
-                    {/* Sent Items */}
-                    {queueDetails.sent.length > 0 && (
-                      <div>
-                        <div className="text-[10px] font-semibold text-green-700 dark:text-green-300 mb-1 flex items-center gap-1">
-                          <CheckCircle className="w-3 h-3" />
-                          TERKIRIM ({queueDetails.sent.length})
-                          <span className="text-gray-500 dark:text-gray-400 font-normal ml-1">
-                            - Tersimpan 8 jam
-                          </span>
-                        </div>
-                        {queueDetails.sent.slice(0, 3).map((item) => {
-                          const txData = getTransactionData(item);
-                          return (
-                            <div
-                              key={item.id}
-                              className="bg-green-50 dark:bg-green-900/10 border border-green-200 dark:border-green-800 rounded p-2 mb-2"
-                            >
-                              <div className="flex items-start justify-between gap-2">
-                                <div className="flex-1 min-w-0 text-xs">
-                                  <div className="flex items-center gap-1 mb-1">
-                                    <Badge
-                                      className={getMethodBadgeColor(
-                                        item.method
-                                      )}
-                                    >
-                                      {item.method}
-                                    </Badge>
-                                    <span className="text-gray-600 dark:text-gray-400 truncate font-medium">
-                                      {txData.unit}
-                                    </span>
                                   </div>
 
                                   <div className="text-gray-500 dark:text-gray-500 flex items-center gap-1 text-[10px]">
@@ -549,11 +624,14 @@ export const OfflineSyncStatus = () => {
                       </div>
                     )}
 
+                    {/* ✅ Context-aware empty state */}
                     {queueDetails.pending.length === 0 &&
                       queueDetails.failed.length === 0 &&
                       queueDetails.sent.length === 0 && (
                         <div className="text-center py-4 text-gray-500 dark:text-gray-400 text-xs">
-                          Tidak ada transaksi offline
+                          {isTimbanganPage
+                            ? "Tidak ada transaksi timbangan offline"
+                            : "Tidak ada transaksi offline"}
                         </div>
                       )}
                   </>

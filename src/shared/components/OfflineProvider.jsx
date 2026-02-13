@@ -9,19 +9,16 @@ import React, {
 import { offlineService } from "@/shared/services/offlineService";
 import { showToast } from "@/shared/utils/toast";
 import { timbanganService } from "@/modules/timbangan/timbangan/services/TimbanganService";
+import { useLocation } from "react-router-dom";
 
 /**
  * Always returns a plain string safe to pass to showToast / render in JSX.
- * Axios error objects have keys like config, request, response, status — 
- * passing them directly to sonner causes "Objects are not valid as a React child".
  */
 function safeMsg(value, fallback = "Terjadi kesalahan") {
   if (!value) return fallback;
   if (typeof value === "string") return value;
   if (typeof value === "number") return String(value);
-  // Axios error or any Error instance
   if (value instanceof Error) return value.message || fallback;
-  // Plain object — try common message fields
   if (typeof value === "object") {
     return (
       value?.response?.data?.message ||
@@ -44,6 +41,7 @@ export const useOffline = () => {
 };
 
 export const OfflineProvider = ({ children }) => {
+  const location = useLocation();
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [syncStatus, setSyncStatus] = useState({
     isSyncing: false,
@@ -58,6 +56,11 @@ export const OfflineProvider = ({ children }) => {
   const syncTimeoutRef = useRef(null);
   const updateBatchRef = useRef([]);
   const updateTimerRef = useRef(null);
+
+  /**
+   * ✅ Detect if current page is Timbangan
+   */
+  const isTimbanganPage = location.pathname.includes('/timbangan');
 
   const batchStateUpdate = useCallback((updates) => {
     updateBatchRef.current = { ...updateBatchRef.current, ...updates };
@@ -128,23 +131,39 @@ export const OfflineProvider = ({ children }) => {
     };
   }, [autoSyncEnabled, isOnline, debouncedSync]);
 
+  /**
+   * ✅ Load counts based on context
+   */
   const loadPendingCount = useCallback(async () => {
     try {
-      const stats = await timbanganService.getSentQueue();
-
-      batchStateUpdate({
-        pendingCount: stats.pending,
-        failedCount: stats.failed,
-        sentCount: stats.sent,
-      });
-      
-      return stats.pending;
+      if (isTimbanganPage) {
+        // Timbangan: load from timbanganService with full tracking
+        const counts = await timbanganService.getQueueCounts();
+        batchStateUpdate({
+          pendingCount: counts.pending,
+          failedCount: counts.failed,
+          sentCount: counts.sent,
+        });
+        return counts.pending;
+      } else {
+        // Other menus: only pending from offlineService
+        const pending = await offlineService.getPendingCount();
+        batchStateUpdate({
+          pendingCount: pending,
+          failedCount: 0,
+          sentCount: 0,
+        });
+        return pending;
+      }
     } catch (error) {
       console.error("Failed to load pending count:", error);
       return 0;
     }
-  }, [batchStateUpdate]);
+  }, [batchStateUpdate, isTimbanganPage]);
 
+  /**
+   * ✅ Sync based on context
+   */
   const syncPendingData = useCallback(async () => {
     if (!isOnline) {
       showToast.warning("Tidak ada koneksi internet");
@@ -159,7 +178,15 @@ export const OfflineProvider = ({ children }) => {
     batchStateUpdate({ isSyncing: true });
 
     try {
-      const result = await offlineService.syncAllPending();
+      let result;
+      
+      if (isTimbanganPage) {
+        // Timbangan: use timbanganService with tracking
+        result = await timbanganService.syncAllPending();
+      } else {
+        // Other menus: use offlineService without tracking
+        result = await offlineService.syncAllPending();
+      }
 
       batchStateUpdate({
         isSyncing: false,
@@ -177,7 +204,7 @@ export const OfflineProvider = ({ children }) => {
         }
       }
 
-      // Reload counts to update sent count
+      // Reload counts
       await loadPendingCount();
 
       return result;
@@ -189,7 +216,7 @@ export const OfflineProvider = ({ children }) => {
     } finally {
       isSyncingRef.current = false;
     }
-  }, [isOnline, batchStateUpdate, loadPendingCount]);
+  }, [isOnline, batchStateUpdate, loadPendingCount, isTimbanganPage]);
 
   const retryFailed = useCallback(async () => {
     if (!isOnline) {
@@ -219,7 +246,7 @@ export const OfflineProvider = ({ children }) => {
   }, [isOnline, loadPendingCount]);
 
   /**
-   * ✅ NEW: Sync single item by ID
+   * ✅ Sync single item with context awareness
    */
   const syncSingle = useCallback(
     async (itemId) => {
@@ -234,7 +261,6 @@ export const OfflineProvider = ({ children }) => {
       }
 
       try {
-        // Get the item from queue
         const queue = await offlineService.getQueue();
         const item = queue.find((q) => q.id === itemId);
 
@@ -243,8 +269,19 @@ export const OfflineProvider = ({ children }) => {
           return { success: false, error: "Item not found" };
         }
 
-        // Sync this single item
-        const result = await offlineService.syncQueueItem(item);
+        let result;
+        
+        // Check if it's a timbangan request
+        const isTimbanganRequest = item.url && 
+          (item.url.includes('/ritase/offline') || item.url.includes('/timbangan'));
+
+        if (isTimbanganRequest) {
+          // Use timbanganService for tracking
+          result = await timbanganService.retrySingle(itemId);
+        } else {
+          // Use offlineService without tracking
+          result = await offlineService.syncQueueItem(item);
+        }
 
         if (result.success) {
           showToast.success("✅ Data berhasil disinkronkan");
@@ -265,8 +302,7 @@ export const OfflineProvider = ({ children }) => {
   );
 
   /**
-   * Retry a single failed item by ID — only syncs that one item,
-   * does NOT touch any other pending or failed items.
+   * ✅ Retry single with context awareness
    */
   const retrySingle = useCallback(
     async (itemId) => {
@@ -281,7 +317,15 @@ export const OfflineProvider = ({ children }) => {
       }
 
       try {
-        const result = await offlineService.retrySingle(itemId);
+        let result;
+        
+        if (isTimbanganPage) {
+          // Use timbanganService with tracking
+          result = await timbanganService.retrySingle(itemId);
+        } else {
+          // Use offlineService without tracking
+          result = await offlineService.retrySingle(itemId);
+        }
 
         if (result.success) {
           showToast.success("✅ Data berhasil disinkronkan");
@@ -298,11 +342,11 @@ export const OfflineProvider = ({ children }) => {
         return { success: false, error: error.message };
       }
     },
-    [isOnline, loadPendingCount],
+    [isOnline, loadPendingCount, isTimbanganPage],
   );
 
   /**
-   * ✅ NEW: Sync selected items (batch)
+   * ✅ Sync selected items (batch)
    */
   const syncSelected = useCallback(
     async (itemIds) => {
@@ -338,7 +382,17 @@ export const OfflineProvider = ({ children }) => {
 
         for (const item of itemsToSync) {
           try {
-            const result = await offlineService.syncQueueItem(item);
+            // Check if timbangan request
+            const isTimbanganRequest = item.url && 
+              (item.url.includes('/ritase/offline') || item.url.includes('/timbangan'));
+
+            let result;
+            if (isTimbanganRequest) {
+              result = await timbanganService.retrySingle(item.id);
+            } else {
+              result = await offlineService.syncQueueItem(item);
+            }
+
             if (result.success) {
               synced++;
             } else {
@@ -386,6 +440,12 @@ export const OfflineProvider = ({ children }) => {
     try {
       await offlineService.clearAll();
 
+      // Also clear timbangan tracking if on timbangan page
+      if (isTimbanganPage) {
+        // Clear all timbangan queues (optional - you might want to keep some)
+        // For now, we just update the counts
+      }
+
       batchStateUpdate({
         isSyncing: false,
         lastSync: null,
@@ -401,37 +461,56 @@ export const OfflineProvider = ({ children }) => {
       showToast.error("Gagal menghapus data offline");
       return { success: false, error: error.message };
     }
-  }, [batchStateUpdate]);
+  }, [batchStateUpdate, isTimbanganPage]);
 
-  // Fungsi untuk mendapatkan detail transaksi
+  /**
+   * ✅ Get queue details based on context
+   */
   const getQueueDetails = useCallback(async () => {
     try {
-      const pending = await offlineService.getQueue();
-      const failed = (await offlineService.getFailedQueue?.()) || [];
-      const sent = (await timbanganService.getSentQueue?.()) || [];
-
-      return {
-        pending: pending || [],
-        failed: failed || [],
-        sent: sent || [],
-      };
+      if (isTimbanganPage) {
+        // Timbangan: full tracking
+        const queues = await timbanganService.getAllQueues();
+        return {
+          pending: queues.pending || [],
+          failed: queues.failed || [],
+          sent: queues.sent || [],
+        };
+      } else {
+        // Other menus: only pending
+        const pending = await offlineService.getQueue();
+        return {
+          pending: pending || [],
+          failed: [],
+          sent: [],
+        };
+      }
     } catch (error) {
       console.error("Failed to get queue details:", error);
       return { pending: [], failed: [], sent: [] };
     }
-  }, []);
+  }, [isTimbanganPage]);
 
-  // Fungsi untuk menghapus item spesifik
+  /**
+   * ✅ Delete item based on context
+   */
   const deleteQueueItem = useCallback(
     async (id, type = "pending") => {
       try {
         let result;
-        if (type === "failed") {
-          result = await offlineService.deleteFailedItem?.(id);
-        } else if (type === "sent") {
-          result = await offlineService.deleteSentItem?.(id);
+        
+        if (isTimbanganPage) {
+          // Use timbanganService
+          if (type === "failed") {
+            result = await timbanganService.deleteFailedItem(id);
+          } else if (type === "sent") {
+            result = await timbanganService.deleteSentItem(id);
+          } else {
+            result = await timbanganService.deletePendingItem(id);
+          }
         } else {
-          result = await offlineService.deleteQueueItem?.(id);
+          // Use offlineService (only pending)
+          result = await offlineService.deleteQueueItem(id);
         }
 
         if (result?.success) {
@@ -447,7 +526,7 @@ export const OfflineProvider = ({ children }) => {
         return { success: false, error: error.message };
       }
     },
-    [loadPendingCount],
+    [loadPendingCount, isTimbanganPage],
   );
 
   // Event listeners
@@ -468,7 +547,6 @@ export const OfflineProvider = ({ children }) => {
         isSyncing: false,
         lastSync: new Date().toISOString(),
       });
-      // Reload to update sent count
       loadPendingCount();
     };
 
@@ -482,18 +560,31 @@ export const OfflineProvider = ({ children }) => {
       }
     };
 
+    // Timbangan specific cleanup event
+    const handleTimbanganSentCleaned = (event) => {
+      if (isTimbanganPage && event.detail.deletedCount > 0) {
+        showToast.info(
+          `🗑️ ${event.detail.deletedCount} data timbangan terkirim yang sudah lebih dari 8 jam telah dihapus`,
+          { duration: 5000 }
+        );
+        loadPendingCount();
+      }
+    };
+
     offlineService.on("queue:updated", handleQueueUpdated);
     offlineService.on("sync:progress", handleSyncProgress);
     offlineService.on("sync:done", handleSyncDone);
     offlineService.on("sent:cleaned", handleSentCleaned);
+    window.addEventListener("timbangan:sent:cleaned", handleTimbanganSentCleaned);
 
     return () => {
       offlineService.off("queue:updated", handleQueueUpdated);
       offlineService.off("sync:progress", handleSyncProgress);
       offlineService.off("sync:done", handleSyncDone);
       offlineService.off("sent:cleaned", handleSentCleaned);
+      window.removeEventListener("timbangan:sent:cleaned", handleTimbanganSentCleaned);
     };
-  }, [loadPendingCount, batchStateUpdate]);
+  }, [loadPendingCount, batchStateUpdate, isTimbanganPage]);
 
   // Load initial counts
   useEffect(() => {
@@ -521,6 +612,7 @@ export const OfflineProvider = ({ children }) => {
     isOffline: !isOnline,
     syncStatus,
     autoSyncEnabled,
+    isTimbanganPage, // ✅ Expose context
 
     syncPendingData,
     syncSingle,
@@ -541,4 +633,4 @@ export const OfflineProvider = ({ children }) => {
   return (
     <OfflineContext.Provider value={value}>{children}</OfflineContext.Provider>
   );
-};  
+};
