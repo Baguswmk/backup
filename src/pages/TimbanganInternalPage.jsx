@@ -29,16 +29,20 @@ import { queryClient } from "@/shared/config/queryClient";
 import RitaseHistory from "@/modules/timbangan/ritase/RitaseHistory";
 import BeltscaleManagement from "@/modules/timbangan/ritase/BeltScaleManagement";
 import TimbanganManagement from "@/modules/timbangan/timbangan/TimbanganManagement";
+// import RitasePendingManagement from "@/modules/timbangan/ritase-pending/RitasePendingManagement";
 
 const TimbanganInternalPage = () => {
   const { isAuthenticated } = useAuth();
   const { user } = useAuthStore();
   const userRole = user?.role;
   const getDefaultMenu = () => {
-    if (userRole === "operator_jt" || userRole === "checker") {
+    if (userRole === "operator_jt") {
       return "Timbangan";
+    } else if (userRole === "checker") {
+      return "Ritase";
+    } else {
+      return "Setting Fleet";
     }
-    return "Setting Fleet";
   };
 
   const [activeMenu, setActiveMenu] = useState(getDefaultMenu());
@@ -71,6 +75,21 @@ const TimbanganInternalPage = () => {
         ],
         locationId: "ritase",
       },
+      // {
+      //   name: "Ritase Pending",
+      //   icon: History,
+      //   roles: [
+      //     "checker",
+      //     "pic",
+      //     "pengawas",
+      //     "operator_jt",
+      //     "evaluator",
+      //     "admin",
+      //     "super_admin",
+      //     "ccr",
+      //   ],
+      //   locationId: "ritase-pending",
+      // },
       {
         name: "Ritase History",
         icon: History,
@@ -123,7 +142,7 @@ const TimbanganInternalPage = () => {
     [],
   );
 
-    const isMenuAccessible = useCallback(
+  const isMenuAccessible = useCallback(
     (menuItem) => {
       return menuItem?.roles?.includes(userRole);
     },
@@ -275,9 +294,9 @@ const TimbanganInternalPage = () => {
                 <TimbanganManagement Type="Timbangan" />
               ) : activeMenu === "Ritase" ? (
                 <RitaseManagement Type="Ritase" />
-              ) : activeMenu === "Ritase History" ? (
+              )  : activeMenu === "Ritase History" ? (
                 <RitaseHistory Type="Ritase History" />
-              ) : activeMenu === "Beltscale" ? (
+              ) : activeMenu === "Beltscale" ? (  
                 <BeltscaleManagement Type="Beltscale" />
               ) : activeMenu === "Overview" ? (
                 <OverviewPage />
