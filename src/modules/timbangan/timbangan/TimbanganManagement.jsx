@@ -2,12 +2,14 @@ import React, { useEffect, useCallback, useState } from "react";
 import { TimbanganInputCard } from "./components/TimbanganInputCard";
 import { TimbanganList } from "./components/TimbanganList";
 import LoadingOverlay from "@/shared/components/LoadingOverlay";
-import { WifiOff, Wifi, Maximize, Minimize, ExternalLink, User, Edit2 } from "lucide-react";
+import { WifiOff, Wifi, Maximize, Minimize, ExternalLink, User, Edit2, RefreshCw, Database } from "lucide-react";
 import { useOffline } from "@/shared/components/OfflineProvider";
 import { useFleet } from "../fleet/hooks/useFleet";
 import { calculateCurrentShiftAndGroup } from "@/shared/utils/group";
 import useAuthStore from "@/modules/auth/store/authStore";
 import OperatorNameModal from "./components/OperatorNameModal";
+import { Button } from "@/shared/components/ui/button";
+import { useMasterData } from "@/modules/timbangan/masterData/hooks/useMasterData";
 
 const TimbanganManagement = () => {
   const { isOnline } = useOffline();
@@ -20,7 +22,8 @@ const TimbanganManagement = () => {
   const user = useAuthStore((state) => state.user);
   const [showOperatorModal, setShowOperatorModal] = useState(false);
   const [operatorName, setOperatorName] = useState("");
-
+  const [isRefreshing, setIsRefreshing] = useState(false);
+   const { refreshAllMasterData, isRefreshingMasterData } = useMasterData();
   // Check if operator name exists on mount
   useEffect(() => {
     const savedName = localStorage.getItem("operator_sib_name");
@@ -52,6 +55,22 @@ const TimbanganManagement = () => {
     const url = window.location.origin + window.location.pathname + '?menu=Ritase';
     window.open(url, '_blank');
   }, []);
+
+  // const handleRefresh = useCallback(async () => {
+  //   setIsRefreshing(true);
+  //   try {
+  //     // Dispatch event untuk refresh TimbanganList
+  //     window.dispatchEvent(new CustomEvent('timbangan:refresh'));
+      
+  //     // Tunggu sebentar untuk animasi
+  //     await new Promise(resolve => setTimeout(resolve, 1000));
+  //   } catch (error) {
+  //     console.error('Refresh error:', error);
+  //   } finally {
+  //     setIsRefreshing(false);
+  //   }
+  // }, []);
+
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -174,13 +193,13 @@ const TimbanganManagement = () => {
                     {operatorName || user?.name || user?.username || "User"}
                   </span>
                 </p>
-                <button
+                <Button
                   onClick={handleOpenOperatorModal}
                   className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors cursor-pointer"
                   title="Edit Nama Operator"
                 >
                   <Edit2 className="w-3.5 h-3.5" />
-                </button>
+                </Button>
               </div>
             </div>
                  {/* Date, Time, Shift Info - Responsive Grid */}
@@ -233,34 +252,56 @@ const TimbanganManagement = () => {
                 {isOnline ? (
                   <>
                     <Wifi className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-green-500 dark:text-green-400" />
-                    <span className="text-green-600 dark:text-green-400">
+                    <span className="text-green-600 dark:text-green-400 hidden sm:inline">
                       Online
                     </span>
                   </>
                 ) : (
                   <>
                     <WifiOff className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-orange-500 dark:text-orange-400" />
-                    <span className="text-orange-600 dark:text-orange-400">
+                    <span className="text-orange-600 dark:text-orange-400 hidden sm:inline">
                       Offline
                     </span>
                   </>
                 )}
               </div>
+
+              {/* Button Refresh Master Data */}
+              <Button
+                onClick={refreshAllMasterData}
+                disabled={isRefreshingMasterData}
+                className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-100 dark:bg-slate-800 text-xs sm:text-sm font-medium border border-green-300 dark:border-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 text-green-700 dark:text-green-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors "
+                title="Refresh Master Data (Unit, Operator, dll)"
+              >
+                <Database className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${isRefreshingMasterData ? "animate-spin" : ""}`} />
+                <span className="hidden sm:inline">Master</span>
+              </Button>
+
+              {/* Button Refresh Timbangan */}
+              {/* <Button
+                onClick={handleRefresh}
+                disabled={isRefreshing}
+                className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-100 dark:bg-slate-800 text-xs sm:text-sm font-medium border border-slate-200 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed dark:text-neutral-50"
+                title="Refresh Data Timbangan"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${isRefreshing ? "animate-spin" : ""}`} />
+                <span className="hidden sm:inline">Refresh</span>
+              </Button> */}
               
               {/* Button Buka Ritase di Tab Baru */}
-              <button
+              <Button
                 onClick={handleOpenRitase}
                 className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-100 dark:bg-slate-800 text-xs sm:text-sm font-medium border border-slate-200 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
                 title="Buka Ritase di Tab Baru"
               >
                 <ExternalLink className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-purple-500 dark:text-purple-400" />
-                <span className="text-purple-600 dark:text-purple-400">
+                <span className="text-purple-600 dark:text-purple-400 hidden sm:inline">
                   Ritase
                 </span>
-              </button>
+              </Button>
 
               {/* Fullscreen Toggle Button */}
-              <button
+              <Button
                 onClick={toggleFullscreen}
                 className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-100 dark:bg-slate-800 text-xs sm:text-sm font-medium border border-slate-200 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
                 title="Toggle Fullscreen (F11 atau Alt+F)"
@@ -268,22 +309,22 @@ const TimbanganManagement = () => {
                 {isFullscreen ? (
                   <>
                     <Minimize className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-blue-500 dark:text-blue-400" />
-                    <span className="text-blue-600 dark:text-blue-400 hidden xs:inline">
+                    <span className="text-blue-600 dark:text-blue-400 hidden sm:inline">
                       Exit
                     </span>
-                    <span className="text-blue-600 dark:text-blue-400 xs:hidden">
+                    <span className="text-blue-600 dark:text-blue-400 sm:hidden">
                       Exit Fullscreen
                     </span>
                   </>
                 ) : (
                   <>
                     <Maximize className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-blue-500 dark:text-blue-400" />
-                    <span className="text-blue-600 dark:text-blue-400">
+                    <span className="text-blue-600 dark:text-blue-400 hidden sm:inline">
                       Fullscreen
                     </span>
                   </>
                 )}
-              </button>
+              </Button>
             </div>
             
           </div>

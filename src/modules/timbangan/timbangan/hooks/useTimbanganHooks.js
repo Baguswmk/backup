@@ -89,7 +89,7 @@ export const useTimbanganHooks = () => {
     [availableUnits],
   );
 
-  // Calculate Weights based on Role
+  // Calculate Weights based on Role (only for normal timbangan mode)
   useEffect(() => {
     const isOperator = user?.role === "operator_jt";
     const tare = parseFloat(formData.tare_weight);
@@ -155,6 +155,21 @@ export const useTimbanganHooks = () => {
     return Object.keys(newErrors).length === 0;
   };
 
+  const validateBypassForm = () => {
+    const newErrors = {};
+
+    if (!formData.hull_no) newErrors.hull_no = "Nomor lambung harus diisi";
+    if (!formData.unit_dump_truck)
+      newErrors.hull_no = "Unit tidak ditemukan di database";
+    
+    if (!formData.bypass_tonnage || parseFloat(formData.bypass_tonnage) <= 0) {
+      newErrors.hull_no = "Bypass tonnage tidak valid (Cek Master Unit)";
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
   const processSubmit = async (currentFormData) => {
     setIsSubmitting(true);
     try {
@@ -169,6 +184,7 @@ export const useTimbanganHooks = () => {
         company: currentFormData.company,
         spph: currentFormData.spph,
         createdAt: new Date().toISOString(),
+        is_bypass: false,
       };
 
       const result = await timbanganService.createTimbangan(payload);
@@ -194,9 +210,57 @@ export const useTimbanganHooks = () => {
     }
   };
 
+  const processBypassSubmit = async (currentFormData) => {
+    setIsSubmitting(true);
+    try {
+      const bypassTonnage = parseFloat(currentFormData.bypass_tonnage);
+      
+      const payload = {
+        id: parseInt(currentFormData.unit_dump_truck),
+        hull_no: currentFormData.hull_no,
+        tare_weight: 0, // Bypass mode, no tare
+        gross_weight: bypassTonnage,
+        net_weight: bypassTonnage, // Net = Bypass tonnage
+        timestamp: new Date().toISOString(),
+        bypass_tonnage: currentFormData.bypass_tonnage,
+        company: currentFormData.company,
+        spph: currentFormData.spph,
+        createdAt: new Date().toISOString(),
+      };
+
+      const result = await timbanganService.createTimbangan(payload);
+      
+      if (result.queued || result.status) {
+        showToast.success("Data bypass berhasil disimpan dan karcis akan dicetak");
+        
+        // Set data for auto-print
+        setLastSubmittedData(payload);
+        
+        // Reset form after small delay
+        setTimeout(() => {
+          resetForm();
+        }, 500);
+      } else {
+        throw new Error(result.error || "Gagal menyimpan data bypass");
+      }
+    } catch (error) {
+      showToast.error(error.response?.data?.message || "Gagal menyimpan data bypass");
+      console.error("❌ Bypass submit error:", error);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const debouncedProcessSubmit = useCallback(
     debounce((data) => {
       processSubmit(data);
+    }, 500),
+    [],   
+  );
+
+  const debouncedProcessBypassSubmit = useCallback(
+    debounce((data) => {
+      processBypassSubmit(data);
     }, 500),
     [],   
   );
@@ -206,6 +270,13 @@ export const useTimbanganHooks = () => {
     if (!validateForm()) return;
 
     debouncedProcessSubmit(formData);
+  };
+
+  const handleBypassSubmit = (e) => {
+    e?.preventDefault();
+    if (!validateBypassForm()) return;
+
+    debouncedProcessBypassSubmit(formData);
   };
 
   const resetForm = () => {
@@ -235,6 +306,7 @@ export const useTimbanganHooks = () => {
     availableUnits,
     handleHullNoChange,
     handleSubmit,
+    handleBypassSubmit,
     resetForm,
     lastSubmittedData,
     clearLastSubmittedData,

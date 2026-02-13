@@ -29,16 +29,21 @@ import { queryClient } from "@/shared/config/queryClient";
 import RitaseHistory from "@/modules/timbangan/ritase/RitaseHistory";
 import BeltscaleManagement from "@/modules/timbangan/ritase/BeltScaleManagement";
 import TimbanganManagement from "@/modules/timbangan/timbangan/TimbanganManagement";
+import RitasePendingManagement from "@/modules/timbangan/ritase-pending/RitasePendingManagement";
 // import RitasePendingManagement from "@/modules/timbangan/ritase-pending/RitasePendingManagement";
 
 const TimbanganInternalPage = () => {
   const { isAuthenticated } = useAuth();
   const { user } = useAuthStore();
   const userRole = user?.role;
+  
+  const isOperator = userRole === "operator_jt";
+  const isCheckpoint = userRole === "checker" && user.username.includes("checkpoint");
+
   const getDefaultMenu = () => {
-    if (userRole === "operator_jt") {
+    if (isOperator || isCheckpoint) {
       return "Timbangan";
-    } else if (userRole === "checker") {
+    } else if (userRole === "checker" && !isCheckpoint) {
       return "Ritase";
     } else {
       return "Setting Fleet";
@@ -54,12 +59,13 @@ const TimbanganInternalPage = () => {
         roles: ["pic", "pengawas", "evaluator", "admin", "super_admin", "ccr"],
         locationId: "Setting Fleet",
       },
-      {
-        name: "Timbangan",
-        icon: Scale,
-        roles: ["checker", "operator_jt"],
-        locationId: "timbangan",
-      },
+{
+      name: "Timbangan",
+      icon: Scale,
+      roles: ["operator_jt", "checker"], 
+      customCheck: true, 
+      locationId: "timbangan",
+    },
       {
         name: "Ritase",
         icon: Scale,
@@ -75,21 +81,21 @@ const TimbanganInternalPage = () => {
         ],
         locationId: "ritase",
       },
-      // {
-      //   name: "Ritase Pending",
-      //   icon: History,
-      //   roles: [
-      //     "checker",
-      //     "pic",
-      //     "pengawas",
-      //     "operator_jt",
-      //     "evaluator",
-      //     "admin",
-      //     "super_admin",
-      //     "ccr",
-      //   ],
-      //   locationId: "ritase-pending",
-      // },
+      {
+        name: "Ritase Pending",
+        icon: History,
+        roles: [
+          "checker",
+          "pic",
+          "pengawas",
+          "operator_jt",
+          "evaluator",
+          "admin",
+          "super_admin",
+          "ccr",
+        ],
+        locationId: "ritase-pending",
+      },
       {
         name: "Ritase History",
         icon: History,
@@ -142,12 +148,16 @@ const TimbanganInternalPage = () => {
     [],
   );
 
-  const isMenuAccessible = useCallback(
-    (menuItem) => {
-      return menuItem?.roles?.includes(userRole);
-    },
-    [userRole],
-  );
+ const isMenuAccessible = useCallback(
+  (menuItem) => {
+    if (menuItem.customCheck && menuItem.name === "Timbangan") {
+      return isOperator || isCheckpoint; 
+    }
+    
+    return menuItem?.roles?.includes(userRole);
+  },
+  [userRole, isOperator, isCheckpoint],
+);
 
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
@@ -294,7 +304,9 @@ const TimbanganInternalPage = () => {
                 <TimbanganManagement Type="Timbangan" />
               ) : activeMenu === "Ritase" ? (
                 <RitaseManagement Type="Ritase" />
-              )  : activeMenu === "Ritase History" ? (
+              ) : activeMenu === "Ritase Pending" ? (
+                <RitasePendingManagement Type="Ritase Pending" />
+              ) : activeMenu === "Ritase History" ? (
                 <RitaseHistory Type="Ritase History" />
               ) : activeMenu === "Beltscale" ? (  
                 <BeltscaleManagement Type="Beltscale" />
