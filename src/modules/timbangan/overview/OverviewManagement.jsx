@@ -91,8 +91,7 @@ const OverviewManagement = () => {
     summaryData: hookSummaryData,
     tableData: hookTableData,
   } = useDashboardDaily(hookParams, true);
-
-    useEffect(() => {
+  useEffect(() => {
     if (isLoading) {
       if (!cachedData) {
         setIsRefreshing(false);
@@ -236,9 +235,9 @@ const OverviewManagement = () => {
       dumptruckBreakdown: [],
       excavatorBreakdown: [],
     };
-
-    if (isRefreshing && cachedData?.data?.summaryData) {
-      const cached = cachedData.data.summaryData;
+    
+    if (isRefreshing && cachedData?.data?.summary) {
+      const cached = cachedData.data.summary;
       return {
         activeDumptrucks: Array.isArray(cached.activeDumptrucks)
           ? cached.activeDumptrucks.reduce(
@@ -268,7 +267,7 @@ const OverviewManagement = () => {
     if (!hookSummaryData || error) {
       return defaultSummary;
     }
-
+    console.log(hookSummaryData)
     return {
       activeDumptrucks: Array.isArray(hookSummaryData.activeDumptrucks)
         ? hookSummaryData.activeDumptrucks.reduce(

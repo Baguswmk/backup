@@ -189,8 +189,8 @@ export const useDashboardDaily = (params = {}, autoFetch = true) => {
 
     hasData: data !== null && data?.success && data?.data !== null,
     isEmpty: data?.data?.data?.tableData?.length === 0,
-    summaryData: data?.data?.data?.summary || null,
-    tableData: data?.data?.data?.tableData || [],
+   summaryData: data?.data?.summary || null,
+tableData: data?.data?.tableData || [],
   };
 };
 
