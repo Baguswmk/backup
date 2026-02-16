@@ -21,15 +21,26 @@ export const useRitasePendingSync = () => {
   const syncRitase = useCallback(async (ritase) => {
     setIsSyncing(true);
     try {
+      logger.info("🔄 Syncing single ritase", { id: ritase.id });
+
       const result = await ritasePendingService.syncSingleRitase(ritase);
+
       if (result.success) {
         logger.info("✅ Ritase synced", { id: ritase.id });
       } else {
-        logger.warn("⚠️ Ritase sync failed", { id: ritase.id, error: result.error });
+        logger.warn("⚠️ Ritase sync failed", {
+          id: ritase.id,
+          error: result.error,
+        });
       }
+
       return result;
     } catch (error) {
-      logger.error("❌ syncRitase error", error);
+      logger.error("❌ syncRitase error", {
+        id: ritase.id,
+        error: error.message,
+        details: error.response?.data,
+      });
       return { success: false, error };
     } finally {
       setIsSyncing(false);
@@ -47,14 +58,27 @@ export const useRitasePendingSync = () => {
       let result;
 
       if (ritases.length === 1) {
-        // Satu item → pakai single endpoint
+        logger.info("🔄 Syncing single ritase (via syncRitases)", {
+          id: ritases[0].id,
+        });
+
         result = await ritasePendingService.syncSingleRitase(ritases[0]);
+
         if (result.success) {
-          logger.info("✅ Single ritase synced (via syncRitases)", { id: ritases[0].id });
+          logger.info("✅ Single ritase synced (via syncRitases)", {
+            id: ritases[0].id,
+          });
+        } else {
+          logger.warn("⚠️ Single ritase sync failed (via syncRitases)", {
+            id: ritases[0].id,
+            error: result.error,
+          });
         }
       } else {
-        // Lebih dari satu → pakai bulk endpoint
+        logger.info("🔄 Syncing bulk ritase", { count: ritases.length });
+
         result = await ritasePendingService.syncBulkRitase(ritases);
+
         if (result.success) {
           logger.info("✅ Bulk ritase synced", { count: ritases.length });
         } else {
@@ -65,7 +89,11 @@ export const useRitasePendingSync = () => {
       setSyncProgress({ current: ritases.length, total: ritases.length });
       return result;
     } catch (error) {
-      logger.error("❌ syncRitases error", error);
+      logger.error("❌ syncRitases error", {
+        count: ritases.length,
+        error: error.message,
+        details: error.response?.data,
+      });
       return { success: false, error };
     } finally {
       setIsSyncing(false);
@@ -74,23 +102,27 @@ export const useRitasePendingSync = () => {
   }, []);
 
   // ─── Sync all ritases in a location group ─────────────────────────────────
-  const syncLocation = useCallback(async (location) => {
-    const ritases = location.ritases ?? [];
-    if (ritases.length === 0) return { success: true };
+  const syncLocation = useCallback(
+    async (location) => {
+      const ritases = location.ritases ?? [];
 
-    logger.info("📦 Syncing location", {
-      location: location.locationKey,
-      count: ritases.length,
-    });
+      if (ritases.length === 0) return { success: true };
 
-    return syncRitases(ritases);
-  }, [syncRitases]);
+      logger.info("📦 Syncing location", {
+        location: location.locationKey,
+        count: ritases.length,
+      });
+
+      return syncRitases(ritases);
+    },
+    [syncRitases],
+  );
 
   return {
     isSyncing,
     syncProgress,
-    syncRitase,    // untuk 1 item (dari tombol per-row di modal)
-    syncRitases,   // untuk 1 atau banyak item, auto-route
-    syncLocation,  // untuk semua ritase dalam 1 lokasi
+    syncRitase,   // untuk 1 item (dari tombol per-row di modal)
+    syncRitases,  // untuk 1 atau banyak item, auto-route
+    syncLocation, // untuk semua ritase dalam 1 lokasi
   };
 };

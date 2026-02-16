@@ -798,6 +798,24 @@ async function retryFailed() {
   return syncAllPending();
 }
 
+async function retrySingle(id) {
+  const db = await getDB();
+  const item = await db.get(STORES.FAILED, id);
+
+  if (!item) {
+    return { success: false, error: "Item not found" };
+  }
+
+  await db.delete(STORES.FAILED, id);
+  await db.add(STORES.QUEUE, {
+    ...item,
+    status: "pending",
+    retryCount: 0,
+  });
+
+  return syncQueueItem(item);
+} 
+
 function on(eventName, callback) {
   if (!activeListeners.has(eventName)) {
     activeListeners.set(eventName, new Set());
@@ -891,7 +909,8 @@ export const offlineService = {
   deleteQueueItem,      
   deleteFailedItem,     
   getFailedQueue,       
-
+  syncQueueItem,
+  retrySingle,
 
   setCache,
   getCache,

@@ -1,13 +1,14 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
-  MapPin,
-  ChevronRight,
   Package,
-  TrendingUp,
   Send,
   CheckSquare,
   Square,
   MinusSquare,
+  Truck,
+  User,
+  ChevronRight,
+  Weight,
 } from "lucide-react";
 import { logger } from "@/shared/services/log";
 import useAuthStore from "@/modules/auth/store/authStore";
@@ -15,17 +16,22 @@ import { RitaseDetailModal } from "./RitaseDetailModal";
 import { Button } from "@/shared/components/ui/button";
 import { useRitasePendingSync } from "../hooks/useRitasePendingSync";
 import { ritasePendingService } from "../services/ritasePendingService";
+import Pagination from "@/shared/components/Pagination";
+
+const ITEMS_PER_PAGE_DEFAULT = 10;
 
 export const RitasePendingList = ({ onRegisterRefresh }) => {
-  const [pendingData, setPendingData] = useState([]);
+  const [ritaseList, setRitaseList] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [selectedLocation, setSelectedLocation] = useState(null);
+  const [selectedGroup, setSelectedGroup] = useState(null); // group user yang dibuka di modal
 
-  // Checkbox state: set of selected locationKey strings
-  const [selectedKeys, setSelectedKeys] = useState(new Set());
+  const [selectedKeys, setSelectedKeys] = useState(new Set()); // key = userId
+
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(ITEMS_PER_PAGE_DEFAULT);
 
   const user = useAuthStore((state) => state.user);
-  const { isSyncing, syncProgress, syncLocation } = useRitasePendingSync();
+  const { isSyncing, syncRitases } = useRitasePendingSync();
 
   useEffect(() => {
     fetchPendingRitases();
@@ -33,7 +39,6 @@ export const RitasePendingList = ({ onRegisterRefresh }) => {
     return () => clearInterval(interval);
   }, []);
 
-  // Expose refresh fn to parent
   useEffect(() => {
     if (typeof onRegisterRefresh === "function") {
       onRegisterRefresh(fetchPendingRitases);
@@ -44,30 +49,25 @@ export const RitasePendingList = ({ onRegisterRefresh }) => {
     try {
       setIsLoading(true);
 
-      const now = new Date();
-
       const result = await ritasePendingService.fetchPendingRitase({
+        user,
         forceRefresh: true,
       });
 
-      if (result.status && result.data) {
+      if (result.status === "success" && result.data) {
         const filtered = result.data.filter((ritase) => {
           if (ritase.id_setting_fleet) return false;
-          const ritaseTime = new Date(ritase.createdAt || ritase.timestamp);
-          const diffHours = (now - ritaseTime) / (1000 * 60 * 60);
-          return diffHours <= 8;
+          if (user?.role?.toLowerCase() !== "ccr") {
+            if (ritase.created_by_user?.id !== user?.id) return false;
+          }
+          return true;
         });
 
-        const grouped = groupByLocation(filtered);
-        setPendingData(grouped);
-
-        // Clear selection when data refreshes
+        setRitaseList(filtered);
+        setCurrentPage(1);
         setSelectedKeys(new Set());
 
-        logger.info("✅ Pending ritases loaded", {
-          total: filtered.length,
-          locations: grouped.length,
-        });
+        logger.info("✅ Pending ritases loaded", { total: filtered.length });
       }
     } catch (error) {
       logger.error("❌ Failed to fetch pending ritases", error);
@@ -76,51 +76,70 @@ export const RitasePendingList = ({ onRegisterRefresh }) => {
     }
   };
 
-  const groupByLocation = (ritases) => {
-    const groups = {};
-    console.log(ritases)
-    ritases.forEach((ritase) => {
-      const loading = ritase.loading_location || "-";
-      const dumping = ritase.dumping_location || "-";
-      const key = `${loading} → ${dumping}`;
-      const hull_no = ritase.unit_dump_truck || "-";
-      const date = ritase.tanggal || "-";
+  // ─── Group by created_by_user ────────────────────────────────────────────────
 
-      if (!groups[key]) {
-        groups[key] = {
-          hull_no,
-          date,
-          locationKey: key,
-          loading,
-          dumping,
+  const groupedData = useMemo(() => {
+    const groups = {};
+    ritaseList.forEach((ritase) => {
+      const userId = ritase.created_by_user?.id ?? "unknown";
+      if (!groups[userId]) {
+        groups[userId] = {
+          userId: String(userId),
+          userName: ritase.created_by_user?.name || ritase.created_by_user?.username || "-",
+          username: ritase.created_by_user?.username || "-",
           ritases: [],
           totalRit: 0,
           totalTon: 0,
         };
       }
-
-      groups[key].ritases.push(ritase);
-      groups[key].totalRit += 1;
-      groups[key].totalTon += parseFloat(ritase.net_weight || 0);
+      groups[userId].ritases.push(ritase);
+      groups[userId].totalRit += 1;
+      groups[userId].totalTon += parseFloat(ritase.net_weight || 0);
     });
-
     return Object.values(groups).sort((a, b) => b.totalRit - a.totalRit);
+  }, [ritaseList]);
+
+  // ─── Pagination ──────────────────────────────────────────────────────────────
+
+  const totalPages = Math.max(1, Math.ceil(groupedData.length / itemsPerPage));
+
+  const pagedData = useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage;
+    return groupedData.slice(start, start + itemsPerPage);
+  }, [groupedData, currentPage, itemsPerPage]);
+
+  const handlePageChange = (page) => {
+    if (page < 1 || page > totalPages) return;
+    setCurrentPage(page);
+    setSelectedKeys(new Set());
   };
 
-  const formatTonnage = (ton) => (ton / 1000).toFixed(2);
+  const handleItemsPerPageChange = (value) => {
+    setItemsPerPage(value);
+    setCurrentPage(1);
+    setSelectedKeys(new Set());
+  };
 
-  // ─── Checkbox logic ────────────────────────────────────────────────────────
+  // ─── Checkbox logic (per group/user) ────────────────────────────────────────
 
-  const allKeys = pendingData.map((l) => l.locationKey);
+  const allKeys = pagedData.map((g) => g.userId);
   const allSelected = allKeys.length > 0 && allKeys.every((k) => selectedKeys.has(k));
   const someSelected = allKeys.some((k) => selectedKeys.has(k));
   const indeterminate = someSelected && !allSelected;
 
   const toggleSelectAll = () => {
     if (allSelected) {
-      setSelectedKeys(new Set());
+      setSelectedKeys((prev) => {
+        const next = new Set(prev);
+        allKeys.forEach((k) => next.delete(k));
+        return next;
+      });
     } else {
-      setSelectedKeys(new Set(allKeys));
+      setSelectedKeys((prev) => {
+        const next = new Set(prev);
+        allKeys.forEach((k) => next.add(k));
+        return next;
+      });
     }
   };
 
@@ -132,32 +151,24 @@ export const RitasePendingList = ({ onRegisterRefresh }) => {
     });
   };
 
-  const selectedLocations = pendingData.filter((l) =>
-    selectedKeys.has(l.locationKey)
-  );
-  const totalSelectedRit = selectedLocations.reduce(
-    (s, l) => s + l.totalRit,
-    0
-  );
+  const selectedGroups = groupedData.filter((g) => selectedKeys.has(g.userId));
+  const totalSelectedRit = selectedGroups.reduce((s, g) => s + g.totalRit, 0);
 
-  // ─── Sync handlers ─────────────────────────────────────────────────────────
+  // ─── Sync handlers ───────────────────────────────────────────────────────────
 
-  const handleSyncLocation = async (location, event) => {
+  const handleSyncGroup = async (group, event) => {
     event.stopPropagation();
-    const result = await syncLocation(location);
-    if (result.success || result.partialSuccess) {
-      fetchPendingRitases();
-    }
+    const result = await syncRitases(group.ritases);
+    if (result.success || result.partialSuccess) fetchPendingRitases();
   };
 
   const handleBulkSync = async () => {
-    for (const location of selectedLocations) {
-      await syncLocation(location);
-    }
+    const allRitases = selectedGroups.flatMap((g) => g.ritases);
+    await syncRitases(allRitases);
     fetchPendingRitases();
   };
 
-  // ─── Render ────────────────────────────────────────────────────────────────
+  // ─── Render ──────────────────────────────────────────────────────────────────
 
   if (isLoading) {
     return (
@@ -172,7 +183,7 @@ export const RitasePendingList = ({ onRegisterRefresh }) => {
     );
   }
 
-  if (pendingData.length === 0) {
+  if (groupedData.length === 0) {
     return (
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-8">
         <div className="text-center">
@@ -181,8 +192,7 @@ export const RitasePendingList = ({ onRegisterRefresh }) => {
             Tidak Ada Ritase Pending
           </h3>
           <p className="text-sm text-gray-500 dark:text-gray-400">
-            Semua ritase sudah memiliki ID Setting Fleet atau sudah lebih dari 8
-            jam
+            Semua ritase sudah memiliki ID Setting Fleet
           </p>
         </div>
       </div>
@@ -192,21 +202,20 @@ export const RitasePendingList = ({ onRegisterRefresh }) => {
   return (
     <>
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
-        {/* ── Header ─────────────────────────────────────────────────────── */}
+
+        {/* ── Header ──────────────────────────────────────────────────────── */}
         <div className="px-4 sm:px-6 py-4 border-b border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between gap-3 flex-wrap">
             <div>
               <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-                Lokasi dengan Ritase Pending
+                Ritase Pending
               </h2>
               <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                {pendingData.length} lokasi •{" "}
-                {pendingData.reduce((sum, loc) => sum + loc.totalRit, 0)}{" "}
-                ritase
+                {groupedData.length} pengguna &bull;{" "}
+                {ritaseList.length} ritase belum tersinkronisasi
               </p>
             </div>
 
-            {/* Bulk Sync — visible only when something is checked */}
             {someSelected && (
               <Button
                 onClick={handleBulkSync}
@@ -214,10 +223,8 @@ export const RitasePendingList = ({ onRegisterRefresh }) => {
                 size="sm"
                 className="gap-2 bg-green-600 hover:bg-green-700 text-white"
               >
-                <Send
-                  className={`w-3.5 h-3.5 ${isSyncing ? "animate-pulse" : ""}`}
-                />
-                Sync {selectedKeys.size} Lokasi
+                <Send className={`w-3.5 h-3.5 ${isSyncing ? "animate-pulse" : ""}`} />
+                Sync {selectedKeys.size} Pengguna
                 <span className="ml-0.5 text-green-100 text-xs">
                   ({totalSelectedRit} rit)
                 </span>
@@ -226,9 +233,9 @@ export const RitasePendingList = ({ onRegisterRefresh }) => {
           </div>
         </div>
 
-        {/* ── Select-all bar ──────────────────────────────────────────────── */}
+        {/* ── Select-all bar ───────────────────────────────────────────────── */}
         <div className="px-4 sm:px-6 py-2.5 bg-gray-50 dark:bg-gray-900/40 border-b border-gray-200 dark:border-gray-700 flex items-center gap-3">
-          <button
+          <Button
             onClick={toggleSelectAll}
             className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors select-none"
           >
@@ -240,11 +247,9 @@ export const RitasePendingList = ({ onRegisterRefresh }) => {
               <Square className="w-4 h-4" />
             )}
             <span>
-              {allSelected
-                ? "Batal pilih semua"
-                : `Pilih semua (${allKeys.length})`}
+              {allSelected ? "Batal pilih semua" : `Pilih semua (${allKeys.length})`}
             </span>
-          </button>
+          </Button>
 
           {someSelected && (
             <span className="ml-auto text-xs text-blue-600 dark:text-blue-400 font-medium">
@@ -253,116 +258,126 @@ export const RitasePendingList = ({ onRegisterRefresh }) => {
           )}
         </div>
 
-        {/* ── Location List ───────────────────────────────────────────────── */}
+        {/* ── Group List ───────────────────────────────────────────────────── */}
         <div className="divide-y divide-gray-200 dark:divide-gray-700">
-          {pendingData.map((location, index) => {
-            const isChecked = selectedKeys.has(location.locationKey);
+          {pagedData.map((group, index) => {
+            const isChecked = selectedKeys.has(group.userId);
+            const globalIndex = (currentPage - 1) * itemsPerPage + index + 1;
 
             return (
               <div
-                key={location.locationKey}
+                key={group.userId}
                 className={`px-4 sm:px-6 py-4 transition-colors group ${
                   isChecked
                     ? "bg-blue-50/60 dark:bg-blue-900/10"
                     : "hover:bg-gray-50 dark:hover:bg-gray-700/50"
                 }`}
               >
-                <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
                   {/* Checkbox */}
-                  <button
-                    onClick={() => toggleSelectOne(location.locationKey)}
+                  <Button
+                    onClick={() => toggleSelectOne(group.userId)}
                     className="flex-shrink-0 p-1 -ml-1 rounded transition-colors hover:bg-gray-200 dark:hover:bg-gray-600"
-                    title={isChecked ? "Batal pilih" : "Pilih lokasi ini"}
                   >
                     {isChecked ? (
                       <CheckSquare className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                     ) : (
                       <Square className="w-4 h-4 text-gray-400 dark:text-gray-500 group-hover:text-gray-600 dark:group-hover:text-gray-300" />
                     )}
-                  </button>
+                  </Button>
 
-                  {/* Main clickable area → opens detail modal */}
-                  <div
-                    onClick={() => setSelectedLocation(location)}
-                    className="flex items-start gap-3 flex-1 min-w-0 cursor-pointer"
-                  >
-                    <div className="flex-shrink-0 mt-1">
-                      <div className="w-8 h-8 rounded-full bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center">
-                        <MapPin className="w-4 h-4 text-orange-600 dark:text-orange-400" />
-                      </div>
+                  {/* Avatar icon */}
+                  <div className="flex-shrink-0">
+                    <div className="w-9 h-9 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
+                      <User className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                    </div>
+                  </div>
+
+                  {/* Info */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300">
+                        #{globalIndex}
+                      </span>
+                      <h3 className="text-sm sm:text-base font-semibold text-gray-900 dark:text-white truncate">
+                        {group.userName}
+                      </h3>
+                      <span className="text-xs text-gray-400 dark:text-gray-500 hidden sm:inline truncate">
+                        @{group.username}
+                      </span>
                     </div>
 
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300">
-                          #{index + 1}
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1">
+                      <div className="flex items-center gap-1.5">
+                        <Truck className="w-3.5 h-3.5 text-gray-400" />
+                        <span className="text-xs text-gray-500 dark:text-gray-400">
+                          <span className="font-semibold text-orange-600 dark:text-orange-400">
+                            {group.totalRit}
+                          </span>{" "}
+                          Ritase
                         </span>
-                        <h3 className="text-sm sm:text-base font-semibold text-gray-900 dark:text-white truncate">
-                          {location.loading} → {location.dumping}
-                        </h3>
                       </div>
-
-                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2">
-                        <div className="flex items-center gap-1.5">
-                          <Package className="w-3.5 h-3.5 text-gray-500 dark:text-gray-400" />
-                          <span className="text-sm text-gray-600 dark:text-gray-400">
-                            <span className="font-semibold text-orange-600 dark:text-orange-400">
-                              {location.totalRit}
-                            </span>{" "}
-                            Rit
-                          </span>
-                        </div>
-
-                        <div className="flex items-center gap-1.5">
-                          <TrendingUp className="w-3.5 h-3.5 text-gray-500 dark:text-gray-400" />
-                          <span className="text-sm text-gray-600 dark:text-gray-400">
-                            <span className="font-semibold text-blue-600 dark:text-blue-400">
-                              {location.totalTon}
-                            </span>{" "}
-                            ton
-                          </span>
-                        </div>
+                      <div className="flex items-center gap-1.5">
+                        <Weight className="w-3.5 h-3.5 text-gray-400" />
+                        <span className="text-xs text-gray-500 dark:text-gray-400">
+                          <span className="font-semibold text-blue-600 dark:text-blue-400">
+                            {group.totalTon.toFixed(2)}
+                          </span>{" "}
+                          ton
+                        </span>
                       </div>
                     </div>
                   </div>
 
-                  {/* Action buttons */}
+                  {/* Action Buttons */}
                   <div className="flex items-center gap-2 flex-shrink-0">
-                    {/* Per-row Sync */}
+                    {/* Sync group */}
                     <Button
-                      onClick={(e) => handleSyncLocation(location, e)}
+                      onClick={(e) => handleSyncGroup(group, e)}
                       disabled={isSyncing}
                       variant="outline"
                       size="sm"
-                      className="gap-2 border-green-300 dark:border-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 text-green-700 dark:text-green-400"
-                      title={`Sync ${location.totalRit} ritase`}
+                      className="gap-1.5 border-green-300 dark:border-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 text-green-700 dark:text-green-400"
+                      title={`Sync ${group.totalRit} ritase`}
                     >
-                      <Send
-                        className={`w-3.5 h-3.5 ${isSyncing ? "animate-pulse" : ""}`}
-                      />
+                      <Send className={`w-3.5 h-3.5 ${isSyncing ? "animate-pulse" : ""}`} />
                       <span className="hidden sm:inline">Sync</span>
                     </Button>
 
-                    {/* Detail chevron */}
-                    <button
-                      onClick={() => setSelectedLocation(location)}
+                    {/* Detail — buka modal list ritase user ini */}
+                    <Button
+                      onClick={() => setSelectedGroup(group)}
                       className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                      title="Lihat daftar ritase"
                     >
                       <ChevronRight className="w-5 h-5 text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300 transition-colors" />
-                    </button>
+                    </Button>
                   </div>
                 </div>
               </div>
             );
           })}
         </div>
+
+        {/* ── Pagination ───────────────────────────────────────────────────── */}
+        <div className="px-4 sm:px-6 py-4 border-t border-gray-200 dark:border-gray-700">
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={handlePageChange}
+            isLoading={isLoading}
+            itemsPerPage={itemsPerPage}
+            onItemsPerPageChange={handleItemsPerPageChange}
+            totalItems={groupedData.length}
+          />
+        </div>
       </div>
 
-      {/* Detail Modal */}
-      {selectedLocation && (
+      {/* Detail Modal — list ritase milik user yang dipilih */}
+      {selectedGroup && (
         <RitaseDetailModal
-          location={selectedLocation}
-          onClose={() => setSelectedLocation(null)}
+          group={selectedGroup}
+          onClose={() => setSelectedGroup(null)}
           onSyncSuccess={fetchPendingRitases}
         />
       )}
