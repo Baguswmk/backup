@@ -458,17 +458,20 @@ export const generateKertasCheckerPDF = async (data, params) => {
     if (data.date) {
       dateObj = new Date(data.date);
     } else if (data.trips && data.trips.length > 0) {
-      // Ambil tanggal dari trip pertama jika data.date tidak ada
       dateObj = new Date(data.trips[0].time);
     }
 
     if (dateObj && !isNaN(dateObj.getTime())) {
-      // Untuk Shift 1, kurangi 1 hari
       if (
         shiftName &&
         (shiftName.includes("Shift 1") || shiftName.includes("1"))
       ) {
-        dateObj.setDate(dateObj.getDate() + 1);
+        const lastTrip = data.trips[data.trips.length - 1];
+        const lastTripDate = new Date(lastTrip.time);
+
+        if (!isNaN(lastTripDate.getTime())) {
+          dateObj = lastTripDate;
+        }
       }
 
       formattedDate = dateObj.toLocaleDateString("id-ID", {
