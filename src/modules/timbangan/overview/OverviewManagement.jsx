@@ -267,7 +267,6 @@ const OverviewManagement = () => {
     if (!hookSummaryData || error) {
       return defaultSummary;
     }
-    console.log(hookSummaryData)
     return {
       activeDumptrucks: Array.isArray(hookSummaryData.activeDumptrucks)
         ? hookSummaryData.activeDumptrucks.reduce(

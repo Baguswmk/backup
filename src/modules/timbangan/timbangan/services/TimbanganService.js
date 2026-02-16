@@ -247,44 +247,31 @@ async function cleanupSentQueue() {
  */
 async function retryTimbanganWithTracking(id) {
   try {
-    // Check if item exists in offlineService queue
-    const queue = await offlineService.getQueue();
-    const queueItem = queue.find(q => q.id === id);
-    
+    // ✅ Pakai getQueueItem langsung by ID
+    const queueItem = await offlineService.getQueueItem(id);
+
     if (!queueItem) {
-      // Maybe it's in our failed queue
+      // Cek di failed queue timbangan
       const db = await getTimbanganDB();
       const failedItem = await db.get(STORES.FAILED, id);
-      
+
       if (failedItem) {
-        // Move to pending and add to offlineService queue
         await moveFailedToPending(id);
-        // Note: The item should be re-added to offlineService queue by the UI
         return { success: true, moved: true };
       }
-      
+
       return { success: false, error: "Item not found" };
     }
-    
-    // Check if this is timbangan request
-    const isTimbanganRequest = queueItem.url && 
-      (queueItem.url.includes('/ritase/offline') || queueItem.url.includes('/timbangan'));
-    
-    if (!isTimbanganRequest) {
-      // Not a timbangan request, just use offlineService
-      return offlineService.retrySingle(id);
-    }
-    
-    // Execute retry
-    const result = await offlineService.retrySingle(id);
-    
-    // Track the result
+
+    // Execute retry via offlineService
+    const result = await offlineService.syncQueueItem(queueItem);
+
     if (result.success) {
-      // Success - add to sent queue
+      // ✅ Berhasil → simpan ke sent_queue
       await addToSentQueue({
         id: `retry_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
         url: queueItem.url,
-        method: queueItem.method || 'POST',
+        method: queueItem.method || "POST",
         data: queueItem.data,
         timestamp: queueItem.timestamp || Date.now(),
         clientTimestamp: queueItem.clientTimestamp || new Date().toISOString(),
@@ -292,23 +279,23 @@ async function retryTimbanganWithTracking(id) {
         syncedFrom: "manual_retry",
         pendingId: id,
       });
-      
-      console.log("✅ Manual retry saved to sent queue");
     } else {
-      // Failed - add to failed queue with error
-      await addToFailedQueue({
-        id: id,
-        url: queueItem.url,
-        method: queueItem.method || 'POST',
-        data: queueItem.data,
-        timestamp: queueItem.timestamp || Date.now(),
-        clientTimestamp: queueItem.clientTimestamp || new Date().toISOString(),
-        retryCount: queueItem.retryCount || 0,
-      }, result.error);
-      
-      console.log("❌ Manual retry failed, saved to failed queue");
+      // ✅ Gagal → simpan ke failed_queue
+      await addToFailedQueue(
+        {
+          id: `failed_retry_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+          url: queueItem.url,
+          method: queueItem.method || "POST",
+          data: queueItem.data,
+          timestamp: queueItem.timestamp || Date.now(),
+          clientTimestamp: queueItem.clientTimestamp || new Date().toISOString(),
+          retryCount: queueItem.retryCount || 0,
+          pendingId: id,
+        },
+        result.error || "Retry failed",
+      );
     }
-    
+
     return result;
   } catch (error) {
     console.error("❌ Retry with tracking error:", error);
@@ -321,60 +308,90 @@ async function retryTimbanganWithTracking(id) {
  */
 async function syncAllWithTracking() {
   try {
-    // Get all timbangan items from queue before sync
     const queueBeforeSync = await offlineService.getQueue();
-    const timbanganItems = queueBeforeSync.filter(item => 
-      item.url && (item.url.includes('/ritase/offline') || item.url.includes('/timbangan'))
+    const timbanganItems = queueBeforeSync.filter(
+      (item) =>
+        item.url &&
+        (item.url.includes("/ritase/offline") ||
+          item.url.includes("/timbangan")),
     );
-    
-    // Save timbangan items to pending queue
+
+    if (timbanganItems.length === 0) {
+      return offlineService.syncAllPending();
+    }
+
+    // Sync satu per satu supaya bisa track per item
+    let synced = 0;
+    let failed = 0;
+
     for (const item of timbanganItems) {
-      await addToPendingQueue({
-        ...item,
-        pendingId: item.id,
-      });
-    }
-    
-    // Execute sync
-    const result = await offlineService.syncAllPending();
-    
-    // Track results
-    if (result.success && result.synced > 0) {
-      // Get queue after sync to see what's left
-      const queueAfterSync = await offlineService.getQueue();
-      const afterIds = new Set(queueAfterSync.map(q => q.id));
-      
-      // Items that were synced successfully
-      const syncedItems = timbanganItems.filter(item => !afterIds.has(item.id));
-      
-      // Add synced items to sent queue
-      for (const item of syncedItems) {
-        await addToSentQueue({
-          id: `auto_sync_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
-          url: item.url,
-          method: item.method || 'POST',
-          data: item.data,
-          timestamp: item.timestamp || Date.now(),
-          clientTimestamp: item.clientTimestamp || new Date().toISOString(),
-          retryCount: item.retryCount || 0,
-          syncedFrom: "auto_sync",
-          pendingId: item.id,
-        });
+      try {
+        const result = await offlineService.syncQueueItem(item);
+
+        if (result.success) {
+          // ✅ Berhasil → simpan ke sent_queue
+          await addToSentQueue({
+            id: `sync_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+            url: item.url,
+            method: item.method || "POST",
+            data: item.data,
+            timestamp: item.timestamp || Date.now(),
+            clientTimestamp:
+              item.clientTimestamp || new Date().toISOString(),
+            retryCount: item.retryCount || 0,
+            syncedFrom: "auto_sync",
+            pendingId: item.id,
+          });
+          synced++;
+        } else {
+          // ✅ Gagal → simpan ke failed_queue
+          await addToFailedQueue(
+            {
+              id: `failed_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+              url: item.url,
+              method: item.method || "POST",
+              data: item.data,
+              timestamp: item.timestamp || Date.now(),
+              clientTimestamp:
+                item.clientTimestamp || new Date().toISOString(),
+              retryCount: item.retryCount || 0,
+              pendingId: item.id,
+            },
+            result.error || "Sync failed",
+          );
+          failed++;
+        }
+      } catch (error) {
+        await addToFailedQueue(
+          {
+            id: `failed_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+            url: item.url,
+            method: item.method || "POST",
+            data: item.data,
+            timestamp: item.timestamp || Date.now(),
+            clientTimestamp: item.clientTimestamp || new Date().toISOString(),
+            retryCount: item.retryCount || 0,
+            pendingId: item.id,
+          },
+          error,
+        );
+        failed++;
       }
-      
-      console.log(`✅ Saved ${syncedItems.length} auto-synced items to sent queue`);
-      
-      // Items still in queue = failed
-      const failedItems = timbanganItems.filter(item => afterIds.has(item.id));
-      for (const item of failedItems) {
-        await addToFailedQueue({
-          ...item,
-          pendingId: item.id,
-        }, "Auto sync failed");
-      }
     }
-    
-    return result;
+
+    // Sync item non-timbangan yang mungkin ada juga
+    const nonTimbanganItems = queueBeforeSync.filter(
+      (item) =>
+        !item.url ||
+        (!item.url.includes("/ritase/offline") &&
+          !item.url.includes("/timbangan")),
+    );
+
+    for (const item of nonTimbanganItems) {
+      await offlineService.syncQueueItem(item);
+    }
+
+    return { success: true, synced, failed };
   } catch (error) {
     console.error("❌ Sync all with tracking error:", error);
     throw error;
@@ -400,26 +417,37 @@ export const timbanganService = {
   /**
    * Create timbangan - main entry point
    */
-  createTimbangan: async (data) => {
-    try {
-      const result = await offlineService.post(
-        "/v1/custom/ritase/offline",
-        data,
-      );
+createTimbangan: async (data) => {
+  try {
+    const result = await offlineService.post(
+      "/v1/custom/ritase/offline",
+      data,
+    );
 
-      // If online and successful, save to sent queue
-      if (navigator.onLine) {
-        await addToSentQueue({
-          id: `online_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
-          url: "/v1/custom/ritase/offline",
-          method: "POST",
-          data,
-          timestamp: Date.now(),
-          clientTimestamp: new Date().toISOString(),
-          retryCount: 0,
-          syncedFrom: "direct",
-        });
-      } else {
+    // Online & berhasil → simpan ke sent queue
+    if (navigator.onLine) {
+      await addToSentQueue({
+        id: `online_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+        url: "/v1/custom/ritase/offline",
+        method: "POST",
+        data,
+        timestamp: Date.now(),
+        clientTimestamp: new Date().toISOString(),
+        retryCount: 0,
+        syncedFrom: "direct",
+      });
+    }
+
+    return result;
+  } catch (error) {
+    // ✅ "Request queued" bukan error — ini sukses offline
+    const isQueued =
+      error?.message?.includes("queued") ||
+      error?.message?.includes("offline sync");
+
+    if (isQueued) {
+      // Simpan ke pending queue untuk tracking
+      try {
         const queue = await offlineService.getQueue();
         const lastItem = queue[queue.length - 1];
         if (lastItem) {
@@ -428,16 +456,20 @@ export const timbanganService = {
             pendingId: lastItem.id,
           });
         }
+      } catch (e) {
+        console.warn("Failed to track pending item:", e);
       }
 
-      return result;
-    } catch (error) {
-      console.error("❌ Create timbangan error:", error);
-      
-      if (!navigator.onLine) {
-        throw error;
-      } else {
-        await addToFailedQueue({
+      // ✅ Return sukses, bukan throw
+      return { queued: true, status: "queued", offline: true };
+    }
+
+    // Error beneran (validasi, dll)
+    console.error("❌ Create timbangan error:", error);
+
+    if (navigator.onLine) {
+      await addToFailedQueue(
+        {
           id: `failed_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
           url: "/v1/custom/ritase/offline",
           method: "POST",
@@ -445,12 +477,14 @@ export const timbanganService = {
           timestamp: Date.now(),
           clientTimestamp: new Date().toISOString(),
           retryCount: 0,
-        }, error);
-        
-        throw error;
-      }
+        },
+        error,
+      );
     }
-  },
+
+    throw error;
+  }
+},
 
   /**
    * Tracking methods with full queue support

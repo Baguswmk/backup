@@ -892,6 +892,11 @@ async function getFailedQueue() {
   }
 }
 
+async function getQueueItem(id) {
+  const db = await getDB();
+  return db.get(STORES.QUEUE, id); // ✅ Get by primary key langsung
+}
+
 export const offlineService = {
   apiCall,
 
@@ -900,7 +905,7 @@ export const offlineService = {
   put,
   patch,
   delete: del,
-
+getQueueItem,
    addToQueue,
   getQueue,
   getPendingCount,

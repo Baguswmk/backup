@@ -170,45 +170,44 @@ export const useTimbanganHooks = () => {
     return Object.keys(newErrors).length === 0;
   };
 
-  const processSubmit = async (currentFormData) => {
-    setIsSubmitting(true);
-    try {
-      const payload = {
-        id: parseInt(currentFormData.unit_dump_truck),
-        hull_no: currentFormData.hull_no,
-        tare_weight: parseFloat(currentFormData.tare_weight),
-        gross_weight: parseFloat(currentFormData.gross_weight),
-        net_weight: parseFloat(currentFormData.net_weight),
-        timestamp: new Date().toISOString(),
-        bypass_tonnage: currentFormData.bypass_tonnage,
-        company: currentFormData.company,
-        spph: currentFormData.spph,
-        createdAt: new Date().toISOString(),
-        is_bypass: false,
-      };
+const processSubmit = async (currentFormData) => {
+  setIsSubmitting(true);
+  try {
+    const payload = {
+      id: parseInt(currentFormData.unit_dump_truck),
+      hull_no: currentFormData.hull_no,
+      tare_weight: parseFloat(currentFormData.tare_weight),
+      gross_weight: parseFloat(currentFormData.gross_weight),
+      net_weight: parseFloat(currentFormData.net_weight),
+      timestamp: new Date().toISOString(),
+      bypass_tonnage: currentFormData.bypass_tonnage,
+      company: currentFormData.company,
+      spph: currentFormData.spph,
+      createdAt: new Date().toISOString(),
+      is_bypass: false,
+    };
 
-      const result = await timbanganService.createTimbangan(payload);
-      
-      if (result.queued || result.status) {
-        showToast.success("Data berhasil disimpan dan karcis akan dicetak");
-        
-        // Set data for auto-print
-        setLastSubmittedData(payload);
-        
-        // Reset form after small delay
-        setTimeout(() => {
-          resetForm();
-        }, 500);
-      } else {
-        throw new Error(result.error || "Gagal menyimpan data");
-      }
-    } catch (error) {
-      showToast.error(error.response?.data?.message || "Gagal menyimpan data");
-      console.error("❌ Submit error:", error);
-    } finally {
-      setIsSubmitting(false);
+    const result = await timbanganService.createTimbangan(payload);
+
+    // ✅ Handle offline queued
+    if (result?.offline || result?.queued) {
+      showToast.warning("📦 Offline: Data disimpan, akan dikirim saat online");
+    } else {
+      showToast.success("Data berhasil disimpan dan karcis akan dicetak");
     }
-  };
+
+    // Set data for auto-print & reset form
+    setLastSubmittedData(payload);
+    setTimeout(() => resetForm(), 500);
+
+  } catch (error) {
+    // Hanya error beneran yang sampai sini
+    showToast.error(error.response?.data?.message || "Gagal menyimpan data");
+    console.error("❌ Submit error:", error);
+  } finally {
+    setIsSubmitting(false);
+  }
+};
 
   const processBypassSubmit = async (currentFormData) => {
     setIsSubmitting(true);

@@ -248,58 +248,56 @@ export const OfflineProvider = ({ children }) => {
   /**
    * ✅ Sync single item with context awareness
    */
-  const syncSingle = useCallback(
-    async (itemId) => {
-      if (!isOnline) {
-        showToast.warning("Tidak ada koneksi internet");
-        return { success: false, error: "No internet connection" };
+const syncSingle = useCallback(
+  async (itemId) => {
+    if (!isOnline) {
+      showToast.warning("Tidak ada koneksi internet");
+      return { success: false, error: "No internet connection" };
+    }
+
+    if (!itemId) {
+      showToast.error("ID item tidak valid");
+      return { success: false, error: "Invalid item ID" };
+    }
+
+    try {
+      // ✅ Pakai getQueueItem yang sudah di-expose, bukan getQueue()
+      const item = await offlineService.getQueueItem(itemId);
+
+      if (!item) {
+        showToast.error("Data tidak ditemukan");
+        return { success: false, error: "Item not found" };
       }
 
-      if (!itemId) {
-        showToast.error("ID item tidak valid");
-        return { success: false, error: "Invalid item ID" };
+      const isTimbanganRequest =
+        item.url &&
+        (item.url.includes("/ritase/offline") ||
+          item.url.includes("/timbangan"));
+
+      let result;
+      if (isTimbanganRequest) {
+        result = await timbanganService.retrySingle(itemId);
+      } else {
+        result = await offlineService.syncQueueItem(item);
       }
 
-      try {
-        const queue = await offlineService.getQueue();
-        const item = queue.find((q) => q.id === itemId);
-
-        if (!item) {
-          showToast.error("Data tidak ditemukan");
-          return { success: false, error: "Item not found" };
-        }
-
-        let result;
-        
-        // Check if it's a timbangan request
-        const isTimbanganRequest = item.url && 
-          (item.url.includes('/ritase/offline') || item.url.includes('/timbangan'));
-
-        if (isTimbanganRequest) {
-          // Use timbanganService for tracking
-          result = await timbanganService.retrySingle(itemId);
-        } else {
-          // Use offlineService without tracking
-          result = await offlineService.syncQueueItem(item);
-        }
-
-        if (result.success) {
-          showToast.success("✅ Data berhasil disinkronkan");
-          await loadPendingCount();
-          return { success: true };
-        } else {
-          const errMsg = safeMsg(result.error, "Gagal menyinkronkan data");
-          showToast.error(errMsg);
-          return { success: false, error: errMsg };
-        }
-      } catch (error) {
-        console.error("Failed to sync single item:", error);
-        showToast.error("Gagal menyinkronkan data");
-        return { success: false, error: error.message };
+      if (result.success) {
+        showToast.success("✅ Data berhasil disinkronkan");
+        await loadPendingCount();
+        return { success: true };
+      } else {
+        const errMsg = safeMsg(result.error, "Gagal menyinkronkan data");
+        showToast.error(errMsg);
+        return { success: false, error: errMsg };
       }
-    },
-    [isOnline, loadPendingCount],
-  );
+    } catch (error) {
+      console.error("Failed to sync single item:", error);
+      showToast.error("Gagal menyinkronkan data");
+      return { success: false, error: error.message };
+    }
+  },
+  [isOnline, loadPendingCount],
+);
 
   /**
    * ✅ Retry single with context awareness
