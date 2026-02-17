@@ -31,6 +31,7 @@ const FleetSettingTable = ({
   });
   const [searchQuery, setSearchQuery] = useState("");
   const tooltipRef = useRef(null);
+
   const groupedFleetData = useMemo(() => {
     if (!fleetData || fleetData.length === 0) return [];
 
@@ -44,20 +45,12 @@ const FleetSettingTable = ({
       const query = searchQuery.toLowerCase().trim();
       filtered = filtered.filter((fleet) => {
         const excavatorMatch = fleet.excavator?.toLowerCase().includes(query);
-        const loadingMatch = fleet.loadingLocation
-          ?.toLowerCase()
-          .includes(query);
-        const dumpingMatch = fleet.dumpingLocation
-          ?.toLowerCase()
-          .includes(query);
-        const mitraMatch = fleet.excavatorCompany
-          ?.toLowerCase()
-          .includes(query);
+        const loadingMatch = fleet.loadingLocation?.toLowerCase().includes(query);
+        const dumpingMatch = fleet.dumpingLocation?.toLowerCase().includes(query);
+        const mitraMatch = fleet.excavatorCompany?.toLowerCase().includes(query);
         const satkerMatch = fleet.workUnit?.toLowerCase().includes(query);
         const coalTypeMatch = fleet.coalType?.toLowerCase().includes(query);
-        const measurementMatch = fleet.measurementType
-          ?.toLowerCase()
-          .includes(query);
+        const measurementMatch = fleet.measurementType?.toLowerCase().includes(query);
 
         const unitsMatch =
           fleet.units &&
@@ -65,7 +58,8 @@ const FleetSettingTable = ({
           fleet.units.some((unit) => {
             const hullNoMatch = unit.hull_no?.toLowerCase().includes(query);
             const operatorMatch = unit.operator?.toLowerCase().includes(query);
-            return hullNoMatch || operatorMatch;
+            const companyMatch = unit.company?.toLowerCase().includes(query);
+            return hullNoMatch || operatorMatch || companyMatch;
           });
 
         return (
@@ -80,6 +74,7 @@ const FleetSettingTable = ({
         );
       });
     }
+
     let groupingKey = "loadingLocation";
     let groupLabel = "Loading Point";
 
@@ -107,6 +102,8 @@ const FleetSettingTable = ({
     const result = Object.entries(grouped).map(([location, fleets]) => {
       let totalTronton = 0;
       let totalTrintin = 0;
+      const mitraCount = {};
+
       const excavatorGroups = {};
       fleets.forEach((fleet) => {
         const key = `${fleet.excavatorId || fleet.excavator}-${fleet.loadingLocationId || fleet.loadingLocation}`;
@@ -123,40 +120,66 @@ const FleetSettingTable = ({
         if (shouldMerge) {
           let groupTronton = 0;
           let groupTrintin = 0;
-          let groupDumptruckCount = 0;
+          let groupDumptruckCount = 0; // Akumulasi total DT dari semua fleet dalam grup
+          const groupMitraCount = {}; // Akumulasi mitra dari semua fleet dalam grup
 
           const firstFleet = group[0];
           const allSameExcavator = group.every(
-            (f) => f.excavator === firstFleet.excavator,
+            (f) => f.excavator === firstFleet.excavator
           );
           const allSameLoading = group.every(
-            (f) => f.loadingLocation === firstFleet.loadingLocation,
+            (f) => f.loadingLocation === firstFleet.loadingLocation
           );
 
-          group.forEach((fleet, fleetIdx) => {
-            let fleetTronton = 0;
-            let fleetTrintin = 0;
-
+          // Loop semua fleet dulu untuk akumulasi groupMitraCount & groupDumptruckCount
+          group.forEach((fleet) => {
             if (fleet.units && Array.isArray(fleet.units)) {
               fleet.units.forEach((unit) => {
-                const unitType = unit.type_dt?.toLowerCase() || '';
-                if (unitType.includes('tronton')) {
-                  fleetTronton++;
+                const unitType = unit.type_dt?.toLowerCase() || "";
+                const companyName = unit.company || "Unknown";
+
+                // Akumulasi mitra grup (dikumpulkan dari semua fleet)
+                if (!groupMitraCount[companyName]) groupMitraCount[companyName] = 0;
+                groupMitraCount[companyName]++;
+
+                // Akumulasi mitra global
+                if (!mitraCount[companyName]) mitraCount[companyName] = 0;
+                mitraCount[companyName]++;
+
+                // Akumulasi total DT grup
+                groupDumptruckCount++;
+
+                if (unitType.includes("tronton")) {
                   totalTronton++;
                   groupTronton++;
-                } else if (unitType.includes('trintin')) {
-                  fleetTrintin++;
+                } else if (unitType.includes("trintin")) {
                   totalTrintin++;
                   groupTrintin++;
                 }
               });
             }
-            groupDumptruckCount += fleet.dumptruckCount || 0;
+          });
+
+          // Setelah akumulasi selesai, baru buat processedRows per fleet
+          group.forEach((fleet, fleetIdx) => {
+            let fleetTronton = 0;
+            let fleetTrintin = 0;
+            let fleetDTCount = 0;
+
+            if (fleet.units && Array.isArray(fleet.units)) {
+              fleet.units.forEach((unit) => {
+                const unitType = unit.type_dt?.toLowerCase() || "";
+                fleetDTCount++;
+                if (unitType.includes("tronton")) fleetTronton++;
+                else if (unitType.includes("trintin")) fleetTrintin++;
+              });
+            }
 
             processedRows.push({
               ...fleet,
               tronton: fleetTronton,
               trintin: fleetTrintin,
+              actualDTCount: fleetDTCount,
 
               isMergedGroup: true,
               isFirstInGroup: fleetIdx === 0,
@@ -168,22 +191,37 @@ const FleetSettingTable = ({
 
               groupTronton,
               groupTrintin,
-              groupDumptruckCount,
+              groupDumptruckCount, // Total DT dari fleet 1 + fleet 2 + dst
+              groupMitraCount,     // Mitra terakumulasi dari semua fleet
             });
           });
         } else {
           const fleet = group[0];
           let fleetTronton = 0;
           let fleetTrintin = 0;
+          let fleetDTCount = 0;
+          const fleetMitraCount = {};
 
           if (fleet.units && Array.isArray(fleet.units)) {
             fleet.units.forEach((unit) => {
-              // Menggunakan type_dt dari unit untuk menentukan jenis dump truck
-              const unitType = unit.type_dt?.toLowerCase() || '';
-              if (unitType.includes('tronton')) {
+              const unitType = unit.type_dt?.toLowerCase() || "";
+              const companyName = unit.company || "Unknown";
+
+              // Akumulasi mitra fleet
+              if (!fleetMitraCount[companyName]) fleetMitraCount[companyName] = 0;
+              fleetMitraCount[companyName]++;
+
+              // Akumulasi mitra global
+              if (!mitraCount[companyName]) mitraCount[companyName] = 0;
+              mitraCount[companyName]++;
+
+              // Hitung DT
+              fleetDTCount++;
+
+              if (unitType.includes("tronton")) {
                 fleetTronton++;
                 totalTronton++;
-              } else if (unitType.includes('trintin')) {
+              } else if (unitType.includes("trintin")) {
                 fleetTrintin++;
                 totalTrintin++;
               }
@@ -194,10 +232,13 @@ const FleetSettingTable = ({
             ...fleet,
             tronton: fleetTronton,
             trintin: fleetTrintin,
+            actualDTCount: fleetDTCount,
             isMergedGroup: false,
             isFirstInGroup: true,
             groupSize: 1,
             splitFleets: [fleet],
+            groupMitraCount: fleetMitraCount,
+            groupDumptruckCount: fleetDTCount,
           });
         }
       });
@@ -208,16 +249,10 @@ const FleetSettingTable = ({
         rows: processedRows,
         totalTronton,
         totalTrintin,
+        mitraCount,
         totalDumptrucks: processedRows
           .filter((fleet) => fleet.isFirstInGroup)
-          .reduce((sum, fleet) => {
-            return (
-              sum +
-              (fleet.isMergedGroup
-                ? fleet.groupDumptruckCount
-                : fleet.dumptruckCount || 0)
-            );
-          }, 0),
+          .reduce((sum, fleet) => sum + (fleet.groupDumptruckCount || 0), 0),
       };
     });
 
@@ -235,9 +270,9 @@ const FleetSettingTable = ({
   useMemo(() => {
     setCurrentPage(1);
   }, [selectedSatker, selectedUrutkan, searchQuery]);
+
   const handlePageChange = (page) => {
     setCurrentPage(page);
-
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
@@ -246,7 +281,6 @@ const FleetSettingTable = ({
     const viewportHeight = window.innerHeight;
     const spaceBelow = viewportHeight - rect.bottom;
     const spaceAbove = rect.top;
-
     const position =
       spaceBelow >= 400 ? "bottom" : spaceAbove > 300 ? "top" : "bottom";
 
@@ -286,7 +320,6 @@ const FleetSettingTable = ({
       const viewportHeight = window.innerHeight;
       const spaceBelow = viewportHeight - rect.bottom;
       const spaceAbove = rect.top;
-
       const position =
         spaceBelow >= 400 ? "bottom" : spaceAbove > 300 ? "top" : "bottom";
 
@@ -331,6 +364,7 @@ const FleetSettingTable = ({
       totalTrintin: 0,
       totalDumptrucks: 0,
       totalFleets: 0,
+      mitraCount: {},
     };
 
     paginatedGroups.forEach((group) => {
@@ -338,13 +372,18 @@ const FleetSettingTable = ({
       totals.totalTrintin += group.totalTrintin;
       totals.totalDumptrucks += group.totalDumptrucks;
       totals.totalFleets += group.rows.length;
+
+      Object.entries(group.mitraCount || {}).forEach(([mitra, count]) => {
+        if (!totals.mitraCount[mitra]) totals.mitraCount[mitra] = 0;
+        totals.mitraCount[mitra] += count;
+      });
     });
 
     return totals;
   }, [paginatedGroups]);
 
   return (
-<div className="w-full">
+    <div className="w-full">
       <div className="mb-4 flex items-center gap-3">
         <div className="relative flex-1 max-w-md">
           <input
@@ -395,7 +434,7 @@ const FleetSettingTable = ({
             <span className="font-semibold text-blue-600 dark:text-blue-400">
               {groupedFleetData.reduce(
                 (sum, group) => sum + group.rows.length,
-                0,
+                0
               )}
             </span>{" "}
             hasil
@@ -407,45 +446,19 @@ const FleetSettingTable = ({
         <table className="w-full text-xs bg-white dark:bg-gray-800">
           <thead className="bg-linear-to-r from-blue-600 to-blue-700 dark:from-blue-700 dark:to-blue-800 text-white sticky top-0 z-10 shadow-md">
             <tr>
-              <th className="px-4 py-3 text-left font-semibold border-r border-blue-500 dark:border-blue-600">
-                No
-              </th>
-              <th className="px-4 py-3 text-left font-semibold border-r border-blue-500 dark:border-blue-600">
-                Excavator
-              </th>
-              <th className="px-4 py-3 text-left font-semibold border-r border-blue-500 dark:border-blue-600">
-                Loading Point
-              </th>
-              <th className="px-4 py-3 text-left font-semibold border-r border-blue-500 dark:border-blue-600">
-                Dumping Point
-              </th>
-              <th className="px-4 py-3 text-left font-semibold border-r border-blue-500 dark:border-blue-600">
-                Mitra
-              </th>
-              <th className="px-4 py-3 text-left font-semibold border-r border-blue-500 dark:border-blue-600">
-                Jenis Batubara
-              </th>
-              <th className="px-4 py-3 text-left font-semibold border-r border-blue-500 dark:border-blue-600">
-                Satker
-              </th>
-              <th className="px-4 py-3 text-left font-semibold border-r border-blue-500 dark:border-blue-600">
-                Tipe Pengukuran
-              </th>
-              <th className="px-4 py-3 text-center font-semibold border-r border-blue-500 dark:border-blue-600">
-                Jarak (m)
-              </th>
-              <th className="px-4 py-3 text-center font-semibold border-r border-blue-500 dark:border-blue-600">
-                Tronton
-              </th>
-              <th className="px-4 py-3 text-center font-semibold border-r border-blue-500 dark:border-blue-600">
-                Trintin
-              </th>
-              <th className="px-4 py-3 text-center font-semibold border-r border-blue-500 dark:border-blue-600">
-                Jumlah DT
-              </th>
-              <th className="px-4 py-3 text-center font-semibold border-r border-blue-500 dark:border-blue-600">
-                Ket.
-              </th>
+              <th className="px-4 py-3 text-left font-semibold border-r border-blue-500 dark:border-blue-600">No</th>
+              <th className="px-4 py-3 text-left font-semibold border-r border-blue-500 dark:border-blue-600">Excavator</th>
+              <th className="px-4 py-3 text-left font-semibold border-r border-blue-500 dark:border-blue-600">Loading Point</th>
+              <th className="px-4 py-3 text-left font-semibold border-r border-blue-500 dark:border-blue-600">Dumping Point</th>
+              <th className="px-4 py-3 text-left font-semibold border-r border-blue-500 dark:border-blue-600">Mitra</th>
+              <th className="px-4 py-3 text-left font-semibold border-r border-blue-500 dark:border-blue-600">Jenis Batubara</th>
+              <th className="px-4 py-3 text-left font-semibold border-r border-blue-500 dark:border-blue-600">Satker</th>
+              <th className="px-4 py-3 text-left font-semibold border-r border-blue-500 dark:border-blue-600">Tipe Pengukuran</th>
+              <th className="px-4 py-3 text-center font-semibold border-r border-blue-500 dark:border-blue-600">Jarak (m)</th>
+              <th className="px-4 py-3 text-center font-semibold border-r border-blue-500 dark:border-blue-600">Tronton</th>
+              <th className="px-4 py-3 text-center font-semibold border-r border-blue-500 dark:border-blue-600">Trintin</th>
+              <th className="px-4 py-3 text-center font-semibold border-r border-blue-500 dark:border-blue-600">Jumlah DT</th>
+              <th className="px-4 py-3 text-center font-semibold border-r border-blue-500 dark:border-blue-600">Ket.</th>
               <th className="px-4 py-3 text-center font-semibold">Aksi</th>
             </tr>
           </thead>
@@ -456,9 +469,7 @@ const FleetSettingTable = ({
                 <td colSpan="14" className="px-1 py-8">
                   <div className="flex items-center justify-center">
                     <Loader2 className="w-6 h-6 animate-spin text-blue-600 dark:text-blue-400" />
-                    <span className="ml-3 text-gray-600 dark:text-gray-300">
-                      Memuat data...
-                    </span>
+                    <span className="ml-3 text-gray-600 dark:text-gray-300">Memuat data...</span>
                   </div>
                 </td>
               </tr>
@@ -486,12 +497,12 @@ const FleetSettingTable = ({
                             key={`row-${fleet.id}-${fleetIdx}`}
                             className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                           >
-                            {/* No - tampil per baris (TIDAK DI-MERGE) */}
+                            {/* No */}
                             <td className="px-1 py-1 text-left border-r border-gray-300 dark:border-gray-600 dark:text-gray-200">
                               {rowCounter}
                             </td>
 
-                            {/* Excavator - merge untuk group yang sama */}
+                            {/* Excavator */}
                             {fleet.isFirstInGroup && (
                               <td
                                 className="px-1 py-1 text-left border-r border-gray-300 dark:border-gray-600 align-middle"
@@ -503,7 +514,7 @@ const FleetSettingTable = ({
                               </td>
                             )}
 
-                            {/* Loading Point - merge untuk group yang sama */}
+                            {/* Loading Point */}
                             {fleet.isFirstInGroup && (
                               <td
                                 className="px-1 py-1 text-left border-r border-gray-300 dark:border-gray-600 align-middle"
@@ -514,58 +525,77 @@ const FleetSettingTable = ({
                                 </div>
                               </td>
                             )}
+
+                            {/* Dumping Point */}
                             <td className="px-1 py-1 text-left border-r border-gray-300 dark:border-gray-600">
                               <div className="text-gray-700 dark:text-gray-300">
                                 {fleet.dumpingLocation}
                               </div>
                             </td>
-                            {/* Mitra - merge untuk group yang sama */}
+
+                            {/* Mitra - list mitra DT dengan count (Opsi 2) */}
                             {fleet.isFirstInGroup && (
                               <td
                                 className="px-1 py-1 text-left border-r border-gray-300 dark:border-gray-600 align-middle"
                                 rowSpan={fleet.groupSize}
                               >
                                 <div className="text-gray-700 dark:text-gray-300">
-                                  {fleet.excavatorCompany}
+                                  {fleet.groupMitraCount &&
+                                  Object.keys(fleet.groupMitraCount).length > 0 ? (
+                                    <div className="flex flex-wrap gap-1">
+                                      {Object.entries(fleet.groupMitraCount).map(
+                                        ([mitra, count], idx) => (
+                                          <span
+                                            key={idx}
+                                            className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300"
+                                          >
+                                            {mitra} ({count})
+                                          </span>
+                                        )
+                                      )}
+                                    </div>
+                                  ) : (
+                                    <span className="text-gray-400">-</span>
+                                  )}
                                 </div>
                               </td>
                             )}
 
-                            {/* Jenis Batubara - tampil per baris (TIDAK DI-MERGE) */}
+                            {/* Jenis Batubara */}
                             <td className="px-1 py-1 text-left border-r border-gray-300 dark:border-gray-600">
                               <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-300">
                                 {fleet.coalType}
                               </span>
                             </td>
 
-                            {/* Satker - tampil per baris (TIDAK DI-MERGE) */}
+                            {/* Satker */}
                             <td className="px-1 py-1 text-left border-r border-gray-300 dark:border-gray-600">
                               <div className="text-xs text-gray-600 dark:text-gray-400">
                                 {fleet.workUnit}
                               </div>
                             </td>
 
-                            {/* Tipe Pengukuran - tampil per baris (TIDAK DI-MERGE) */}
+                            {/* Tipe Pengukuran */}
                             <td className="px-1 py-1 text-center border-r border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100">
                               {fleet.measurementType}
                             </td>
 
-                            {/* Jarak - tampil per baris (TIDAK DI-MERGE) */}
+                            {/* Jarak */}
                             <td className="px-1 py-1 text-center border-r border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100">
                               {fleet.distance?.toLocaleString("id-ID")}
                             </td>
 
-                            {/* Tronton - tampil per baris (TIDAK DI-MERGE) */}
+                            {/* Tronton */}
                             <td className="px-1 py-1 text-center border-r border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100">
                               {fleet.tronton}
                             </td>
 
-                            {/* Trintin - tampil per baris (TIDAK DI-MERGE) */}
+                            {/* Trintin */}
                             <td className="px-1 py-1 text-center border-r border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100">
                               {fleet.trintin}
                             </td>
 
-                            {/* Jumlah DT - tampil per baris (TIDAK DI-MERGE) */}
+                            {/* Jumlah DT - total akumulasi dari semua fleet dalam grup */}
                             {fleet.isFirstInGroup && (
                               <td
                                 className="px-1 py-1 text-center border-r border-gray-300 dark:border-gray-600 relative"
@@ -576,13 +606,13 @@ const FleetSettingTable = ({
                                   onMouseEnter={(e) => {
                                     const tooltipData = fleet.isMergedGroup
                                       ? fleet.splitFleets.flatMap(
-                                          (f) => f.units || [],
+                                          (f) => f.units || []
                                         )
                                       : fleet.units || [];
 
                                     handleTooltipShow(
                                       { ...fleet, units: tooltipData },
-                                      e,
+                                      e
                                     );
                                   }}
                                   onMouseLeave={handleTooltipHide}
@@ -593,13 +623,12 @@ const FleetSettingTable = ({
                                       : null
                                   }
                                 >
+                                  {/* Tampilkan total DT (fleet 1 + fleet 2 + dst) */}
                                   <span className="text-gray-900 dark:text-gray-100">
-                                    {fleet.isMergedGroup
-                                      ? fleet.groupDumptruckCount
-                                      : fleet.dumptruckCount || "-"}
+                                    {fleet.groupDumptruckCount || "-"}
                                   </span>
 
-                                  {/* Tooltip */}
+                                  {/* Tooltip: Hull No - Mitra - Operator */}
                                   {tooltipState.visible &&
                                     tooltipState.fleetId === fleet.id && (
                                       <div
@@ -607,9 +636,9 @@ const FleetSettingTable = ({
                                           tooltipState.position === "top"
                                             ? "bottom-full mb-2"
                                             : "top-full mt-2"
-                                        } left-1/2 transform -translate-x-1/2 z-50 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg p-3 min-w-75 max-w-75`}
+                                        } left-1/2 transform -translate-x-1/2 z-50 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg p-3 min-w-[300px] max-w-[400px]`}
                                       >
-                                        {/* Arrow indicator */}
+                                        {/* Arrow */}
                                         <div
                                           className={`absolute left-1/2 transform -translate-x-1/2 w-0 h-0 ${
                                             tooltipState.position === "top"
@@ -619,27 +648,39 @@ const FleetSettingTable = ({
                                         />
 
                                         <div className="text-xs font-semibold mb-2 text-gray-700 dark:text-gray-300 border-b border-gray-200 dark:border-gray-700 pb-1">
-                                          List Dumptruck
+                                          List Dumptruck ({tooltipState.data.length})
                                         </div>
 
                                         {tooltipState.data.length > 0 ? (
-                                          <div className="max-h-50 overflow-y-auto">
-                                            <ul className="space-y-1">
+                                          <div className="max-h-[300px] overflow-y-auto">
+                                            <ul className="space-y-1.5">
                                               {tooltipState.data.map(
                                                 (unit, idx) => (
                                                   <li
                                                     key={idx}
-                                                    className="text-xs text-gray-600 dark:text-gray-400 flex justify-between items-center py-1 border-b border-gray-100 dark:border-gray-700 last:border-0"
+                                                    className="text-xs text-gray-600 dark:text-gray-400 py-1.5 px-2 border-b border-gray-100 dark:border-gray-700 last:border-0 hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded transition-colors"
                                                   >
-                                                    <span className="font-medium">
-                                                      {unit.hull_no ||
-                                                        `Unit ${idx + 1}`}
-                                                    </span>
-                                                    <span className="text-gray-500 dark:text-gray-500 text-[10px]">
-                                                      {unit.operator}
-                                                    </span>
+                                                    <div className="flex flex-col gap-0.5">
+                                                      <div className="flex items-center justify-between">
+                                                        <span className="font-semibold text-gray-800 dark:text-gray-200">
+                                                          {unit.hull_no || `Unit ${idx + 1}`}
+                                                        </span>
+                                                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300">
+                                                          {unit.type_dt || "-"}
+                                                        </span>
+                                                      </div>
+                                                      <div className="flex items-center gap-2 text-[10px]">
+                                                        <span className="text-green-600 dark:text-green-400 font-medium">
+                                                          {unit.company || "Unknown Mitra"}
+                                                        </span>
+                                                        <span className="text-gray-400">•</span>
+                                                        <span className="text-gray-500 dark:text-gray-400">
+                                                          {unit.operator || "No Operator"}
+                                                        </span>
+                                                      </div>
+                                                    </div>
                                                   </li>
-                                                ),
+                                                )
                                               )}
                                             </ul>
                                           </div>
@@ -654,7 +695,7 @@ const FleetSettingTable = ({
                               </td>
                             )}
 
-                            {/* Ket. - "Split" for merged groups */}
+                            {/* Ket. */}
                             {fleet.isFirstInGroup && (
                               <td
                                 className="px-1 py-1 text-center border-r border-gray-300 dark:border-gray-600 align-middle"
@@ -665,14 +706,12 @@ const FleetSettingTable = ({
                                     Split
                                   </span>
                                 ) : (
-                                  <span className="text-gray-400 dark:text-gray-500">
-                                    -
-                                  </span>
+                                  <span className="text-gray-400 dark:text-gray-500">-</span>
                                 )}
                               </td>
                             )}
 
-                            {/* Aksi - merged for group */}
+                            {/* Aksi */}
                             {fleet.isFirstInGroup && (
                               <td
                                 className="px-1 py-1 text-center"
@@ -698,7 +737,7 @@ const FleetSettingTable = ({
                                           onViewFleet(
                                             fleet.isMergedGroup
                                               ? fleet.splitFleets
-                                              : fleet,
+                                              : fleet
                                           )
                                         }
                                         className="cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-900 dark:text-gray-100"
@@ -706,8 +745,7 @@ const FleetSettingTable = ({
                                         <Eye className="mr-2 h-4 w-4" />
                                         <span>
                                           Lihat Detail
-                                          {fleet.isMergedGroup &&
-                                            ` (${fleet.groupSize})`}
+                                          {fleet.isMergedGroup && ` (${fleet.groupSize})`}
                                         </span>
                                       </DropdownMenuItem>
                                     )}
@@ -717,7 +755,7 @@ const FleetSettingTable = ({
                                           onEditFleet(
                                             fleet.isMergedGroup
                                               ? fleet.splitFleets
-                                              : fleet,
+                                              : fleet
                                           )
                                         }
                                         className="cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-900 dark:text-gray-100"
@@ -725,8 +763,7 @@ const FleetSettingTable = ({
                                         <Edit className="mr-2 h-4 w-4" />
                                         <span>
                                           Edit
-                                          {fleet.isMergedGroup &&
-                                            ` (${fleet.groupSize})`}
+                                          {fleet.isMergedGroup && ` (${fleet.groupSize})`}
                                         </span>
                                       </DropdownMenuItem>
                                     )}
@@ -738,7 +775,7 @@ const FleetSettingTable = ({
                                             onDeleteFleet(
                                               fleet.isMergedGroup
                                                 ? fleet.splitFleets
-                                                : fleet,
+                                                : fleet
                                             )
                                           }
                                           className="cursor-pointer hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400"
@@ -746,8 +783,7 @@ const FleetSettingTable = ({
                                           <Trash2 className="mr-2 h-4 w-4" />
                                           <span>
                                             Hapus
-                                            {fleet.isMergedGroup &&
-                                              ` (${fleet.groupSize})`}
+                                            {fleet.isMergedGroup && ` (${fleet.groupSize})`}
                                           </span>
                                         </DropdownMenuItem>
                                       </>
@@ -760,14 +796,25 @@ const FleetSettingTable = ({
                         );
                       })}
 
-                      {/* Subtotal untuk grup ini */}
+                      {/* Subtotal grup */}
                       <tr className="bg-blue-50 dark:bg-blue-900/20 font-semibold">
                         <td
                           colSpan="8"
                           className="px-1 py-1 text-right border-r border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100"
                         >
-                          Jumlah Fleet {group.groupLabel || "Group"}{" "}
-                          {group.location}
+                          <div className="flex flex-col items-end gap-1">
+                            <span>
+                              Jumlah Fleet {group.groupLabel || "Group"} {group.location}
+                            </span>
+                            {Object.keys(group.mitraCount || {}).length > 0 && (
+                              <div className="text-[10px] font-normal text-gray-600 dark:text-gray-400">
+                                Mitra:{" "}
+                                {Object.entries(group.mitraCount)
+                                  .map(([mitra, count]) => `${mitra} (${count})`)
+                                  .join(", ")}
+                              </div>
+                            )}
+                          </div>
                         </td>
                         <td className="px-1 py-1 text-center border-r border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100">
                           {group.totalTronton}
@@ -780,24 +827,31 @@ const FleetSettingTable = ({
                         </td>
                         <td colSpan="3" className="px-1 py-1 text-center"></td>
                       </tr>
-
-                      {/* Spacing row */}
-                      {/* <tr className="bg-gray-50 dark:bg-gray-800">
-                        <td colSpan="14" className="px-1 py-1"></td>
-                      </tr> */}
                     </React.Fragment>
                   ));
                 })()}
 
-                {/* Grand Total - Always visible at bottom */}
+                {/* Grand Total */}
                 {groupedFleetData.length > 0 && (
                   <tr className="bg-green-50 dark:bg-green-900/20 font-bold text-xs">
                     <td
                       colSpan="8"
                       className="px-1 py-1 text-right border-r border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100"
                     >
-                      Total Semua {groupedFleetData[0]?.groupLabel || "Group"} (
-                      {grandTotals.totalFleets} Fleet)
+                      <div className="flex flex-col items-end gap-1">
+                        <span>
+                          Total Semua {groupedFleetData[0]?.groupLabel || "Group"} (
+                          {grandTotals.totalFleets} Fleet)
+                        </span>
+                        {Object.keys(grandTotals.mitraCount).length > 0 && (
+                          <div className="text-[10px] font-normal text-gray-600 dark:text-gray-400">
+                            Total Mitra:{" "}
+                            {Object.entries(grandTotals.mitraCount)
+                              .map(([mitra, count]) => `${mitra} (${count} DT)`)
+                              .join(", ")}
+                          </div>
+                        )}
+                      </div>
                     </td>
                     <td className="px-1 py-1 text-center border-r border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100">
                       {grandTotals.totalTronton}
@@ -834,14 +888,14 @@ const FleetSettingTable = ({
                 selectedUrutkan === "all"
                   ? "Semua"
                   : selectedUrutkan === "dumping"
-                    ? "Dumping Point"
-                    : selectedUrutkan === "loading"
-                      ? "Loading Point"
-                      : selectedUrutkan === "mitra"
-                        ? "Mitra"
-                        : selectedUrutkan === "satker"
-                          ? "Satker"
-                          : selectedUrutkan
+                  ? "Dumping Point"
+                  : selectedUrutkan === "loading"
+                  ? "Loading Point"
+                  : selectedUrutkan === "mitra"
+                  ? "Mitra"
+                  : selectedUrutkan === "satker"
+                  ? "Satker"
+                  : selectedUrutkan
               }"`
             ) : selectedSatker ? (
               `Tidak ada data fleet untuk satker "${selectedSatker}"`
