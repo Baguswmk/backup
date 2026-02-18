@@ -1,5 +1,7 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { useOffline } from "@/shared/components/OfflineProvider";
+import { timbanganService } from "@/modules/timbangan/timbangan/services/TimbanganService";
+import { offlineService } from "@/shared/services/offlineService";
 import DeleteConfirmDialog from "@/shared/components/DeleteConfirmDialog";
 import Pagination from "@/shared/components/Pagination";
 import {
@@ -34,16 +36,7 @@ import { id as localeId } from "date-fns/locale";
 import PrintBukti from "@/modules/timbangan/timbangan/components/PrintBukti";
 
 export const TimbanganList = () => {
-  const {
-    getQueueDetails,
-    deleteQueueItem,
-    retryFailed,
-    retrySingle,
-    syncStatus,
-    syncSingle,
-    syncSelected,
-    isOnline,
-  } = useOffline();
+  const { syncStatus, isOnline } = useOffline();
 
   const [items, setItems] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -64,6 +57,7 @@ export const TimbanganList = () => {
   const [isBulkSyncing, setIsBulkSyncing] = useState(false);
   const [syncingIds, setSyncingIds] = useState([]);
   const [syncError, setSyncError] = useState(null);
+  const [statusFilter, setStatusFilter] = useState("all"); // "all" | "pending" | "failed" | "sent"
 
   /**
    * Returns true only for valid queue item objects (not Axios error objects).
@@ -78,7 +72,8 @@ export const TimbanganList = () => {
   const loadData = async () => {
     setIsLoading(true);
     try {
-      const { pending, failed, sent } = await getQueueDetails();
+      // ✅ Pakai timbanganService.getAllQueues() — satu DB, satu sumber
+      const { pending, failed, sent } = await timbanganService.getAllQueues();
       const allItems = [
         ...pending
           .filter(isValidQueueItem)
@@ -107,21 +102,31 @@ export const TimbanganList = () => {
   };
 
   useEffect(() => {
+    setCurrentPage(1);
+    setSelectedIds([]);
+  }, [statusFilter]);
+
+  useEffect(() => {
     loadData();
     const interval = setInterval(loadData, 5000);
     return () => clearInterval(interval);
   }, [syncStatus.lastSync, syncStatus.pendingCount, syncStatus.sentCount]);
 
+  const filteredItems = useMemo(() => {
+    if (statusFilter === "all") return items;
+    return items.filter((i) => i.status === statusFilter);
+  }, [items, statusFilter]);
+
   const paginatedItems = useMemo(() => {
-    if (itemsPerPage === items.length && items.length > 0) {
-      return items;
+    if (itemsPerPage === filteredItems.length && filteredItems.length > 0) {
+      return filteredItems;
     }
 
     const start = (currentPage - 1) * itemsPerPage;
-    return items.slice(start, start + itemsPerPage);
-  }, [items, currentPage, itemsPerPage]);
+    return filteredItems.slice(start, start + itemsPerPage);
+  }, [filteredItems, currentPage, itemsPerPage]);
 
-  const totalPages = Math.ceil(items.length / itemsPerPage);
+  const totalPages = Math.ceil(filteredItems.length / itemsPerPage);
 
   const handlePageChange = (page) => {
     setCurrentPage(page);
@@ -139,9 +144,16 @@ export const TimbanganList = () => {
     });
   };
 
+  /**
+   * ✅ FIX: Sekarang hapus dari DB yang benar berdasarkan status item
+   * Semua lewat timbanganService.deleteItem → offlineService → satu DB
+   */
   const confirmDelete = async () => {
     if (deleteDialog.item) {
-      await deleteQueueItem(deleteDialog.item.id, deleteDialog.item.status);
+      const { id, status } = deleteDialog.item;
+
+      await timbanganService.deleteItem(id, status);
+
       setDeleteDialog({ open: false, item: null });
       loadData();
 
@@ -171,7 +183,7 @@ export const TimbanganList = () => {
 
   const handleSelectAll = (checked) => {
     if (checked) {
-      const allIds = items.map((i) => i.id);
+      const allIds = filteredItems.map((i) => i.id);
       setSelectedIds(allIds);
     } else {
       setSelectedIds([]);
@@ -191,14 +203,17 @@ export const TimbanganList = () => {
     setBulkDeleteDialog(true);
   };
 
+  /**
+   * ✅ FIX: Bulk delete juga pakai timbanganService.deleteItem
+   */
   const confirmBulkDelete = async () => {
     setIsBulkDeleting(true);
     try {
-      // Delete each selected item with its correct status
       await Promise.all(
         selectedIds.map((id) => {
           const item = items.find((i) => i.id === id);
-          return deleteQueueItem(id, item?.status || "pending");
+          // ✅ deleteItem tahu mau hapus ke store mana berdasarkan status
+          return timbanganService.deleteItem(id, item?.status || "pending");
         }),
       );
       setSelectedIds([]);
@@ -234,34 +249,64 @@ export const TimbanganList = () => {
     if (selectedIds.length === 0) return;
 
     setIsBulkSyncing(true);
+    setSyncError(null);
     try {
-      await syncSelected(selectedIds);
+      // Ambil semua item yang dipilih (pending maupun failed)
+      const selectedItems = items.filter(
+        (i) => selectedIds.includes(i.id) && (i.status === "pending" || i.status === "failed"),
+      );
+
+      // Pending: sync langsung. Failed: hapus dari failed store dulu, lalu sync
+      await Promise.all(
+        selectedItems.map(async (item) => {
+          if (item.status === "failed") {
+            await offlineService.deleteFailedItem(item.id);
+            return offlineService.syncQueueItem({ ...item, status: "pending", retryCount: 0 });
+          }
+          return offlineService.syncQueueItem(item);
+        }),
+      );
+
       setSelectedIds([]);
       loadData();
     } catch (e) {
       console.error("Bulk sync failed", e);
+      const message =
+        e?.response?.data?.message ||
+        e?.response?.data?.error ||
+        e?.message ||
+        "Bulk sinkronisasi gagal";
+      setSyncError(message);
     } finally {
       setIsBulkSyncing(false);
     }
   };
 
   /**
-   * ✅ NEW: Sync single item
+   * Sync single item — ambil dari state React, lalu sync via offlineService
+   * Tidak query IDB lagi untuk menghindari type mismatch id integer vs string
    */
   const handleSyncSingle = async (itemId) => {
-    if (!isOnline) {
-      return;
-    }
+    if (!isOnline) return;
 
     setSyncError(null);
     setSyncingIds((prev) => [...prev, itemId]);
     try {
-      await syncSingle(itemId);
+      // Ambil dari state React — sudah ada semua data yang dibutuhkan
+      const item = items.find((i) => i.id === itemId);
+      if (!item) {
+        throw new Error("Item tidak ditemukan di antrian");
+      }
+      // syncQueueItem butuh: { id, url, method, data, options }
+      const result = await offlineService.syncQueueItem(item);
+      if (!result.success) {
+        throw result.error instanceof Error
+          ? result.error
+          : new Error(result.error || "Sinkronisasi gagal");
+      }
       loadData();
     } catch (e) {
       console.error("Sync single failed", e);
-      // Always extract a plain string — never store the raw Axios error object
-      // in state, as React cannot render objects as children and will crash.
       const message =
         e?.response?.data?.message ||
         e?.response?.data?.error ||
@@ -274,8 +319,8 @@ export const TimbanganList = () => {
   };
 
   /**
-   * Retry a single failed item — only syncs that one item,
-   * does NOT trigger a full syncAllPending.
+   * Retry a single failed item — ambil dari state React, sync langsung
+   * Bypass offlineService.retrySingle karena id type mismatch di IDB failed_queue
    */
   const handleRetrySingle = async (itemId) => {
     if (!isOnline) return;
@@ -283,7 +328,26 @@ export const TimbanganList = () => {
     setSyncError(null);
     setSyncingIds((prev) => [...prev, itemId]);
     try {
-      await retrySingle(itemId);
+      // Ambil dari state React — sudah ada semua data yang dibutuhkan
+      const item = items.find((i) => i.id === itemId);
+      if (!item) throw new Error("Item tidak ditemukan");
+
+      // Hapus dari failed queue dulu via offlineService (pakai id asli)
+      await offlineService.deleteFailedItem(item.id);
+
+      // Sync langsung tanpa perlu pindah ke queue dulu
+      const result = await offlineService.syncQueueItem({
+        ...item,
+        status: "pending",
+        retryCount: 0,
+      });
+
+      if (!result.success) {
+        throw result.error instanceof Error
+          ? result.error
+          : new Error(result.error || "Sinkronisasi gagal");
+      }
+
       loadData();
     } catch (e) {
       console.error("Retry single failed", e);
@@ -300,8 +364,6 @@ export const TimbanganList = () => {
 
   /**
    * Extract error info to display under status badge.
-   * - pending items: use lastError / lastErrorResponse
-   * - failed items:  use error / errorResponse
    */
   const getErrorInfo = (item) => {
     if (item.status === "failed") {
@@ -320,20 +382,17 @@ export const TimbanganList = () => {
   };
 
   /**
-   * ✅ NEW: Get expiry warning for sent items
-   * Shows warning when data is close to being auto-deleted (within last hour)
+   * Get expiry warning for sent items
    */
   const getExpiryWarning = (item) => {
     if (item.status !== "sent" || !item.sentAt) return null;
 
-    // 8 hours retention
     const retentionMs = 8 * 60 * 60 * 1000;
-    const warningThreshold = 7 * 60 * 60 * 1000; // Show warning in last hour
+    const warningThreshold = 7 * 60 * 60 * 1000;
 
     const age = Date.now() - item.sentAt;
     const timeLeft = retentionMs - age;
 
-    // If already expired (shouldn't happen but just in case)
     if (timeLeft <= 0) {
       return {
         show: true,
@@ -342,13 +401,12 @@ export const TimbanganList = () => {
       };
     }
 
-    // Show warning in last hour
     if (age >= warningThreshold) {
       const minutesLeft = Math.ceil(timeLeft / (60 * 1000));
       return {
         show: true,
         message: `Akan dihapus dalam ${minutesLeft} menit`,
-        urgent: minutesLeft <= 15, // Extra urgent if less than 15 minutes
+        urgent: minutesLeft <= 15,
       };
     }
 
@@ -356,7 +414,7 @@ export const TimbanganList = () => {
   };
 
   /**
-   * ✅ NEW: Calculate statistics from items
+   * Calculate statistics from items
    */
   const counts = useMemo(() => {
     const stats = {
@@ -365,7 +423,6 @@ export const TimbanganList = () => {
       sent: items.filter((i) => i.status === "sent").length,
     };
 
-    // Count items that will expire soon (within 1 hour)
     const expiringItems = items.filter((i) => {
       const warning = getExpiryWarning(i);
       return warning?.show;
@@ -527,50 +584,131 @@ export const TimbanganList = () => {
 
       <Card className="bg-white dark:bg-gray-900 shadow-sm">
         <CardHeader className="border-b border-gray-200 dark:border-gray-800">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
-                <List className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+          <div className="flex flex-col gap-3">
+            {/* Title + Bulk Actions */}
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
+                  <List className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                </div>
+                <div>
+                  <CardTitle className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                    Antrian Data Timbangan
+                  </CardTitle>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                    {statusFilter === "all"
+                      ? `Total ${counts.total} data dalam antrian`
+                      : `Menampilkan ${filteredItems.length} data ${
+                          statusFilter === "pending"
+                            ? "pending"
+                            : statusFilter === "failed"
+                              ? "gagal"
+                              : "terkirim"
+                        }`}
+                  </p>
+                </div>
               </div>
-              <div>
-                <CardTitle className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-                  Antrian Data Timbangan
-                </CardTitle>
-                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                  Total {counts.total} data dalam antrian
-                </p>
-              </div>
+
+              {selectedIds.length > 0 && (
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-gray-600 dark:text-gray-400">
+                    {selectedIds.length} terpilih
+                  </span>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={handleBulkSync}
+                    disabled={isBulkSyncing}
+                    className="text-blue-600 hover:text-blue-700 dark:text-blue-400"
+                  >
+                    <RefreshCw
+                      className={`w-4 h-4 mr-1 ${isBulkSyncing ? "animate-spin" : ""}`}
+                    />
+                    Sync
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={handleBulkDelete}
+                    disabled={isBulkDeleting}
+                    className="text-red-600 hover:text-red-700 dark:text-red-400"
+                  >
+                    <Trash2 className="w-4 h-4 mr-1" />
+                    Hapus
+                  </Button>
+                </div>
+              )}
             </div>
 
-            {selectedIds.length > 0 && (
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-gray-600 dark:text-gray-400">
-                  {selectedIds.length} terpilih
-                </span>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={handleBulkSync}
-                  disabled={isBulkSyncing}
-                  className="text-blue-600 hover:text-blue-700 dark:text-blue-400"
+            {/* Status Filter Tabs */}
+            <div className="flex flex-wrap items-center gap-2">
+              {[
+                { key: "all", label: "Semua", count: counts.total, color: "blue" },
+                { key: "pending", label: "Pending", count: counts.pending, color: "yellow" },
+                { key: "failed", label: "Gagal", count: counts.failed, color: "red" },
+                { key: "sent", label: "Terkirim", count: counts.sent, color: "green" },
+              ].map(({ key, label, count, color }) => {
+                const isActive = statusFilter === key;
+                const colorMap = {
+                  blue: isActive
+                    ? "bg-blue-600 text-white border-blue-600"
+                    : "border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-blue-300 hover:text-blue-600",
+                  yellow: isActive
+                    ? "bg-yellow-500 text-white border-yellow-500"
+                    : "border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-yellow-300 hover:text-yellow-600",
+                  red: isActive
+                    ? "bg-red-600 text-white border-red-600"
+                    : "border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-red-300 hover:text-red-600",
+                  green: isActive
+                    ? "bg-green-600 text-white border-green-600"
+                    : "border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-green-300 hover:text-green-600",
+                };
+                return (
+                  <button
+                    key={key}
+                    onClick={() => setStatusFilter(key)}
+                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-sm font-medium transition-all duration-150 cursor-pointer ${colorMap[color]}`}
+                  >
+                    {label}
+                    <span
+                      className={`text-xs px-1.5 py-0.5 rounded-full font-semibold ${
+                        isActive
+                          ? "bg-white/20"
+                          : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400"
+                      }`}
+                    >
+                      {count}
+                    </span>
+                  </button>
+                );
+              })}
+
+              {/* Select All filtered */}
+              {filteredItems.length > 0 && (
+                <button
+                  onClick={() => {
+                    const allFilteredIds = filteredItems.map((i) => i.id);
+                    const allSelected = allFilteredIds.every((id) =>
+                      selectedIds.includes(id),
+                    );
+                    if (allSelected) {
+                      setSelectedIds((prev) =>
+                        prev.filter((id) => !allFilteredIds.includes(id)),
+                      );
+                    } else {
+                      setSelectedIds((prev) => [
+                        ...new Set([...prev, ...allFilteredIds]),
+                      ]);
+                    }
+                  }}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-dashed border-gray-300 dark:border-gray-600 text-sm text-gray-500 dark:text-gray-400 hover:border-blue-400 hover:text-blue-600 transition-all duration-150 cursor-pointer ml-auto"
                 >
-                  <RefreshCw
-                    className={`w-4 h-4 mr-1 ${isBulkSyncing ? "animate-spin" : ""}`}
-                  />
-                  Sync
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={handleBulkDelete}
-                  disabled={isBulkDeleting}
-                  className="text-red-600 hover:text-red-700 dark:text-red-400"
-                >
-                  <Trash2 className="w-4 h-4 mr-1" />
-                  Hapus
-                </Button>
-              </div>
-            )}
+                  {filteredItems.every((i) => selectedIds.includes(i.id))
+                    ? "Batal Pilih Semua"
+                    : `Pilih Semua ${statusFilter !== "all" ? `(${filteredItems.length})` : ""}`}
+                </button>
+              )}
+            </div>
           </div>
         </CardHeader>
 
@@ -758,6 +896,7 @@ export const TimbanganList = () => {
                               : "Retry"}
                           </Button>
                         )}
+                        {/* ✅ Tombol hapus aktif (tidak di-comment) */}
                         <Button
                           size="sm"
                           variant="outline"
@@ -785,7 +924,8 @@ export const TimbanganList = () => {
                       type="checkbox"
                       className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                       checked={
-                        items.length > 0 && selectedIds.length === items.length
+                        filteredItems.length > 0 &&
+                        filteredItems.every((i) => selectedIds.includes(i.id))
                       }
                       onChange={(e) => handleSelectAll(e.target.checked)}
                     />
@@ -823,7 +963,9 @@ export const TimbanganList = () => {
                       colSpan={9}
                       className="h-24 text-center text-gray-500 dark:text-gray-400"
                     >
-                      Tidak ada antrian data saat ini.
+                      {statusFilter !== "all"
+                        ? `Tidak ada data dengan status "${statusFilter === "pending" ? "Pending" : statusFilter === "failed" ? "Gagal" : "Terkirim"}".`
+                        : "Tidak ada antrian data saat ini."}
                     </TableCell>
                   </TableRow>
                 ) : (
@@ -887,9 +1029,9 @@ export const TimbanganList = () => {
                               )}
                               {item.status === "pending"
                                 ? "Pending"
-                                : item.status === "failed"
-                                  ? "Gagal"
-                                  : "Terkirim"}
+                                : item.status === "sent"
+                                  ? "Terkirim"
+                                  : "Gagal"}
                             </Badge>
 
                             {expiryWarning?.show && (
@@ -969,7 +1111,7 @@ export const TimbanganList = () => {
                                   title="Delivered"
                                   disabled={true}
                                 >
-                                  <Check className={`w-4 h-4 `} />
+                                  <Check className="w-4 h-4" />
                                 </Button>
                               </>
                             )}
@@ -1005,17 +1147,18 @@ export const TimbanganList = () => {
                                 />
                               </Button>
                             )}
-                            {/* <Button
-                                size="icon"
-                                variant="ghost"
-                                className="h-8 w-8 text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 
-                                  hover:bg-red-50 dark:hover:bg-red-900/20
-                                  transition-all duration-200"
-                                onClick={() => handleDeleteClick(item)}
-                                title="Hapus"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </Button> */}
+                            {/* ✅ Tombol hapus aktif untuk semua status */}
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-8 w-8 text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 
+                                hover:bg-red-50 dark:hover:bg-red-900/20
+                                transition-all duration-200"
+                              onClick={() => handleDeleteClick(item)}
+                              title="Hapus"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
                           </div>
                         </TableCell>
                       </TableRow>

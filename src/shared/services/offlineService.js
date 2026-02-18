@@ -2,11 +2,12 @@ import { openDB } from "idb";
 import { apiClient } from "@/shared/services/api";
 
 const DB_NAME = "Timbangan_app";
-const DB_VERSION = 1;
+const DB_VERSION = 2; // ← naik dari 1 ke 2 untuk tambah sent_queue
 const STORES = {
   QUEUE: "offline_queue",
   CACHE: "api_cache",
   FAILED: "failed_queue",
+  SENT: "sent_queue", // ← store baru
 };
 
 const CACHE_CONFIG = {
@@ -43,7 +44,7 @@ const isDateRangeToday = (dateRange) => {
 const getTTLForDate = (dateRange, type) => {
   const isTodayRange = isDateRangeToday(dateRange);
 
-   if (type === "timbangan") {
+  if (type === "timbangan") {
     return isTodayRange
       ? CACHE_CONFIG.TIMBANGAN_TODAY
       : CACHE_CONFIG.TIMBANGAN_HISTORY;
@@ -109,30 +110,44 @@ async function getDB() {
   if (dbInstance) return dbInstance;
 
   dbInstance = await openDB(DB_NAME, DB_VERSION, {
-    upgrade(db) {
-      if (!db.objectStoreNames.contains(STORES.QUEUE)) {
-        const queueStore = db.createObjectStore(STORES.QUEUE, {
-          keyPath: "id",
-          autoIncrement: true,
-        });
-        queueStore.createIndex("timestamp", "timestamp");
-        queueStore.createIndex("status", "status");
+    upgrade(db, oldVersion) {
+      // ── Store lama (versi 1) ──────────────────────────────────────
+      if (oldVersion < 1) {
+        if (!db.objectStoreNames.contains(STORES.QUEUE)) {
+          const queueStore = db.createObjectStore(STORES.QUEUE, {
+            keyPath: "id",
+            autoIncrement: true,
+          });
+          queueStore.createIndex("timestamp", "timestamp");
+          queueStore.createIndex("status", "status");
+        }
+
+        if (!db.objectStoreNames.contains(STORES.CACHE)) {
+          const cacheStore = db.createObjectStore(STORES.CACHE, {
+            keyPath: "key",
+          });
+          cacheStore.createIndex("expiry", "expiry");
+          cacheStore.createIndex("timestamp", "timestamp");
+        }
+
+        if (!db.objectStoreNames.contains(STORES.FAILED)) {
+          const failedStore = db.createObjectStore(STORES.FAILED, {
+            keyPath: "id",
+            autoIncrement: true,
+          });
+          failedStore.createIndex("retryCount", "retryCount");
+        }
       }
 
-      if (!db.objectStoreNames.contains(STORES.CACHE)) {
-        const cacheStore = db.createObjectStore(STORES.CACHE, {
-          keyPath: "key",
-        });
-        cacheStore.createIndex("expiry", "expiry");
-        cacheStore.createIndex("timestamp", "timestamp");
-      }
-
-      if (!db.objectStoreNames.contains(STORES.FAILED)) {
-        const failedStore = db.createObjectStore(STORES.FAILED, {
-          keyPath: "id",
-          autoIncrement: true,
-        });
-        failedStore.createIndex("retryCount", "retryCount");
+      // ── Store baru (versi 2): sent_queue ─────────────────────────
+      if (oldVersion < 2) {
+        if (!db.objectStoreNames.contains(STORES.SENT)) {
+          const sentStore = db.createObjectStore(STORES.SENT, {
+            keyPath: "id",
+          });
+          sentStore.createIndex("sentAt", "sentAt");
+          sentStore.createIndex("timestamp", "timestamp");
+        }
       }
     },
   });
@@ -668,7 +683,6 @@ async function syncQueueItem(item) {
     if (item.data) {
       config.data = {
         ...item.data,
-        
       };
     }
     if (item.options?.params) config.params = item.options.params;
@@ -676,6 +690,19 @@ async function syncQueueItem(item) {
     await apiClient(item.url, config);
 
     await db.delete(STORES.QUEUE, item.id);
+
+    // ✅ Setelah berhasil sync, simpan ke sent_queue untuk tracking
+    await addToSentQueue({
+      id: `synced_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+      url: item.url,
+      method: item.method || "POST",
+      data: item.data,
+      timestamp: item.timestamp || Date.now(),
+      clientTimestamp: item.clientTimestamp || new Date().toISOString(),
+      retryCount: item.retryCount || 0,
+      syncedFrom: "auto_sync",
+    });
+
     return { success: true, item };
   } catch (error) {
     if (item.retryCount >= 2) {
@@ -770,6 +797,7 @@ async function clearAll() {
     clearStoreChunked(STORES.QUEUE),
     clearStoreChunked(STORES.CACHE),
     clearStoreChunked(STORES.FAILED),
+    clearStoreChunked(STORES.SENT),
   ]);
   emitCoalescedEvent("offline:cleared");
 }
@@ -801,7 +829,6 @@ async function retryFailed() {
 async function retrySingle(id) {
   const db = await getDB();
   const item = await db.get(STORES.FAILED, id);
-
   if (!item) {
     return { success: false, error: "Item not found" };
   }
@@ -814,7 +841,7 @@ async function retrySingle(id) {
   });
 
   return syncQueueItem(item);
-} 
+}
 
 function on(eventName, callback) {
   if (!activeListeners.has(eventName)) {
@@ -894,7 +921,90 @@ async function getFailedQueue() {
 
 async function getQueueItem(id) {
   const db = await getDB();
-  return db.get(STORES.QUEUE, id); // ✅ Get by primary key langsung
+  return db.get(STORES.QUEUE, id);
+}
+
+// ── Sent Queue helpers (baru) ──────────────────────────────────────────────
+
+async function addToSentQueue(item) {
+  try {
+    const db = await getDB();
+    await db.put(STORES.SENT, {
+      ...item,
+      sentAt: Date.now(),
+      sentTimestamp: new Date().toISOString(),
+      status: "sent",
+    });
+    emitCoalescedEvent("queue:updated");
+    return { success: true };
+  } catch (error) {
+    console.error("Failed to add to sent queue:", error);
+    return { success: false, error: error.message };
+  }
+}
+
+async function getSentQueue() {
+  try {
+    const db = await getDB();
+    return await db.getAll(STORES.SENT);
+  } catch (error) {
+    console.error("Failed to get sent queue:", error);
+    return [];
+  }
+}
+
+async function deleteSentItem(id) {
+  try {
+    const db = await getDB();
+    await db.delete(STORES.SENT, id);
+    emitCoalescedEvent("queue:updated");
+    return { success: true };
+  } catch (error) {
+    console.error("Failed to delete sent item:", error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Cleanup sent items older than 8 hours
+ */
+async function cleanupSentQueue() {
+  try {
+    const RETENTION_TIME = 8 * 60 * 60 * 1000; // 8 jam
+    const db = await getDB();
+    const cutoffTime = Date.now() - RETENTION_TIME;
+
+    const tx = db.transaction(STORES.SENT, "readwrite");
+    const store = tx.objectStore(STORES.SENT);
+    const index = store.index("sentAt");
+
+    const oldItems = await index.getAll(IDBKeyRange.upperBound(cutoffTime));
+
+    for (const item of oldItems) {
+      await store.delete(item.id);
+    }
+
+    await tx.done;
+
+    if (oldItems.length > 0) {
+      emitCoalescedEvent("queue:updated");
+      window.dispatchEvent(
+        new CustomEvent("timbangan:sent:cleaned", {
+          detail: { deletedCount: oldItems.length },
+        }),
+      );
+    }
+
+    return { success: true, deletedCount: oldItems.length };
+  } catch (error) {
+    console.error("Failed to cleanup sent queue:", error);
+    return { success: false, error: error.message };
+  }
+}
+
+// Auto cleanup sent queue setiap 5 menit
+if (typeof window !== "undefined") {
+  setInterval(cleanupSentQueue, 5 * 60 * 1000);
 }
 
 export const offlineService = {
@@ -905,17 +1015,24 @@ export const offlineService = {
   put,
   patch,
   delete: del,
-getQueueItem,
-   addToQueue,
+
+  getQueueItem,
+  addToQueue,
   getQueue,
   getPendingCount,
   syncAllPending,
   retryFailed,
-  deleteQueueItem,      
-  deleteFailedItem,     
-  getFailedQueue,       
+  deleteQueueItem,
+  deleteFailedItem,
+  getFailedQueue,
   syncQueueItem,
   retrySingle,
+
+  // ── Sent queue (baru) ──
+  addToSentQueue,
+  getSentQueue,
+  deleteSentItem,
+  cleanupSentQueue,
 
   setCache,
   getCache,
