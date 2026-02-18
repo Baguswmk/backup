@@ -106,12 +106,17 @@ export const ritasePendingService = {
     try {
       logger.info("🔄 Syncing bulk ritase", { count: ritases.length });
 
+      const ids = ritases.map((r) => r.id);
+
       const response = await offlineService.put(
         "/v1/custom/ritase/offline/sync-bulk",
-        { ritases }, // id: []
+        ids,
       );
 
-      logger.info("✅ Bulk ritase synced", { count: ritases.length });
+      logger.info("✅ Bulk ritase synced", {
+        count: ritases.length,
+        ids,
+      });
 
       return { success: response.success };
     } catch (error) {
