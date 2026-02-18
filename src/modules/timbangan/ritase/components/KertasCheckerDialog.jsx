@@ -25,7 +25,7 @@
   import RitaseEditForm from "@/modules/timbangan/ritase/components/RitaseEditForm";
   import { useFleet } from "@/modules/timbangan/fleet/hooks/useFleet";
   import useAuthStore from "@/modules/auth/store/authStore";
-
+  import { SHIFT_CONFIG, getShiftFromHour } from "@/shared/utils/shift";
   const KertasCheckerDialog = ({ 
     isOpen, 
     onClose, 
@@ -308,64 +308,28 @@
 
     if (!data) return null;
 
-    const getShiftInfoAndTimeSlots = () => {
-      if (!data.trips || data.trips.length === 0) {
-        return { shiftName: "Unknown", startHour: 0, endHour: 0, timeSlots: [] };
-      }
+  const getShiftInfoAndTimeSlots = () => {
+    if (!data.trips || data.trips.length === 0) {
+      return { shiftName: "Unknown", startHour: 0, endHour: 0, timeSlots: [] };
+    }
 
-      const hoursSet = new Set();
-      data.trips.forEach((trip) => {
-        const hour = new Date(trip.time).getHours();
-        hoursSet.add(hour);
-      });
+    // Deteksi shift dari trip pertama
+    const firstHour = new Date(data.trips[0].time).getHours();
+    const shiftName = getShiftFromHour(firstHour);
+    const config = SHIFT_CONFIG[shiftName];
 
-      const hours = Array.from(hoursSet).sort((a, b) => a - b);
+    const { start: startHour, end: endHour, crossesMidnight } = config;
 
-      if (hours.length === 0) {
-        return { shiftName: "Unknown", startHour: 0, endHour: 0, timeSlots: [] };
-      }
+    const timeSlots = [];
+    if (crossesMidnight) {
+      for (let i = startHour; i <= 23; i++) timeSlots.push(`${i}:00`);
+      for (let i = 0; i < endHour; i++) timeSlots.push(`${String(i).padStart(2, "0")}:00`);
+    } else {
+      for (let i = startHour; i < endHour; i++) timeSlots.push(`${String(i).padStart(2, "0")}:00`);
+    }
 
-      const minHour = Math.min(...hours);
-      const maxHour = Math.max(...hours);
-
-      let shiftName, startHour, endHour;
-
-      if (
-        minHour >= 22 ||
-        maxHour < 6 ||
-        (hours.some((h) => h >= 22) && hours.some((h) => h < 6))
-      ) {
-        shiftName = "Shift 1";
-        startHour = 22;
-        endHour = 6;
-      } else if (minHour >= 6 && maxHour < 14) {
-        shiftName = "Shift 2";
-        startHour = 6;
-        endHour = 14;
-      } else {
-        shiftName = "Shift 3";
-        startHour = 14;
-        endHour = 22;
-      }
-
-      const timeSlots = [];
-      if (shiftName === "Shift 1") {
-        for (let i = 22; i <= 23; i++) {
-          timeSlots.push(`${i}:00`);
-        }
-        for (let i = 0; i < 6; i++) {
-          timeSlots.push(`${i.toString().padStart(2, "0")}:00`);
-        }
-      } else {
-        const hours = endHour - startHour;
-        for (let i = 0; i < hours; i++) {
-          const hour = startHour + i;
-          timeSlots.push(`${hour.toString().padStart(2, "0")}:00`);
-        }
-      }
-
-      return { shiftName, startHour, endHour, timeSlots };
-    };
+    return { shiftName, startHour, endHour, timeSlots };
+  };
 
     const { shiftName, startHour, endHour, timeSlots } =
       getShiftInfoAndTimeSlots();
