@@ -22,6 +22,7 @@ import {
   Trash2,
   MoreVertical,
   Copy,
+  FileDown,
 } from "lucide-react";
 import {
   Table,
@@ -52,6 +53,7 @@ import { USER_ROLES } from "@/modules/timbangan/ritase/constant/ritaseConstants"
 import RitaseEditForm from "@/modules/timbangan/ritase/components/RitaseEditForm";
 import RitaseDuplicateForm from "@/modules/timbangan/ritase/components/RitaseDuplicateForm";
 import PrintTicketButton from "@/modules/timbangan/ritase/components/PrintTicketButton";
+import { generateRitaseExcel } from "@/modules/timbangan/ritase/services/generateRitaseExcel";
 const ITEMS_PER_PAGE = 10;
 
 const RitaseList = ({
@@ -159,6 +161,10 @@ const RitaseList = ({
     }
   };
 
+  const handleExportExcel = () => {
+    generateRitaseExcel(filteredRitaseData);
+  };
+
   return (
     <>
       <Card
@@ -178,6 +184,16 @@ const RitaseList = ({
               >
                 {filteredRitaseData.length} total
               </Badge>
+              <Button
+                onClick={handleExportExcel}
+                variant="outline"
+                size="sm"
+                disabled={filteredRitaseData.length === 0}
+                className="border-green-300 dark:border-green-700 text-green-700 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20"
+              >
+                <FileDown className="w-4 h-4 mr-2" />
+                Export Excel
+              </Button>
             </div>
           </div>
         </CardHeader>
