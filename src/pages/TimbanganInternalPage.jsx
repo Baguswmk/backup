@@ -85,11 +85,6 @@ const TimbanganInternalPage = () => {
         name: "Ritase Pending",
         icon: History,
         roles: [
-          "checker",
-          "pic",
-          "pengawas",
-          "operator_jt",
-          "evaluator",
           "admin",
           "super_admin",
           "ccr",
@@ -129,7 +124,7 @@ const TimbanganInternalPage = () => {
       {
         name: "Overview",
         icon: BarChart3,
-        roles: ["admin", "super_admin", "ccr", "pengawas"],
+        roles: ["admin", "super_admin", "ccr", "pengawas",],
         locationId: "overview",
       },
       {
@@ -141,7 +136,7 @@ const TimbanganInternalPage = () => {
       {
         name: "Master Data",
         icon: Database,
-        roles: ["super_admin", "operator_jt", "ccr", "admin", "checker"],
+        roles: ["super_admin", "operator_jt", "ccr", "admin"],
         locationId: "master-data",
       },
     ],
