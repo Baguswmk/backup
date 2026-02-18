@@ -109,7 +109,7 @@ export const ritasePendingService = {
       const ids = ritases.map((r) => r.id);
 
       const response = await offlineService.put(
-        "/v1/custom/ritase/offline",
+        "/v1/custom/ritase/offline/sync",
         ids,
       );
 
