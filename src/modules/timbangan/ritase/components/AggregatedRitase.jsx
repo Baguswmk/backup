@@ -760,13 +760,15 @@ const AggregatedRitase = ({
                                   <Eye className="mr-2 h-3 w-3 sm:h-4 sm:w-4" />
                                   Lihat Kertas Checker
                                 </DropdownMenuItem>
-                                <DropdownMenuItem
-                                  onClick={() => handleDuplicate(item)}
-                                  className="cursor-pointer hover:bg-gray-200 dark:hover:bg-slate-700"
-                                >
-                                  <Copy className="mr-2 h-4 w-4" />
+                                {isCCR && (
+                                  <DropdownMenuItem
+                                    onClick={() => handleDuplicate(item)}
+                                    className="cursor-pointer hover:bg-gray-200 dark:hover:bg-slate-700"
+                                  >
+                                    <Copy className="mr-2 h-4 w-4" />
                                   Tambah Ritase
                                 </DropdownMenuItem>
+                                )}
                                 {/* <DropdownMenuItem
                                 onClick={() => handleEdit(item)}
                                 className="cursor-pointer hover:bg-gray-200 dark:hover:bg-slate-700"

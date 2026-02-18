@@ -77,6 +77,7 @@ const RitaseList = ({
   const [isDeletingRitase, setIsDeletingRitase] = useState(false);
   const [pageSize, setPageSize] = useState(10); // Added pageSize state
 
+  const isCCR = userRole.toLowerCase() === "ccr";
   const getInputButtonText = () => {
     return userRole === USER_ROLES.OPERATOR_JT ? "Timbang" : "Input Data";
   };
@@ -341,29 +342,34 @@ const RitaseList = ({
                                 variant="ghost"
                                 size="sm"
                               />
-                              <DropdownMenuSeparator className="dark:bg-gray-700" />
-                              <DropdownMenuItem
-                                onClick={() => handleEdit(ritase)}
-                                className="dark:hover:bg-gray-700 cursor-pointer hover:bg-gray-200 dark:text-gray-200"
-                              >
-                                <Edit2 className="w-4 h-4 mr-2" />
-                                Edit
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                onClick={() => handleDuplicate(ritase)}
-                                className="dark:hover:bg-gray-700 cursor-pointer hover:bg-gray-200 dark:text-gray-200"
-                              >
-                                <Copy className="w-4 h-4 mr-2" />
-                                Tambah Ritase
-                              </DropdownMenuItem>
-                              <DropdownMenuSeparator className="dark:bg-gray-700" />
-                              <DropdownMenuItem
-                                onClick={() => handleDelete(ritase)}
-                                className="text-red-600 dark:text-red-400 dark:hover:bg-gray-700 cursor-pointer hover:bg-gray-200"
-                              >
-                                <Trash2 className="w-4 h-4 mr-2" />
-                                Delete
-                              </DropdownMenuItem>
+                              {isCCR && (
+                                <>
+                                  {" "}
+                                  <DropdownMenuSeparator className="dark:bg-gray-700" />
+                                  <DropdownMenuItem
+                                    onClick={() => handleEdit(ritase)}
+                                    className="dark:hover:bg-gray-700 cursor-pointer hover:bg-gray-200 dark:text-gray-200"
+                                  >
+                                    <Edit2 className="w-4 h-4 mr-2" />
+                                    Edit
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem
+                                    onClick={() => handleDuplicate(ritase)}
+                                    className="dark:hover:bg-gray-700 cursor-pointer hover:bg-gray-200 dark:text-gray-200"
+                                  >
+                                    <Copy className="w-4 h-4 mr-2" />
+                                    Tambah Ritase
+                                  </DropdownMenuItem>
+                                  <DropdownMenuSeparator className="dark:bg-gray-700" />
+                                  <DropdownMenuItem
+                                    onClick={() => handleDelete(ritase)}
+                                    className="text-red-600 dark:text-red-400 dark:hover:bg-gray-700 cursor-pointer hover:bg-gray-200"
+                                  >
+                                    <Trash2 className="w-4 h-4 mr-2" />
+                                    Delete
+                                  </DropdownMenuItem>
+                                </>
+                              )}
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </TableCell>
