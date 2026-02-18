@@ -40,7 +40,6 @@ export const generatePDF_SPPH = (data, params) => {
       item.unit_exca || "-",
       item.group || "-",
       item.status || "-",
-      item.input_by || "-",
   ]);
 
   autoTable(doc, {
@@ -60,7 +59,6 @@ export const generatePDF_SPPH = (data, params) => {
     "Exca",
     "Group",
     "Status",
-    "Input Type",
       ],
     ],
     body: tableDataSPPH,
@@ -126,7 +124,7 @@ export const generatePDF_DumpTruck = (data, params) => {
     item.coal_type || "-",
     item.group || "-",
     item.status || "-",
-    item.input_by || "-",
+    item.input_type || "-",
     item.input_by || "-",
     item.nama_operator || "-",
     item.lokasi || "-",
@@ -212,7 +210,6 @@ export const generateExcel_SPPH = (data, params) => {
     "Exca",
     "Group",
     "Status",
-    "Input Type",
   ];
 
   const columnWidths = [
@@ -241,7 +238,6 @@ export const generateExcel_SPPH = (data, params) => {
           item.unit_exca || "-",
           item.group || "-",
           detail.status || "-",
-          detail.input_by || "-",
         ]);
       });
     });
@@ -337,7 +333,7 @@ export const generateExcel_DumpTruck = (data, params) => {
       item.coal_type || "-",
       item.group || "-",
       item.status || "-",
-      item.input_by || "-",
+      item.input_type || "-",
       item.input_by || "-",
       item.operator || "-",
       item.tonase_adjustment || 0,
