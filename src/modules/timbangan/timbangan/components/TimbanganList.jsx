@@ -27,9 +27,11 @@ import {
   CheckCircle,
   AlertTriangle,
   Check,
+  Printer,
 } from "lucide-react";
 import { format } from "date-fns";
 import { id as localeId } from "date-fns/locale";
+import PrintBukti from "@/modules/timbangan/timbangan/components/PrintBukti";
 
 export const TimbanganList = () => {
   const {
@@ -947,17 +949,29 @@ export const TimbanganList = () => {
                         <TableCell className="text-center">
                           <div className="flex justify-center gap-2">
                             {item.status === "sent" && (
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                className="h-8 w-8 text-green-600 hover:text-green-700 dark:text-green-400 dark:hover:text-green-300 
+                              <>
+                                <PrintBukti
+                                  data={data}
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 
+                                    hover:bg-blue-50 dark:hover:bg-blue-900/20
+                                    transition-all duration-200 items-center"
+                                >
+                                  <p className="text-center"></p>
+                                </PrintBukti>
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  className="h-8 w-8 text-green-600 hover:text-green-700 dark:text-green-400 dark:hover:text-green-300 
                                     hover:bg-green-50 dark:hover:bg-green-900/20
                                     transition-all duration-200"
-                                title="Delivered"
-                                disabled={true}
-                              >
-                                <Check className={`w-4 h-4 `} />
-                              </Button>
+                                  title="Delivered"
+                                  disabled={true}
+                                >
+                                  <Check className={`w-4 h-4 `} />
+                                </Button>
+                              </>
                             )}
                             {item.status === "pending" && isOnline && (
                               <Button

@@ -19,6 +19,8 @@ import {
   Radio,
   RefreshCw,
   Zap,
+  Lock,
+  Unlock,
 } from "lucide-react";
 import { useTimbanganHooks } from "../hooks/useTimbanganHooks";
 import useAuthStore from "@/modules/auth/store/authStore";
@@ -260,6 +262,16 @@ export const TimbanganInputCard = ({ fleetConfigs = [] }) => {
           netWeightInputRef.current?.focus();
         }
 
+        // Alt + L -> Manual Lock/Unlock (Operator only)
+        if (isOperator && e.altKey && e.key.toLowerCase() === "l") {
+          e.preventDefault();
+          if (scale.lockedWeight) {
+            scale.unlockWeight();
+          } else if (scale.isConnected && scale.currentWeight) {
+            scale.manualLock();
+          }
+        }
+
         // Alt + S or Ctrl + Enter -> Submit
         if (
           (e.altKey && e.key.toLowerCase() === "s") ||
@@ -288,8 +300,7 @@ export const TimbanganInputCard = ({ fleetConfigs = [] }) => {
 
     window.addEventListener("keydown", handleKeyPress);
     return () => window.removeEventListener("keydown", handleKeyPress);
-  }, [isOperator, activeTab, handleSubmit, handleBypassSubmit]);
-
+  }, [isOperator, activeTab, handleSubmit, handleBypassSubmit, scale]);
   return (
     <Card className="shadow-lg border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800 transition-colors">
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
@@ -343,22 +354,50 @@ export const TimbanganInputCard = ({ fleetConfigs = [] }) => {
 
                   {/* Scale Live Weight Display */}
                   {scale.isConnected && (
-                    <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 dark:bg-gray-800 rounded-md border border-gray-300 dark:border-gray-700">
-                      <Weight className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
-                      <span className="text-xs font-mono font-bold text-gray-900 dark:text-gray-100">
-                        {scale.currentWeight || "0.00"} ton
-                      </span>
-                      <Badge
-                        variant="outline"
-                        className={`py-0 px-1.5 text-[10px] h-4 ${
-                          scale.isStable
-                            ? "bg-green-50 dark:bg-green-950/30 text-green-700 dark:text-green-300 border-green-300 dark:border-green-700"
-                            : "bg-orange-50 dark:bg-orange-950/30 text-orange-700 dark:text-orange-300 border-orange-300 dark:border-orange-700 animate-pulse"
+                    <>
+                      <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 dark:bg-gray-800 rounded-md border border-gray-300 dark:border-gray-700">
+                        <Weight className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+                        <span className="text-xs font-mono font-bold text-gray-900 dark:text-gray-100">
+                          {scale.currentWeight ? (scale.currentWeight / 1000).toFixed(2) : "0.00"} ton
+                        </span>
+                        <Badge
+                          variant="outline"
+                          className={`py-0 px-1.5 text-[10px] h-4 ${
+                            scale.isStable
+                              ? "bg-green-50 dark:bg-green-950/30 text-green-700 dark:text-green-300 border-green-300 dark:border-green-700"
+                              : "bg-orange-50 dark:bg-orange-950/30 text-orange-700 dark:text-orange-300 border-orange-300 dark:border-orange-700 animate-pulse"
+                          }`}
+                        >
+                          {scale.isStable ? "STABLE" : "..."}
+                        </Badge>
+                      </div>
+
+                      {/* Manual Lock/Unlock Button */}
+                      <Button
+                        variant={scale.lockedWeight ? "default" : "outline"}
+                        size="sm"
+                        onClick={scale.lockedWeight ? scale.unlockWeight : scale.manualLock}
+                        disabled={!scale.currentWeight || scale.currentWeight <= 0}
+                        className={`text-xs flex items-center gap-1.5 ${
+                          scale.lockedWeight
+                            ? "bg-yellow-600 hover:bg-yellow-700 dark:bg-yellow-500 dark:hover:bg-yellow-600 text-white"
+                            : "border-gray-300 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300"
                         }`}
+                        title="Alt + L untuk lock/unlock berat manual"
                       >
-                        {scale.isStable ? "STABLE" : "..."}
-                      </Badge>
-                    </div>
+                        {scale.lockedWeight ? (
+                          <>
+                            <Unlock className="w-3 h-3" />
+                            Unlock
+                          </>
+                        ) : (
+                          <>
+                            <Lock className="w-3 h-3" />
+                            Lock
+                          </>
+                        )}
+                      </Button>
+                    </>
                   )}
                 </>
               )}
@@ -425,6 +464,18 @@ export const TimbanganInputCard = ({ fleetConfigs = [] }) => {
                     C
                   </kbd>
                   {" - Connect Scale"}
+                </div>
+              )}
+              {isOperator && (
+                <div>
+                  <kbd className="px-1.5 py-0.5 bg-white dark:bg-slate-800 border border-blue-300 dark:border-blue-700 rounded text-[10px]">
+                    Alt
+                  </kbd>
+                  {" + "}
+                  <kbd className="px-1.5 py-0.5 bg-white dark:bg-slate-800 border border-blue-300 dark:border-blue-700 rounded text-[10px]">
+                    L
+                  </kbd>
+                  {" - Lock/Unlock Berat"}
                 </div>
               )}
               <div>
