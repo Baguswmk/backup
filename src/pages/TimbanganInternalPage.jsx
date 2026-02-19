@@ -121,7 +121,7 @@ const TimbanganInternalPage = () => {
       {
         name: "Overview",
         icon: BarChart3,
-        roles: ["admin", "super_admin", "ccr", "pengawas"],
+        roles: ["admin", "super_admin", "ccr", "pengawas", "pic"],
         locationId: "overview",
       },
       {

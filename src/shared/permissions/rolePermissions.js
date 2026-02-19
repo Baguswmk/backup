@@ -183,6 +183,14 @@ export const ROLE_PERMISSIONS = {
     fleetTypes: ["Setting Fleet"],
     description: "Read only, filter by subsatker",
   },
+  
+  pic: {
+    timbangan: [PERMISSIONS.READ, PERMISSIONS.EXPORT],
+    fleet: [PERMISSIONS.READ],
+    masterData: [],
+    fleetTypes: ["Setting Fleet"],
+    description: "Read only, filter by subsatker",
+  },
 
   admin: {
     timbangan: [PERMISSIONS.READ, PERMISSIONS.EXPORT],
