@@ -18,7 +18,7 @@ const RitaseHeader = ({
 }) => {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [shiftInfo, setShiftInfo] = useState(() => calculateCurrentShiftAndGroup());
-
+  const isCan = userRole?.toLowerCase() === "ccr" || userRole?.toLowerCase() === "checker";
   // Update waktu dan shift setiap detik
   useEffect(() => {
     const timer = setInterval(() => {
@@ -102,6 +102,7 @@ const RitaseHeader = ({
       {/* Action Buttons */}
       <div className="flex items-center gap-2 sm:gap-3">
         {/* Refresh Master Data Button */}
+        {isCan && (
         <Button
           onClick={onRefreshMasterData}
           variant="outline"
@@ -114,6 +115,7 @@ const RitaseHeader = ({
           />
           <span className="hidden sm:inline">Master</span>
         </Button>
+        )}
 
         {/* Refresh Ritase Button */}
         <Button

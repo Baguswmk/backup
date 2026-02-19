@@ -33,7 +33,7 @@ const FleetHeader = ({
 }) => {
   const { refreshAllMasterData, isRefreshingMasterData } = useMasterData();
   const { user } = useAuthStore();
-
+  const isCan = userRole?.toLowerCase() === "ccr" || userRole?.toLowerCase() === "checker";
   // State untuk MMCT Equipment List Modal
   const [showMMCTEquipmentModal, setShowMMCTEquipmentModal] = useState(false);
 
@@ -49,7 +49,7 @@ const FleetHeader = ({
             <Settings className="w-6 h-6" />
             Fleet Management - {type}
           </h1>
-           <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-0">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-0">
             <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
               Selamat datang,{" "}
               <span className="font-semibold text-gray-900 dark:text-white">
@@ -101,19 +101,20 @@ const FleetHeader = ({
           )}
 
           {/* Refresh Master Data Button */}
-          <Button
-            onClick={refreshAllMasterData}
-            variant="outline"
-            disabled={isRefreshingMasterData}
-            title="Refresh Master Data (Unit, Operator, dll)"
-            className="flex-1 sm:flex-none gap-2 border-green-300 dark:border-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 text-green-700 dark:text-green-400"
-          >
-            <Database
-              className={`w-4 h-4 ${isRefreshingMasterData ? "animate-spin" : ""}`}
-            />
-            <span className="hidden sm:inline">Master</span>
-          </Button>
-
+          {isCan && (
+            <Button
+              onClick={refreshAllMasterData}
+              variant="outline"
+              disabled={isRefreshingMasterData}
+              title="Refresh Master Data (Unit, Operator, dll)"
+              className="flex-1 sm:flex-none gap-2 border-green-300 dark:border-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 text-green-700 dark:text-green-400"
+            >
+              <Database
+                className={`w-4 h-4 ${isRefreshingMasterData ? "animate-spin" : ""}`}
+              />
+              <span className="hidden sm:inline">Master</span>
+            </Button>
+          )}
           {/* Refresh Fleet Data Button */}
           <Button
             onClick={onRefresh}
@@ -146,8 +147,8 @@ const FleetHeader = ({
       {/* MMCT Equipment List Modal */}
       {isCCR && (
         <MMCTEquipmentListModal
-        masters={masters}
-        mastersLoading={mastersLoading}
+          masters={masters}
+          mastersLoading={mastersLoading}
           isOpen={showMMCTEquipmentModal}
           onClose={() => setShowMMCTEquipmentModal(false)}
         />
