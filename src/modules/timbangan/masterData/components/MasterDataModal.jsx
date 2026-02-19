@@ -353,6 +353,21 @@ const MasterDataModal = ({
                 allowClear={true}
               />
             </div>
+            <div className="space-y-2">
+              <Label htmlFor="status">Status</Label>
+              <SearchableSelect
+                items={[
+                  { value: "ON DUTY", label: "On Duty" },
+                  { value: "BREAKDOWN", label: "Breakdown" },
+                  { value: "SERVICE", label: "Service" },
+                ]}
+                value={formData.status || ""}
+                onChange={(value) => updateField("status", value)}
+                placeholder="Select status"
+                disabled={isSaving}
+                allowClear={true}
+              />
+            </div>
           </>
         );
 
