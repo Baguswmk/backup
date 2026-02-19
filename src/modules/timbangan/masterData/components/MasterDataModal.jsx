@@ -55,8 +55,8 @@ const MasterDataModal = ({
     () =>
       workUnits?.map((wu) => ({
         value: String(wu.id),
-        label: wu.satker || wu.subsatker,
-        hint: wu.satker,
+        label: wu.subsatker || wu.satker,
+        hint: wu.subsatker || wu.satker,
       })) || [],
     [workUnits],
   );
