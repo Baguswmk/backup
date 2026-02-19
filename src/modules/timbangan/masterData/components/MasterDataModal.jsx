@@ -45,7 +45,7 @@ const MasterDataModal = ({
   const companyOptions = useMemo(
     () =>
       companies?.map((c) => ({
-        value: c.id,
+        value: String(c.id),
         label: c.name,
       })) || [],
     [companies],
@@ -54,7 +54,7 @@ const MasterDataModal = ({
   const workUnitOptions = useMemo(
     () =>
       workUnits?.map((wu) => ({
-        value: wu.id,
+        value: String(wu.id),
         label: wu.satker || wu.subsatker,
         hint: wu.satker,
       })) || [],
@@ -101,12 +101,15 @@ const MasterDataModal = ({
 
   useEffect(() => {
     if (editData) {
-      setFormData(editData);
+      setFormData({
+        ...editData,
+        companyId: editData.companyId ?? editData.id_company ?? "",
+        workUnitId: editData.workUnitId ?? editData.id_work_unit ?? "",
+      });
 
       setSelectedLocations(
         (editData.locationIds || []).map((id) => String(id)),
       );
-
       setSelectedUsers((editData.userIds || []).map((id) => String(id)));
     } else {
       setFormData({});
