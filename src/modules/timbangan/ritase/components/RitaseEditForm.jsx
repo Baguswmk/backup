@@ -24,6 +24,7 @@ import {
   Weight,
   MapPin,
   Calendar as CalendarIcon,
+  Clock,
   Loader2,
   Info,
 } from "lucide-react";
@@ -464,6 +465,31 @@ const RitaseEditForm = ({
                 {errors.date && (
                   <p className="text-sm text-red-500 mt-1">{errors.date}</p>
                 )}
+              </div>
+
+              {/* Waktu Created At */}
+              <div>
+                <Label className="pb-2 dark:text-gray-300 flex items-center gap-1.5" htmlFor="created_time">
+                  <Clock className="w-3.5 h-3.5" />
+                  Waktu Ritase
+                </Label>
+                <Input
+                  id="created_time"
+                  type="time"
+                  value={(() => {
+                    const raw = formData.createdAt || formData.date || "";
+                    if (!raw) return "";
+                    try { return format(new Date(raw), "HH:mm"); }
+                    catch { return raw.slice(11, 16) || ""; }
+                  })()}
+                  onChange={(e) => {
+                    const dateBase = (formData.date || formData.createdAt || "").slice(0, 10);
+                    if (dateBase) {
+                      updateField("createdAt", `${dateBase}T${e.target.value}:00`);
+                    }
+                  }}
+                  className="dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600"
+                />
               </div>
 
               <div>

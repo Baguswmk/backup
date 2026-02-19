@@ -10,7 +10,6 @@ import { Input } from "@/shared/components/ui/input";
 import { Label } from "@/shared/components/ui/label";
 import { Alert, AlertDescription } from "@/shared/components/ui/alert";
 import { Badge } from "@/shared/components/ui/badge";
-import { Checkbox } from "@/shared/components/ui/checkbox";
 import SearchableSelect from "@/shared/components/SearchableSelect";
 import {
   Calendar as CalendarIcon,
@@ -63,14 +62,6 @@ const BeltScaleAdjustmentForm = ({ onSubmit }) => {
 
   const [errors, setErrors] = useState({});
 
-  const shiftOptions = useMemo(() => {
-    return (masters.shifts || []).map((s) => ({
-      value: s.name,
-      label: s.name,
-      hint: s.hours,
-    }));
-  }, [masters.shifts]);
-
   const dumpingLocationOptions = useMemo(() => {
     return (masters.dumpingLocations || []).map((loc) => ({
       value: loc.name,
@@ -89,6 +80,11 @@ const BeltScaleAdjustmentForm = ({ onSubmit }) => {
       0,
     );
   }, [selectedFleetData]);
+
+  const isAllSelected =
+    fleetList.length > 0 && selectedFleetIds.length === fleetList.length;
+  const isIndeterminate =
+    selectedFleetIds.length > 0 && selectedFleetIds.length < fleetList.length;
 
   const updateField = (field, value) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -138,9 +134,17 @@ const BeltScaleAdjustmentForm = ({ onSubmit }) => {
         return;
       }
 
-      setFleetList(result.data);
-
-      setSelectedFleetIds(result.data.map((fleet) => fleet.id));
+      setFleetList(
+        result.data.map((fleet, index) => ({
+          ...fleet,
+          id: fleet.id || `temp-${index}-${Date.now()}`,
+        })),
+      );
+      setSelectedFleetIds(
+        result.data.map(
+          (fleet, index) => fleet.id || `temp-${index}-${Date.now()}`,
+        ),
+      );
       setShowPreview(true);
       showToast.success(`Preview loaded: ${result.data.length} fleet`);
     } catch (error) {
@@ -153,7 +157,8 @@ const BeltScaleAdjustmentForm = ({ onSubmit }) => {
 
   const handleToggleFleet = (fleetId) => {
     setSelectedFleetIds((prev) => {
-      if (prev.includes(fleetId)) {
+      const isCurrentlySelected = prev.includes(fleetId);
+      if (isCurrentlySelected) {
         return prev.filter((id) => id !== fleetId);
       } else {
         return [...prev, fleetId];
@@ -401,15 +406,22 @@ const BeltScaleAdjustmentForm = ({ onSubmit }) => {
               dipilih)
             </CardTitle>
             <div className="flex items-center gap-3">
+              {/* Native input checkbox — persis seperti TimbanganList */}
               <Button
                 variant="outline"
                 size="sm"
                 onClick={handleToggleSelectAll}
                 className="cursor-pointer border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-gray-300 transition-colors"
               >
-                <Checkbox
-                  checked={selectedFleetIds.length === fleetList.length}
-                  className="mr-2"
+                <input
+                  type="checkbox"
+                  className="mr-2 rounded border-gray-300 text-blue-600 focus:ring-blue-500 pointer-events-none"
+                  checked={isAllSelected}
+                  ref={(el) => {
+                    if (el) el.indeterminate = isIndeterminate;
+                  }}
+                  onChange={() => {}}
+                  tabIndex={-1}
                 />
                 Select All
               </Button>
@@ -429,9 +441,16 @@ const BeltScaleAdjustmentForm = ({ onSubmit }) => {
                 <thead className="bg-gray-50 dark:bg-gray-900/50 border-b border-gray-200 dark:border-gray-700">
                   <tr>
                     <th className="px-4 py-3 text-center">
-                      <Checkbox
-                        checked={selectedFleetIds.length === fleetList.length}
-                        onCheckedChange={handleToggleSelectAll}
+                      <input
+                        type="checkbox"
+                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                        checked={isAllSelected}
+                        ref={(el) => {
+                          if (el) el.indeterminate = isIndeterminate;
+                        }}
+                        onChange={(e) =>
+                          handleToggleSelectAll(e.target.checked)
+                        }
                       />
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 dark:text-gray-300 uppercase tracking-wider">
@@ -461,58 +480,65 @@ const BeltScaleAdjustmentForm = ({ onSubmit }) => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                  {fleetList.map((fleet) => (
-                    <tr
-                      key={fleet.id}
-                      className={`transition-colors ${
-                        selectedFleetIds.includes(fleet.id)
-                          ? "bg-blue-50 dark:bg-blue-950/30"
-                          : "hover:bg-gray-50 dark:hover:bg-gray-700/50"
-                      }`}
-                    >
-                      <td className="px-4 py-3 text-center">
-                        <Checkbox
-                          checked={selectedFleetIds.includes(fleet.id)}
-                          onCheckedChange={() => handleToggleFleet(fleet.id)}
-                        />
-                      </td>
-                      <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">
-                        {fleet.date
-                          ? format(new Date(fleet.date), "dd MMM yyyy", {
-                              locale: localeId,
-                            })
-                          : "-"}
-                      </td>
-                      <td className="px-4 py-3">
-                        <Badge
-                          variant="outline"
-                          className="dark:text-gray-300 dark:border-gray-600"
-                        >
-                          {fleet.shift || "-"}
-                        </Badge>
-                      </td>
-                      <td className="px-4 py-3">
-                        <Badge className="font-semibold bg-blue-600 dark:bg-blue-600 text-white">
-                          {fleet.unit_exca || "-"}
-                        </Badge>
-                      </td>
-                      <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">
-                        {fleet.loading_location || "-"}
-                      </td>
-                      <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">
-                        {fleet.dumping_location || "-"}
-                      </td>
-                      <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">
-                        {fleet.coal_type || "-"}
-                      </td>
-                      <td className="px-4 py-3 text-center text-sm text-gray-900 dark:text-gray-100">
-                        {fleet.distance || 0}
-                      </td>
-                      <td className="px-4 py-3 text-right font-bold text-blue-600 dark:text-blue-400">
-                        {formatWeight(fleet.total_tonnage || 0)} ton
-                      </td>
-                    </tr>
-                  ))}
+                  {fleetList.map((fleet) => {
+                    const isChecked = selectedFleetIds.includes(fleet.id);
+                    return (
+                      <tr
+                        key={fleet.id}
+                        className={`transition-colors cursor-pointer ${
+                          isChecked
+                            ? "bg-blue-50 dark:bg-blue-950/30"
+                            : "hover:bg-gray-50 dark:hover:bg-gray-700/50"
+                        }`}
+                        onClick={() => handleToggleFleet(fleet.id)}
+                      >
+                        <td className="px-4 py-3 text-center">
+                          <input
+                            type="checkbox"
+                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                            checked={isChecked}
+                            onClick={(e) => e.stopPropagation()}
+                            onChange={() => handleToggleFleet(fleet.id)}
+                          />
+                        </td>
+                        <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">
+                          {fleet.date
+                            ? format(new Date(fleet.date), "dd MMM yyyy", {
+                                locale: localeId,
+                              })
+                            : "-"}
+                        </td>
+                        <td className="px-4 py-3">
+                          <Badge
+                            variant="outline"
+                            className="dark:text-gray-300 dark:border-gray-600"
+                          >
+                            {fleet.shift || "-"}
+                          </Badge>
+                        </td>
+                        <td className="px-4 py-3">
+                          <Badge className="font-semibold bg-blue-600 dark:bg-blue-600 text-white">
+                            {fleet.unit_exca || "-"}
+                          </Badge>
+                        </td>
+                        <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">
+                          {fleet.loading_location || "-"}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">
+                          {fleet.dumping_location || "-"}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">
+                          {fleet.coal_type || "-"}
+                        </td>
+                        <td className="px-4 py-3 text-center text-sm text-gray-900 dark:text-gray-100">
+                          {fleet.distance || 0}
+                        </td>
+                        <td className="px-4 py-3 text-right font-bold text-blue-600 dark:text-blue-400">
+                          {formatWeight(fleet.total_tonnage || 0)} ton
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
                 <tfoot className="bg-gray-100 dark:bg-gray-900/50 font-bold border-t-2 border-gray-300 dark:border-gray-600">
                   <tr>

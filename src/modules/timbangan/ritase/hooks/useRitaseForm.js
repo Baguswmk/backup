@@ -639,9 +639,9 @@ const handleSubmit = useCallback(async () => {
           distance: parseFloat(formData.distance),
           coal_type: formData.coal_type,
           pic_work_unit: formData.pic_work_unit,
+          createdAt: formData.createdAt,
           updated_by_user: user?.id || null,
         };
-
         // Add weight based on checker role
         if (useNetWeight) {
           submissionData.net_weight = parseFloat(formData.net_weight);

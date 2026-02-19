@@ -755,6 +755,7 @@ export const ritaseServices = {
         coal_type: formData.coal_type,
         pic_work_unit: formData.pic_work_unit,
         updated_by_user: formData.updated_by_user || null,
+        createdAt: formData.createdAt,
       };
 
       // Handle weight based on which field is provided

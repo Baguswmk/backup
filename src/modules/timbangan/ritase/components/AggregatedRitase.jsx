@@ -69,7 +69,6 @@ import { id as localeId } from "date-fns/locale";
 import RitaseEditForm from "@/modules/timbangan/ritase/components/RitaseEditForm";
 import RitaseDuplicateForm from "@/modules/timbangan/ritase/components/RitaseDuplicateForm";
 import DeleteConfirmDialog from "@/shared/components/DeleteConfirmDialog";
-const ITEMS_PER_PAGE = 10;
 
 const AggregatedRitase = ({
   aggregatedData,

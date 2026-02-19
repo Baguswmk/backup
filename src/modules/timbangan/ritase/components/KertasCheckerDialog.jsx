@@ -1,4 +1,4 @@
-  import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo } from "react";
   import { Badge } from "@/shared/components/ui/badge";
   import { X, Printer, Plus, Edit2, Trash2, MoreVertical, AlertTriangle, Loader2, ChevronRight, ChevronLeft, CheckCircle2, RefreshCw, Settings } from "lucide-react";
   import { Button } from "@/shared/components/ui/button";
@@ -33,7 +33,6 @@
     onAddDT,
     onDeleteTrip,
     onUpdateTrip,
-    onRefresh, 
     refreshButtonRef, 
   }) => {
     const { user } = useAuthStore();
@@ -45,7 +44,6 @@
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [isDeletingTrip, setIsDeletingTrip] = useState(false);
-    const [isRefreshing, setIsRefreshing] = useState(false);
     
     // Bulk edit states
     const [isBulkEditDialogOpen, setIsBulkEditDialogOpen] = useState(false);
@@ -169,29 +167,16 @@
     }, [isBulkEditDialogOpen, data]);
 
     const availableDTs = useMemo(() => {
-      if (!isOpen || !data) return [];
+      if (!isOpen) return [];
 
-      try {
-        const dtIndexStr = localStorage.getItem("dtIndex");
-        if (!dtIndexStr) return [];
-
-        const dtIndex = JSON.parse(dtIndexStr);
-
-        const options = Object.entries(dtIndex)
-          .filter(([key, dtData]) => dtData.excavator === data.excavator)
-          .map(([key, dtData]) => ({
-            value: dtData.hull_no,
-            label: dtData.hull_no,
-            hint: `${dtData.operator_name || "No Operator"}`,
-          }))
-          .sort((a, b) => a.label.localeCompare(b.label));
-
-        return options;
-      } catch (error) {
-        console.error("Error loading DT data from localStorage:", error);
-        return [];
-      }
-    }, [isOpen, data]);
+      return (masters?.dumpTruck || [])
+        .map((dt) => ({
+          value: dt.hull_no || dt.name || String(dt.id),
+          label: dt.hull_no || dt.name || `DT #${dt.id}`,
+          hint: [dt.company, dt.workUnit].filter(Boolean).join(" • ") || undefined,
+        }))
+        .sort((a, b) => a.label.localeCompare(b.label));
+    }, [isOpen, masters?.dumpTruck]);
 
     const handleAddDT = () => {
       if (!selectedDT) {
@@ -212,7 +197,7 @@
     const handleEditTrip = (trip) => {
       const transformedTrip = {
         ...trip,
-        date: trip.time || trip.date,
+        date: trip.date || trip.time,
         gross_weight: trip.weight || trip.gross_weight,
         net_weight: trip.weight || trip.net_weight,
         hull_no: trip.hull_no,
@@ -226,6 +211,7 @@
         checker: trip.checker || '',
         company: trip.company || '',
         measurement_type: trip.measurement_type || 'timbangan',
+        createdAt: trip.createdAt || trip.created_at || '',
       };
       
       setSelectedTrip(transformedTrip);
@@ -774,11 +760,6 @@
                       : "DT tidak ditemukan"
                   }
                 />
-                {availableDTs.length > 0 && (
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-                    {availableDTs.length} DT tersedia untuk {data?.excavator}
-                  </p>
-                )}
               </div>
 
               <div className="flex items-center justify-end gap-2 pt-4 border-t border-gray-200 dark:border-gray-700">
@@ -821,8 +802,6 @@
               <RitaseEditForm
                 editingItem={selectedTrip}
                 onSuccess={async (updatedData) => {
-                  // ✅ PERBAIKAN: onSuccess menerima data langsung (bukan {success, data})
-                  
                   // 1. Update melalui parent
                   if (onUpdateTrip) {
                     await onUpdateTrip(updatedData);
