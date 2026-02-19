@@ -13,8 +13,8 @@ const WEIGHT_PATTERNS = [
 const MAX_FRAMING_ERRORS = 10; // Max consecutive framing errors before reconnect
 const FRAMING_ERROR_RESET_TIME = 5000; // Reset counter after 5 seconds
 const RECONNECT_DELAY = 2000; // Wait 2 seconds before auto-reconnect
-const STABILITY_DURATION = 2000; // 2 seconds of stable weight to auto-lock (standard)
-const WEIGHT_TOLERANCE = 0.02; // Increased tolerance slightly to handle float precision better
+const STABILITY_DURATION = 2000; // 2 detik nilai harus stabil → auto-lock
+const WEIGHT_TOLERANCE = 0.1;    // ±0.1 kg — cover jitter normal integrator/simulasi
 
 export const useWebSerialScale = () => {
   const [, forceUpdate] = useReducer((x) => x + 1, 0);
@@ -29,6 +29,16 @@ export const useWebSerialScale = () => {
   const [lockedTime, setLockedTime] = useState(null);
   const [stabilityProgress, setStabilityProgress] = useState(0);
   const [isStable, setIsStable] = useState(false);
+  const [lastWeightUpdate, setLastWeightUpdate] = useState(null);
+  const [debugLogs, setDebugLogs] = useState([]); // UI debug log
+  const addDebugLog = useCallback((type, msg) => {
+    const ts = new Date().toISOString().slice(11, 23); // HH:MM:SS.mmm
+    setDebugLogs(prev => {
+      const entry = { ts, type, msg };
+      // cap 80 baris supaya tidak bocor memori
+      return prev.length >= 80 ? [...prev.slice(-79), entry] : [...prev, entry];
+    });
+  }, []);
 
   const weightDataRef = useRef({
     currentWeight: null,
@@ -72,7 +82,7 @@ export const useWebSerialScale = () => {
     return null;
   }, []);
 
-  // Unlock weight (reset to live reading)
+  // Unlock weight — reset ke live reading, siap tracking ulang
   const unlockWeight = useCallback(() => {
     setLockedWeight(null);
     setLockedTime(null);
@@ -100,13 +110,11 @@ export const useWebSerialScale = () => {
       return { success: false, error: 'Invalid weight value' };
     }
 
-    // Clear any existing stability timer
     if (stabilityTimerRef.current) {
       clearInterval(stabilityTimerRef.current);
       stabilityTimerRef.current = null;
     }
 
-    // Lock immediately
     setLockedWeight(weight);
     setLockedTime(new Date());
     setStabilityProgress(100);
@@ -116,9 +124,9 @@ export const useWebSerialScale = () => {
   }, []);
 
   // Check weight stability and auto-lock
+  // ✅ Nilai harus dalam WEIGHT_TOLERANCE selama STABILITY_DURATION ms → auto-lock
   useEffect(() => {
-    if (!isConnected || lockedWeight !== null) {
-      // Clear stability tracking if disconnected or already locked
+    if (!isConnected) {
       if (stabilityTimerRef.current) {
         clearInterval(stabilityTimerRef.current);
         stabilityTimerRef.current = null;
@@ -129,49 +137,60 @@ export const useWebSerialScale = () => {
       return;
     }
 
-    const currentWeight = weightDataRef.current.currentWeight;
-
-    if (currentWeight === null || currentWeight === undefined) {
+    if (lockedWeight !== null) {
+      // Sudah locked — biarkan UI tetap LOCKED, tidak perlu tracking
       return;
     }
+
+    const currentWeight = weightDataRef.current.currentWeight;
+    if (currentWeight === null || currentWeight === undefined) return;
 
     const weight = parseFloat(currentWeight);
-    if (isNaN(weight) || weight <= 0) {
-      return;
-    }
+    if (isNaN(weight) || weight <= 0) return;
 
-    // Check if weight is stable (within tolerance)
     const lastWeight = lastStableWeightRef.current;
-    const weightIsStable =
-      lastWeight !== null && Math.abs(weight - lastWeight) <= WEIGHT_TOLERANCE;
+
+    const roundedWeight = Math.round(weight * 100) / 100;
+    const roundedLast = lastWeight !== null ? Math.round(lastWeight * 100) / 100 : null;
+    const delta = roundedLast !== null ? Math.abs(roundedWeight - roundedLast) : null;
+    const weightIsStable = roundedLast !== null && delta <= WEIGHT_TOLERANCE;
+
+    addDebugLog(
+      weightIsStable ? 'exact' : 'diff',
+      `cur=${roundedWeight} last=${roundedLast ?? '—'} ${weightIsStable ? `✓ STABLE (Δ${delta.toFixed(4)})` : `✗ DIFF (Δ${delta !== null ? delta.toFixed(4) : '?'})`} timer=${stabilityTimerRef.current !== null ? 'running' : 'off'}`
+    );
 
     if (weightIsStable) {
-      // Weight is stable
+      // Nilai dalam toleransi — mulai timer kalau belum jalan
       if (stableStartTimeRef.current === null) {
-        // Start tracking stability
+        addDebugLog('start', '▶ Timer mulai 2 detik...');
         stableStartTimeRef.current = Date.now();
         setIsStable(true);
 
-        // Start progress timer
         stabilityTimerRef.current = setInterval(() => {
+          if (stableStartTimeRef.current === null) return;
           const elapsed = Date.now() - stableStartTimeRef.current;
           const progress = Math.min((elapsed / STABILITY_DURATION) * 100, 100);
           setStabilityProgress(progress);
 
           if (elapsed >= STABILITY_DURATION) {
-            // Auto-lock the weight
-            const now = new Date();
-            setLockedWeight(weight);
-            setLockedTime(now);
-            setStabilityProgress(100);
+            const weightToLock = weightDataRef.current.currentWeight;
+            if (weightToLock !== null) {
+              const locked = Math.round(parseFloat(weightToLock) * 100) / 100;
+              setLockedWeight(locked);
+              setLockedTime(new Date());
+              setStabilityProgress(100);
+              addDebugLog('lock', `🔒 AUTO-LOCK @ ${locked} kg`);
+            }
             clearInterval(stabilityTimerRef.current);
             stabilityTimerRef.current = null;
           }
         }, 100);
       }
     } else {
-      // Weight changed, reset stability tracking
+      // Nilai di luar toleransi — reset timer
       if (stabilityTimerRef.current) {
+        addDebugLog('reset', `✖ Timer RESET: ${roundedLast} → ${roundedWeight} (Δ${delta.toFixed(4)} > ${WEIGHT_TOLERANCE})`);
         clearInterval(stabilityTimerRef.current);
         stabilityTimerRef.current = null;
       }
@@ -180,8 +199,8 @@ export const useWebSerialScale = () => {
       setIsStable(false);
     }
 
-    lastStableWeightRef.current = weight;
-  }, [isConnected, lockedWeight, weightDataRef.current.lastUpdate]);
+    lastStableWeightRef.current = roundedWeight;
+  }, [isConnected, lockedWeight, lastWeightUpdate, addDebugLog]);
 
   // Clean disconnect
   const cleanDisconnect = useCallback(async () => {
@@ -292,9 +311,10 @@ export const useWebSerialScale = () => {
               const weight = parseWeight(line);
 
               if (weight !== null) {
+                const now = new Date().toISOString();
                 weightDataRef.current = {
                   currentWeight: weight,
-                  lastUpdate: new Date().toISOString(),
+                  lastUpdate: now,
                   rawData: line,
                 };
 
@@ -303,6 +323,7 @@ export const useWebSerialScale = () => {
                 lastFramingErrorTimeRef.current = null;
 
                 if (isMountedRef.current) {
+                  setLastWeightUpdate(now);
                   forceUpdate();
                 }
               }
@@ -618,11 +639,13 @@ export const useWebSerialScale = () => {
     if (isSimulating) {
       const displayWeight = Math.round(currentSimulatedValue * 100) / 100;
 
+      const simNow = new Date().toISOString();
       weightDataRef.current = {
         currentWeight: displayWeight,
-        lastUpdate: new Date().toISOString(),
+        lastUpdate: simNow,
         rawData: `SIM,${displayWeight}kg`,
       };
+      setLastWeightUpdate(simNow);
       forceUpdate();
     }
   }, [isSimulating, currentSimulatedValue]);
@@ -654,6 +677,9 @@ export const useWebSerialScale = () => {
     isStable,
     unlockWeight,
     manualLock,
+    // Debug
+    debugLogs,
+    clearDebugLogs: () => setDebugLogs([]),
     // Simulation
     isSimulating,
     toggleSimulation,

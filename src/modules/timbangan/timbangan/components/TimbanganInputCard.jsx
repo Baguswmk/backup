@@ -21,6 +21,10 @@ import {
   Zap,
   Lock,
   Unlock,
+  FlaskConical,
+  ChevronDown,
+  ChevronUp,
+  Target,
 } from "lucide-react";
 import { useTimbanganHooks } from "../hooks/useTimbanganHooks";
 import useAuthStore from "@/modules/auth/store/authStore";
@@ -52,6 +56,22 @@ export const TimbanganInputCard = ({ fleetConfigs = [] }) => {
 
   // State untuk active tab
   const [activeTab, setActiveTab] = useState("timbangan");
+
+  // Simulation panel state (dev only)
+  const IS_DEV = import.meta.env.DEV;
+  const [isSimPanelOpen, setIsSimPanelOpen] = useState(false);
+  // Weight gate: aktif setelah submit, reset setelah berat turun < 10 ton
+  const [waitingForDTExit, setWaitingForDTExit] = useState(false);
+  const [simTargetInput, setSimTargetInput] = useState("");
+  const [isDebugOpen, setIsDebugOpen] = useState(false);
+  const debugLogEndRef = useRef(null);
+
+  // Auto-scroll debug log ke bawah
+  useEffect(() => {
+    if (isDebugOpen && debugLogEndRef.current) {
+      debugLogEndRef.current.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [scale.debugLogs, isDebugOpen]);
 
   // Refs for focusing inputs
   const hullNoInputRef = useRef(null);
@@ -193,17 +213,44 @@ export const TimbanganInputCard = ({ fleetConfigs = [] }) => {
     activeTab,
   ]);
 
+  // Setelah submit: unlock scale dan aktifkan weight gate
+  useEffect(() => {
+    if (lastSubmittedData) {
+      setWaitingForDTExit(true);
+      if (scale.isConnected) {
+        scale.unlockWeight();
+        // Simulasi: turun ke 0 pelan-pelan (jangan stabilize dulu)
+        if (scale.isSimulating) {
+          scale.setSimulatedTarget(0);
+        }
+      }
+    }
+  }, [lastSubmittedData]);
+
+  // Harus dideklarasi sebelum useEffect yang memakainya
+  const WEIGHT_GATE_KG = 10000;
+  const currentWeightKg = scale.isConnected ? (scale.currentWeight ?? 0) : 0;
+
+  // Weight gate reset: begitu berat turun di bawah 10 ton, validasi selesai
+  useEffect(() => {
+    if (waitingForDTExit && currentWeightKg < WEIGHT_GATE_KG) {
+      setWaitingForDTExit(false);
+    }
+  }, [waitingForDTExit, currentWeightKg]);
+
   // Auto-print ticket after successful submission
   useEffect(() => {
     if (lastSubmittedData && printButtonRef.current) {
-      // Add small delay to ensure data is ready
       const timer = setTimeout(() => {
         printButtonRef.current.click();
       }, 500);
-
       return () => clearTimeout(timer);
     }
   }, [lastSubmittedData]);
+
+  // Weight gate: tombol submit disabled kalau timbangan masih >= 10 ton
+  // Paksa DT sebelumnya keluar dulu sebelum bisa submit DT berikutnya
+  const isWeightAboveGate = isOperator && scale.isConnected && waitingForDTExit && currentWeightKg >= WEIGHT_GATE_KG;
 
   const hullNoOptions = useMemo(() => {
     if (!Array.isArray(fleetConfigs) || fleetConfigs.length === 0) {
@@ -272,13 +319,13 @@ export const TimbanganInputCard = ({ fleetConfigs = [] }) => {
           }
         }
 
-        // Alt + S or Ctrl + Enter -> Submit
+        // Alt + S or Ctrl + Enter -> Submit (blocked if weight gate active)
         if (
           (e.altKey && e.key.toLowerCase() === "s") ||
           (e.ctrlKey && e.key === "Enter")
         ) {
           e.preventDefault();
-          handleSubmit();
+          if (!isWeightAboveGate) handleSubmit();
         }
       } else if (activeTab === "bypass") {
         // Alt + D -> Focus Hull No in Bypass
@@ -416,6 +463,204 @@ export const TimbanganInputCard = ({ fleetConfigs = [] }) => {
               </Button>
             </div>
           </div>
+
+          {/* ===== SIMULATION PANEL (DEV ONLY) ===== */}
+          {IS_DEV && (
+            <div className="mt-3 border border-dashed border-purple-300 dark:border-purple-700 rounded-lg overflow-hidden">
+              {/* Header toggle */}
+              <button
+                type="button"
+                onClick={() => setIsSimPanelOpen((p) => !p)}
+                className="w-full flex items-center justify-between px-3 py-2 bg-purple-50 dark:bg-purple-950/30 hover:bg-purple-100 dark:hover:bg-purple-950/50 transition-colors text-purple-700 dark:text-purple-400 text-xs font-medium"
+              >
+                <span className="flex items-center gap-1.5">
+                  <FlaskConical className="w-3.5 h-3.5" />
+                  Simulasi Timbangan
+                  <span className="px-1.5 py-0.5 bg-purple-200 dark:bg-purple-800 rounded text-[10px] font-bold tracking-wide">
+                    DEV
+                  </span>
+                  {scale.isSimulating && (
+                    <span className="px-1.5 py-0.5 bg-green-200 dark:bg-green-800 text-green-800 dark:text-green-200 rounded text-[10px] font-bold animate-pulse">
+                      AKTIF
+                    </span>
+                  )}
+                </span>
+                {isSimPanelOpen
+                  ? <ChevronUp className="w-3.5 h-3.5" />
+                  : <ChevronDown className="w-3.5 h-3.5" />
+                }
+              </button>
+
+              {/* Panel body */}
+              {isSimPanelOpen && (
+                <div className="p-3 space-y-3 bg-purple-50/50 dark:bg-purple-950/10">
+
+                  {/* Live readout saat simulasi aktif */}
+                  {scale.isSimulating && (
+                    <div className="flex items-center gap-3 px-3 py-2 bg-white dark:bg-gray-900 border border-purple-200 dark:border-purple-800 rounded-lg">
+                      <Weight className="w-4 h-4 text-purple-600 dark:text-purple-400 shrink-0" />
+                      <span className="font-mono font-bold text-lg text-gray-900 dark:text-gray-100">
+                        {scale.currentWeight != null
+                          ? (scale.currentWeight / 1000).toFixed(3)
+                          : "0.000"}{" "}
+                        ton
+                      </span>
+                      <div className="flex-1 h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-purple-500 dark:bg-purple-400 transition-all duration-100"
+                          style={{ width: `${scale.stabilityProgress}%` }}
+                        />
+                      </div>
+                      <span className="text-xs text-gray-500 dark:text-gray-400 w-8 text-right">
+                        {Math.round(scale.stabilityProgress)}%
+                      </span>
+                      <span
+                        className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                          scale.lockedWeight
+                            ? "bg-yellow-100 dark:bg-yellow-900/40 text-yellow-700 dark:text-yellow-300"
+                            : scale.isStable
+                            ? "bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300"
+                            : "bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-300"
+                        }`}
+                      >
+                        {scale.lockedWeight ? "LOCKED" : scale.isStable ? "STABLE" : "..."}
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Set target berat */}
+                  <div className="flex gap-2 items-center">
+                    <div className="relative flex-1">
+                      <Target className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-purple-500 dark:text-purple-400" />
+                      <input
+                        type="number"
+                        min="0"
+                        max="99999"
+                        step="100"
+                        placeholder="Target berat (kg), contoh: 42000"
+                        value={simTargetInput}
+                        onChange={(e) => setSimTargetInput(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            scale.setSimulatedTarget(simTargetInput);
+                          }
+                        }}
+                        className="w-full pl-8 pr-3 py-1.5 text-xs border border-purple-300 dark:border-purple-700 rounded-md bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      disabled={!simTargetInput}
+                      onClick={() => scale.setSimulatedTarget(simTargetInput)}
+                      className="px-3 py-1.5 text-xs font-medium bg-purple-600 hover:bg-purple-700 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-md transition-colors"
+                    >
+                      Set
+                    </button>
+                  </div>
+
+                  {/* Action buttons */}
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={scale.toggleSimulation}
+                      className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                        scale.isSimulating
+                          ? "bg-red-100 hover:bg-red-200 dark:bg-red-900/30 dark:hover:bg-red-900/50 text-red-700 dark:text-red-400 border border-red-300 dark:border-red-700"
+                          : "bg-purple-600 hover:bg-purple-700 text-white"
+                      }`}
+                    >
+                      <FlaskConical className="w-3.5 h-3.5" />
+                      {scale.isSimulating ? "Stop Simulasi" : "Mulai Simulasi"}
+                    </button>
+
+                    {scale.isSimulating && !scale.lockedWeight && (
+                      <button
+                        type="button"
+                        onClick={scale.stabilizeSimulation}
+                        className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-green-600 hover:bg-green-700 text-white rounded-md transition-colors"
+                      >
+                        <Zap className="w-3.5 h-3.5" />
+                        Force Stabil
+                      </button>
+                    )}
+
+                    {scale.isSimulating && scale.lockedWeight && (
+                      <button
+                        type="button"
+                        onClick={scale.unlockWeight}
+                        className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-yellow-500 hover:bg-yellow-600 text-white rounded-md transition-colors"
+                      >
+                        <Unlock className="w-3.5 h-3.5" />
+                        Unlock
+                      </button>
+                    )}
+                  </div>
+
+                  <p className="text-[10px] text-purple-500 dark:text-purple-500 leading-relaxed">
+                    Alur: set target → mulai simulasi → nilai bergerak ke target sambil jitter
+                    → klik "Force Stabil" untuk snap flat → auto-lock setelah {2}s stabil.
+                    Panel ini tidak muncul di production.
+                  </p>
+
+                  {/* ===== DEBUG LOG PANEL ===== */}
+                  <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+                    <button
+                      type="button"
+                      onClick={() => setIsDebugOpen(p => !p)}
+                      className="w-full flex items-center justify-between px-2.5 py-1.5 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors text-[11px] font-medium text-gray-600 dark:text-gray-400"
+                    >
+                      <span className="flex items-center gap-1.5">
+                        🔍 Debug Stability Log
+                        {scale.debugLogs.length > 0 && (
+                          <span className="px-1.5 py-0.5 bg-gray-300 dark:bg-gray-600 rounded text-[10px]">
+                            {scale.debugLogs.length}
+                          </span>
+                        )}
+                      </span>
+                      <span className="flex items-center gap-2">
+                        {scale.debugLogs.length > 0 && (
+                          <span
+                            role="button"
+                            onClick={e => { e.stopPropagation(); scale.clearDebugLogs(); }}
+                            className="text-[10px] text-red-500 hover:text-red-700 underline"
+                          >
+                            clear
+                          </span>
+                        )}
+                        {isDebugOpen ? '▲' : '▼'}
+                      </span>
+                    </button>
+
+                    {isDebugOpen && (
+                      <div className="h-52 overflow-y-auto bg-gray-950 p-2 font-mono text-[10px] space-y-0.5">
+                        {scale.debugLogs.length === 0 ? (
+                          <p className="text-gray-500 italic">Belum ada log. Hubungkan timbangan / mulai simulasi.</p>
+                        ) : (
+                          scale.debugLogs.map((log, i) => (
+                            <div
+                              key={i}
+                              className={`flex gap-2 leading-relaxed ${
+                                log.type === 'lock'  ? 'text-yellow-400 font-bold' :
+                                log.type === 'start' ? 'text-green-400' :
+                                log.type === 'reset' ? 'text-red-400' :
+                                log.type === 'exact' ? 'text-gray-400' :
+                                                       'text-orange-400'
+                              }`}
+                            >
+                              <span className="text-gray-600 shrink-0">{log.ts}</span>
+                              <span>{log.msg}</span>
+                            </div>
+                          ))
+                        )}
+                        <div ref={debugLogEndRef} />
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Keyboard Shortcuts Info */}
           <div className="mt-3 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
@@ -689,6 +934,12 @@ export const TimbanganInputCard = ({ fleetConfigs = [] }) => {
               </div>
 
               <div className="pt-4">
+                {isWeightAboveGate && (
+                  <div className="mb-3 px-3 py-2 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-lg flex items-center gap-2 text-red-700 dark:text-red-400 text-sm font-medium">
+                    <Loader2 className="w-4 h-4 animate-spin shrink-0" />
+                    Timbangan masih {(currentWeightKg / 1000).toFixed(2)} ton — tunggu DT sebelumnya keluar (&lt;10 ton) sebelum submit.
+                  </div>
+                )}
                 <Button
                   type="submit"
                   className="w-full bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 
@@ -698,6 +949,7 @@ export const TimbanganInputCard = ({ fleetConfigs = [] }) => {
                 disabled:opacity-50 disabled:cursor-not-allowed"
                   disabled={
                     isSubmitting ||
+                    isWeightAboveGate ||
                     (isOperator && scale.isConnected && !scale.lockedWeight)
                   }
                   size="lg"
@@ -707,11 +959,15 @@ export const TimbanganInputCard = ({ fleetConfigs = [] }) => {
                       <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                       Menyimpan...
                     </>
+                  ) : isWeightAboveGate ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      <p className="hidden md:inline">Tunggu DT Keluar...</p>
+                    </>
                   ) : (
                     <>
                       <Save className="w-4 h-4 mr-2" />
                       <p className="hidden md:inline">
-                        {" "}
                         {isOperator && scale.isConnected && !scale.lockedWeight
                           ? "Tunggu Stabil..."
                           : "Simpan Data"}

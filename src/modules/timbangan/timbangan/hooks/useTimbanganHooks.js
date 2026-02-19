@@ -1,5 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from "react";
-import { useRitaseStore } from "@/modules/timbangan/ritase/store/ritaseStore";
+import { useState, useCallback, useEffect } from "react";
 import { timbanganService } from "../services/TimbanganService";
 import { masterDataService } from "@/modules/timbangan/masterData/services/masterDataService";
 import { offlineService } from "@/shared/services/offlineService";
@@ -7,8 +6,65 @@ import useAuthStore from "@/modules/auth/store/authStore";
 import { showToast } from "@/shared/utils/toast";
 import debounce from "lodash/debounce";
 
+// ─── Cache config (khusus menu timbangan, tidak mempengaruhi modul lain) ──────
 const UNITS_CACHE_KEY = "timbangan:units:dump_truck";
-const UNITS_CACHE_TTL = 24 * 60 * 60 * 1000;
+const UNITS_CACHE_TTL = 24 * 60 * 60 * 1000; // 24 jam
+
+// ─── Anti-duplikat: cooldown 10 menit per DT ─────────────────────────────────
+const DT_COOLDOWN_MS = 10 * 60 * 1000;
+
+/**
+ * Cek apakah DT sudah pernah disubmit dalam 10 menit terakhir.
+ * Sumber data: semua queue lokal IndexedDB (pending + failed + sent).
+ * Tidak butuh koneksi — murni dari data lokal.
+ *
+ * Urutan prioritas timestamp yang dibandingkan:
+ *   entry.clientTimestamp -> entry.createdAtClient -> entry.data.createdAt -> entry.data.timestamp
+ */
+const checkDuplicateDT = async (hullNo) => {
+  if (!hullNo) return { isDuplicate: false };
+
+  try {
+    const { pending, failed, sent } = await timbanganService.getAllQueues();
+    const allEntries = [...pending, ...failed, ...sent];
+    const now = Date.now();
+
+    const recentEntry = allEntries.find((entry) => {
+      if (entry?.data?.hull_no !== hullNo) return false;
+
+      const ts =
+        entry.clientTimestamp ||
+        entry.createdAtClient ||
+        entry.data?.createdAt ||
+        entry.data?.timestamp;
+
+      if (!ts) return false;
+
+      return now - new Date(ts).getTime() < DT_COOLDOWN_MS;
+    });
+
+    if (!recentEntry) return { isDuplicate: false };
+
+    const ts =
+      recentEntry.clientTimestamp ||
+      recentEntry.createdAtClient ||
+      recentEntry.data?.createdAt ||
+      recentEntry.data?.timestamp;
+
+    const remainingMs = DT_COOLDOWN_MS - (now - new Date(ts).getTime());
+    const totalSec = Math.ceil(remainingMs / 1000);
+    const remainingLabel =
+      totalSec >= 60 ? `${Math.ceil(totalSec / 60)} menit` : `${totalSec} detik`;
+
+    return { isDuplicate: true, remainingLabel };
+  } catch (error) {
+    console.error("Gagal cek duplikat DT:", error);
+    // Fail-open: kalau pengecekan sendiri error, jangan blok user
+    return { isDuplicate: false };
+  }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 export const useTimbanganHooks = () => {
   const user = useAuthStore((state) => state.user);
@@ -30,6 +86,7 @@ export const useTimbanganHooks = () => {
   const [isUnitsLoading, setIsUnitsLoading] = useState(false);
   const [lastSubmittedData, setLastSubmittedData] = useState(null);
 
+  // ─── Load dump trucks: cache-first, fetch hanya jika perlu ─────────────────
   const loadUnits = useCallback(async ({ forceRefresh = false } = {}) => {
     setIsUnitsLoading(true);
     try {
@@ -37,7 +94,7 @@ export const useTimbanganHooks = () => {
         const cached = await offlineService.getCache(UNITS_CACHE_KEY);
         if (cached) {
           setAvailableUnits(cached);
-          return;
+          return; // cache hit — tidak hit network sama sekali
         }
       } else {
         await offlineService.clearCache(UNITS_CACHE_KEY);
@@ -47,39 +104,42 @@ export const useTimbanganHooks = () => {
       const units = Array.isArray(result) ? result : result?.data || [];
 
       await offlineService.setCache(UNITS_CACHE_KEY, units, UNITS_CACHE_TTL);
-
       setAvailableUnits(units);
     } catch (error) {
       console.error("Failed to load dump trucks:", error);
 
+      // Offline safety net: pakai cache stale daripada kosong sama sekali
       try {
-        const staleData = await offlineService.getCache(UNITS_CACHE_KEY, true);
-        if (staleData) {
-          setAvailableUnits(staleData);
-          console.warn("⚠️ Using stale units cache (offline fallback)");
+        const stale = await offlineService.getCache(UNITS_CACHE_KEY, true);
+        if (stale) {
+          setAvailableUnits(stale);
+          console.warn("Menggunakan stale units cache (offline fallback)");
         }
       } catch {
+        // biarkan units tetap kosong
       }
     } finally {
       setIsUnitsLoading(false);
     }
   }, []);
 
+  // Dipanggil manual dari tombol refresh di UI
   const refreshUnits = useCallback(async () => {
     await loadUnits({ forceRefresh: true });
     showToast.success("Data unit dump truck berhasil diperbarui");
   }, [loadUnits]);
 
+  // Mount: langsung dari cache, tidak ada loading panjang
   useEffect(() => {
     loadUnits();
   }, [loadUnits]);
 
+  // ─── Auto-fill: Hull No -> Dumptruck ID & Tare ──────────────────────────────
   const handleHullNoChange = useCallback(
     (value) => {
-      const hullNo = value;
-      setFormData((prev) => ({ ...prev, hull_no: hullNo }));
+      setFormData((prev) => ({ ...prev, hull_no: value }));
 
-      if (!hullNo) {
+      if (!value) {
         setFormData((prev) => ({
           ...prev,
           unit_dump_truck: null,
@@ -93,7 +153,7 @@ export const useTimbanganHooks = () => {
       }
 
       const truckData = availableUnits.find(
-        (u) => u.hullNo === hullNo || u.hull_no === hullNo,
+        (u) => u.hullNo === value || u.hull_no === value,
       );
 
       if (truckData) {
@@ -122,11 +182,10 @@ export const useTimbanganHooks = () => {
     [availableUnits],
   );
 
-  // ─── Kalkulasi berat berdasarkan role ─────────────────────────────────────
+  // ─── Kalkulasi berat berdasarkan role ──────────────────────────────────────
   useEffect(() => {
     const isOperator = user?.role === "operator_jt";
     const tare = parseFloat(formData.tare_weight);
-
     if (isNaN(tare)) return;
 
     if (isOperator) {
@@ -134,9 +193,8 @@ export const useTimbanganHooks = () => {
       if (!isNaN(gross) && gross > 0) {
         const net = gross - tare;
         const netFixed = net > 0 ? net.toFixed(2) : "0";
-        if (formData.net_weight !== netFixed) {
+        if (formData.net_weight !== netFixed)
           setFormData((prev) => ({ ...prev, net_weight: netFixed }));
-        }
       } else if (formData.net_weight !== "") {
         setFormData((prev) => ({ ...prev, net_weight: "" }));
       }
@@ -145,21 +203,15 @@ export const useTimbanganHooks = () => {
       if (!isNaN(net) && net > 0) {
         const gross = net + tare;
         const grossFixed = gross > 0 ? gross.toFixed(2) : "0";
-        if (formData.gross_weight !== grossFixed) {
+        if (formData.gross_weight !== grossFixed)
           setFormData((prev) => ({ ...prev, gross_weight: grossFixed }));
-        }
       } else if (formData.gross_weight !== "") {
         setFormData((prev) => ({ ...prev, gross_weight: "" }));
       }
     }
-  }, [
-    formData.gross_weight,
-    formData.tare_weight,
-    formData.net_weight,
-    user?.role,
-  ]);
+  }, [formData.gross_weight, formData.tare_weight, formData.net_weight, user?.role]);
 
-  // ─── Validasi ─────────────────────────────────────────────────────────────
+  // ─── Validasi form ─────────────────────────────────────────────────────────
   const validateForm = () => {
     const newErrors = {};
     const isOperator = user?.role === "operator_jt";
@@ -167,19 +219,15 @@ export const useTimbanganHooks = () => {
     if (!formData.hull_no) newErrors.hull_no = "Nomor lambung harus diisi";
     if (!formData.unit_dump_truck)
       newErrors.hull_no = "Unit tidak ditemukan di database";
-
-    if (!formData.tare_weight || parseFloat(formData.tare_weight) < 0) {
+    if (!formData.tare_weight || parseFloat(formData.tare_weight) < 0)
       newErrors.tare_weight = "Berat tare tidak valid (Cek Master Unit)";
-    }
 
     if (isOperator) {
-      if (!formData.gross_weight || parseFloat(formData.gross_weight) <= 0) {
+      if (!formData.gross_weight || parseFloat(formData.gross_weight) <= 0)
         newErrors.gross_weight = "Berat kotor harus lebih dari 0";
-      }
     } else {
-      if (!formData.net_weight || parseFloat(formData.net_weight) <= 0) {
+      if (!formData.net_weight || parseFloat(formData.net_weight) <= 0)
         newErrors.net_weight = "Berat bersih harus lebih dari 0";
-      }
     }
 
     setErrors(newErrors);
@@ -192,19 +240,27 @@ export const useTimbanganHooks = () => {
     if (!formData.hull_no) newErrors.hull_no = "Nomor lambung harus diisi";
     if (!formData.unit_dump_truck)
       newErrors.hull_no = "Unit tidak ditemukan di database";
-
-    if (!formData.bypass_tonnage || parseFloat(formData.bypass_tonnage) <= 0) {
+    if (!formData.bypass_tonnage || parseFloat(formData.bypass_tonnage) <= 0)
       newErrors.hull_no = "Bypass tonnage tidak valid (Cek Master Unit)";
-    }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
-  // ─── Submit ───────────────────────────────────────────────────────────────
+  // ─── Submit normal ─────────────────────────────────────────────────────────
   const processSubmit = async (currentFormData) => {
     setIsSubmitting(true);
     try {
+      // Anti-duplikat: cek queue lokal, tidak perlu online
+      // Kasus: DT-01 jam 10:52 masuk offline, jam 10:55 coba input lagi -> DITOLAK
+      const dupCheck = await checkDuplicateDT(currentFormData.hull_no);
+      if (dupCheck.isDuplicate) {
+        showToast.error(
+          `${currentFormData.hull_no} sudah ditimbang dalam 10 menit terakhir — tunggu ${dupCheck.remainingLabel} lagi`,
+        );
+        return;
+      }
+
       const payload = {
         id: parseInt(currentFormData.unit_dump_truck),
         hull_no: currentFormData.hull_no,
@@ -222,7 +278,7 @@ export const useTimbanganHooks = () => {
       const result = await timbanganService.createTimbangan(payload);
 
       if (result?.offline || result?.queued) {
-        showToast.warning("📦 Offline: Data disimpan, akan dikirim saat online");
+        showToast.warning("Offline: Data disimpan, akan dikirim saat online");
       } else {
         showToast.success("Data berhasil disimpan dan karcis akan dicetak");
       }
@@ -231,17 +287,26 @@ export const useTimbanganHooks = () => {
       setTimeout(() => resetForm(), 500);
     } catch (error) {
       showToast.error(error.response?.data?.message || "Gagal menyimpan data");
-      console.error("❌ Submit error:", error);
+      console.error("Submit error:", error);
     } finally {
       setIsSubmitting(false);
     }
   };
 
+  // ─── Submit bypass ─────────────────────────────────────────────────────────
   const processBypassSubmit = async (currentFormData) => {
     setIsSubmitting(true);
     try {
-      const bypassTonnage = parseFloat(currentFormData.bypass_tonnage);
+      // Anti-duplikat berlaku juga untuk mode bypass
+      const dupCheck = await checkDuplicateDT(currentFormData.hull_no);
+      if (dupCheck.isDuplicate) {
+        showToast.error(
+          `${currentFormData.hull_no} sudah ditimbang dalam 10 menit terakhir — tunggu ${dupCheck.remainingLabel} lagi`,
+        );
+        return;
+      }
 
+      const bypassTonnage = parseFloat(currentFormData.bypass_tonnage);
       const payload = {
         id: parseInt(currentFormData.unit_dump_truck),
         hull_no: currentFormData.hull_no,
@@ -266,7 +331,7 @@ export const useTimbanganHooks = () => {
       }
     } catch (error) {
       showToast.error(error.response?.data?.message || "Gagal menyimpan data bypass");
-      console.error("❌ Bypass submit error:", error);
+      console.error("Bypass submit error:", error);
     } finally {
       setIsSubmitting(false);
     }
@@ -308,9 +373,7 @@ export const useTimbanganHooks = () => {
     setErrors({});
   };
 
-  const clearLastSubmittedData = () => {
-    setLastSubmittedData(null);
-  };
+  const clearLastSubmittedData = () => setLastSubmittedData(null);
 
   return {
     formData,
@@ -319,8 +382,8 @@ export const useTimbanganHooks = () => {
     setErrors,
     isSubmitting,
     availableUnits,
-    isUnitsLoading,   
-    refreshUnits,     
+    isUnitsLoading,       // untuk skeleton saat pertama load
+    refreshUnits,         // panggil dari tombol refresh di UI
     handleHullNoChange,
     handleSubmit,
     handleBypassSubmit,
