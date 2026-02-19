@@ -60,8 +60,7 @@ export const TimbanganInputCard = ({ fleetConfigs = [] }) => {
   // Simulation panel state (dev only)
   const IS_DEV = import.meta.env.DEV;
   const [isSimPanelOpen, setIsSimPanelOpen] = useState(false);
-  // Weight gate: aktif setelah submit, reset setelah berat turun < 10 ton
-  const [waitingForDTExit, setWaitingForDTExit] = useState(false);
+
   const [simTargetInput, setSimTargetInput] = useState("");
   const [isDebugOpen, setIsDebugOpen] = useState(false);
   const debugLogEndRef = useRef(null);
@@ -227,16 +226,6 @@ export const TimbanganInputCard = ({ fleetConfigs = [] }) => {
     }
   }, [lastSubmittedData]);
 
-  // Harus dideklarasi sebelum useEffect yang memakainya
-  const WEIGHT_GATE_KG = 10000;
-  const currentWeightKg = scale.isConnected ? (scale.currentWeight ?? 0) : 0;
-
-  // Weight gate reset: begitu berat turun di bawah 10 ton, validasi selesai
-  useEffect(() => {
-    if (waitingForDTExit && currentWeightKg < WEIGHT_GATE_KG) {
-      setWaitingForDTExit(false);
-    }
-  }, [waitingForDTExit, currentWeightKg]);
 
   // Auto-print ticket after successful submission
   useEffect(() => {
@@ -250,7 +239,7 @@ export const TimbanganInputCard = ({ fleetConfigs = [] }) => {
 
   // Weight gate: tombol submit disabled kalau timbangan masih >= 10 ton
   // Paksa DT sebelumnya keluar dulu sebelum bisa submit DT berikutnya
-  const isWeightAboveGate = isOperator && scale.isConnected && waitingForDTExit && currentWeightKg >= WEIGHT_GATE_KG;
+
 
   const hullNoOptions = useMemo(() => {
     if (!Array.isArray(fleetConfigs) || fleetConfigs.length === 0) {
@@ -325,7 +314,7 @@ export const TimbanganInputCard = ({ fleetConfigs = [] }) => {
           (e.ctrlKey && e.key === "Enter")
         ) {
           e.preventDefault();
-          if (!isWeightAboveGate) handleSubmit();
+          handleSubmit();
         }
       } else if (activeTab === "bypass") {
         // Alt + D -> Focus Hull No in Bypass
@@ -934,12 +923,6 @@ export const TimbanganInputCard = ({ fleetConfigs = [] }) => {
               </div>
 
               <div className="pt-4">
-                {isWeightAboveGate && (
-                  <div className="mb-3 px-3 py-2 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-lg flex items-center gap-2 text-red-700 dark:text-red-400 text-sm font-medium">
-                    <Loader2 className="w-4 h-4 animate-spin shrink-0" />
-                    Timbangan masih {(currentWeightKg / 1000).toFixed(2)} ton — tunggu DT sebelumnya keluar (&lt;10 ton) sebelum submit.
-                  </div>
-                )}
                 <Button
                   type="submit"
                   className="w-full bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 
@@ -949,7 +932,6 @@ export const TimbanganInputCard = ({ fleetConfigs = [] }) => {
                 disabled:opacity-50 disabled:cursor-not-allowed"
                   disabled={
                     isSubmitting ||
-                    isWeightAboveGate ||
                     (isOperator && scale.isConnected && !scale.lockedWeight)
                   }
                   size="lg"
@@ -958,11 +940,6 @@ export const TimbanganInputCard = ({ fleetConfigs = [] }) => {
                     <>
                       <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                       Menyimpan...
-                    </>
-                  ) : isWeightAboveGate ? (
-                    <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      <p className="hidden md:inline">Tunggu DT Keluar...</p>
                     </>
                   ) : (
                     <>
