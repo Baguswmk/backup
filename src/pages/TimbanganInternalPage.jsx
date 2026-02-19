@@ -36,9 +36,10 @@ const TimbanganInternalPage = () => {
   const { isAuthenticated } = useAuth();
   const { user } = useAuthStore();
   const userRole = user?.role;
-  
+
   const isOperator = userRole === "operator_jt";
-  const isCheckpoint = userRole === "checker" && user.username.includes("checkpoint");
+  const isCheckpoint =
+    userRole === "checker" && user.username.includes("checkpoint");
 
   const getDefaultMenu = () => {
     if (isOperator || isCheckpoint) {
@@ -59,13 +60,13 @@ const TimbanganInternalPage = () => {
         roles: ["pic", "pengawas", "evaluator", "admin", "super_admin", "ccr"],
         locationId: "Setting Fleet",
       },
-{
-      name: "Timbangan",
-      icon: Scale,
-      roles: ["operator_jt", "checker"], 
-      customCheck: true, 
-      locationId: "timbangan",
-    },
+      {
+        name: "Timbangan",
+        icon: Scale,
+        roles: ["operator_jt", "checker"],
+        customCheck: true,
+        locationId: "timbangan",
+      },
       {
         name: "Ritase",
         icon: Scale,
@@ -84,11 +85,7 @@ const TimbanganInternalPage = () => {
       {
         name: "Ritase Pending",
         icon: History,
-        roles: [
-          "admin",
-          "super_admin",
-          "ccr",
-        ],
+        roles: ["admin", "super_admin", "ccr"],
         locationId: "ritase-pending",
       },
       {
@@ -124,13 +121,13 @@ const TimbanganInternalPage = () => {
       {
         name: "Overview",
         icon: BarChart3,
-        roles: ["admin", "super_admin", "ccr", "pengawas",],
+        roles: ["admin", "super_admin", "ccr", "pengawas"],
         locationId: "overview",
       },
       {
         name: "Laporan",
         icon: BarChart3,
-        roles: ["admin", "super_admin", "ccr", "pengawas"],
+        roles: ["admin", "super_admin", "ccr"],
         locationId: "laporan",
       },
       {
@@ -143,16 +140,16 @@ const TimbanganInternalPage = () => {
     [],
   );
 
- const isMenuAccessible = useCallback(
-  (menuItem) => {
-    if (menuItem.customCheck && menuItem.name === "Timbangan") {
-      return isOperator || isCheckpoint; 
-    }
-    
-    return menuItem?.roles?.includes(userRole);
-  },
-  [userRole, isOperator, isCheckpoint],
-);
+  const isMenuAccessible = useCallback(
+    (menuItem) => {
+      if (menuItem.customCheck && menuItem.name === "Timbangan") {
+        return isOperator || isCheckpoint;
+      }
+
+      return menuItem?.roles?.includes(userRole);
+    },
+    [userRole, isOperator, isCheckpoint],
+  );
 
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
@@ -303,7 +300,7 @@ const TimbanganInternalPage = () => {
                 <RitasePendingManagement Type="Ritase Pending" />
               ) : activeMenu === "Ritase History" ? (
                 <RitaseHistory Type="Ritase History" />
-              ) : activeMenu === "Beltscale" ? (  
+              ) : activeMenu === "Beltscale" ? (
                 <BeltscaleManagement Type="Beltscale" />
               ) : activeMenu === "Overview" ? (
                 <OverviewPage />

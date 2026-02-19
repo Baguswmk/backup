@@ -56,7 +56,7 @@ import React, { useState, useEffect, useMemo } from "react";
       distance: ""
     });
     const [isBulkEditing, setIsBulkEditing] = useState(false);
-    
+    const isCan = user.role.includes("operator_jt") || user.role.includes("ccr") || user.role.includes("checker");
     // Delete confirmation states
     const [currentStep, setCurrentStep] = useState(1);
     const [confirmDelete, setConfirmDelete] = useState(null);
@@ -476,6 +476,7 @@ import React, { useState, useEffect, useMemo } from "react";
                   Kertas Checker - Detail Ritase
                 </DialogTitle>
                 <div className="flex gap-2 w-full sm:w-auto print:hidden">
+                  {isCan && (
                   <Button
                     variant="outline"
                     size="sm"
@@ -486,6 +487,7 @@ import React, { useState, useEffect, useMemo } from "react";
                     <span className="hidden xs:inline">Tambah DT</span>
                     <span className="xs:hidden">DT</span>
                   </Button>
+                  )}
                   {/* <Button
                     variant="outline"
                     size="sm"
@@ -638,6 +640,7 @@ import React, { useState, useEffect, useMemo } from "react";
                                         </div>
                                         
                                         {/* Action Menu - Hidden on Print */}
+                                        {isCan && (
                                         <div className="absolute -top-1 -right-1 opacity-0 group-hover:opacity-100 transition-opacity print:hidden">
                                           <DropdownMenu>
                                             <DropdownMenuTrigger asChild>
@@ -668,6 +671,7 @@ import React, { useState, useEffect, useMemo } from "react";
                                             </DropdownMenuContent>
                                           </DropdownMenu>
                                         </div>
+                                        )}
                                       </div>
                                     ))}
                                   </div>

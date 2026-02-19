@@ -301,12 +301,17 @@ export const useMasterData = (category) => {
   }, [category, loadData]);
 
   useEffect(() => {
+    const allowedRoles = ["operator_jt", "ccr", "checker"];
+    const currentRole = userRole?.toLowerCase();
+
+    if (!allowedRoles.includes(currentRole)) return;
+
     const timer = setTimeout(() => {
       loadAllMasterData();
     }, 500);
 
     return () => clearTimeout(timer);
-  }, [loadAllMasterData]);
+  }, [loadAllMasterData, userRole]);
 
   useEffect(() => {
     isMountedRef.current = true;

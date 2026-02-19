@@ -64,7 +64,7 @@ export const useFleet = (userAuth = null, measurementType = null) => {
   const [filteredUnitsByFleet, setFilteredUnitsByFleet] = useState({});
 
   const isInitializedRef = useRef(false);
-  const initializingRef = useRef(false); 
+  const initializingRef = useRef(false);
   const abortControllerRef = useRef(null);
 
   const loadingStateRef = useRef({
@@ -665,13 +665,18 @@ export const useFleet = (userAuth = null, measurementType = null) => {
       initializingRef.current = true;
 
       try {
-        await loadMasters();
+        const allowedRolesForMasters = ["operator_jt", "ccr", "checker"];
+        const currentRole = user?.role?.toLowerCase();
 
-        if (!isMounted) {
-          return;
+        if (allowedRolesForMasters.includes(currentRole)) {
+          await loadMasters();
+
+          if (!isMounted) {
+            return;
+          }
         }
 
-        if (userRoleInfo !== "Operator JT"){
+        if (currentRole !== "operator_jt") {
           await preloadAllFleets();
         }
 
@@ -696,7 +701,7 @@ export const useFleet = (userAuth = null, measurementType = null) => {
         abortControllerRef.current.abort();
       }
     };
-  }, [loadMasters, preloadAllFleets, user]); 
+  }, [loadMasters, preloadAllFleets, user]);
 
   return {
     fleetConfigs,

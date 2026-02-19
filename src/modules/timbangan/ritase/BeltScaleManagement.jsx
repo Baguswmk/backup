@@ -28,7 +28,7 @@ const BeltscaleManagement = () => {
   const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [dateRange, setDateRange] = useState(getInitialDateRange);
   const [adjustmentSummary, setAdjustmentSummary] = useState(null);
-
+  const isCan = user.role.includes("checker") || user.role.includes("ccr")
   const filteredRitaseData = useMemo(() => {
     let filtered = ritaseData;
 
@@ -194,6 +194,7 @@ const BeltscaleManagement = () => {
           </div>
 
           <div className="flex items-center gap-2">
+            {isCan &&(
             <Button
               onClick={handleOpenForm}
               className="flex items-center gap-2 cursor-pointer bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-700 text-white shadow-sm dark:shadow-blue-900/50 transition-all duration-200"
@@ -201,10 +202,12 @@ const BeltscaleManagement = () => {
               <Plus className="w-4 h-4" />
               Hitung Beltscale
             </Button>
+            )}
           </div>
         </div>
 
         {/* Info Card */}
+        {isCan && (
         <Card className="border-blue-200 bg-blue-50 dark:bg-blue-950/50 dark:border-blue-800/50 shadow-sm dark:shadow-lg dark:shadow-blue-900/20 transition-all duration-200">
           <CardContent className="py-4">
             <div className="flex items-start gap-3">
@@ -227,6 +230,7 @@ const BeltscaleManagement = () => {
             </div>
           </CardContent>
         </Card>
+        )}
 
         {/* Error Alert */}
         {error && (
