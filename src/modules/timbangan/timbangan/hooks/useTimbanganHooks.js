@@ -2,13 +2,17 @@ import { useState, useCallback, useEffect, useRef } from "react";
 import { useRitaseStore } from "@/modules/timbangan/ritase/store/ritaseStore";
 import { timbanganService } from "../services/TimbanganService";
 import { masterDataService } from "@/modules/timbangan/masterData/services/masterDataService";
+import { offlineService } from "@/shared/services/offlineService";
 import useAuthStore from "@/modules/auth/store/authStore";
 import { showToast } from "@/shared/utils/toast";
 import debounce from "lodash/debounce";
 
+const UNITS_CACHE_KEY = "timbangan:units:dump_truck";
+const UNITS_CACHE_TTL = 24 * 60 * 60 * 1000;
+
 export const useTimbanganHooks = () => {
   const user = useAuthStore((state) => state.user);
-  
+
   const [formData, setFormData] = useState({
     hull_no: "",
     gross_weight: "",
@@ -23,29 +27,58 @@ export const useTimbanganHooks = () => {
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [availableUnits, setAvailableUnits] = useState([]);
-  const [lastSubmittedData, setLastSubmittedData] = useState(null); // For auto-print
+  const [isUnitsLoading, setIsUnitsLoading] = useState(false);
+  const [lastSubmittedData, setLastSubmittedData] = useState(null);
 
-  // Load all dump trucks on mount
-  useEffect(() => {
-    const loadUnits = async () => {
-      try {
-        const result = await masterDataService.fetchUnits({
-          type: "DUMP_TRUCK",
-        });
-        const units = Array.isArray(result) ? result : result?.data || [];
-        setAvailableUnits(units);
-      } catch (error) {
-        console.error("Failed to load dump trucks:", error);
+  const loadUnits = useCallback(async ({ forceRefresh = false } = {}) => {
+    setIsUnitsLoading(true);
+    try {
+      if (!forceRefresh) {
+        const cached = await offlineService.getCache(UNITS_CACHE_KEY);
+        if (cached) {
+          setAvailableUnits(cached);
+          return;
+        }
+      } else {
+        await offlineService.clearCache(UNITS_CACHE_KEY);
       }
-    };
-    loadUnits();
+
+      const result = await masterDataService.fetchUnits({ type: "DUMP_TRUCK" });
+      const units = Array.isArray(result) ? result : result?.data || [];
+
+      await offlineService.setCache(UNITS_CACHE_KEY, units, UNITS_CACHE_TTL);
+
+      setAvailableUnits(units);
+    } catch (error) {
+      console.error("Failed to load dump trucks:", error);
+
+      try {
+        const staleData = await offlineService.getCache(UNITS_CACHE_KEY, true);
+        if (staleData) {
+          setAvailableUnits(staleData);
+          console.warn("⚠️ Using stale units cache (offline fallback)");
+        }
+      } catch {
+      }
+    } finally {
+      setIsUnitsLoading(false);
+    }
   }, []);
 
-  // Auto-fill logic: Hull No -> Dumptruck ID & Tare
+  const refreshUnits = useCallback(async () => {
+    await loadUnits({ forceRefresh: true });
+    showToast.success("Data unit dump truck berhasil diperbarui");
+  }, [loadUnits]);
+
+  useEffect(() => {
+    loadUnits();
+  }, [loadUnits]);
+
   const handleHullNoChange = useCallback(
     (value) => {
       const hullNo = value;
       setFormData((prev) => ({ ...prev, hull_no: hullNo }));
+
       if (!hullNo) {
         setFormData((prev) => ({
           ...prev,
@@ -54,7 +87,7 @@ export const useTimbanganHooks = () => {
           tare_weight: "",
           bypass_tonnage: "",
           company: "",
-          spph:"",
+          spph: "",
         }));
         return;
       }
@@ -89,7 +122,7 @@ export const useTimbanganHooks = () => {
     [availableUnits],
   );
 
-  // Calculate Weights based on Role (only for normal timbangan mode)
+  // ─── Kalkulasi berat berdasarkan role ─────────────────────────────────────
   useEffect(() => {
     const isOperator = user?.role === "operator_jt";
     const tare = parseFloat(formData.tare_weight);
@@ -97,7 +130,6 @@ export const useTimbanganHooks = () => {
     if (isNaN(tare)) return;
 
     if (isOperator) {
-      // Role Operator: Input Gross -> Calculate Net
       const gross = parseFloat(formData.gross_weight);
       if (!isNaN(gross) && gross > 0) {
         const net = gross - tare;
@@ -109,7 +141,6 @@ export const useTimbanganHooks = () => {
         setFormData((prev) => ({ ...prev, net_weight: "" }));
       }
     } else {
-      // Role Checkpoint: Input Net -> Calculate Gross
       const net = parseFloat(formData.net_weight);
       if (!isNaN(net) && net > 0) {
         const gross = net + tare;
@@ -128,6 +159,7 @@ export const useTimbanganHooks = () => {
     user?.role,
   ]);
 
+  // ─── Validasi ─────────────────────────────────────────────────────────────
   const validateForm = () => {
     const newErrors = {};
     const isOperator = user?.role === "operator_jt";
@@ -136,7 +168,6 @@ export const useTimbanganHooks = () => {
     if (!formData.unit_dump_truck)
       newErrors.hull_no = "Unit tidak ditemukan di database";
 
-    // Tare validation
     if (!formData.tare_weight || parseFloat(formData.tare_weight) < 0) {
       newErrors.tare_weight = "Berat tare tidak valid (Cek Master Unit)";
     }
@@ -161,7 +192,7 @@ export const useTimbanganHooks = () => {
     if (!formData.hull_no) newErrors.hull_no = "Nomor lambung harus diisi";
     if (!formData.unit_dump_truck)
       newErrors.hull_no = "Unit tidak ditemukan di database";
-    
+
     if (!formData.bypass_tonnage || parseFloat(formData.bypass_tonnage) <= 0) {
       newErrors.hull_no = "Bypass tonnage tidak valid (Cek Master Unit)";
     }
@@ -170,56 +201,53 @@ export const useTimbanganHooks = () => {
     return Object.keys(newErrors).length === 0;
   };
 
-const processSubmit = async (currentFormData) => {
-  setIsSubmitting(true);
-  try {
-    const payload = {
-      id: parseInt(currentFormData.unit_dump_truck),
-      hull_no: currentFormData.hull_no,
-      tare_weight: parseFloat(currentFormData.tare_weight),
-      gross_weight: parseFloat(currentFormData.gross_weight),
-      net_weight: parseFloat(currentFormData.net_weight),
-      timestamp: new Date().toISOString(),
-      bypass_tonnage: currentFormData.bypass_tonnage,
-      company: currentFormData.company,
-      spph: currentFormData.spph,
-      createdAt: new Date().toISOString(),
-      is_bypass: false,
-    };
+  // ─── Submit ───────────────────────────────────────────────────────────────
+  const processSubmit = async (currentFormData) => {
+    setIsSubmitting(true);
+    try {
+      const payload = {
+        id: parseInt(currentFormData.unit_dump_truck),
+        hull_no: currentFormData.hull_no,
+        tare_weight: parseFloat(currentFormData.tare_weight),
+        gross_weight: parseFloat(currentFormData.gross_weight),
+        net_weight: parseFloat(currentFormData.net_weight),
+        timestamp: new Date().toISOString(),
+        bypass_tonnage: currentFormData.bypass_tonnage,
+        company: currentFormData.company,
+        spph: currentFormData.spph,
+        createdAt: new Date().toISOString(),
+        is_bypass: false,
+      };
 
-    const result = await timbanganService.createTimbangan(payload);
+      const result = await timbanganService.createTimbangan(payload);
 
-    // ✅ Handle offline queued
-    if (result?.offline || result?.queued) {
-      showToast.warning("📦 Offline: Data disimpan, akan dikirim saat online");
-    } else {
-      showToast.success("Data berhasil disimpan dan karcis akan dicetak");
+      if (result?.offline || result?.queued) {
+        showToast.warning("📦 Offline: Data disimpan, akan dikirim saat online");
+      } else {
+        showToast.success("Data berhasil disimpan dan karcis akan dicetak");
+      }
+
+      setLastSubmittedData(payload);
+      setTimeout(() => resetForm(), 500);
+    } catch (error) {
+      showToast.error(error.response?.data?.message || "Gagal menyimpan data");
+      console.error("❌ Submit error:", error);
+    } finally {
+      setIsSubmitting(false);
     }
-
-    // Set data for auto-print & reset form
-    setLastSubmittedData(payload);
-    setTimeout(() => resetForm(), 500);
-
-  } catch (error) {
-    // Hanya error beneran yang sampai sini
-    showToast.error(error.response?.data?.message || "Gagal menyimpan data");
-    console.error("❌ Submit error:", error);
-  } finally {
-    setIsSubmitting(false);
-  }
-};
+  };
 
   const processBypassSubmit = async (currentFormData) => {
     setIsSubmitting(true);
     try {
       const bypassTonnage = parseFloat(currentFormData.bypass_tonnage);
-      
+
       const payload = {
         id: parseInt(currentFormData.unit_dump_truck),
         hull_no: currentFormData.hull_no,
-        tare_weight: 0, // Bypass mode, no tare
+        tare_weight: 0,
         gross_weight: bypassTonnage,
-        net_weight: bypassTonnage, // Net = Bypass tonnage
+        net_weight: bypassTonnage,
         timestamp: new Date().toISOString(),
         bypass_tonnage: currentFormData.bypass_tonnage,
         company: currentFormData.company,
@@ -228,17 +256,11 @@ const processSubmit = async (currentFormData) => {
       };
 
       const result = await timbanganService.createTimbangan(payload);
-      
+
       if (result.queued || result.status) {
         showToast.success("Data bypass berhasil disimpan dan karcis akan dicetak");
-        
-        // Set data for auto-print
         setLastSubmittedData(payload);
-        
-        // Reset form after small delay
-        setTimeout(() => {
-          resetForm();
-        }, 500);
+        setTimeout(() => resetForm(), 500);
       } else {
         throw new Error(result.error || "Gagal menyimpan data bypass");
       }
@@ -251,30 +273,24 @@ const processSubmit = async (currentFormData) => {
   };
 
   const debouncedProcessSubmit = useCallback(
-    debounce((data) => {
-      processSubmit(data);
-    }, 500),
-    [],   
+    debounce((data) => processSubmit(data), 500),
+    [],
   );
 
   const debouncedProcessBypassSubmit = useCallback(
-    debounce((data) => {
-      processBypassSubmit(data);
-    }, 500),
-    [],   
+    debounce((data) => processBypassSubmit(data), 500),
+    [],
   );
 
   const handleSubmit = (e) => {
     e?.preventDefault();
     if (!validateForm()) return;
-
     debouncedProcessSubmit(formData);
   };
 
   const handleBypassSubmit = (e) => {
     e?.preventDefault();
     if (!validateBypassForm()) return;
-
     debouncedProcessBypassSubmit(formData);
   };
 
@@ -303,6 +319,8 @@ const processSubmit = async (currentFormData) => {
     setErrors,
     isSubmitting,
     availableUnits,
+    isUnitsLoading,   
+    refreshUnits,     
     handleHullNoChange,
     handleSubmit,
     handleBypassSubmit,
