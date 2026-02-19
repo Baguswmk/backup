@@ -212,20 +212,6 @@ export const TimbanganInputCard = ({ fleetConfigs = [] }) => {
     activeTab,
   ]);
 
-  // Setelah submit: unlock scale dan aktifkan weight gate
-  useEffect(() => {
-    if (lastSubmittedData) {
-      setWaitingForDTExit(true);
-      if (scale.isConnected) {
-        scale.unlockWeight();
-        // Simulasi: turun ke 0 pelan-pelan (jangan stabilize dulu)
-        if (scale.isSimulating) {
-          scale.setSimulatedTarget(0);
-        }
-      }
-    }
-  }, [lastSubmittedData]);
-
 
   // Auto-print ticket after successful submission
   useEffect(() => {
