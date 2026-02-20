@@ -9,7 +9,8 @@ import { calculateCurrentShiftAndGroup } from "@/shared/utils/group";
 import useAuthStore from "@/modules/auth/store/authStore";
 import OperatorNameModal from "./components/OperatorNameModal";
 import { Button } from "@/shared/components/ui/button";
-import { useMasterData } from "@/modules/timbangan/masterData/hooks/useMasterData";
+import { offlineService } from "@/shared/services/offlineService";
+import { showToast } from "@/shared/utils/toast";
 
 const TimbanganManagement = () => {
   const { isOnline } = useOffline();
@@ -22,9 +23,22 @@ const TimbanganManagement = () => {
   const user = useAuthStore((state) => state.user);
   const [showOperatorModal, setShowOperatorModal] = useState(false);
   const [operatorName, setOperatorName] = useState("");
-  const [isRefreshing, setIsRefreshing] = useState(false);
-   const { refreshAllMasterData, isRefreshingMasterData } = useMasterData();
-  // Check if operator name exists on mount
+  const [isRefreshingMasterData, setIsRefreshingMasterData] = useState(false);
+
+  const handleRefreshMasterData = useCallback(async () => {
+    setIsRefreshingMasterData(true);
+    try {
+      await offlineService.clearCache("timbangan:units:dump_truck");
+      window.dispatchEvent(new CustomEvent("timbangan:refreshUnits"));
+      showToast.success("Cache unit dump truck dikosongkan, memuat ulang...");
+    } catch (error) {
+      console.error("Gagal refresh master timbangan:", error);
+      showToast.error("Gagal memperbarui data master");
+    } finally {
+      setTimeout(() => setIsRefreshingMasterData(false), 1200);
+    }
+  }, []);
+  
   useEffect(() => {
     const savedName = localStorage.getItem("operator_sib_name");
     if (!savedName) {
@@ -268,7 +282,7 @@ const TimbanganManagement = () => {
 
               {/* Button Refresh Master Data */}
               <Button
-                onClick={refreshAllMasterData}
+                onClick={handleRefreshMasterData}
                 disabled={isRefreshingMasterData}
                 className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-100 dark:bg-slate-800 text-xs sm:text-sm font-medium border border-green-300 dark:border-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 text-green-700 dark:text-green-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors "
                 title="Refresh Master Data (Unit, Operator, dll)"

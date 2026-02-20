@@ -3,7 +3,6 @@ import {
   Card,
   CardContent,
   CardHeader,
-  CardTitle,
 } from "@/shared/components/ui/card";
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
@@ -17,7 +16,6 @@ import {
   Loader2,
   Usb,
   Radio,
-  RefreshCw,
   Zap,
   Lock,
   Unlock,
@@ -35,9 +33,9 @@ import PrintBukti from "@/modules/timbangan/timbangan/components/PrintBukti";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/components/ui/tabs";
 
 export const TimbanganInputCard = ({ fleetConfigs = [] }) => {
-  const user = useAuthStore((state) => state.user);
-  const isOperator = user?.role === "operator_jt";
-
+  const { user } = useAuthStore();
+  const isOperator = user?.role.toLowerCase() === "operator_jt";
+  const isChecker = user?.role.toLowerCase() === "checker";
   const {
     formData,
     setFormData,
@@ -48,7 +46,6 @@ export const TimbanganInputCard = ({ fleetConfigs = [] }) => {
     handleSubmit,
     handleBypassSubmit,
     lastSubmittedData,
-    clearLastSubmittedData,
   } = useTimbanganHooks();
 
   const scale = useWebSerialScale();
@@ -78,7 +75,6 @@ export const TimbanganInputCard = ({ fleetConfigs = [] }) => {
   const netWeightInputRef = useRef(null);
   const printButtonRef = useRef(null);
   const bypassHullNoInputRef = useRef(null);
-
   // ✅ Validation Regex
   const WEIGHT_LIMITS = {
     GROSS: {
@@ -338,13 +334,15 @@ export const TimbanganInputCard = ({ fleetConfigs = [] }) => {
                 <Scale className="w-5 h-5 text-blue-600 dark:text-blue-400" />
                 Timbangan
               </TabsTrigger>
-              <TabsTrigger
-                value="bypass"
-                className="flex items-center gap-2 px-0 pl-5 text-xl font-semibold data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:text-gray-900 dark:data-[state=active]:text-gray-100 data-[state=inactive]:text-gray-400 dark:data-[state=inactive]:text-gray-600 data-[state=inactive]:hover:text-gray-600 dark:data-[state=inactive]:hover:text-gray-400 transition-colors rounded-none border-b-2  data-[state=inactive]:border-transparent pb-1 cursor-pointer"
-              >
-                <Zap className="w-5 h-5 text-yellow-500 dark:text-yellow-400" />
+              {isChecker && (
+                <TabsTrigger
+                  value="bypass"
+                  className="flex items-center gap-2 px-0 pl-5 text-xl font-semibold data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:text-gray-900 dark:data-[state=active]:text-gray-100 data-[state=inactive]:text-gray-400 dark:data-[state=inactive]:text-gray-600 data-[state=inactive]:hover:text-gray-600 dark:data-[state=inactive]:hover:text-gray-400 transition-colors rounded-none border-b-2  data-[state=inactive]:border-transparent pb-1 cursor-pointer"
+                >
+                  <Zap className="w-5 h-5 text-yellow-500 dark:text-yellow-400" />
                 Bypass
               </TabsTrigger>
+              )}
             </TabsList>
 
             {/* Right: Hardware Controls */}
@@ -946,11 +944,12 @@ export const TimbanganInputCard = ({ fleetConfigs = [] }) => {
           </TabsContent>
 
           {/* Tab Bypass - Hanya Pilih DT */}
-          <TabsContent value="bypass">
-            <form onSubmit={(e) => { e.preventDefault(); handleBypassSubmit(); }} className="space-y-4">
-              <div className="space-y-2">
-                <Label className="flex items-center gap-2 text-gray-700 dark:text-gray-300 font-medium">
-                  <Truck className="w-4 h-4" /> Nomor Lambung
+          {!isChecker && (
+            <TabsContent value="bypass">
+              <form onSubmit={(e) => { e.preventDefault(); handleBypassSubmit(); }} className="space-y-4">
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-2 text-gray-700 dark:text-gray-300 font-medium">
+                    <Truck className="w-4 h-4" /> Nomor Lambung
                   <span className="text-xs text-blue-600 dark:text-blue-400 font-normal">
                     (Alt + D)
                   </span>
@@ -1045,6 +1044,7 @@ export const TimbanganInputCard = ({ fleetConfigs = [] }) => {
               </div>
             </form>
           </TabsContent>
+          )}
         </CardContent>
 
         {/* Operator name automatically retrieved from localStorage ("operator_sib_name") */}

@@ -123,7 +123,7 @@ export const useTimbanganHooks = () => {
     }
   }, []);
 
-  // Dipanggil manual dari tombol refresh di UI
+  // Dipanggil manual dari tombol refresh di UI atau via event
   const refreshUnits = useCallback(async () => {
     await loadUnits({ forceRefresh: true });
     showToast.success("Data unit dump truck berhasil diperbarui");
@@ -132,6 +132,18 @@ export const useTimbanganHooks = () => {
   // Mount: langsung dari cache, tidak ada loading panjang
   useEffect(() => {
     loadUnits();
+  }, [loadUnits]);
+
+  // Bridge: dengarkan event dari luar (misal dari tombol Master di header)
+  // Sehingga TimbanganManagement tidak perlu tahu soal hook ini sama sekali
+  useEffect(() => {
+    const handleRefreshEvent = () => {
+      loadUnits({ forceRefresh: true });
+    };
+    window.addEventListener("timbangan:refreshUnits", handleRefreshEvent);
+    return () => {
+      window.removeEventListener("timbangan:refreshUnits", handleRefreshEvent);
+    };
   }, [loadUnits]);
 
   // ─── Auto-fill: Hull No -> Dumptruck ID & Tare ──────────────────────────────
@@ -305,19 +317,11 @@ export const useTimbanganHooks = () => {
         );
         return;
       }
-
-      const bypassTonnage = parseFloat(currentFormData.bypass_tonnage);
+      
       const payload = {
         id: parseInt(currentFormData.unit_dump_truck),
         hull_no: currentFormData.hull_no,
-        tare_weight: 0,
-        gross_weight: bypassTonnage,
-        net_weight: bypassTonnage,
         timestamp: new Date().toISOString(),
-        bypass_tonnage: currentFormData.bypass_tonnage,
-        company: currentFormData.company,
-        spph: currentFormData.spph,
-        createdAt: new Date().toISOString(),
       };
 
       const result = await timbanganService.createTimbangan(payload);
