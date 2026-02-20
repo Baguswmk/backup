@@ -14,6 +14,8 @@ import {
   MoreVertical,
   Calendar,
   RefreshCw,
+  Building2,
+  X,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -21,6 +23,13 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
 } from "@/shared/components/ui/dropdown-menu";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/shared/components/ui/select";
 import { formatDate } from "@/shared/utils/date";
 import { formatWeight } from "@/shared/utils/number";
 import Pagination from "@/shared/components/Pagination";
@@ -31,22 +40,47 @@ import AdvancedFilter from "@/shared/components/AdvancedFilter";
 const getHoursByShift = (shift) => {
   switch (shift) {
     case "Shift 1":
-      // 22:00 - 05:59:59 (8 jam)
       return [22, 23, 0, 1, 2, 3, 4, 5];
     case "Shift 2":
-      // 06:00 - 13:59:59 (8 jam)
       return [6, 7, 8, 9, 10, 11, 12, 13];
     case "Shift 3":
-      // 14:00 - 21:59:59 (8 jam)
       return [14, 15, 16, 17, 18, 19, 20, 21];
     case "All":
     default:
-      // 06:00 - 05:59:59 hari berikutnya (24 jam)
-      return [
-        6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 0,
-        1, 2, 3, 4, 5,
-      ];
+      return [6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 0, 1, 2, 3, 4, 5];
   }
+};
+
+const WorkUnitFilterBar = ({
+  workUnitOptions = [],
+  selectedWorkUnit,
+  onWorkUnitChange,
+  onClearWorkUnitFilter,
+}) => {
+  if (workUnitOptions.length === 0) return null;
+
+  return (
+    <div className="flex flex-wrap items-center gap-2 py-2">
+      <Select
+        value={selectedWorkUnit || "all"}
+        onValueChange={(val) => onWorkUnitChange(val === "all" ? null : val)}
+      >
+        <SelectTrigger className="h-7 text-xs w-56 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800">
+          <SelectValue placeholder="Semua Work Unit" />
+        </SelectTrigger>
+        <SelectContent className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 max-h-60">
+          <SelectItem value="all" className="text-xs font-medium">
+            Semua Work Unit
+          </SelectItem>
+          {workUnitOptions.map((wu) => (
+            <SelectItem key={wu} value={wu} className="text-xs">
+              {wu}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
+  );
 };
 
 const OverviewTable = ({
@@ -77,8 +111,13 @@ const OverviewTable = ({
   searchPlaceholder = "Cari excavator, loading, dumping...",
   onItemsPerPageChange,
   totalItems,
+
+  // ✅ NEW: Work Unit Filter props (pic_work_unit dari tableData)
+  workUnitOptions = [],
+  selectedWorkUnit = null,
+  onWorkUnitChange,
+  onClearWorkUnitFilter,
 }) => {
-  // Mendapatkan jam-jam yang harus ditampilkan berdasarkan shift
   const displayHours = useMemo(() => {
     return getHoursByShift(shift);
   }, [shift]);
@@ -91,13 +130,14 @@ const OverviewTable = ({
     return `${formatDate(dates[0])} - ${formatDate(dates[dates.length - 1])}`;
   };
 
+  const hasWorkUnitFilter = Boolean(selectedWorkUnit);
+
   return (
     <Card className="shadow-sm border-gray-200 dark:border-gray-700 bg-neutral-50 dark:bg-gray-800 text-gray-900 dark:text-gray-100">
       <CardHeader className="border-b border-gray-200 dark:border-gray-700">
         <CardTitle className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <span>Active Fleet</span>
-            {/* Loading indicator */}
             {isLoading && (
               <div className="flex items-center gap-2 text-sm font-normal text-blue-600 dark:text-blue-400">
                 <RefreshCw className="w-4 h-4 animate-spin" />
@@ -106,12 +146,21 @@ const OverviewTable = ({
             )}
           </div>
           <div className="flex items-center gap-3">
+            {/* ✅ Badge work unit aktif di header */}
+            {hasWorkUnitFilter && (
+              <Badge
+                variant="secondary"
+                className="dark:bg-blue-900/40 dark:text-blue-300 bg-blue-100 text-blue-800 border border-blue-200 dark:border-blue-700 max-w-52 truncate"
+                title={selectedWorkUnit}
+              >
+                {selectedWorkUnit}
+              </Badge>
+            )}
             <Badge
               variant="secondary"
               className="dark:bg-gray-700 dark:text-gray-200"
             >
-              {shift === "All" ? "Semua Shift" : shift} ({displayHours.length}{" "}
-              jam)
+              {shift === "All" ? "Semua Shift" : shift} ({displayHours.length} jam)
             </Badge>
             <Badge
               variant="secondary"
@@ -137,7 +186,18 @@ const OverviewTable = ({
           onRefresh={onRefresh}
           filterExpanded={isFilterExpanded}
           onToggleFilter={onToggleFilter}
+          extraActions={
+          <WorkUnitFilterBar
+            workUnitOptions={workUnitOptions}
+            selectedWorkUnit={selectedWorkUnit}
+            onWorkUnitChange={onWorkUnitChange}
+            onClearWorkUnitFilter={onClearWorkUnitFilter}
+          />
+          }
         />
+
+        {/* ✅ Work Unit Filter Bar — derive options dari tableData langsung */}
+       
 
         {/* Advanced Filter Panel */}
         {isFilterExpanded && (
@@ -171,7 +231,6 @@ const OverviewTable = ({
                   </div>
                 </th>
 
-                {/* Hourly Columns - Dynamic based on shift */}
                 {displayHours.map((hour) => (
                   <th
                     key={hour}
@@ -201,7 +260,6 @@ const OverviewTable = ({
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-              {/* Skeleton loading untuk initial load */}
               {isLoading && data.length === 0 ? (
                 Array.from({ length: 5 }).map((_, idx) => (
                   <tr key={idx} className="animate-pulse">
@@ -255,13 +313,13 @@ const OverviewTable = ({
                       </svg>
                       <div className="text-gray-500 dark:text-gray-400">
                         <p className="font-medium text-base">
-                          {searchQuery || hasActiveFilters
+                          {searchQuery || hasActiveFilters || hasWorkUnitFilter
                             ? "Tidak ada data yang cocok dengan pencarian/filter"
                             : "Data tidak ditemukan"}
                         </p>
                         <p className="text-sm text-gray-400 dark:text-gray-500 mt-1">
-                          {searchQuery || hasActiveFilters
-                            ? "Coba ubah filter atau kata kunci pencarian"
+                          {searchQuery || hasActiveFilters || hasWorkUnitFilter
+                            ? "Coba ubah filter work unit atau kata kunci pencarian"
                             : "Tidak ada data untuk periode dan filter yang dipilih"}
                         </p>
                       </div>
@@ -289,7 +347,6 @@ const OverviewTable = ({
                       </div>
                     </td>
 
-                    {/* Hourly Data - Dynamic based on shift */}
                     {displayHours.map((hour) => {
                       const hourKey = `${hour.toString().padStart(2, "0")}:00`;
                       const value = row.hourlyData?.[hourKey] || 0;
@@ -326,32 +383,24 @@ const OverviewTable = ({
                       );
                     })}
 
-                    {/* Total Tonnage */}
                     <td className="px-3 py-3 text-center bg-blue-50 dark:bg-blue-900/30 border-r border-gray-200 dark:border-gray-700">
                       <span className="inline-block px-3 py-1 bg-blue-600 dark:bg-blue-700 text-white rounded font-bold text-sm">
                         {formatWeight(row.totalTonase)}
                       </span>
                     </td>
 
-                    {/* Loading & Dumping */}
                     <td className="px-3 py-3 text-gray-700 dark:text-gray-300 border-r border-gray-200 dark:border-gray-700">
                       <div className="space-y-1">
                         {Array.isArray(row.loading_locations) &&
                         row.loading_locations.length > 0 ? (
                           row.loading_locations.map((location, idx) => (
                             <div key={idx} className="flex items-start gap-1.5">
-                              <span className="text-blue-500 dark:text-blue-400 text-xs mt-0.5">
-                                •
-                              </span>
-                              <span className="text-xs leading-relaxed">
-                                {location}
-                              </span>
+                              <span className="text-blue-500 dark:text-blue-400 text-xs mt-0.5">•</span>
+                              <span className="text-xs leading-relaxed">{location}</span>
                             </div>
                           ))
                         ) : (
-                          <span className="text-gray-400 dark:text-gray-500 text-xs">
-                            -
-                          </span>
+                          <span className="text-gray-400 dark:text-gray-500 text-xs">-</span>
                         )}
                       </div>
                     </td>
@@ -361,23 +410,16 @@ const OverviewTable = ({
                         row.dumping_locations.length > 0 ? (
                           row.dumping_locations.map((location, idx) => (
                             <div key={idx} className="flex items-start gap-1.5">
-                              <span className="text-green-500 dark:text-green-400 text-xs mt-0.5">
-                                •
-                              </span>
-                              <span className="text-xs leading-relaxed">
-                                {location}
-                              </span>
+                              <span className="text-green-500 dark:text-green-400 text-xs mt-0.5">•</span>
+                              <span className="text-xs leading-relaxed">{location}</span>
                             </div>
                           ))
                         ) : (
-                          <span className="text-gray-400 dark:text-gray-500 text-xs">
-                            -
-                          </span>
+                          <span className="text-gray-400 dark:text-gray-500 text-xs">-</span>
                         )}
                       </div>
                     </td>
 
-                    {/* Action Menu */}
                     <td className="px-3 py-3 text-center">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -417,8 +459,6 @@ const OverviewTable = ({
           </table>
         </div>
 
-        {/* Pagination */}
-        {/* Pagination & Limit Selector */}
         {data.length > 0 && (
           <Pagination
             currentPage={currentPage}

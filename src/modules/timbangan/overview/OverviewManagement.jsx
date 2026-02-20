@@ -20,6 +20,7 @@ import { showToast } from "@/shared/utils/toast";
 import { useDashboardDaily } from "@/modules/timbangan/dashboard/hooks/useDashboardDaily";
 import SupervisorInputModal from "@/modules/timbangan/overview/components/SupervisorInputModal";
 import { getCurrentShift } from "@/shared/utils/shift";
+import { useWorkUnitFilter } from "./hooks/useWorkUnitFilter";
 
 const OverviewManagement = () => {
   const [dateRange, setDateRange] = useState(() => {
@@ -39,7 +40,6 @@ const OverviewManagement = () => {
   const [sortConfig, setSortConfig] = useState({ key: null, direction: "asc" });
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
-
 
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -91,6 +91,9 @@ const OverviewManagement = () => {
     summaryData: hookSummaryData,
     tableData: hookTableData,
   } = useDashboardDaily(hookParams, true);
+
+
+
   useEffect(() => {
     if (isLoading) {
       if (!cachedData) {
@@ -235,7 +238,7 @@ const OverviewManagement = () => {
       dumptruckBreakdown: [],
       excavatorBreakdown: [],
     };
-    
+
     if (isRefreshing && cachedData?.data?.summary) {
       const cached = cachedData.data.summary;
       return {
@@ -411,13 +414,17 @@ const OverviewManagement = () => {
 
   const totalPages = Math.ceil(sortedData.length / itemsPerPage);
 
+
+    const { filteredData, workUnitOptions, selectedWorkUnit, ...handlers } =
+  useWorkUnitFilter(sortedData);
+
   const paginatedData = useMemo(() => {
     const startIndex = (currentPage - 1) * itemsPerPage;
     const endIndex = startIndex + itemsPerPage;
-    return sortedData.slice(startIndex, endIndex);
-  }, [sortedData, currentPage, itemsPerPage]);
+    return filteredData.slice(startIndex, endIndex);
+  }, [filteredData, currentPage, itemsPerPage]);
 
-    const handleItemsPerPageChange = useCallback(
+  const handleItemsPerPageChange = useCallback(
     (value) => {
       setItemsPerPage(value === "All" ? sortedData.length : value);
       setCurrentPage(1);
@@ -448,6 +455,11 @@ const OverviewManagement = () => {
     setShift(newShift);
     setCurrentPage(1);
   }, []);
+
+  const handleWorkUnitChange = useCallback((value) => {
+    handlers.onWorkUnitChange(value);
+    setCurrentPage(1); 
+  }, [handlers]);
 
   const hasActiveFilters =
     selectedExcavators.length > 0 ||
@@ -829,6 +841,10 @@ const OverviewManagement = () => {
       {/* ✅ Table Component - Loading indicator di Card Title table */}
       <OverviewTable
         data={paginatedData}
+        workUnitOptions={workUnitOptions}
+        selectedWorkUnit={selectedWorkUnit}
+        onWorkUnitChange={handleWorkUnitChange}
+        onClearWorkUnitFilter={handlers.onClearWorkUnitFilter}
         currentPage={currentPage}
         totalPages={totalPages}
         itemsPerPage={itemsPerPage}
@@ -852,7 +868,7 @@ const OverviewManagement = () => {
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
         onItemsPerPageChange={handleItemsPerPageChange}
-        totalItems={sortedData.length}
+        totalItems={filteredData.length}
       />
 
       {/* Detail Modals */}
