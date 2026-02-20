@@ -12,12 +12,8 @@ import {
   RefreshCw,
   Package,
   Plus,
-  Filter,
-  ChevronDown,
-  ChevronUp,
   CheckCircle2,
   Eye,
-  Printer,
   Edit2,
   Trash2,
   MoreVertical,
@@ -64,7 +60,6 @@ const RitaseList = ({
   onPageChange,
   onOpenInputModal,
   filteredFleetCount,
-  onPrintTicket,
   onRefreshData,
   onDeleteRitase,
   onDuplicateRitase,
@@ -76,7 +71,6 @@ const RitaseList = ({
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isDeletingRitase, setIsDeletingRitase] = useState(false);
   const [pageSize, setPageSize] = useState(10); // Added pageSize state
-
   const isCCR = userRole.toLowerCase() === "ccr";
   const getInputButtonText = () => {
     return userRole === USER_ROLES.OPERATOR_JT ? "Timbang" : "Input Data";
@@ -95,10 +89,6 @@ const RitaseList = ({
   const handleViewDetail = (ritase) => {
     setSelectedRitase(ritase);
     setIsDetailDialogOpen(true);
-  };
-
-  const handlePrintTicket = (ritase) => {
-    if (onPrintTicket) onPrintTicket(ritase);
   };
 
   const handleEdit = (ritase) => {
@@ -133,9 +123,7 @@ const RitaseList = ({
     }
   };
 
-  // ✅ FIXED: Simplified handler - callback sudah dipanggil dengan updatedData
   const handleEditSuccess = async (updatedData) => {
-    // Pastikan callback dipanggil DENGAN data yang benar
     if (onRefreshData && selectedRitase) {
       await onRefreshData(selectedRitase.id, updatedData);
     } else {
@@ -165,7 +153,6 @@ const RitaseList = ({
   const handleExportExcel = () => {
     generateRitaseExcel(filteredRitaseData);
   };
-
   return (
     <>
       <Card
@@ -556,17 +543,19 @@ const RitaseList = ({
                   variant="ghost"
                   size="sm"
                 ></PrintTicketButton>
-                <Button
-                  onClick={() => {
-                    setIsDetailDialogOpen(false);
-                    handleEdit(selectedRitase);
-                  }}
-                  variant="outline"
-                  className="flex-1 dark:text-gray-200 "
-                >
-                  <Edit2 className="w-4 h-4 mr-2" />
-                  Edit
-                </Button>
+                {isCCR && (
+                  <Button
+                    onClick={() => {
+                      setIsDetailDialogOpen(false);
+                      handleEdit(selectedRitase);
+                    }}
+                    variant="outline"
+                    className="flex-1 dark:text-gray-200 "
+                  >
+                    <Edit2 className="w-4 h-4 mr-2" />
+                    Edit
+                  </Button>
+                )}
               </div>
             </div>
           )}

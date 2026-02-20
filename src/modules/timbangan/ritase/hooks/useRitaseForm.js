@@ -11,6 +11,8 @@ const DEFAULT_FORM_VALUES = {
   hull_no: "",
   gross_weight: "",
   net_weight: "",
+  tare_weight: "",
+  measurement_type: "",
   dumptruck: "",
   operator: "",
   setting_fleet_id: "",
@@ -155,6 +157,8 @@ const createInitialFormData = (editingItem, mode, masters = null) => {
       ...DEFAULT_FORM_VALUES,
       gross_weight: editingItem.gross_weight || "",
       net_weight: editingItem.net_weight || "",
+      tare_weight: editingItem.tare_weight?.toString() || "",
+      measurement_type: editingItem.measurement_type || "",
 
       unit_dump_truck: findLabelInMasterData(
         getFirstTruthyValue(
@@ -575,229 +579,201 @@ export const useRitaseForm = (
     [formData, validateField],
   );
 
-const handleSubmit = useCallback(async () => {
-  if (isSubmitting) {
-    console.warn("⚠️ Already submitting, blocking duplicate call");
-    return { success: false, error: "Submission in progress" };
-  }
-
-  if (!isMountedRef.current) {
-    console.warn("⚠️ Component not mounted at submission start");
-    return { success: false, error: "Component not mounted" };
-  }
-
-  setIsSubmitting(true);
-
-  const { isValid, errors: validationErrors } = validateAllFields();
-  if (!isValid) {
-    setErrors(validationErrors);
-    showToast.error("Mohon perbaiki kesalahan pada form");
-    setIsSubmitting(false);
-    return { success: false, error: "Validation failed" };
-  }
-
-  if (abortControllerRef.current) {
-    abortControllerRef.current.abort();
-  }
-  abortControllerRef.current = new AbortController();
-  const signal = abortControllerRef.current.signal;
-
-  if (mode === "edit" && editingItem) {
-    return await withErrorHandling(
-      async () => {
-        // Determine which weight field to use based on checker
-        // Logic matches RitaseEditForm.jsx (line 62-76)
-        let useNetWeight = false;
-        
-        if (editingItem?.checker) {
-          const checkerLower = editingItem.checker.toLowerCase();
-          
-          // If checker contains "timbangan", use gross_weight
-          if (/timbangan/i.test(checkerLower)) {
-            useNetWeight = false;
-          }
-          // If checker contains "checker", use net_weight
-          else if (/checker/i.test(checkerLower)) {
-            useNetWeight = true;
-          }
-          // Default to net_weight for other checker names
-          else {
-            useNetWeight = true;
-          }
-        } else {
-          // If no checker info, default to net_weight
-          useNetWeight = true;
-        }
-        
-        const submissionData = {
-          unit_dump_truck: formData.unit_dump_truck,
-          unit_exca: formData.unit_exca,
-          loading_location: formData.loading_location,
-          dumping_location: formData.dumping_location,
-          shift: formData.shift,
-          date: formData.date,
-          distance: parseFloat(formData.distance),
-          coal_type: formData.coal_type,
-          pic_work_unit: formData.pic_work_unit,
-          createdAt: formData.createdAt,
-          updated_by_user: user?.id || null,
-        };
-        // Add weight based on checker role
-        if (useNetWeight) {
-          submissionData.net_weight = parseFloat(formData.net_weight);
-        } else {
-          submissionData.gross_weight = parseFloat(formData.gross_weight);
-        }
-        if (formData.operator) {
-          submissionData.operator = formData.operator;
-        }
-
-        const result = await ritaseServices.editTimbanganForm(
-          submissionData,
-          editingItem.id,
-          { signal },
-        );
-
-        if (!isMountedRef.current) {
-          throw new Error("Component unmounted during request");
-        }
-
-        // Update store if the function exists
-        const storeState = useRitaseStore.getState();
-if (storeState.updateTimbanganEntry && typeof storeState.updateTimbanganEntry === 'function') {
-  storeState.updateTimbanganEntry(editingItem.id, result.data);
-        } else {
-          logger.warn("⚠️ updateTimbanganEntry not found in store, skipping store update");
-        }
-
-        return { success: true, data: result.data };
-      },
-      {
-        operation: "update timbangan",
-        showSuccessToast: true,
-        successMessage: "Data berhasil diperbarui",
-        onError: (err) => setErrors({ submit: "Data Gagal diperbarui" }),
-      },
-    ).finally(() => {
-      if (isMountedRef.current) {
-        setIsSubmitting(false);
-      }
-    });
-  } else if (mode === "delete" && editingItem) {
-    return await withErrorHandling(
-      async () => {
-        await ritaseServices.deleteTimbanganEntry(editingItem.id, {
-          signal,
-        });
-
-        if (!isMountedRef.current) {
-          throw new Error("Component unmounted during request");
-        }
-
-        const { deleteTimbanganEntry, unhideDumptruck } =
-          useRitaseStore.getState();
-        deleteTimbanganEntry(editingItem.id);
-
-        if (editingItem.hull_no) {
-          unhideDumptruck(editingItem.hull_no);
-        }
-
-        return { success: true };
-      },
-      {
-        operation: "delete timbangan",
-        showSuccessToast: true,
-        successMessage: "Data berhasil dihapus",
-      },
-    ).finally(() => {
-      if (isMountedRef.current) {
-        setIsSubmitting(false);
-      }
-    });
-  } else {
-    if (!currentFleet) {
-      showToast.error("Data fleet tidak lengkap");
-      setIsSubmitting(false);
-      return { success: false, error: "Fleet data missing" };
+  const handleSubmit = useCallback(async () => {
+    if (isSubmitting) {
+      console.warn("⚠️ Already submitting, blocking duplicate call");
+      return { success: false, error: "Submission in progress" };
     }
 
-    return await withErrorHandling(
-      async () => {
-        const measurementType = currentFleet.measurement_type || "Timbangan";
-        const hasWeighBridge = user?.weigh_bridge != null;
+    if (!isMountedRef.current) {
+      console.warn("⚠️ Component not mounted at submission start");
+      return { success: false, error: "Component not mounted" };
+    }
 
-        const submissionData = {
-          setting_fleet: parseInt(formData.setting_fleet_id),
-          unit_dump_truck: parseInt(formData.dumptruck),
-          operator: formData.operator ? parseInt(formData.operator) : null,
-          clientCreatedAt: formData.createdAt || new Date().toISOString(),
-          created_by_user: user?.id || null,
-          measurement_type: measurementType,
-          has_weigh_bridge: hasWeighBridge,
-        };
+    setIsSubmitting(true);
 
-        if (measurementType === "Timbangan") {
-          if (hasWeighBridge) {
-            submissionData.gross_weight = parseFloat(formData.gross_weight);
-          } else {
-            submissionData.net_weight = parseFloat(formData.net_weight);
+    const { isValid, errors: validationErrors } = validateAllFields();
+    if (!isValid) {
+      setErrors(validationErrors);
+      showToast.error("Mohon perbaiki kesalahan pada form");
+      setIsSubmitting(false);
+      return { success: false, error: "Validation failed" };
+    }
+
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    abortControllerRef.current = new AbortController();
+    const signal = abortControllerRef.current.signal;
+
+
+    const gross = parseFloat(formData.gross_weight) || 0;
+    const tare = parseFloat(formData.tare_weight) || 0;
+    const computedNet = Math.max(0, gross - tare);
+
+    if (mode === "edit" && editingItem) {
+      return await withErrorHandling(
+        async () => {
+          const submissionData = {
+            unit_dump_truck: formData.unit_dump_truck,
+            unit_exca: formData.unit_exca,
+            loading_location: formData.loading_location,
+            dumping_location: formData.dumping_location,
+            shift: formData.shift,
+            date: formData.date,
+            distance: parseFloat(formData.distance),
+            coal_type: formData.coal_type,
+            pic_work_unit: formData.pic_work_unit,
+            createdAt: formData.createdAt,
+            updated_by_user: user?.id || null,
+            net_weight: computedNet,
+            gross_weight: parseFloat(formData.gross_weight),
+            tare_weight: parseFloat(formData.tare_weight),
+            measurement_type: formData.measurement_type,
+          };
+          if (formData.operator) {
+            submissionData.operator = formData.operator;
           }
-        }
 
-        const result = await ritaseServices.submitTimbanganForm(
-          submissionData,
-          { signal },
-        );
+          const result = await ritaseServices.editTimbanganForm(
+            submissionData,
+            editingItem.id,
+            { signal },
+          );
 
-        if (!isMountedRef.current) {
-          throw new Error("Component unmounted during request");
-        }
+          if (!isMountedRef.current) {
+            throw new Error("Component unmounted during request");
+          }
 
-        if (result.queued) {
-          return {
-            success: true,
-            queued: true,
-            data: null,
-            shouldClose: true,
-          };
-        }
-
-        if (result.success && result.data) {
-          const { addTimbanganEntry, hideDumptruck } = useRitaseStore.getState();
-          addTimbanganEntry(result.data);
-          hideDumptruck(editingItem?.hull_no || formData.hull_no);
-
-          return {
-            success: true,
-            data: result.data,
-            shouldClose: true,
-          };
-        }
-
-        throw new Error(result.error || "Gagal menyimpan data");
-      },
-      {
-        operation: "create timbangan",
-        showSuccessToast: false,
-        onError: (error) => {
-          throw error;
+          return { success: true, data: result.data };
         },
-      },
-    ).finally(() => {
-      if (isMountedRef.current) {
+        {
+          operation: "update timbangan",
+          showSuccessToast: true,
+          successMessage: "Data berhasil diperbarui",
+          onError: (err) => setErrors({ submit: "Data Gagal diperbarui" }),
+        },
+      ).finally(() => {
+        if (isMountedRef.current) {
+          setIsSubmitting(false);
+        }
+      });
+    } else if (mode === "delete" && editingItem) {
+      return await withErrorHandling(
+        async () => {
+          await ritaseServices.deleteTimbanganEntry(editingItem.id, {
+            signal,
+          });
+
+          if (!isMountedRef.current) {
+            throw new Error("Component unmounted during request");
+          }
+
+          const { deleteTimbanganEntry, unhideDumptruck } =
+            useRitaseStore.getState();
+          deleteTimbanganEntry(editingItem.id);
+
+          if (editingItem.hull_no) {
+            unhideDumptruck(editingItem.hull_no);
+          }
+
+          return { success: true };
+        },
+        {
+          operation: "delete timbangan",
+          showSuccessToast: true,
+          successMessage: "Data berhasil dihapus",
+        },
+      ).finally(() => {
+        if (isMountedRef.current) {
+          setIsSubmitting(false);
+        }
+      });
+    } else {
+      if (!currentFleet) {
+        showToast.error("Data fleet tidak lengkap");
         setIsSubmitting(false);
+        return { success: false, error: "Fleet data missing" };
       }
-    });
-  }
-}, [
-  isSubmitting,
-  mode,
-  editingItem,
-  formData,
-  currentFleet,
-  user,
-  validateAllFields,
-]);
+
+      return await withErrorHandling(
+        async () => {
+          const measurementType = currentFleet.measurement_type || "Timbangan";
+          const hasWeighBridge = user?.weigh_bridge != null;
+
+          const submissionData = {
+            setting_fleet: parseInt(formData.setting_fleet_id),
+            unit_dump_truck: parseInt(formData.dumptruck),
+            operator: formData.operator ? parseInt(formData.operator) : null,
+            clientCreatedAt: formData.createdAt || new Date().toISOString(),
+            created_by_user: user?.id || null,
+            measurement_type: measurementType,
+            has_weigh_bridge: hasWeighBridge,
+          };
+
+          if (measurementType === "Timbangan") {
+            if (hasWeighBridge) {
+              submissionData.gross_weight = parseFloat(formData.gross_weight);
+            } else {
+              submissionData.net_weight = parseFloat(formData.net_weight);
+            }
+          }
+
+          const result = await ritaseServices.submitTimbanganForm(
+            submissionData,
+            { signal },
+          );
+
+          if (!isMountedRef.current) {
+            throw new Error("Component unmounted during request");
+          }
+
+          if (result.queued) {
+            return {
+              success: true,
+              queued: true,
+              data: null,
+              shouldClose: true,
+            };
+          }
+
+          if (result.success && result.data) {
+            const { addTimbanganEntry, hideDumptruck } =
+              useRitaseStore.getState();
+            addTimbanganEntry(result.data);
+            hideDumptruck(editingItem?.hull_no || formData.hull_no);
+
+            return {
+              success: true,
+              data: result.data,
+              shouldClose: true,
+            };
+          }
+
+          throw new Error(result.error || "Gagal menyimpan data");
+        },
+        {
+          operation: "create timbangan",
+          showSuccessToast: false,
+          onError: (error) => {
+            throw error;
+          },
+        },
+      ).finally(() => {
+        if (isMountedRef.current) {
+          setIsSubmitting(false);
+        }
+      });
+    }
+  }, [
+    isSubmitting,
+    mode,
+    editingItem,
+    formData,
+    currentFleet,
+    user,
+    validateAllFields,
+  ]);
 
   const resetForm = useCallback(() => {
     const resetData = createInitialFormData(null, "create", masters);
@@ -821,6 +797,8 @@ if (storeState.updateTimbanganEntry && typeof storeState.updateTimbanganEntry ==
       const hasChanges =
         parseFloat(formData.gross_weight) !==
           parseFloat(original.gross_weight) ||
+        parseFloat(formData.tare_weight) !== parseFloat(original.tare_weight) ||
+        formData.measurement_type !== original.measurement_type ||
         formData.unit_dump_truck !== original.unit_dump_truck ||
         formData.unit_exca !== original.unit_exca ||
         formData.loading_location !== original.loading_location ||

@@ -62,6 +62,12 @@ const RitaseHistory = () => {
   });
   const [viewingShift, setViewingShift] = useState(null);
 
+  // Ref untuk selalu punya akses ke params terbaru (hindari stale closure)
+  const latestParamsRef = useRef({
+    dateRange: { from: null, to: null },
+    shift: null,
+  });
+
   const [selectedFleetCompanies] = useState([]);
   const [selectedFleetLoadingPoints] = useState([]);
   const [selectedFleetDumpingPoints] = useState([]);
@@ -75,19 +81,22 @@ const RitaseHistory = () => {
   const [selectedRitaseExcavators, setSelectedRitaseExcavators] = useState([]);
 
   const handleDateRangeChange = useCallback((payload) => {
-    setCurrentDateRange({
+    const newDateRange = {
       from: payload.from || payload.startDate,
       to: payload.to || payload.endDate,
-    });
-    setViewingShift(payload.shift);
+    };
+    const newShift = payload.shift;
+
+    setCurrentDateRange(newDateRange);
+    setViewingShift(newShift);
+
+    // Update ref agar handleRefreshAfterEdit selalu punya params terbaru
+    latestParamsRef.current = { dateRange: newDateRange, shift: newShift };
 
     // ✅ Auto load data setelah user pilih tanggal & shift
     loadSummaryDataWithParams({
-      dateRange: {
-        from: payload.from || payload.startDate,
-        to: payload.to || payload.endDate,
-      },
-      shift: payload.shift,
+      dateRange: newDateRange,
+      shift: newShift,
     });
   }, []);
 
@@ -130,7 +139,7 @@ const RitaseHistory = () => {
         setIsInitialLoading(false);
       }
     },
-    [user],
+    [user, currentDateRange, viewingShift],
   );
 
   const hasMounted = useRef(false);
@@ -141,7 +150,6 @@ const RitaseHistory = () => {
 
   const loadSummaryData = useCallback(
     async (forceRefresh = false) => {
-      // ✅ Guard: jangan load kalau belum ada dateRange & shift
       if (!currentDateRange.from || !currentDateRange.to || !viewingShift) {
         return { summaries: [], ritases: [] };
       }
@@ -155,7 +163,7 @@ const RitaseHistory = () => {
         });
 
         if (result.success) {
-          setSummaryData(result.data);
+          setSummaryData({ ...result.data }); // Creating new object reference explicitly
           return result.data;
         } else {
           console.error("❌ Failed to load summary data:", result.error);
@@ -495,40 +503,32 @@ const RitaseHistory = () => {
     [user, loadSummaryData, loadRitaseDataFromAPI],
   );
 
-  const updateRitaseOptimistically = useCallback((id, updatedData) => {
-    setSummaryData((prev) => ({
-      ...prev,
-      ritases: prev.ritases.map((item) =>
-        item.id === id
-          ? { ...item, ...updatedData, updatedAt: new Date().toISOString() }
-          : item,
-      ),
-      summaries: prev.summaries.map((summary) => {
-        const oldRitase = prev.ritases.find((r) => r.id === id);
-        if (oldRitase?.unit_exca !== updatedData.unit_exca) {
-          return summary;
-        }
-        return summary;
-      }),
-    }));
-  }, []);
-
   const handleRefreshAfterEdit = useCallback(
-    async (id, updatedData) => {
-      if (id && updatedData) {
-        updateRitaseOptimistically(id, updatedData);
+    async (editedId, updatedData) => {
+      // Optimistic update: langsung ubah item di list tanpa tunggu API
+      if (editedId && updatedData) {
+        setSummaryData((prev) => {
+          return {
+            ...prev,
+            ritases: prev.ritases.map((item) =>
+              item.id === String(editedId) ? { ...item, ...updatedData } : item,
+            ),
+          };
+        });
+      } else {
+        console.warn(
+          "⚠️ [RitaseHistory] handleRefreshAfterEdit missing editedId or updatedData",
+        );
       }
 
+      // Fetch ulang dari API di background untuk sinkronisasi data sesungguhnya
       try {
-        await Promise.all([
-          loadSummaryData(true),
-          loadRitaseDataFromAPI(null, true),
-        ]);
+        await loadSummaryData(true);
       } catch (error) {
         console.error("❌ Gagal reload data setelah edit:", error);
       }
     },
-    [loadSummaryData, loadRitaseDataFromAPI, updateRitaseOptimistically],
+    [loadSummaryData, setSummaryData],
   );
 
   const handleDeleteRitase = useCallback(

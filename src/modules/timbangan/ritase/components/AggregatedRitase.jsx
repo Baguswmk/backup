@@ -347,11 +347,15 @@ const AggregatedRitase = ({
     }
   };
 
-  const handleEditSubmit = async (result) => {
-    if (result.success) {
+  const handleEditSubmit = async (updatedData) => {
+    if (updatedData) {
+      if (onUpdateRitase && selectedRitase) {
+        await onUpdateRitase(selectedRitase.id, updatedData);
+      }
       setIsEditModalOpen(false);
       setSelectedRitase(null);
 
+      // We still trigger refreshButton as a fallback or to sync other data
       setTimeout(() => {
         if (refreshButtonRef?.current) {
           refreshButtonRef.current.click();
@@ -473,8 +477,8 @@ const AggregatedRitase = ({
   };
 
   const handleUpdateTripFromChecker = async (updatedTrip) => {
-    if (onUpdateRitase) {
-      await onUpdateRitase(updatedTrip);
+    if (onUpdateRitase && updatedTrip?.id) {
+      await onUpdateRitase(updatedTrip.id, updatedTrip);
     }
 
     setTimeout(() => {
@@ -765,8 +769,8 @@ const AggregatedRitase = ({
                                     className="cursor-pointer hover:bg-gray-200 dark:hover:bg-slate-700"
                                   >
                                     <Copy className="mr-2 h-4 w-4" />
-                                  Tambah Ritase
-                                </DropdownMenuItem>
+                                    Tambah Ritase
+                                  </DropdownMenuItem>
                                 )}
                                 {/* <DropdownMenuItem
                                 onClick={() => handleEdit(item)}
@@ -1106,7 +1110,7 @@ const AggregatedRitase = ({
                   filterOptions={ritaseFilterOptions}
                   onResetFilters={onResetRitaseFilters}
                   hasActiveFilters={hasActiveRitaseFilters}
-                  onUpdateRitase={onUpdateRitase}
+                  onRefreshData={onUpdateRitase}
                   onDeleteRitase={onDeleteRitase}
                   onDuplicateRitase={onDuplicateRitase}
                 />
@@ -1376,7 +1380,7 @@ const AggregatedRitase = ({
             <RitaseEditForm
               key={`edit-${selectedRitase?.id}-${selectedRitase?.updatedAt}`}
               editingItem={selectedRitase}
-              onSubmit={handleEditSubmit}
+              onSuccess={handleEditSubmit}
               onCancel={() => {
                 setIsEditModalOpen(false);
                 setSelectedRitase(null);

@@ -27,6 +27,7 @@ import {
   Clock,
   Loader2,
   Info,
+  Scale,
 } from "lucide-react";
 import { format } from "date-fns";
 import { id as localeId } from "date-fns/locale";
@@ -40,11 +41,13 @@ const SHIFT_OPTIONS = [
   { value: "Shift 3", label: "Shift 3 (14:00 - 22:00)" },
 ];
 
-const RitaseEditForm = ({
-  editingItem,
-  onSuccess, // Changed from onSubmit to onSuccess (callback setelah berhasil)
-  onCancel,
-}) => {
+const MEASUREMENT_TYPE_OPTIONS = [
+  { value: "Timbangan", label: "Timbangan" },
+  { value: "Ritase", label: "Ritase" },
+  { value: "Survey", label: "Survey" },
+];
+
+const RitaseEditForm = ({ editingItem, onSuccess, onCancel }) => {
   const { user } = useAuthStore();
   const { masters } = useFleet(user ? { user } : null);
 
@@ -52,41 +55,21 @@ const RitaseEditForm = ({
     formData,
     errors,
     isValid,
-    isSubmitting, // Ini dari useRitaseForm, bukan prop lagi
+    isSubmitting,
     updateField,
     validateField,
     handleSubmit,
   } = useRitaseForm(editingItem, "edit", masters);
 
-  const useNetWeight = useMemo(() => {
-    if (!editingItem?.checker) return false;
-
-    const checkerLower = editingItem.checker.toLowerCase();
-
-    if (/timbangan/i.test(checkerLower)) {
-      return false;
+  // Computed net weight from gross - tare
+  const computedNetWeight = useMemo(() => {
+    const gross = parseFloat(formData.gross_weight);
+    const tare = parseFloat(formData.tare_weight);
+    if (!isNaN(gross) && !isNaN(tare)) {
+      return Math.max(0, gross - tare).toFixed(2);
     }
-
-    if (/checker/i.test(checkerLower)) {
-      return true;
-    }
-
-    return true;
-  }, [editingItem?.checker]);
-
-  const weightFieldLabel = useMemo(() => {
-    if (useNetWeight) {
-      return "Net Weight (ton)";
-    }
-    return "Gross Weight (ton)";
-  }, [useNetWeight]);
-
-  const weightFieldName = useMemo(() => {
-    if (useNetWeight) {
-      return "net_weight";
-    }
-    return "gross_weight";
-  }, [useNetWeight]);
+    return formData.net_weight;
+  }, [formData.gross_weight, formData.tare_weight]);
 
   const loadingLocationOptions = useMemo(() => {
     return (masters.loadingLocations || []).map((loc) => ({
@@ -144,29 +127,20 @@ const RitaseEditForm = ({
     }));
   }, [masters.workUnits]);
 
-  // SINGLE SUBMIT HANDLER - Satu-satunya pintu submit
   const handleFormSubmit = async (e) => {
-    if (e && e.preventDefault) {
-      e.preventDefault();
-    }
-
+    if (e && e.preventDefault) e.preventDefault();
     try {
-      // handleSubmit dari useRitaseForm sudah handle:
-      // 1. Validasi
-      // 2. API call ke ritaseServices.editTimbanganForm
-      // 3. Update store
-      // 4. Toast notification
       const result = await handleSubmit();
-
       if (result?.success) {
-        // Callback ke parent untuk close modal & refresh list
-        // Await supaya refresh selesai dulu
         if (onSuccess) {
           await onSuccess(result.data);
+        } else {
+          console.warn(
+            "⚠️ [RitaseEditForm] onSuccess callback is not provided!",
+          );
         }
       }
     } catch (err) {
-      // Error handling sudah di useRitaseForm
       console.error("Error in form submit:", err);
     }
   };
@@ -174,36 +148,36 @@ const RitaseEditForm = ({
   const handleWeightChange = useCallback(
     (value) => {
       let formattedValue = value.replace(/,/g, ".");
-
-      const isNetWeight = useNetWeight;
-      const isGrossWeight = !useNetWeight;
-
       const netWeightRegex = /^\d{0,2}(\.\d{0,2})?$/;
       const grossWeightRegex = /^\d{0,3}(\.\d{0,2})?$/;
-
       let isValid = false;
-
       if (formattedValue === "") {
         isValid = true;
-      } else if (isGrossWeight) {
+      } else {
         isValid = grossWeightRegex.test(formattedValue);
         const numValue = parseFloat(formattedValue);
-        if (!isNaN(numValue) && numValue > 199.99) {
-          isValid = false;
-        }
-      } else if (isNetWeight) {
-        isValid = netWeightRegex.test(formattedValue);
-        const numValue = parseFloat(formattedValue);
-        if (!isNaN(numValue) && numValue > 99.99) {
-          isValid = false;
-        }
+        if (!isNaN(numValue) && numValue > 199.99) isValid = false;
       }
+      if (isValid) updateField("gross_weight", formattedValue);
+    },
+    [updateField],
+  );
 
-      if (isValid) {
-        updateField(weightFieldName, formattedValue);
+  const handleRawWeightChange = useCallback(
+    (fieldName, value, maxVal = 999.99) => {
+      const formatted = value.replace(/,/g, ".");
+      const regex = /^\d{0,3}(\.\d{0,2})?$/;
+      if (formatted === "") {
+        updateField(fieldName, formatted);
+        return;
+      }
+      if (regex.test(formatted)) {
+        const num = parseFloat(formatted);
+        if (!isNaN(num) && num > maxVal) return;
+        updateField(fieldName, formatted);
       }
     },
-    [useNetWeight, weightFieldName, updateField],
+    [updateField],
   );
 
   return (
@@ -248,13 +222,18 @@ const RitaseEditForm = ({
                 </div>
                 <div>
                   <span className="text-gray-600 dark:text-gray-400">
-                    Original {weightFieldLabel}:
+                    Gross Weight:
                   </span>
                   <span className="font-medium ml-2 dark:text-gray-200">
-                    {useNetWeight
-                      ? editingItem?.net_weight || "-"
-                      : editingItem?.gross_weight || "-"}{" "}
-                    ton
+                    {editingItem?.gross_weight || "-"} ton
+                  </span>
+                </div>
+                <div>
+                  <span className="text-gray-600 dark:text-gray-400">
+                    Tare Weight:
+                  </span>
+                  <span className="font-medium ml-2 dark:text-gray-200">
+                    {editingItem?.tare_weight || "-"} ton
                   </span>
                 </div>
                 <div>
@@ -279,27 +258,22 @@ const RitaseEditForm = ({
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
+            {/* Row 1: Measurement Type, excavator, dump truck, operator */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <div>
-                <Label className="pb-2 dark:text-gray-300" htmlFor="weight">
-                  {weightFieldLabel} *
+                <Label className="pb-2 dark:text-gray-300">
+                  Measurement Type
                 </Label>
-                <Input
-                  id="weight"
-                  type="text"
-                  inputMode="decimal"
-                  value={
-                    useNetWeight ? formData.net_weight : formData.gross_weight
-                  }
-                  onChange={(e) => handleWeightChange(e.target.value)}
-                  onBlur={() => validateField(weightFieldName)}
-                  className={`dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600 ${
-                    errors[weightFieldName] ? "border-red-500" : ""
-                  }`}
+                <SearchableSelect
+                  items={MEASUREMENT_TYPE_OPTIONS}
+                  value={formData.measurement_type}
+                  onChange={(value) => updateField("measurement_type", value)}
+                  placeholder="Pilih tipe..."
+                  error={!!errors.measurement_type}
                 />
-                {errors[weightFieldName] && (
+                {errors.measurement_type && (
                   <p className="text-sm text-red-500 mt-1">
-                    {errors[weightFieldName]}
+                    {errors.measurement_type}
                   </p>
                 )}
               </div>
@@ -347,6 +321,102 @@ const RitaseEditForm = ({
                 )}
               </div>
             </div>
+
+            {/* Row 2:  Gross Weight, Tare Weight, Net Weight (computed) */}
+            <div className="border-t border-gray-100 dark:border-gray-700 pt-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                {/* Gross Weight */}
+                <div>
+                  <Label
+                    className="pb-2 dark:text-gray-300"
+                    htmlFor="gross_weight_field"
+                  >
+                    Gross Weight (ton)
+                  </Label>
+                  <Input
+                    id="gross_weight_field"
+                    type="text"
+                    inputMode="decimal"
+                    value={formData.gross_weight || ""}
+                    onChange={(e) =>
+                      handleRawWeightChange(
+                        "gross_weight",
+                        e.target.value,
+                        999.99,
+                      )
+                    }
+                    onBlur={() => validateField("gross_weight")}
+                    className={`dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600 ${
+                      errors.gross_weight ? "border-red-500" : ""
+                    }`}
+                    placeholder="0.00"
+                  />
+                  {errors.gross_weight && (
+                    <p className="text-sm text-red-500 mt-1">
+                      {errors.gross_weight}
+                    </p>
+                  )}
+                </div>
+
+                {/* Tare Weight */}
+                <div>
+                  <Label
+                    className="pb-2 dark:text-gray-300"
+                    htmlFor="tare_weight_field"
+                  >
+                    Tare Weight (ton)
+                  </Label>
+                  <Input
+                    id="tare_weight_field"
+                    type="text"
+                    inputMode="decimal"
+                    value={formData.tare_weight || ""}
+                    onChange={(e) =>
+                      handleRawWeightChange(
+                        "tare_weight",
+                        e.target.value,
+                        999.99,
+                      )
+                    }
+                    onBlur={() => validateField("tare_weight")}
+                    className={`dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600 ${
+                      errors.tare_weight ? "border-red-500" : ""
+                    }`}
+                    placeholder="0.00"
+                  />
+                  {errors.tare_weight && (
+                    <p className="text-sm text-red-500 mt-1">
+                      {errors.tare_weight}
+                    </p>
+                  )}
+                </div>
+
+                {/* Net Weight (computed, read-only) */}
+                <div>
+                  <Label
+                    className="pb-2 dark:text-gray-300"
+                    htmlFor="net_weight_computed"
+                  >
+                    Net Weight (ton)
+                    <span className="ml-1 text-xs text-gray-400 font-normal">
+                      (auto)
+                    </span>
+                  </Label>
+                  <Input
+                    id="net_weight_computed"
+                    type="text"
+                    readOnly
+                    value={computedNetWeight}
+                    className="dark:bg-gray-700/50 dark:text-gray-400 dark:border-gray-600 bg-gray-50 text-gray-500 cursor-not-allowed"
+                    placeholder="—"
+                    tabIndex={-1}
+                  />
+                  <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                    Gross − Tare
+                  </p>
+                </div>
+              </div>
+            </div>
           </CardContent>
         </Card>
 
@@ -377,7 +447,6 @@ const RitaseEditForm = ({
                   </p>
                 )}
               </div>
-
               <div>
                 <Label className="pb-2 dark:text-gray-300">
                   Dumping Location *
@@ -395,7 +464,6 @@ const RitaseEditForm = ({
                   </p>
                 )}
               </div>
-
               <div>
                 <Label className="pb-2 dark:text-gray-300">
                   PIC Work Unit *
@@ -452,9 +520,8 @@ const RitaseEditForm = ({
                       mode="single"
                       selected={formData.date ? new Date(formData.date) : null}
                       onSelect={(date) => {
-                        if (date) {
+                        if (date)
                           updateField("date", format(date, "yyyy-MM-dd"));
-                        }
                       }}
                       locale={localeId}
                       initialFocus
@@ -467,9 +534,11 @@ const RitaseEditForm = ({
                 )}
               </div>
 
-              {/* Waktu Created At */}
               <div>
-                <Label className="pb-2 dark:text-gray-300 flex items-center gap-1.5" htmlFor="created_time">
+                <Label
+                  className="pb-2 dark:text-gray-300 flex items-center gap-1.5"
+                  htmlFor="created_time"
+                >
                   <Clock className="w-3.5 h-3.5" />
                   Waktu Ritase
                 </Label>
@@ -479,14 +548,23 @@ const RitaseEditForm = ({
                   value={(() => {
                     const raw = formData.createdAt || formData.date || "";
                     if (!raw) return "";
-                    try { return format(new Date(raw), "HH:mm"); }
-                    catch { return raw.slice(11, 16) || ""; }
+                    try {
+                      return format(new Date(raw), "HH:mm");
+                    } catch {
+                      return raw.slice(11, 16) || "";
+                    }
                   })()}
                   onChange={(e) => {
-                    const dateBase = (formData.date || formData.createdAt || "").slice(0, 10);
-                    if (dateBase) {
-                      updateField("createdAt", `${dateBase}T${e.target.value}:00`);
-                    }
+                    const dateBase = (
+                      formData.date ||
+                      formData.createdAt ||
+                      ""
+                    ).slice(0, 10);
+                    if (dateBase)
+                      updateField(
+                        "createdAt",
+                        `${dateBase}T${e.target.value}:00`,
+                      );
                   }}
                   className="dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600"
                 />
@@ -563,7 +641,7 @@ const RitaseEditForm = ({
         {/* Action Buttons */}
         <Card className="border-gray-200 dark:border-gray-700 dark:bg-gray-800 mt-4">
           <CardContent className="pt-4">
-            <div className="flex items-center justify-end">
+            <div className="flex items-center justify-end gap-2">
               <Button
                 type="button"
                 variant="outline"

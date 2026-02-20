@@ -356,7 +356,6 @@ const RitaseManagement = () => {
   const handleCreateRitaseFromAggregated = useCallback(
     async (fleetData) => {
       try {
-     
         const result = await ritaseServices.createManualRitase({
           ...fleetData,
           created_by_user: user?.id || null,
@@ -427,40 +426,33 @@ const RitaseManagement = () => {
     [user, loadSummaryData, loadRitaseDataFromAPI],
   );
 
-  const updateRitaseOptimistically = useCallback((id, updatedData) => {
-    setSummaryData((prev) => ({
-      ...prev,
-      ritases: prev.ritases.map((item) =>
-        item.id === id
-          ? { ...item, ...updatedData, updatedAt: new Date().toISOString() }
-          : item,
-      ),
-      summaries: prev.summaries.map((summary) => {
-        const oldRitase = prev.ritases.find((r) => r.id === id);
-        if (oldRitase?.unit_exca !== updatedData.unit_exca) {
-          return summary;
-        }
-        return summary;
-      }),
-    }));
-  }, []);
-
   const handleRefreshAfterEdit = useCallback(
-    async (id, updatedData) => {
-      if (id && updatedData) {
-        updateRitaseOptimistically(id, updatedData);
+    async (editedId, updatedData) => {
+      // Optimistic update: langsung update item di summaryData.ritases
+      // agar list langsung reflect perubahan tanpa harus tunggu API response
+      if (editedId && updatedData) {
+        setSummaryData((prev) => {
+          return {
+            ...prev,
+            ritases: prev.ritases.map((item) =>
+              item.id === String(editedId) ? { ...item, ...updatedData } : item,
+            ),
+          };
+        });
+      } else {
+        console.warn(
+          "⚠️ [RitaseManagement] handleRefreshAfterEdit missing editedId or updatedData",
+        );
       }
 
+      // Fetch ulang dari API di background untuk sinkronisasi data sesungguhnya
       try {
-        await Promise.all([
-          loadSummaryData(true),
-          loadRitaseDataFromAPI(null, true),
-        ]);
+        await loadSummaryData(true);
       } catch (error) {
         console.error("❌ Gagal reload data setelah edit:", error);
       }
     },
-    [loadSummaryData, loadRitaseDataFromAPI, updateRitaseOptimistically],
+    [loadSummaryData, setSummaryData],
   );
 
   const handleDeleteRitase = useCallback(
@@ -609,8 +601,6 @@ const RitaseManagement = () => {
           onDuplicateRitase={handleDuplicateRitase}
           refreshButtonRef={refreshButtonRef}
         />
-
-   
       </div>
 
       {/* Input Modal */}

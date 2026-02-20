@@ -1,6 +1,6 @@
 import { offlineService } from "@/shared/services/offlineService";
 import { logger } from "@/shared/services/log";
-import { buildDateRangeCacheKey } from "@/shared/utils/cache";
+
 import { formatWeight } from "@/shared/utils/number";
 
 const validateDateRange = (filters) => {
@@ -57,7 +57,7 @@ const getWorkShiftInfo = () => {
 export const ritaseServices = {
   async fetchSummaryFleetByRitases(options = {}) {
     try {
-      const { user, dateRange, shift, forceRefresh = false } = options;
+      const { user, dateRange, shift } = options;
       // Gunakan getWorkShiftInfo untuk mendapatkan tanggal dan shift default
       const workShiftInfo = await getWorkShiftInfo();
 
@@ -73,43 +73,14 @@ export const ritaseServices = {
         shift: effectiveShift,
       };
 
-      const cacheKey = `summary_fleet_${queryParams.startDate}_${queryParams.endDate}_${queryParams.shift}_${user?.id || "guest"}`;
-
-      // Cek apakah tanggal yang digunakan adalah tanggal kerja hari ini
-      const isToday = effectiveDateRange.from === workShiftInfo.date;
-      const ttl = isToday
-        ? offlineService.CACHE_CONFIG.SHORT
-        : offlineService.CACHE_CONFIG.MEDIUM;
-
       logger.info("📊 Fetching summary fleet by ritases", {
         queryParams,
-        cacheKey,
-        ttl: `${ttl / 1000}s`,
-        forceRefresh,
-        isToday,
         workShiftInfo, // Log info shift kerja
       });
 
-      if (!forceRefresh) {
-        const cached = await offlineService.getCache(cacheKey);
-        if (cached) {
-          logger.info("✅ Summary fleet loaded from cache", {
-            summariesCount: cached.summaries?.length || 0,
-            ritasesCount: cached.ritases?.length || 0,
-          });
-          return {
-            success: true,
-            data: cached,
-            fromCache: true,
-          };
-        }
-      }
-
       const response = await offlineService.get("/v1/custom/ritase/summaries", {
         params: queryParams,
-        cacheKey,
-        ttl,
-        forceRefresh,
+        forceRefresh: true,
       });
 
       const data = {
@@ -134,25 +105,6 @@ export const ritaseServices = {
         error: error.message,
         details: error.response?.data,
       });
-
-      // Gunakan getWorkShiftInfo untuk fallback cache key
-      const workShiftInfo = await getWorkShiftInfo();
-      const fallbackDate = options.dateRange?.from || workShiftInfo.date;
-      const fallbackDateTo = options.dateRange?.to || workShiftInfo.date;
-      const fallbackShift = options.shift || workShiftInfo.shift;
-
-      const cacheKey = `summary_fleet_${fallbackDate}_${fallbackDateTo}_${fallbackShift}_${options.user?.id || "guest"}`;
-      const stale = await offlineService.getCache(cacheKey, true);
-
-      if (stale) {
-        logger.warn("⚠️ Returning stale cache due to API error");
-        return {
-          success: true,
-          data: stale,
-          fromCache: true,
-          offline: true,
-        };
-      }
 
       return {
         success: false,
@@ -245,19 +197,8 @@ export const ritaseServices = {
           ? { from: filters.startDate, to: filters.endDate }
           : null;
 
-      const cacheKey = buildDateRangeCacheKey("ritases", dateRange, {
-        userId: user?.id,
-        measurementType,
-        shift: filters.shift,
-      });
-
-      const ttl = offlineService.getTTLForDate(dateRange, "ritase");
-
       logger.info("🔍 Fetching ritase data", {
         filters: apiFilters,
-        cacheKey,
-        ttl: `${ttl / 1000}s`,
-        forceRefresh: filters.forceRefresh,
         dateRange: validation.days ? `${validation.days} days` : "all",
         role: user?.role,
         measurementType,
@@ -266,9 +207,7 @@ export const ritaseServices = {
 
       const response = await offlineService.get("/ritases", {
         params,
-        cacheKey,
-        ttl,
-        forceRefresh: filters.forceRefresh || false,
+        forceRefresh: true,
       });
 
       // ✅ FIX: Handle different response structures
@@ -365,8 +304,7 @@ export const ritaseServices = {
 
       logger.info("✅ Timbangan data fetched successfully", {
         count: data.length,
-        cacheKey,
-        cached: !filters.forceRefresh,
+        cached: false,
         role: user?.role,
         measurementType,
         shift: filters.shift,
@@ -506,10 +444,6 @@ export const ritaseServices = {
       const serverData = response.data || {};
 
       logger.info("✅ Ritase Duplicated:", serverData);
-
-      // Clear cache untuk refresh data
-      await offlineService.clearCache("ritases_");
-      await offlineService.clearCache("summary_fleet_");
 
       return {
         success: true,
@@ -756,6 +690,10 @@ export const ritaseServices = {
         pic_work_unit: formData.pic_work_unit,
         updated_by_user: formData.updated_by_user || null,
         createdAt: formData.createdAt,
+        net_weight: formData.net_weight,
+        gross_weight: formData.gross_weight,
+        tare_weight: formData.tare_weight,
+        measurement_type: formData.measurement_type,
       };
 
       // Handle weight based on which field is provided
@@ -871,9 +809,6 @@ export const ritaseServices = {
   async deleteTimbanganEntry(id) {
     try {
       await offlineService.delete(`/v1/custom/ritase/${id}`);
-
-      await offlineService.clearCache("ritases_");
-      logger.info("🧹 Timbangan cache cleared after delete");
 
       logger.info("🗑️ Ritase deleted", { id });
       return { success: true, message: "Data berhasil dihapus" };
@@ -994,8 +929,6 @@ export const ritaseServices = {
         }
       }
 
-      await this.invalidateRelatedCaches(kertasData, user);
-
       return {
         success: true,
         message: `Berhasil mengupdate ${successCount} ritase`,
@@ -1007,34 +940,6 @@ export const ritaseServices = {
         success: false,
         error: error.message || "Gagal melakukan bulk update",
       };
-    }
-  },
-
-  async invalidateRelatedCaches(kertasData, user) {
-    try {
-      const workShiftInfo = getWorkShiftInfo();
-      const patterns = [`summary_fleet_`, `ritase_list_`, `aggregated_ritase_`];
-
-      for (const pattern of patterns) {
-        await offlineService.invalidateCachePattern(pattern);
-      }
-
-      logger.info("✅ Related caches invalidated after bulk update");
-    } catch (error) {
-      logger.warn("⚠️ Failed to invalidate caches", error);
-    }
-  },
-
-  async clearCache() {
-    try {
-      await offlineService.clearCache();
-      logger.info("🧹 All cache cleared");
-      return true;
-    } catch (error) {
-      logger.error("❌ Failed to clear cache", {
-        error: error.response.data.message,
-      });
-      return false;
     }
   },
 };

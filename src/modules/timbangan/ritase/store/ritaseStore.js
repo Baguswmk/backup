@@ -889,39 +889,6 @@ export const useRitaseStore = create(
           },
         })),
 
-      addTimbanganEntry: (entry) =>
-        set((state) => ({
-          ritaseData: [
-            ...state.ritaseData,
-            {
-              id: entry.id || uid(),
-              ...entry,
-              timestamp: entry.timestamp || new Date().toISOString(),
-              createdAt: entry.createdAt || new Date().toISOString(),
-            },
-          ],
-        })),
-
-      updateTimbanganEntry: (id, updatedData) =>
-        set((state) => ({
-          ritaseData: state.ritaseData.map((item) =>
-            item.id === id
-              ? { ...item, ...updatedData, updatedAt: new Date().toISOString() }
-              : item,
-          ),
-        })),
-
-      deleteTimbanganEntry: (id) =>
-        set((state) => ({
-          ritaseData: state.ritaseData.filter((item) => item.id !== id),
-        })),
-
-      deleteMultipleTimbanganEntries: (ids) =>
-        set((state) => ({
-          ritaseData: state.ritaseData.filter((item) => !ids.includes(item.id)),
-          selectedItems: [],
-        })),
-
       toggleSelectItem: (id) =>
         set((state) => ({
           selectedItems: state.selectedItems.includes(id)
@@ -937,23 +904,6 @@ export const useRitaseStore = create(
               : state.ritaseData.map((item) => item.id),
         })),
 
-      getTimbanganData: (dateRange = null) => {
-        const data = get().ritaseData;
-
-        const normalizedRange = normalizeDateRange(dateRange);
-        if (!normalizedRange) {
-          return data;
-        }
-
-        return data.filter((item) => {
-          const itemDate = new Date(item.tanggal);
-          if (isNaN(itemDate.getTime())) return false;
-
-          return (
-            itemDate >= normalizedRange.from && itemDate <= normalizedRange.to
-          );
-        });
-      },
       setRfidEnabled: (enabled) => set({ rfidEnabled: enabled }),
       recordRfidScan: (hullNo) => {
         const scan = {
@@ -1018,17 +968,12 @@ export const useRitaseStore = create(
       version: 1,
 
       partialize: (state) => ({
+        // Hanya persist data yang benar-benar perlu disimpan antar sesi
+        // fleetConfigs, dtIndex, lastFetchTimestamp TIDAK di-cache agar selalu fresh dari API
         selectedFleetIds: state.selectedFleetIds,
-        masters: state.masters,
-        mastersMeta: state.mastersMeta,
-        fleetConfigs: state.fleetConfigs,
-        selectedFleetIdsByType: state.selectedFleetIdsByType,
         hiddenDumptrucks: state.hiddenDumptrucks,
         setupComplete: state.setupComplete,
         setupData: state.setupData,
-        lastFetchTimestamp: state.lastFetchTimestamp,
-        dtIndex: state.dtIndex,
-        dtIndexByType: state.dtIndexByType,
       }),
       onRehydrateStorage: () => (state) => {
         if (state && state.fleetConfigs && state.fleetConfigs.length > 0) {

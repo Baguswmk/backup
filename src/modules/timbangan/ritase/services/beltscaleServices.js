@@ -96,8 +96,6 @@ export const beltScaleServices = {
         throw new Error("Beltscale tidak valid atau harus lebih dari 0");
       }
 
-      console.log(adjustmentData);
-
       const payload = {
         date,
         shift,
