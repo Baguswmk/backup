@@ -451,6 +451,10 @@ export const useRitaseForm = (
         newErrors.gross_weight = "Gross weight wajib diisi";
         isValid = false;
       }
+      if (!formData.net_weight) {
+        newErrors.net_weight = "Net weight wajib diisi";
+        isValid = false;
+      }
     }
 
     return { isValid, errors: newErrors };
@@ -606,11 +610,6 @@ export const useRitaseForm = (
     abortControllerRef.current = new AbortController();
     const signal = abortControllerRef.current.signal;
 
-
-    const gross = parseFloat(formData.gross_weight) || 0;
-    const tare = parseFloat(formData.tare_weight) || 0;
-    const computedNet = Math.max(0, gross - tare);
-
     if (mode === "edit" && editingItem) {
       return await withErrorHandling(
         async () => {
@@ -626,7 +625,7 @@ export const useRitaseForm = (
             pic_work_unit: formData.pic_work_unit,
             createdAt: formData.createdAt,
             updated_by_user: user?.id || null,
-            net_weight: computedNet,
+            net_weight: parseFloat(formData.net_weight),
             gross_weight: parseFloat(formData.gross_weight),
             tare_weight: parseFloat(formData.tare_weight),
             measurement_type: formData.measurement_type,

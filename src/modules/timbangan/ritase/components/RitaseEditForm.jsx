@@ -61,15 +61,7 @@ const RitaseEditForm = ({ editingItem, onSuccess, onCancel }) => {
     handleSubmit,
   } = useRitaseForm(editingItem, "edit", masters);
 
-  // Computed net weight from gross - tare
-  const computedNetWeight = useMemo(() => {
-    const gross = parseFloat(formData.gross_weight);
-    const tare = parseFloat(formData.tare_weight);
-    if (!isNaN(gross) && !isNaN(tare)) {
-      return Math.max(0, gross - tare).toFixed(2);
-    }
-    return formData.net_weight;
-  }, [formData.gross_weight, formData.tare_weight]);
+  // Net weight is now manually editable instead of computed here
 
   const loadingLocationOptions = useMemo(() => {
     return (masters.loadingLocations || []).map((loc) => ({
@@ -391,29 +383,37 @@ const RitaseEditForm = ({ editingItem, onSuccess, onCancel }) => {
                   )}
                 </div>
 
-                {/* Net Weight (computed, read-only) */}
+                {/* Net Weight */}
                 <div>
                   <Label
                     className="pb-2 dark:text-gray-300"
-                    htmlFor="net_weight_computed"
+                    htmlFor="net_weight_field"
                   >
                     Net Weight (ton)
-                    <span className="ml-1 text-xs text-gray-400 font-normal">
-                      (auto)
-                    </span>
                   </Label>
                   <Input
-                    id="net_weight_computed"
+                    id="net_weight_field"
                     type="text"
-                    readOnly
-                    value={computedNetWeight}
-                    className="dark:bg-gray-700/50 dark:text-gray-400 dark:border-gray-600 bg-gray-50 text-gray-500 cursor-not-allowed"
-                    placeholder="—"
-                    tabIndex={-1}
+                    inputMode="decimal"
+                    value={formData.net_weight || ""}
+                    onChange={(e) =>
+                      handleRawWeightChange(
+                        "net_weight",
+                        e.target.value,
+                        999.99,
+                      )
+                    }
+                    onBlur={() => validateField("net_weight")}
+                    className={`dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600 ${
+                      errors.net_weight ? "border-red-500" : ""
+                    }`}
+                    placeholder="0.00"
                   />
-                  <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
-                    Gross − Tare
-                  </p>
+                  {errors.net_weight && (
+                    <p className="text-sm text-red-500 mt-1">
+                      {errors.net_weight}
+                    </p>
+                  )}
                 </div>
               </div>
             </div>

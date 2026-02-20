@@ -869,7 +869,7 @@ const AggregatedRitase = ({
                     className="data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 cursor-pointer text-xs px-3 py-2 whitespace-nowrap shrink-0"
                   >
                     <UserCheck className="w-3 h-3 mr-1" />
-                    Checker
+                    Excavator
                   </TabsTrigger>
                   <TabsTrigger
                     value="dumping"
@@ -913,7 +913,7 @@ const AggregatedRitase = ({
                     className="data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 cursor-pointer text-sm px-4"
                   >
                     <UserCheck className="w-4 h-4 mr-2" />
-                    Checker
+                    Excavator
                   </TabsTrigger>
                   <TabsTrigger
                     value="dumping"
