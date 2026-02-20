@@ -4,7 +4,15 @@ import { logger } from "@/shared/services/log";
 export const beltScaleServices = {
   async getFleetByBeltscale(params) {
     try {
-      const { date, shift, dumping_location, user } = params;
+      const {
+        date,
+        shift,
+        dumping_location,
+        loading_location,  // optional
+        pic_work_unit,     // optional — from workunit.subsatker
+        unit_exca,         // optional
+        user,
+      } = params;
 
       if (!date) {
         throw new Error("Tanggal wajib diisi");
@@ -20,16 +28,25 @@ export const beltScaleServices = {
         date,
         shift,
         dumping_location,
+        ...(loading_location && { loading_location }),
+        ...(pic_work_unit && { pic_work_unit }),
+        ...(unit_exca && { unit_exca }),
       });
+
+      // Build query params — hanya sertakan optional filter jika ada nilainya
+      const queryParams = {
+        date,
+        shift,
+        dumping_location,
+        ...(loading_location && { loading_location }),
+        ...(pic_work_unit && { pic_work_unit }),
+        ...(unit_exca && { unit_exca }),
+      };
 
       const response = await offlineService.get(
         "/v1/custom/setting-fleet/beltscale",
         {
-          params: {
-            date,
-            shift,
-            dumping_location,
-          },
+          params: queryParams,
         },
       );
 
@@ -55,8 +72,16 @@ export const beltScaleServices = {
 
   async submitBeltscaleAdjustment(adjustmentData) {
     try {
-      const { date, shift, dumping_location, beltscale, created_by_user } =
-        adjustmentData;
+      const {
+        date,
+        shift,
+        dumping_location,
+        loading_location,  // optional — diteruskan dari filter
+        pic_work_unit,     // optional — diteruskan dari filter
+        unit_exca,         // optional — diteruskan dari filter
+        beltscale,
+        created_by_user,
+      } = adjustmentData;
 
       if (!date) {
         throw new Error("Tanggal wajib diisi");
@@ -71,11 +96,17 @@ export const beltScaleServices = {
         throw new Error("Beltscale tidak valid atau harus lebih dari 0");
       }
 
+      console.log(adjustmentData);
+
       const payload = {
         date,
         shift,
         dumping_location,
         beltscale: parseFloat(beltscale),
+        // Sertakan optional filter hanya jika ada nilainya
+        ...(loading_location && { loading_location }),
+        ...(pic_work_unit && { pic_work_unit }),
+        ...(unit_exca && { unit_exca }),
       };
 
       logger.info("📤 Submitting Beltscale adjustment", {
@@ -83,6 +114,9 @@ export const beltScaleServices = {
         shift,
         dumping_location,
         beltscale: payload.beltscale,
+        ...(loading_location && { loading_location }),
+        ...(pic_work_unit && { pic_work_unit }),
+        ...(unit_exca && { unit_exca }),
       });
 
       const response = await offlineService.post(

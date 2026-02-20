@@ -39,10 +39,15 @@ import { showToast } from "@/shared/utils/toast";
 const BeltScaleAdjustmentForm = ({ onSubmit }) => {
   const { user } = useAuthStore();
   const { masters } = useFleet(user ? { user } : null);
+
   const [formData, setFormData] = useState({
     date: format(new Date(), "yyyy-MM-dd"),
     shift: "",
     dumping_location: "",
+    // Filter opsional
+    loading_location: "",
+    pic_work_unit: "",
+    unit_exca: "",
   });
 
   const SHIFT_OPTIONS = [
@@ -62,6 +67,8 @@ const BeltScaleAdjustmentForm = ({ onSubmit }) => {
 
   const [errors, setErrors] = useState({});
 
+  // ─── Options dari masters ────────────────────────────────────────────────────
+
   const dumpingLocationOptions = useMemo(() => {
     return (masters.dumpingLocations || []).map((loc) => ({
       value: loc.name,
@@ -69,6 +76,39 @@ const BeltScaleAdjustmentForm = ({ onSubmit }) => {
       hint: loc.type,
     }));
   }, [masters.dumpingLocations]);
+
+  const loadingLocationOptions = useMemo(() => {
+    return (masters.loadingLocations || []).map((loc) => ({
+      value: loc.name,
+      label: loc.name,
+      hint: loc.type,
+    }));
+  }, [masters.loadingLocations]);
+
+  /**
+   * pic_work_unit diambil dari workunit.subsatker
+   * masters.workUnits diasumsikan array of { id, name, subsatker, ... }
+   */
+  const picWorkUnitOptions = useMemo(() => {
+    return (masters.workUnits || [])
+      .filter((wu) => wu.subsatker)
+      .map((wu) => ({
+        value: wu.subsatker,
+        label: wu.subsatker,
+        hint: wu.name || wu.satker || undefined,
+      }));
+  }, [masters.workUnits]);
+
+  const unitExcaOptions = useMemo(
+    () =>
+      masters?.excavators?.map((e) => ({
+        value: String(e.id),
+        label: e.hull_no || e.name || `Excavator #${e.id}`,
+        hint: [e.company, e.workUnit].filter(Boolean).join(" • "),
+      })) || [],
+    [masters?.excavators],
+  );
+  // ─── Derived state ───────────────────────────────────────────────────────────
 
   const selectedFleetData = useMemo(() => {
     return fleetList.filter((fleet) => selectedFleetIds.includes(fleet.id));
@@ -86,6 +126,8 @@ const BeltScaleAdjustmentForm = ({ onSubmit }) => {
   const isIndeterminate =
     selectedFleetIds.length > 0 && selectedFleetIds.length < fleetList.length;
 
+  // ─── Helpers ─────────────────────────────────────────────────────────────────
+
   const updateField = (field, value) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
     setErrors((prev) => {
@@ -96,15 +138,15 @@ const BeltScaleAdjustmentForm = ({ onSubmit }) => {
 
   const validateForm = () => {
     const newErrors = {};
-
     if (!formData.date) newErrors.date = "Tanggal wajib diisi";
     if (!formData.shift) newErrors.shift = "Shift wajib dipilih";
     if (!formData.dumping_location)
       newErrors.dumping_location = "Dumping location wajib dipilih";
-
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
+
+  // ─── Handlers ────────────────────────────────────────────────────────────────
 
   const handleLoadPreview = async () => {
     if (!validateForm()) {
@@ -119,6 +161,10 @@ const BeltScaleAdjustmentForm = ({ onSubmit }) => {
         date: formData.date,
         shift: formData.shift,
         dumping_location: formData.dumping_location,
+        // Sertakan optional filter jika terisi
+        loading_location: formData.loading_location || undefined,
+        pic_work_unit: formData.pic_work_unit || undefined,
+        unit_exca: formData.unit_exca || undefined,
         user,
       });
 
@@ -200,6 +246,10 @@ const BeltScaleAdjustmentForm = ({ onSubmit }) => {
         date: formData.date,
         shift: formData.shift,
         dumping_location: formData.dumping_location,
+        // Optional filter — diteruskan ke submit agar backend bisa scope data dengan benar
+        loading_location: formData.loading_location || undefined,
+        pic_work_unit: formData.pic_work_unit || undefined,
+        unit_exca: formData.unit_exca || undefined,
         beltscale: parseFloat(beltscaleWeight),
         created_by_user: user?.id || null,
       });
@@ -255,6 +305,9 @@ const BeltScaleAdjustmentForm = ({ onSubmit }) => {
       date: format(new Date(), "yyyy-MM-dd"),
       shift: "",
       dumping_location: "",
+      loading_location: "",
+      pic_work_unit: "",
+      unit_exca: "",
     });
     setFleetList([]);
     setShowPreview(false);
@@ -262,6 +315,8 @@ const BeltScaleAdjustmentForm = ({ onSubmit }) => {
     setBeltscaleWeight("");
     setErrors({});
   };
+
+  // ─── Render ──────────────────────────────────────────────────────────────────
 
   return (
     <div className="max-w-6xl mx-auto space-y-6">
@@ -274,6 +329,7 @@ const BeltScaleAdjustmentForm = ({ onSubmit }) => {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4 pt-6">
+          {/* Row 1: Filter wajib */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {/* Date */}
             <div>
@@ -367,6 +423,61 @@ const BeltScaleAdjustmentForm = ({ onSubmit }) => {
             </div>
           </div>
 
+          {/* Row 2: Filter opsional */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
+            <p className="col-span-full text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider -mb-1">
+              Filter Opsional
+            </p>
+
+            {/* Loading Location */}
+            <div>
+              <Label className="mb-2 text-gray-700 dark:text-gray-300">
+                Loading Location
+              </Label>
+              <div className="bg-gray-100 dark:bg-gray-700 rounded border border-gray-300 dark:border-gray-600">
+                <SearchableSelect
+                  items={loadingLocationOptions}
+                  value={formData.loading_location}
+                  onChange={(value) => updateField("loading_location", value)}
+                  placeholder="Semua loading location..."
+                  clearable
+                />
+              </div>
+            </div>
+
+            {/* PIC Work Unit — dari workunit.subsatker */}
+            <div>
+              <Label className="mb-2 text-gray-700 dark:text-gray-300">
+                PIC Work Unit
+              </Label>
+              <div className="bg-gray-100 dark:bg-gray-700 rounded border border-gray-300 dark:border-gray-600">
+                <SearchableSelect
+                  items={picWorkUnitOptions}
+                  value={formData.pic_work_unit}
+                  onChange={(value) => updateField("pic_work_unit", value)}
+                  placeholder="Semua work unit..."
+                  clearable
+                />
+              </div>
+            </div>
+
+            {/* Unit Exca */}
+            <div>
+              <Label className="mb-2 text-gray-700 dark:text-gray-300">
+                Unit Exca
+              </Label>
+              <div className="bg-gray-100 dark:bg-gray-700 rounded border border-gray-300 dark:border-gray-600">
+                <SearchableSelect
+                  items={unitExcaOptions}
+                  value={formData.unit_exca}
+                  onChange={(value) => updateField("unit_exca", value)}
+                  placeholder="Semua unit exca..."
+                  clearable
+                />
+              </div>
+            </div>
+          </div>
+
           {/* Actions */}
           <div className="flex items-center justify-end gap-2 pt-4 border-t border-gray-200 dark:border-gray-700">
             <Button
@@ -374,7 +485,7 @@ const BeltScaleAdjustmentForm = ({ onSubmit }) => {
               variant="ghost"
               onClick={handleReset}
               disabled={isLoadingPreview}
-              className="cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-700 dark:text-gray-300 transition-colors"
+              className="cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-gray-300 transition-colors"
             >
               <RotateCcw className="w-4 h-4 mr-2" />
               Reset
@@ -406,7 +517,6 @@ const BeltScaleAdjustmentForm = ({ onSubmit }) => {
               dipilih)
             </CardTitle>
             <div className="flex items-center gap-3">
-              {/* Native input checkbox — persis seperti TimbanganList */}
               <Button
                 variant="outline"
                 size="sm"
@@ -566,7 +676,11 @@ const BeltScaleAdjustmentForm = ({ onSubmit }) => {
           <AlertDescription className="text-gray-900 dark:text-gray-100">
             <p className="font-medium mb-2">Cara Penggunaan:</p>
             <ol className="text-sm space-y-1 ml-4 list-decimal text-gray-700 dark:text-gray-300">
-              <li>Pilih tanggal, shift, dan dumping location</li>
+              <li>Pilih tanggal, shift, dan dumping location (wajib)</li>
+              <li>
+                Opsional: pilih loading location, PIC work unit, atau unit exca
+                untuk mempersempit hasil
+              </li>
               <li>Klik "Load Preview" untuk melihat data setting fleet</li>
               <li>
                 Pilih fleet mana saja yang ingin di-adjust (default: semua fleet
@@ -633,6 +747,37 @@ const BeltScaleAdjustmentForm = ({ onSubmit }) => {
                         {formData.dumping_location}
                       </span>
                     </div>
+                    {/* Tampilkan filter opsional hanya jika terisi */}
+                    {formData.loading_location && (
+                      <div className="flex justify-between">
+                        <span className="font-medium text-blue-900 dark:text-blue-200">
+                          Loading:
+                        </span>
+                        <span className="text-blue-800 dark:text-blue-100">
+                          {formData.loading_location}
+                        </span>
+                      </div>
+                    )}
+                    {formData.pic_work_unit && (
+                      <div className="flex justify-between">
+                        <span className="font-medium text-blue-900 dark:text-blue-200">
+                          PIC Work Unit:
+                        </span>
+                        <span className="text-blue-800 dark:text-blue-100">
+                          {formData.pic_work_unit}
+                        </span>
+                      </div>
+                    )}
+                    {formData.unit_exca && (
+                      <div className="flex justify-between">
+                        <span className="font-medium text-blue-900 dark:text-blue-200">
+                          Unit Exca:
+                        </span>
+                        <Badge className="bg-blue-600 text-white text-xs">
+                          {formData.unit_exca}
+                        </Badge>
+                      </div>
+                    )}
                     <div className="flex justify-between">
                       <span className="font-medium text-blue-900 dark:text-blue-200">
                         Fleet Selected:
