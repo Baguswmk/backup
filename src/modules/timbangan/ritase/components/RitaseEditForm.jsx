@@ -43,8 +43,8 @@ const SHIFT_OPTIONS = [
 
 const MEASUREMENT_TYPE_OPTIONS = [
   { value: "Timbangan", label: "Timbangan" },
-  { value: "Ritase", label: "Ritase" },
-  { value: "Survey", label: "Survey" },
+  { value: "Bypass", label: "Bypass" },
+  { value: "Beltscale", label: "Beltscale" },
 ];
 
 const RitaseEditForm = ({ editingItem, onSuccess, onCancel }) => {
