@@ -253,7 +253,9 @@ export const TimbanganList = () => {
     try {
       // Ambil semua item yang dipilih (pending maupun failed)
       const selectedItems = items.filter(
-        (i) => selectedIds.includes(i.id) && (i.status === "pending" || i.status === "failed"),
+        (i) =>
+          selectedIds.includes(i.id) &&
+          (i.status === "pending" || i.status === "failed"),
       );
 
       // Pending: sync langsung. Failed: hapus dari failed store dulu, lalu sync
@@ -261,7 +263,11 @@ export const TimbanganList = () => {
         selectedItems.map(async (item) => {
           if (item.status === "failed") {
             await offlineService.deleteFailedItem(item.id);
-            return offlineService.syncQueueItem({ ...item, status: "pending", retryCount: 0 });
+            return offlineService.syncQueueItem({
+              ...item,
+              status: "pending",
+              retryCount: 0,
+            });
           }
           return offlineService.syncQueueItem(item);
         }),
@@ -643,10 +649,30 @@ export const TimbanganList = () => {
             {/* Status Filter Tabs */}
             <div className="flex flex-wrap items-center gap-2">
               {[
-                { key: "all", label: "Semua", count: counts.total, color: "blue" },
-                { key: "pending", label: "Pending", count: counts.pending, color: "yellow" },
-                { key: "failed", label: "Gagal", count: counts.failed, color: "red" },
-                { key: "sent", label: "Terkirim", count: counts.sent, color: "green" },
+                {
+                  key: "all",
+                  label: "Semua",
+                  count: counts.total,
+                  color: "blue",
+                },
+                {
+                  key: "pending",
+                  label: "Pending",
+                  count: counts.pending,
+                  color: "yellow",
+                },
+                {
+                  key: "failed",
+                  label: "Gagal",
+                  count: counts.failed,
+                  color: "red",
+                },
+                {
+                  key: "sent",
+                  label: "Terkirim",
+                  count: counts.sent,
+                  color: "green",
+                },
               ].map(({ key, label, count, color }) => {
                 const isActive = statusFilter === key;
                 const colorMap = {

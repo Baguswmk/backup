@@ -346,7 +346,7 @@ export const OfflineSyncStatus = () => {
                                   <div className="flex items-center gap-1 mb-1">
                                     <Badge
                                       className={getMethodBadgeColor(
-                                        item.method
+                                        item.method,
                                       )}
                                     >
                                       {item.method}
@@ -391,7 +391,7 @@ export const OfflineSyncStatus = () => {
                                     {format(
                                       new Date(txData.timestamp),
                                       "dd/MM HH:mm:ss",
-                                      { locale: localeId }
+                                      { locale: localeId },
                                     )}
                                   </div>
                                 </div>
@@ -441,7 +441,7 @@ export const OfflineSyncStatus = () => {
                                   <div className="flex items-center gap-1 mb-1">
                                     <Badge
                                       className={getMethodBadgeColor(
-                                        item.method
+                                        item.method,
                                       )}
                                     >
                                       {item.method}
@@ -490,10 +490,10 @@ export const OfflineSyncStatus = () => {
                                     <XCircle className="w-3 h-3" />
                                     {format(
                                       new Date(
-                                        item.failedAt || txData.timestamp
+                                        item.failedAt || txData.timestamp,
                                       ),
                                       "dd/MM HH:mm:ss",
-                                      { locale: localeId }
+                                      { locale: localeId },
                                     )}
                                     {item.retryCount > 0 && (
                                       <span className="ml-1">
@@ -551,7 +551,7 @@ export const OfflineSyncStatus = () => {
                                   <div className="flex items-center gap-1 mb-1">
                                     <Badge
                                       className={getMethodBadgeColor(
-                                        item.method
+                                        item.method,
                                       )}
                                     >
                                       {item.method}
@@ -593,7 +593,7 @@ export const OfflineSyncStatus = () => {
                                     {format(
                                       new Date(item.sentAt || txData.timestamp),
                                       "dd/MM HH:mm:ss",
-                                      { locale: localeId }
+                                      { locale: localeId },
                                     )}
                                   </div>
                                 </div>

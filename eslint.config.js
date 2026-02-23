@@ -24,6 +24,7 @@ export default defineConfig([
     },
     rules: {
       'no-unused-vars': 'off',
+      "react-hooks/purity" : 'off'
     },
   },
 ])
