@@ -5,6 +5,7 @@ import { AuthProvider } from '@/providers/AuthProvider';
 import { Toaster } from 'sonner';
 import './App.css';
 import { queryClient } from '@/shared/config/queryClient';
+import { cn } from '@/lib/utils';
 
 function App() {
   return (
