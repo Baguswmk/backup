@@ -1,663 +1,313 @@
-import { useState, useEffect, useRef, useCallback, useReducer } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
+import {
+  openPort,
+  registerPort,
+  unregisterPort,
+  findSavedPort,
+  hasSavedPort,
+  forceDisconnect,
+  setCoordinatorConnection,
+} from "./useSerialPortCoordinator";
 
 const WEIGHT_PATTERNS = [
-  // AD-4329A format: ST,GS,+0002360kg or ST,GS,+0002360.50kg
   /ST,GS,[+-]?(\d+\.?\d*)\s*kg/i,
-  // Generic patterns
   /[+-]?(\d+\.?\d*)\s*(?:kg|KG|Kg)/,
   /W:\s*(\d+\.?\d*)/,
   /NET:\s*(\d+\.?\d*)/,
   /WEIGHT:\s*(\d+\.?\d*)/,
 ];
 
-const MAX_FRAMING_ERRORS = 10; // Max consecutive framing errors before reconnect
-const FRAMING_ERROR_RESET_TIME = 5000; // Reset counter after 5 seconds
-const RECONNECT_DELAY = 2000; // Wait 2 seconds before auto-reconnect
-const STABILITY_DURATION = 2000; // 2 seconds of stable weight to auto-lock (standard)
-const WEIGHT_TOLERANCE = 0.02; // Increased tolerance slightly to handle float precision better
-
 export const useWebSerialScale = () => {
-  const [, forceUpdate] = useReducer((x) => x + 1, 0);
-
   const [isConnected, setIsConnected] = useState(false);
+  const [isConnecting, setIsConnecting] = useState(false);
   const [error, setError] = useState(null);
   const [isSupported, setIsSupported] = useState(false);
-  const [isConnecting, setIsConnecting] = useState(false);
 
-  // Auto-lock states
+  const [currentWeight, setCurrentWeight] = useState(null);
   const [lockedWeight, setLockedWeight] = useState(null);
-  const [lockedTime, setLockedTime] = useState(null);
-  const [stabilityProgress, setStabilityProgress] = useState(0);
   const [isStable, setIsStable] = useState(false);
+  const [stabilityProgress, setStabilityProgress] = useState(0);
 
-  const weightDataRef = useRef({
-    currentWeight: null,
-    lastUpdate: null,
-    rawData: null,
-  });
+  const [isSimulating, setIsSimulating] = useState(false);
+  const [debugLogs, setDebugLogs] = useState([]);
 
   const portRef = useRef(null);
-  const readerRef = useRef(null);
-  const readLoopRef = useRef(false);
-  const isMountedRef = useRef(true);
-  const autoConnectAttemptedRef = useRef(false);
+  const readLoopActive = useRef(false);
 
-  // Error tracking
-  const framingErrorCountRef = useRef(0);
-  const lastFramingErrorTimeRef = useRef(null);
-  const reconnectTimeoutRef = useRef(null);
-  const isReconnectingRef = useRef(false);
+  const addLog = useCallback((type, msg) => {
+    const time = new Date().toISOString().split("T")[1].slice(0, -1);
+    setDebugLogs((prev) => [...prev.slice(-99), { ts: time, type, msg }]);
+  }, []);
 
-  // Stability tracking
-  const stabilityTimerRef = useRef(null);
-  const lastStableWeightRef = useRef(null);
-  const stableStartTimeRef = useRef(null);
+  const clearDebugLogs = useCallback(() => setDebugLogs([]), []);
 
-  const parseWeight = useCallback((rawData) => {
-    if (!rawData) return null;
-
+  // -- Parser --
+  const parseWeight = (line) => {
     for (const pattern of WEIGHT_PATTERNS) {
-      const match = rawData.match(pattern);
+      const match = line.match(pattern);
       if (match) {
-        try {
-          const weight = parseFloat(match[1]);
-          if (weight >= 0 && weight <= 99999.9) {
-            return Math.round(weight * 100) / 100;
-          }
-        } catch (e) {
-          continue;
-        }
+        const w = parseFloat(match[1]);
+        if (w >= 0) return Math.round(w * 100) / 100;
       }
     }
     return null;
-  }, []);
+  };
 
-  // Unlock weight (reset to live reading)
-  const unlockWeight = useCallback(() => {
-    setLockedWeight(null);
-    setLockedTime(null);
-    setStabilityProgress(0);
-    setIsStable(false);
-    lastStableWeightRef.current = null;
-    stableStartTimeRef.current = null;
-
-    if (stabilityTimerRef.current) {
-      clearInterval(stabilityTimerRef.current);
-      stabilityTimerRef.current = null;
-    }
-  }, []);
-
-  // Manual lock weight (skip stability wait)
-  const manualLock = useCallback(() => {
-    const currentWeight = weightDataRef.current.currentWeight;
-    
-    if (currentWeight === null || currentWeight === undefined) {
-      return { success: false, error: 'No weight data available' };
-    }
-
-    const weight = parseFloat(currentWeight);
-    if (isNaN(weight) || weight <= 0) {
-      return { success: false, error: 'Invalid weight value' };
-    }
-
-    // Clear any existing stability timer
-    if (stabilityTimerRef.current) {
-      clearInterval(stabilityTimerRef.current);
-      stabilityTimerRef.current = null;
-    }
-
-    // Lock immediately
-    setLockedWeight(weight);
-    setLockedTime(new Date());
-    setStabilityProgress(100);
-    setIsStable(true);
-    
-    return { success: true, weight };
-  }, []);
-
-  // Check weight stability and auto-lock
-  useEffect(() => {
-    if (!isConnected || lockedWeight !== null) {
-      // Clear stability tracking if disconnected or already locked
-      if (stabilityTimerRef.current) {
-        clearInterval(stabilityTimerRef.current);
-        stabilityTimerRef.current = null;
-      }
-      stableStartTimeRef.current = null;
-      setStabilityProgress(0);
-      setIsStable(false);
-      return;
-    }
-
-    const currentWeight = weightDataRef.current.currentWeight;
-
-    if (currentWeight === null || currentWeight === undefined) {
-      return;
-    }
-
-    const weight = parseFloat(currentWeight);
-    if (isNaN(weight) || weight <= 0) {
-      return;
-    }
-
-    // Check if weight is stable (within tolerance)
-    const lastWeight = lastStableWeightRef.current;
-    const weightIsStable =
-      lastWeight !== null && Math.abs(weight - lastWeight) <= WEIGHT_TOLERANCE;
-
-    if (weightIsStable) {
-      // Weight is stable
-      if (stableStartTimeRef.current === null) {
-        // Start tracking stability
-        stableStartTimeRef.current = Date.now();
-        setIsStable(true);
-
-        // Start progress timer
-        stabilityTimerRef.current = setInterval(() => {
-          const elapsed = Date.now() - stableStartTimeRef.current;
-          const progress = Math.min((elapsed / STABILITY_DURATION) * 100, 100);
-          setStabilityProgress(progress);
-
-          if (elapsed >= STABILITY_DURATION) {
-            // Auto-lock the weight
-            const now = new Date();
-            setLockedWeight(weight);
-            setLockedTime(now);
-            setStabilityProgress(100);
-            clearInterval(stabilityTimerRef.current);
-            stabilityTimerRef.current = null;
-          }
-        }, 100);
-      }
-    } else {
-      // Weight changed, reset stability tracking
-      if (stabilityTimerRef.current) {
-        clearInterval(stabilityTimerRef.current);
-        stabilityTimerRef.current = null;
-      }
-      stableStartTimeRef.current = null;
-      setStabilityProgress(0);
-      setIsStable(false);
-    }
-
-    lastStableWeightRef.current = weight;
-  }, [isConnected, lockedWeight, weightDataRef.current.lastUpdate]);
-
-  // Clean disconnect
-  const cleanDisconnect = useCallback(async () => {
-    readLoopRef.current = false;
-
-    // Cancel reader first
-    if (readerRef.current) {
-      await readerRef.current.cancel();
-
-      readerRef.current.releaseLock();
-
-      readerRef.current = null;
-    }
-
-    if (portRef.current) {
-      let retries = 3;
-      while (retries > 0) {
-        try {
-          await portRef.current.close();
-          break;
-        } catch (e) {
-          retries--;
-          if (retries === 0) {
-            console.error("❌ Failed to close port after retries:", e.message);
-          } else {
-            await new Promise((resolve) => setTimeout(resolve, 100));
-          }
-        }
-      }
-      portRef.current = null;
-    }
-
-    // Reset error counters
-    framingErrorCountRef.current = 0;
-    lastFramingErrorTimeRef.current = null;
-
-    // Reset stability tracking
-    unlockWeight();
-
-    setIsConnected(false);
-  }, [unlockWeight]);
-
-  // Auto-reconnect on framing errors
-  const handleAutoReconnect = useCallback(async () => {
-    if (isReconnectingRef.current || !isMountedRef.current) return;
-
-    isReconnectingRef.current = true;
-
-    await cleanDisconnect();
-
-    await new Promise((resolve) => setTimeout(resolve, RECONNECT_DELAY));
-
-    if (isMountedRef.current) {
-      try {
-        const ports = await navigator.serial.getPorts();
-        if (ports.length > 0) {
-          await connectToPort(ports[0]);
-        }
-      } catch (error) {
-        console.error("❌ Auto-reconnect failed:", error.message);
-        setError("Koneksi terputus. Klik Connect untuk menghubungkan kembali.");
-      }
-    }
-
-    isReconnectingRef.current = false;
-  }, [cleanDisconnect]);
-
-  const readLoop = useCallback(
-    async (port) => {
-      readLoopRef.current = true;
+  // -- Reading Logic --
+  const startReadLoop = async (port) => {
+    readLoopActive.current = true;
+    while (port.readable && readLoopActive.current) {
+      const reader = port.readable.getReader();
+      setCoordinatorConnection("scale", port, reader);
 
       try {
-        await new Promise((resolve) => setTimeout(resolve, 100));
-
-        if (!port.readable) {
-          console.error("❌ Port readable is null!");
-          setError("Port readable stream is null");
-          return;
-        }
-
-        const textDecoder = new TextDecoder("utf-8", {
-          fatal: false,
-          ignoreBOM: true,
-        });
-
-        const reader = port.readable.getReader();
-        readerRef.current = reader;
-
+        const decoder = new TextDecoder();
         let buffer = "";
+        while (readLoopActive.current) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split(/\r?\n/);
+          buffer = lines.pop() || "";
 
-        while (readLoopRef.current && isMountedRef.current) {
-          try {
-            const { value, done } = await reader.read();
-
-            if (done || !isMountedRef.current) {
-              break;
+          for (const line of lines) {
+            if (!line.trim()) continue;
+            const w = parseWeight(line);
+            if (w !== null) {
+              setCurrentWeight(w);
             }
-
-            const text = textDecoder.decode(value, { stream: true });
-            buffer += text;
-
-            const lines = buffer.split(/\r?\n/);
-            buffer = lines.pop() || "";
-
-            for (const line of lines) {
-              if (!line.trim()) continue;
-
-              const weight = parseWeight(line);
-
-              if (weight !== null) {
-                weightDataRef.current = {
-                  currentWeight: weight,
-                  lastUpdate: new Date().toISOString(),
-                  rawData: line,
-                };
-
-                // Reset framing error counter on successful read
-                framingErrorCountRef.current = 0;
-                lastFramingErrorTimeRef.current = null;
-
-                if (isMountedRef.current) {
-                  forceUpdate();
-                }
-              }
-            }
-          } catch (readError) {
-            // Handle FramingError specifically
-            if (readError.name === "FramingError") {
-              const now = Date.now();
-
-              // Reset counter if last error was more than FRAMING_ERROR_RESET_TIME ago
-              if (
-                lastFramingErrorTimeRef.current &&
-                now - lastFramingErrorTimeRef.current > FRAMING_ERROR_RESET_TIME
-              ) {
-                framingErrorCountRef.current = 0;
-              }
-
-              framingErrorCountRef.current++;
-              lastFramingErrorTimeRef.current = now;
-
-              // Only log every 5th error to reduce console spam
-              if (framingErrorCountRef.current % 5 === 1) {
-                console.warn(
-                  `⚠️ FramingError detected (${framingErrorCountRef.current}/${MAX_FRAMING_ERRORS})`,
-                );
-              }
-
-              // Auto-reconnect if too many errors
-              if (framingErrorCountRef.current >= MAX_FRAMING_ERRORS) {
-                console.error(
-                  `❌ Too many framing errors (${framingErrorCountRef.current}), reconnecting...`,
-                );
-                handleAutoReconnect();
-                break;
-              }
-
-              // Continue reading despite framing error
-              await new Promise((resolve) => setTimeout(resolve, 50));
-              continue;
-            }
-
-            // Handle NetworkError (port disconnected)
-            if (readError.name === "NetworkError") {
-              console.error("❌ Network error - device disconnected");
-              break;
-            }
-
-            // Other errors
-            console.error("❌ Read error:", readError.name, readError.message);
-            await new Promise((resolve) => setTimeout(resolve, 100));
           }
         }
-      } catch (error) {
-        console.error("❌ Read loop error:", error);
-        setError(`Read error: ${error.message}`);
+      } catch (err) {
+        if (err.name !== "AbortError") {
+          addLog("error", "Read error: " + err.message);
+        }
       } finally {
-        if (readerRef.current) {
-          try {
-            await readerRef.current.cancel();
-            readerRef.current.releaseLock();
-          } catch (e) {
-            // Ignore cleanup errors
-          }
-          readerRef.current = null;
-        }
-      }
-    },
-    [parseWeight, handleAutoReconnect],
-  );
-
-  const connectToPort = useCallback(
-    async (port) => {
-      try {
-        // Ensure port is closed first
+        setCoordinatorConnection("scale", port, null);
         try {
-          if (port.readable || port.writable) {
-            await port.close();
-            await new Promise((resolve) => setTimeout(resolve, 200));
-          }
-        } catch (e) {
-          // Port might already be closed
-        }
+          reader.releaseLock();
+        } catch (_) {}
+      }
+    }
+  };
 
-        await port.open({
+  const connectToPort = async (port) => {
+    try {
+      // 1. Force Disconnect role ini kalau ada yg masih nyangkut
+      await forceDisconnect("scale");
+
+      // 2. Gunakan mutex coordinator untuk memastikan aman
+      await openPort("scale", () =>
+        port.open({
           baudRate: 2400,
           dataBits: 7,
           stopBits: 1,
           parity: "even",
-          bufferSize: 1024, // Add buffer size
-        });
+          bufferSize: 1024,
+        }),
+      );
 
-        portRef.current = port;
-        setIsConnected(true);
-        setError(null);
-        framingErrorCountRef.current = 0;
+      // Harware settle time
+      await new Promise((r) => setTimeout(r, 150));
 
-        readLoop(port);
+      portRef.current = port;
+      setCoordinatorConnection("scale", port, null);
+      setIsConnected(true);
+      setError(null);
+      await registerPort("scale", port);
+      addLog("connect", "Timbangan connected");
 
-        return { success: true };
-      } catch (error) {
-        console.error("❌ Connection error:", error);
-        setError(`Connection error: ${error.message}`);
-        setIsConnected(false);
-        return { success: false, error: error.message };
-      }
-    },
-    [readLoop],
-  );
-
-  const connect = useCallback(async () => {
-    if (!navigator.serial) {
-      setError("WebSerial tidak didukung. Gunakan Chrome/Edge 89+");
-      return { success: false };
+      // Fire and forget read loop
+      startReadLoop(port);
+      return { success: true };
+    } catch (err) {
+      setIsConnected(false);
+      setError("Gagal menghubungkan timbangan: " + err.message);
+      return { success: false, error: err.message };
     }
+  };
 
+  const connect = async () => {
+    if (!navigator.serial) return { success: false };
     setIsConnecting(true);
-    setError(null);
-
     try {
       const port = await navigator.serial.requestPort();
-      const result = await connectToPort(port);
-      return result;
-    } catch (error) {
-      console.error("Connection error:", error);
-      if (error.name === "NotFoundError") {
-        // User cancelled the selection
-        setError(null);
-      } else {
-        setError(`Connection error: ${error.message}`);
-      }
-      setIsConnected(false);
-      return { success: false, error: error.message };
+      return await connectToPort(port);
+    } catch (err) {
+      if (err.name !== "NotFoundError") setError(err.message);
+      return { success: false, error: err.message };
     } finally {
       setIsConnecting(false);
     }
-  }, [connectToPort]);
+  };
 
-  const disconnect = useCallback(async () => {
-    await cleanDisconnect();
+  const disconnect = async () => {
+    readLoopActive.current = false;
+    await forceDisconnect("scale");
+    unregisterPort("scale");
+    portRef.current = null;
+    setIsConnected(false);
+    setCurrentWeight(null);
+    unlockWeight();
+    addLog("disconnect", "Disconnected");
+  };
 
-    weightDataRef.current = {
-      currentWeight: null,
-      lastUpdate: null,
-      rawData: null,
-    };
-
-    if (isMountedRef.current) {
-      forceUpdate();
+  const autoConnect = async () => {
+    if (hasSavedPort("scale")) {
+      const port = await findSavedPort("scale");
+      if (port) connectToPort(port);
     }
-  }, [cleanDisconnect]);
+  };
 
-  // Auto-connect to previously granted ports
-  const autoConnect = useCallback(async () => {
-    if (!navigator.serial || autoConnectAttemptedRef.current) return;
-
-    autoConnectAttemptedRef.current = true;
-
-    try {
-      const ports = await navigator.serial.getPorts();
-
-      if (ports.length > 0) {
-        const port = ports[0];
-        await connectToPort(port);
-      }
-    } catch (error) {
-      //
-    }
-  }, [connectToPort]);
-
-  // Handle disconnect events
-  useEffect(() => {
-    const handleDisconnect = async (event) => {
-      if (portRef.current === event.target) {
-        setIsConnected(false);
-        setError("Timbangan terputus dari komputer");
-
-        await cleanDisconnect();
-
-        weightDataRef.current = {
-          currentWeight: null,
-          lastUpdate: null,
-          rawData: null,
-        };
-
-        if (isMountedRef.current) {
-          forceUpdate();
-        }
-      }
-    };
-
-    if (navigator.serial) {
-      navigator.serial.addEventListener("disconnect", handleDisconnect);
-      return () => {
-        navigator.serial.removeEventListener("disconnect", handleDisconnect);
-      };
-    }
-  }, [cleanDisconnect]);
-
-  // Initialize and auto-connect on mount
+  // Lifecycle
   useEffect(() => {
     setIsSupported("serial" in navigator);
-    isMountedRef.current = true;
-
-    // Try to auto-connect after a short delay
-    const timer = setTimeout(() => {
-      autoConnect();
-    }, 500);
-
+    const timer = setTimeout(() => autoConnect(), 500);
     return () => {
       clearTimeout(timer);
-      if (reconnectTimeoutRef.current) {
-        clearTimeout(reconnectTimeoutRef.current);
-      }
-      if (stabilityTimerRef.current) {
-        clearInterval(stabilityTimerRef.current);
-      }
-      isMountedRef.current = false;
-      cleanDisconnect();
+      readLoopActive.current = false;
+      forceDisconnect("scale");
     };
-  }, [autoConnect, cleanDisconnect]);
-
-  // Simulation State
-  // Simulation State
-  const [isSimulating, setIsSimulating] = useState(false);
-  const [simulatedWeight, setSimulatedWeight] = useState(0);
-  const [currentSimulatedValue, setCurrentSimulatedValue] = useState(0);
-
-  const simulationIntervalRef = useRef(null);
-  const isStabilizedRef = useRef(false);
-  const simulatedWeightRef = useRef(0);
-
-  // Keep ref in sync
-  useEffect(() => {
-    simulatedWeightRef.current = simulatedWeight;
-  }, [simulatedWeight]);
-
-  // Toggle Simulation
-  const toggleSimulation = useCallback(() => {
-    setIsSimulating((prev) => {
-      const newState = !prev;
-      if (!newState) {
-        // Turning off
-        if (simulationIntervalRef.current) {
-          clearInterval(simulationIntervalRef.current);
-          simulationIntervalRef.current = null;
-        }
-        setIsConnected(false);
-        setLockedWeight(null);
-        setCurrentSimulatedValue(0);
-        isStabilizedRef.current = false;
-        weightDataRef.current = {
-          currentWeight: null,
-          lastUpdate: null,
-          rawData: null,
-        };
-      } else {
-        // Turning on
-        setIsConnected(true);
-        isStabilizedRef.current = false;
-
-        // Start simulation loop
-        if (!simulationIntervalRef.current) {
-          simulationIntervalRef.current = setInterval(() => {
-            setCurrentSimulatedValue((prev) => {
-              const target = simulatedWeightRef.current;
-
-              // If stabilized, force exact target value
-              if (isStabilizedRef.current) {
-                return target;
-              }
-
-              // Move towards target
-              const diff = target - prev;
-
-              if (Math.abs(diff) < 0.1) {
-                // Close to target: apply jitter
-                const jitter = (Math.random() - 0.5) * 0.1;
-                return target + jitter;
-              }
-
-              // Move faster when far
-              let step = diff * 0.2;
-              return prev + step;
-            });
-          }, 100);
-        }
-      }
-      return newState;
-    });
-  }, []); // Logic now depends on refs, so no deps needed
-
-  // Update target weight for simulation
-  const setSimulatedTarget = useCallback(
-    (weight) => {
-      const val = parseFloat(weight);
-      if (!isNaN(val)) {
-        setSimulatedWeight(val);
-        isStabilizedRef.current = false; // Resume jitter
-        unlockWeight(); // Allow re-locking
-      }
-    },
-    [unlockWeight],
-  );
-
-  // Force stabilize
-  const stabilizeSimulation = useCallback(() => {
-    isStabilizedRef.current = true;
-    setCurrentSimulatedValue(simulatedWeightRef.current); // Snap to target immediately
   }, []);
 
-  // Effect to push simulated values to weightDataRef
+  // -- Stability Logic (Simplified & Robust) --
+  const stableTimerRef = useRef(null);
+  const lastWeightRef = useRef(null);
+  const activeWeightRef = useRef(null);
+
   useEffect(() => {
-    if (isSimulating) {
-      const displayWeight = Math.round(currentSimulatedValue * 100) / 100;
+    activeWeightRef.current = currentWeight;
+  }, [currentWeight]);
 
-      weightDataRef.current = {
-        currentWeight: displayWeight,
-        lastUpdate: new Date().toISOString(),
-        rawData: `SIM,${displayWeight}kg`,
-      };
-      forceUpdate();
+  useEffect(() => {
+    if (!isConnected && !isSimulating) {
+      if (stableTimerRef.current) clearInterval(stableTimerRef.current);
+      stableTimerRef.current = null;
+      return;
     }
-  }, [isSimulating, currentSimulatedValue]);
+    if (lockedWeight !== null) {
+      if (stableTimerRef.current) clearInterval(stableTimerRef.current);
+      stableTimerRef.current = null;
+      return;
+    }
+    if (currentWeight === null) {
+      if (stableTimerRef.current) clearInterval(stableTimerRef.current);
+      stableTimerRef.current = null;
+      return;
+    }
 
-  // Clean up
+    const diff =
+      lastWeightRef.current !== null
+        ? Math.abs(currentWeight - lastWeightRef.current)
+        : 999;
+
+    const isWithinTolerance = diff <= 0.1;
+
+    if (!isWithinTolerance) {
+      setIsStable(false);
+      setStabilityProgress(0);
+      if (stableTimerRef.current) {
+        clearInterval(stableTimerRef.current);
+        stableTimerRef.current = null;
+      }
+    }
+
+    if (isWithinTolerance && !stableTimerRef.current) {
+      setIsStable(true);
+      let progress = 0;
+
+      stableTimerRef.current = setInterval(() => {
+        progress += 10;
+        setStabilityProgress(Math.min(progress, 100));
+        if (progress >= 100) {
+          setLockedWeight(activeWeightRef.current);
+          clearInterval(stableTimerRef.current);
+          stableTimerRef.current = null;
+        }
+      }, 100);
+    }
+
+    lastWeightRef.current = currentWeight;
+  }, [currentWeight, isConnected, isSimulating, lockedWeight]);
+
   useEffect(() => {
     return () => {
-      if (simulationIntervalRef.current) {
-        clearInterval(simulationIntervalRef.current);
-      }
+      if (stableTimerRef.current) clearInterval(stableTimerRef.current);
     };
   }, []);
+
+  const unlockWeight = useCallback(() => {
+    setLockedWeight(null);
+    setIsStable(false);
+    setStabilityProgress(0);
+    lastWeightRef.current = null;
+    if (stableTimerRef.current) clearInterval(stableTimerRef.current);
+  }, []);
+
+  const manualLock = useCallback(() => {
+    if (currentWeight > 0) {
+      setLockedWeight(currentWeight);
+      setIsStable(true);
+      setStabilityProgress(100);
+      if (stableTimerRef.current) clearInterval(stableTimerRef.current);
+    }
+  }, [currentWeight]);
+
+  // -- Minimal Simulation --
+  const simTimerRef = useRef(null);
+  const simTargetRef = useRef(0);
+
+  const toggleSimulation = () => {
+    setIsSimulating((prev) => {
+      if (prev) {
+        clearInterval(simTimerRef.current);
+        setCurrentWeight(null);
+        setIsConnected(false);
+      } else {
+        setIsConnected(true);
+        simTimerRef.current = setInterval(() => {
+          setCurrentWeight((prevW) => {
+            const w = prevW || 0;
+            const diff = simTargetRef.current - w;
+            if (Math.abs(diff) < 0.1)
+              return simTargetRef.current + (Math.random() - 0.5) * 0.1;
+            return w + diff * 0.2;
+          });
+        }, 100);
+      }
+      return !prev;
+    });
+  };
+
+  const setSimulatedTarget = (w) => {
+    simTargetRef.current = parseFloat(w) || 0;
+    unlockWeight();
+  };
+
+  const stabilizeSimulation = () => {
+    setCurrentWeight(simTargetRef.current);
+  };
 
   return {
     isConnected,
     isConnecting,
     isSupported,
-    currentWeight: weightDataRef.current.currentWeight,
-    lastUpdate: weightDataRef.current.lastUpdate,
-    rawData: weightDataRef.current.rawData,
+    currentWeight,
+    lockedWeight,
+    isStable,
+    stabilityProgress,
     error,
     connect,
     disconnect,
     autoConnect,
-    // Auto-lock related
-    lockedWeight,
-    lockedTime,
-    stabilityProgress,
-    isStable,
     unlockWeight,
     manualLock,
-    // Simulation
     isSimulating,
     toggleSimulation,
     setSimulatedTarget,
     stabilizeSimulation,
+    debugLogs,
+    clearDebugLogs,
+    addLog,
   };
 };

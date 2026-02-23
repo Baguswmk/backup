@@ -1,262 +1,272 @@
-import { useState, useEffect, useRef, useCallback, useReducer } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
+import {
+  openPort,
+  registerPort,
+  unregisterPort,
+  findSavedPort,
+  hasSavedPort,
+  forceDisconnect,
+  setCoordinatorConnection,
+} from "./useSerialPortCoordinator";
 
-const RFID_PATTERNS = [
-  /RFID:\s*([A-Z0-9]+)/i,
-  /TAG:\s*([A-Z0-9]+)/i,
-  /ID:\s*([A-Z0-9]+)/i,
-  /([A-Z0-9]{8,16})/,
-];
+// HW-VX Series Protocol Utils
+const BAUD_RATE = 57600;
+const CMD_INVENTORY = 0x01;
+
+function calcCRC(data) {
+  let value = 0xffff;
+  for (const byte of data) {
+    value ^= byte;
+    for (let i = 0; i < 8; i++) {
+      value = value & 1 ? (value >> 1) ^ 0x8408 : value >> 1;
+    }
+  }
+  return value;
+}
+
+function buildCommand(cmd, address = 0xff, data = []) {
+  const base = [4 + data.length, address, cmd, ...data];
+  const crc = calcCRC(new Uint8Array(base));
+  return new Uint8Array([...base, crc & 0xff, (crc >> 8) & 0xff]);
+}
 
 export const useRFIDWebSerial = () => {
-  const [, forceUpdate] = useReducer(x => x + 1, 0);
-  
   const [isConnected, setIsConnected] = useState(false);
+  const [isConnecting, setIsConnecting] = useState(false);
+  const [isScanning, setIsScanning] = useState(false);
+  const [lastScan, setLastScan] = useState(null);
   const [error, setError] = useState(null);
   const [isSupported, setIsSupported] = useState(false);
-  const [isConnecting, setIsConnecting] = useState(false);
+  const [debugLogs, setDebugLogs] = useState([]);
 
-  const rfidDataRef = useRef({
-    lastScan: null,
-    lastUpdate: null,
-    rawData: null,
-  });
-
+  const isScanningRef = useRef(false);
+  const isConnectedRef = useRef(false);
   const portRef = useRef(null);
-  const readerRef = useRef(null);
-  const readLoopRef = useRef(false);
-  const isMountedRef = useRef(true);
-  const autoConnectAttemptedRef = useRef(false);
-  const scanEnabledRef = useRef(false);
+  const writerRef = useRef(null);
+  const rxBuffer = useRef(new Uint8Array(0));
+  const active = useRef(false);
 
-  const parseRFID = useCallback((rawData) => {
-    if (!rawData) return null;
-    
-    for (const pattern of RFID_PATTERNS) {
-      const match = rawData.match(pattern);
-      if (match) {
-        return match[1].trim();
+  const addLog = useCallback((type, msg) => {
+    const time = new Date().toISOString().split("T")[1].slice(0, -1);
+    setDebugLogs((prev) => [...prev.slice(-99), { ts: time, type, msg }]);
+  }, []);
+
+  const clearDebugLogs = useCallback(() => setDebugLogs([]), []);
+
+  const enableScanning = useCallback((enabled) => {
+    setIsScanning(enabled);
+    isScanningRef.current = enabled;
+  }, []);
+
+  const readLoop = async (port) => {
+    while (port.readable && active.current) {
+      const reader = port.readable.getReader();
+      setCoordinatorConnection("rfid", port, reader, writerRef.current);
+
+      try {
+        while (active.current) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          if (value) {
+            const merged = new Uint8Array(
+              rxBuffer.current.length + value.length,
+            );
+            merged.set(rxBuffer.current);
+            merged.set(value, rxBuffer.current.length);
+            rxBuffer.current = merged;
+          }
+        }
+      } catch (err) {
+        if (err.name !== "AbortError") {
+          addLog("error", "Read error: " + err.message);
+        }
+      } finally {
+        setCoordinatorConnection("rfid", port, null, writerRef.current);
+        try {
+          reader.releaseLock();
+        } catch (_) {}
       }
+    }
+  };
+
+  const readExact = async (n, timeoutMs = 600) => {
+    const start = Date.now();
+    while (Date.now() - start < timeoutMs) {
+      if (rxBuffer.current.length >= n) {
+        const res = rxBuffer.current.slice(0, n);
+        rxBuffer.current = rxBuffer.current.slice(n);
+        return res;
+      }
+      await new Promise((r) => setTimeout(r, 10));
     }
     return null;
-  }, []);
+  };
 
-  const cleanDisconnect = useCallback(async () => {
-    readLoopRef.current = false;
+  const sendCommand = async (bytes) => {
+    if (writerRef.current) await writerRef.current.write(bytes);
+  };
 
-    if (readerRef.current) {
-      try {
-        await readerRef.current.cancel();
-        readerRef.current.releaseLock();
-      } catch (e) {
-        // Ignore
-      }
-      readerRef.current = null;
-    }
-
-    if (portRef.current) {
-      try {
-        await portRef.current.close();
-      } catch (e) {
-        // Ignore
-      }
-      portRef.current = null;
-    }
-
-    scanEnabledRef.current = false;
-    setIsConnected(false);
-  }, []);
-
-  const readLoop = useCallback(async (port) => {
-    readLoopRef.current = true;
-    
+  const doInventory = async () => {
     try {
-      await new Promise(resolve => setTimeout(resolve, 100));
-      
-      if (!port.readable) {
-        setError('Port readable stream is null');
-        return;
-      }
-      
-      const textDecoder = new TextDecoder('utf-8', { fatal: false, ignoreBOM: true });
-      const reader = port.readable.getReader();
-      readerRef.current = reader;
-      
-      let buffer = '';
-      
-      while (readLoopRef.current && isMountedRef.current) {
-        try {
-          const { value, done } = await reader.read();
-          
-          if (done || !isMountedRef.current) break;
-          
-          const text = textDecoder.decode(value, { stream: true });
-          buffer += text;
-          
-          const lines = buffer.split(/\r?\n/);
-          buffer = lines.pop() || '';
-          
-          for (const line of lines) {
-            if (!line.trim() || !scanEnabledRef.current) continue;
-            
-            const rfidTag = parseRFID(line);
-            
-            if (rfidTag) {
-              rfidDataRef.current = {
-                lastScan: rfidTag,
-                lastUpdate: new Date().toISOString(),
-                rawData: line,
-              };
-              
-              if (isMountedRef.current) {
-                forceUpdate();
-              }
-            }
-          }
-        } catch (readError) {
-          if (readError.name === 'NetworkError') break;
-          await new Promise(resolve => setTimeout(resolve, 100));
+      await sendCommand(buildCommand(CMD_INVENTORY));
+      const lenByte = await readExact(1, 600);
+      if (!lenByte) return [];
+
+      const body = await readExact(lenByte[0], 600);
+      if (!body) return [];
+
+      const frame = new Uint8Array(1 + body.length);
+      frame[0] = lenByte[0];
+      frame.set(body, 1);
+
+      if (frame.length < 6 || frame[3] !== 0x00) return [];
+
+      const data = frame.slice(4, -2);
+      if (data.length === 0) return [];
+
+      const tags = [];
+      let ptr = 1;
+      for (let n = 0; n < data[0] && ptr < data.length; n++) {
+        const tagLen = data[ptr];
+        const tagBytes = data.slice(ptr + 1, ptr + 1 + tagLen);
+        ptr += 1 + tagLen;
+        if (tagBytes.length > 0) {
+          tags.push(
+            Array.from(tagBytes)
+              .map((b) => b.toString(16).padStart(2, "0").toUpperCase())
+              .join(""),
+          );
         }
       }
-    } catch (error) {
-      console.error("❌ RFID Read loop error:", error);
-      setError(`Read error: ${error.message}`);
-    } finally {
-      if (readerRef.current) {
-        try {
-          await readerRef.current.cancel();
-          readerRef.current.releaseLock();
-        } catch (e) {
-          // Ignore
-        }
-        readerRef.current = null;
-      }
+      return tags;
+    } catch (e) {
+      return [];
     }
-  }, [parseRFID]);
+  };
 
-  const connectToPort = useCallback(async (port) => {
-    try {
-      try {
-        if (port.readable || port.writable) {
-          await port.close();
-          await new Promise(resolve => setTimeout(resolve, 200));
+  const pollLoop = async () => {
+    while (active.current) {
+      if (isScanningRef.current && isConnectedRef.current) {
+        const tags = await doInventory();
+        if (tags.length > 0) {
+          setLastScan(tags[0]);
         }
-      } catch (e) {
-        // Port might already be closed
       }
+      await new Promise((r) => setTimeout(r, 300));
+    }
+  };
 
-      await port.open({
-        baudRate: 115200,
-        dataBits: 8,
-        stopBits: 1,
-        parity: "none",
-      });
+  const connectToPort = async (port) => {
+    try {
+      // 1. Force Disconnect role ini kalau ada yg masih nyangkut
+      await forceDisconnect("rfid");
+
+      // 2. Gunakan mutex coordinator untuk memastikan aman
+      await openPort("rfid", () =>
+        port.open({
+          baudRate: BAUD_RATE,
+          dataBits: 8,
+          stopBits: 1,
+          parity: "none",
+          bufferSize: 2048,
+        }),
+      );
 
       portRef.current = port;
+      writerRef.current = port.writable?.getWriter();
+      rxBuffer.current = new Uint8Array(0);
+      setCoordinatorConnection("rfid", port, null, writerRef.current);
+
       setIsConnected(true);
+      isConnectedRef.current = true;
       setError(null);
-      scanEnabledRef.current = false;
-      
+      await registerPort("rfid", port);
+      addLog("connect", "RFID terhubung");
+
+      active.current = true;
       readLoop(port);
-      
+
+      // Allow hardware to settle, consume dirty data, then clear
+      await new Promise((r) => setTimeout(r, 150));
+      rxBuffer.current = new Uint8Array(0);
+
+      pollLoop();
       return { success: true };
-    } catch (error) {
-      console.error("❌ RFID Connection error:", error);
-      setError(`Connection error: ${error.message}`);
+    } catch (err) {
       setIsConnected(false);
-      return { success: false, error: error.message };
+      isConnectedRef.current = false;
+      setError("Gagal hubung RFID: " + err.message);
+      return { success: false, error: err.message };
     }
-  }, [readLoop]);
+  };
 
-  const connect = useCallback(async () => {
-    if (!navigator.serial) {
-      setError("WebSerial tidak didukung. Gunakan Chrome/Edge 89+");
-      return { success: false };
-    }
-
+  const connect = async () => {
+    if (!navigator.serial) return { success: false };
     setIsConnecting(true);
-    setError(null);
-
     try {
       const port = await navigator.serial.requestPort();
-      const result = await connectToPort(port);
-      return result;
-    } catch (error) {
-      if (error.name !== 'NotFoundError') {
-        setError(`Connection error: ${error.message}`);
-      }
-      setIsConnected(false);
-      return { success: false, error: error.message };
+      return await connectToPort(port);
+    } catch (err) {
+      if (err.name !== "NotFoundError") setError(err.message);
+      return { success: false, error: err.message };
     } finally {
       setIsConnecting(false);
     }
-  }, [connectToPort]);
+  };
 
-  const disconnect = useCallback(async () => {
-    await cleanDisconnect();
-    
-    rfidDataRef.current = {
-      lastScan: null,
-      lastUpdate: null,
-      rawData: null,
-    };
-    
-    if (isMountedRef.current) {
-      forceUpdate();
+  const disconnect = async () => {
+    active.current = false;
+    await forceDisconnect("rfid");
+    unregisterPort("rfid");
+    setIsConnected(false);
+    isConnectedRef.current = false;
+    enableScanning(false);
+    setLastScan(null);
+    writerRef.current = null;
+    portRef.current = null;
+    addLog("disconnect", "Disconnected");
+  };
+
+  const autoConnect = async () => {
+    if (hasSavedPort("rfid")) {
+      const port = await findSavedPort("rfid");
+      if (port) connectToPort(port);
     }
-  }, [cleanDisconnect]);
-
-  const autoConnect = useCallback(async () => {
-    if (!navigator.serial || autoConnectAttemptedRef.current) return;
-
-    autoConnectAttemptedRef.current = true;
-
-    try {
-      const ports = await navigator.serial.getPorts();
-      
-      if (ports.length > 0) {
-        const rfidPort = ports[1] || ports[0];
-        await connectToPort(rfidPort);
-      }
-    } catch (error) {
-      // Silent fail
-    }
-  }, [connectToPort]);
-
-  const enableScanning = useCallback((enabled) => {
-    scanEnabledRef.current = enabled;
-  }, []);
-
-  const clearLastScan = useCallback(() => {
-    rfidDataRef.current = {
-      lastScan: null,
-      lastUpdate: null,
-      rawData: null,
-    };
-    forceUpdate();
-  }, []);
+  };
 
   useEffect(() => {
-    setIsSupported('serial' in navigator);
-    isMountedRef.current = true;
-    
+    setIsSupported("serial" in navigator);
+    const timer = setTimeout(() => autoConnect(), 500);
     return () => {
-      isMountedRef.current = false;
-      cleanDisconnect();
+      clearTimeout(timer);
+      active.current = false;
+      forceDisconnect("rfid");
     };
-  }, [cleanDisconnect]);
+  }, []);
+
+  const clearLastScan = () => setLastScan(null);
+  const simulateScan = (tag) => {
+    setLastScan(tag);
+    setIsConnected(true);
+    isConnectedRef.current = true;
+  };
 
   return {
     isConnected,
     isConnecting,
     isSupported,
-    lastScan: rfidDataRef.current.lastScan,
-    lastUpdate: rfidDataRef.current.lastUpdate,
-    rawData: rfidDataRef.current.rawData,
+    lastScan,
+    isScanning,
+    rawData: lastScan,
     error,
     connect,
     disconnect,
     autoConnect,
     enableScanning,
     clearLastScan,
+    simulateScan,
+    debugLogs,
+    clearDebugLogs,
+    addLog,
   };
 };

@@ -1,9 +1,11 @@
-import React, { useMemo, useEffect, useCallback, useRef, useState } from "react";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-} from "@/shared/components/ui/card";
+import React, {
+  useMemo,
+  useEffect,
+  useCallback,
+  useRef,
+  useState,
+} from "react";
+import { Card, CardContent, CardHeader } from "@/shared/components/ui/card";
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
 import { Label } from "@/shared/components/ui/label";
@@ -30,9 +32,14 @@ import { useWebSerialScale } from "@/shared/hooks/useWebSerialScale";
 import { useRFIDWebSerial } from "@/shared/hooks/useRFIDWebSerial";
 import { Badge } from "@/shared/components/ui/badge";
 import PrintBukti from "@/modules/timbangan/timbangan/components/PrintBukti";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/components/ui/tabs";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/shared/components/ui/tabs";
 
-export const TimbanganInputCard = ({ fleetConfigs = [] }) => {
+export const TimbanganInputCard = () => {
   const { user } = useAuthStore();
   const isOperator = user?.role.toLowerCase() === "operator_jt";
   const isChecker = user?.role.toLowerCase() === "checker";
@@ -46,6 +53,7 @@ export const TimbanganInputCard = ({ fleetConfigs = [] }) => {
     handleSubmit,
     handleBypassSubmit,
     lastSubmittedData,
+    availableUnits,
   } = useTimbanganHooks();
 
   const scale = useWebSerialScale();
@@ -61,13 +69,8 @@ export const TimbanganInputCard = ({ fleetConfigs = [] }) => {
   const [simTargetInput, setSimTargetInput] = useState("");
   const [isDebugOpen, setIsDebugOpen] = useState(false);
   const debugLogEndRef = useRef(null);
-
-  // Auto-scroll debug log ke bawah
-  useEffect(() => {
-    if (isDebugOpen && debugLogEndRef.current) {
-      debugLogEndRef.current.scrollIntoView({ behavior: "smooth" });
-    }
-  }, [scale.debugLogs, isDebugOpen]);
+  const [isRfidDebugOpen, setIsRfidDebugOpen] = useState(false);
+  const rfidDebugLogEndRef = useRef(null);
 
   // Refs for focusing inputs
   const hullNoInputRef = useRef(null);
@@ -75,6 +78,7 @@ export const TimbanganInputCard = ({ fleetConfigs = [] }) => {
   const netWeightInputRef = useRef(null);
   const printButtonRef = useRef(null);
   const bypassHullNoInputRef = useRef(null);
+
   // ✅ Validation Regex
   const WEIGHT_LIMITS = {
     GROSS: {
@@ -178,36 +182,34 @@ export const TimbanganInputCard = ({ fleetConfigs = [] }) => {
   );
 
   useEffect(() => {
-    if (
-      isOperator &&
-      scale.isConnected &&
-      scale.isStable &&
-      scale.lockedWeight &&
-      activeTab === "timbangan"
-    ) {
-      const scaleWeightInTons = parseFloat(scale.lockedWeight) / 1000;
+    if (isOperator && scale.isConnected && activeTab === "timbangan") {
+      const activeWeight = scale.lockedWeight ?? scale.currentWeight;
 
-      if (
-        !isNaN(scaleWeightInTons) &&
-        scaleWeightInTons <= WEIGHT_LIMITS.GROSS.MAX
-      ) {
-        setFormData((prev) => ({
-          ...prev,
-          gross_weight: scaleWeightInTons.toFixed(2),
-        }));
-      } else {
-        console.warn("⚠️ Scale weight exceeds limit:", scaleWeightInTons);
+      if (activeWeight != null) {
+        const scaleWeightInTons = parseFloat(activeWeight) / 1000;
+
+        if (
+          !isNaN(scaleWeightInTons) &&
+          scaleWeightInTons <= WEIGHT_LIMITS.GROSS.MAX
+        ) {
+          setFormData((prev) => ({
+            ...prev,
+            gross_weight: scaleWeightInTons.toFixed(2),
+          }));
+        } else {
+          console.warn("⚠️ Scale weight exceeds limit:", scaleWeightInTons);
+        }
       }
     }
   }, [
     scale.lockedWeight,
     scale.currentWeight,
-    scale.isStable,
     scale.isConnected,
     isOperator,
     activeTab,
+    setFormData,
+    WEIGHT_LIMITS.GROSS.MAX,
   ]);
-
 
   // Auto-print ticket after successful submission
   useEffect(() => {
@@ -219,18 +221,65 @@ export const TimbanganInputCard = ({ fleetConfigs = [] }) => {
     }
   }, [lastSubmittedData]);
 
-  // Weight gate: tombol submit disabled kalau timbangan masih >= 10 ton
-  // Paksa DT sebelumnya keluar dulu sebelum bisa submit DT berikutnya
+  useEffect(() => {
+    rfid.enableScanning(rfid.isConnected);
+  }, [rfid.isConnected]);
 
+  useEffect(() => {
+    if (!rfid.lastScan) return;
+
+    const tag = rfid.lastScan.toUpperCase().trim();
+    const match = availableUnits.find((dt) => {
+      const dtTag = (dt.rfid_tag || dt.rfid || dt.tag || "")
+        .toUpperCase()
+        .trim();
+      return dtTag && dtTag === tag;
+    });
+
+    if (match) {
+      const hull = match.hull_no || match.hullNo || match.hull;
+      if (hull) {
+        // Force replace any manual selection with the RFID scan match
+        handleHullNoChange(hull);
+        setTimeout(() => {
+          if (isOperator) {
+            grossWeightInputRef.current?.focus();
+          } else {
+            netWeightInputRef.current?.focus();
+          }
+        }, 150);
+      }
+    } else {
+      console.warn(
+        `⚠️ RFID tag "${tag}" tidak ditemukan di master data unit (cache)`,
+      );
+    }
+  }, [rfid.lastScan, availableUnits, handleHullNoChange, isOperator]);
+
+  const isWeightMismatch = useMemo(() => {
+    if (!isOperator || !scale.isConnected) return false;
+    const scaleRef = scale.lockedWeight ?? scale.currentWeight;
+    if (!scaleRef) return false;
+    const scaleInTon = scaleRef / 1000;
+    const formInTon = parseFloat(formData.gross_weight);
+    if (isNaN(formInTon)) return false;
+    return Math.abs(scaleInTon - formInTon) > 0.01;
+  }, [
+    isOperator,
+    scale.isConnected,
+    scale.lockedWeight,
+    scale.currentWeight,
+    formData.gross_weight,
+  ]);
 
   const hullNoOptions = useMemo(() => {
-    if (!Array.isArray(fleetConfigs) || fleetConfigs.length === 0) {
+    if (!Array.isArray(availableUnits) || availableUnits.length === 0) {
       return [];
     }
 
     const hullNos = new Map();
 
-    fleetConfigs.forEach((dumptruck) => {
+    availableUnits.forEach((dumptruck) => {
       const hull = dumptruck.hull_no || dumptruck.hullNo || dumptruck.hull;
 
       if (!hull) {
@@ -249,8 +298,7 @@ export const TimbanganInputCard = ({ fleetConfigs = [] }) => {
     const options = Array.from(hullNos.values());
 
     return options;
-  }, [fleetConfigs]);
-
+  }, [availableUnits]);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -262,6 +310,16 @@ export const TimbanganInputCard = ({ fleetConfigs = [] }) => {
         e.target.isContentEditable;
 
       if (activeTab === "timbangan") {
+        // Alt + R -> Connect / toggle scan RFID
+        if (e.altKey && e.key.toLowerCase() === "r") {
+          e.preventDefault();
+          if (rfid.isConnected) {
+            rfid.enableScanning(!rfid.isScanning);
+          } else {
+            rfid.connect();
+          }
+        }
+
         // Alt + D -> Focus Hull No
         if (e.altKey && e.key.toLowerCase() === "d") {
           e.preventDefault();
@@ -296,7 +354,12 @@ export const TimbanganInputCard = ({ fleetConfigs = [] }) => {
           (e.ctrlKey && e.key === "Enter")
         ) {
           e.preventDefault();
-          handleSubmit();
+          if (
+            !isSubmitting &&
+            (!isOperator || !scale.isConnected || !isWeightMismatch)
+          ) {
+            handleSubmit();
+          }
         }
       } else if (activeTab === "bypass") {
         // Alt + D -> Focus Hull No in Bypass
@@ -318,7 +381,7 @@ export const TimbanganInputCard = ({ fleetConfigs = [] }) => {
 
     window.addEventListener("keydown", handleKeyPress);
     return () => window.removeEventListener("keydown", handleKeyPress);
-  }, [isOperator, activeTab, handleSubmit, handleBypassSubmit, scale]);
+  }, [isOperator, activeTab, handleSubmit, handleBypassSubmit, scale, rfid]);
   return (
     <Card className="shadow-lg border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800 transition-colors">
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
@@ -340,8 +403,8 @@ export const TimbanganInputCard = ({ fleetConfigs = [] }) => {
                   className="flex items-center gap-2 px-0 pl-5 text-xl font-semibold data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:text-gray-900 dark:data-[state=active]:text-gray-100 data-[state=inactive]:text-gray-400 dark:data-[state=inactive]:text-gray-600 data-[state=inactive]:hover:text-gray-600 dark:data-[state=inactive]:hover:text-gray-400 transition-colors rounded-none border-b-2  data-[state=inactive]:border-transparent pb-1 cursor-pointer"
                 >
                   <Zap className="w-5 h-5 text-yellow-500 dark:text-yellow-400" />
-                Bypass
-              </TabsTrigger>
+                  Bypass
+                </TabsTrigger>
               )}
             </TabsList>
 
@@ -353,7 +416,9 @@ export const TimbanganInputCard = ({ fleetConfigs = [] }) => {
                   <Button
                     variant={scale.isConnected ? "default" : "outline"}
                     size="sm"
-                    onClick={scale.isConnected ? scale.disconnect : scale.connect}
+                    onClick={
+                      scale.isConnected ? scale.disconnect : scale.connect
+                    }
                     disabled={scale.isConnecting}
                     className={`text-xs flex items-center gap-1.5 ${
                       scale.isConnected
@@ -378,17 +443,26 @@ export const TimbanganInputCard = ({ fleetConfigs = [] }) => {
                       <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 dark:bg-gray-800 rounded-md border border-gray-300 dark:border-gray-700">
                         <Weight className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
                         <span className="text-xs font-mono font-bold text-gray-900 dark:text-gray-100">
-                          {scale.currentWeight ? (scale.currentWeight / 1000).toFixed(2) : "0.00"} ton
+                          {scale.currentWeight
+                            ? (scale.currentWeight / 1000).toFixed(2)
+                            : "0.00"}{" "}
+                          ton
                         </span>
                         <Badge
                           variant="outline"
                           className={`py-0 px-1.5 text-[10px] h-4 ${
-                            scale.isStable
-                              ? "bg-green-50 dark:bg-green-950/30 text-green-700 dark:text-green-300 border-green-300 dark:border-green-700"
-                              : "bg-orange-50 dark:bg-orange-950/30 text-orange-700 dark:text-orange-300 border-orange-300 dark:border-orange-700 animate-pulse"
+                            scale.lockedWeight
+                              ? "bg-yellow-50 dark:bg-yellow-950/30 text-yellow-700 dark:text-yellow-300 border-yellow-300 dark:border-yellow-700"
+                              : scale.isStable
+                                ? "bg-green-50 dark:bg-green-950/30 text-green-700 dark:text-green-300 border-green-300 dark:border-green-700"
+                                : "bg-orange-50 dark:bg-orange-950/30 text-orange-700 dark:text-orange-300 border-orange-300 dark:border-orange-700 animate-pulse"
                           }`}
                         >
-                          {scale.isStable ? "STABLE" : "..."}
+                          {scale.lockedWeight
+                            ? "LOCKED"
+                            : scale.isStable
+                              ? "STABLE"
+                              : "..."}
                         </Badge>
                       </div>
 
@@ -396,8 +470,14 @@ export const TimbanganInputCard = ({ fleetConfigs = [] }) => {
                       <Button
                         variant={scale.lockedWeight ? "default" : "outline"}
                         size="sm"
-                        onClick={scale.lockedWeight ? scale.unlockWeight : scale.manualLock}
-                        disabled={!scale.currentWeight || scale.currentWeight <= 0}
+                        onClick={
+                          scale.lockedWeight
+                            ? scale.unlockWeight
+                            : scale.manualLock
+                        }
+                        disabled={
+                          !scale.currentWeight || scale.currentWeight <= 0
+                        }
                         className={`text-xs flex items-center gap-1.5 ${
                           scale.lockedWeight
                             ? "bg-yellow-600 hover:bg-yellow-700 dark:bg-yellow-500 dark:hover:bg-yellow-600 text-white"
@@ -422,18 +502,50 @@ export const TimbanganInputCard = ({ fleetConfigs = [] }) => {
                 </>
               )}
 
-              {/* RFID Connection - DISABLED (Display only) */}
+              {/* RFID Connection Button */}
               <Button
-                variant="outline"
+                variant={rfid.isConnected ? "default" : "outline"}
                 size="sm"
-                onClick={() => {}} // ❌ Disabled - no action
-                disabled={true}
-                className="text-xs flex items-center gap-1.5 border-gray-300 dark:border-gray-700 text-gray-400 dark:text-gray-600 cursor-not-allowed opacity-50"
-                title="RFID sementara dinonaktifkan - Fokus ke Integrator"
+                onClick={rfid.isConnected ? rfid.disconnect : rfid.connect}
+                disabled={rfid.isConnecting}
+                className={`text-xs flex items-center gap-1.5 ${
+                  rfid.isConnected
+                    ? rfid.isScanning
+                      ? "bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white animate-pulse"
+                      : "bg-green-600 hover:bg-green-700 dark:bg-green-500 dark:hover:bg-green-600 text-white"
+                    : "border-gray-300 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300"
+                }`}
+                title="Alt + R untuk connect/scan RFID"
               >
-                <Radio className="w-3 h-3" />
-                RFID (Disabled)
+                {rfid.isConnecting ? (
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                ) : (
+                  <Radio className="w-3 h-3" />
+                )}
+                {rfid.isConnected
+                  ? rfid.isScanning
+                    ? "RFID Scanning..."
+                    : "RFID Terhubung"
+                  : "Hubungkan RFID"}
               </Button>
+
+              {/* RFID Last Scan Badge */}
+              {rfid.isConnected && rfid.lastScan && (
+                <div className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 dark:bg-blue-950/30 rounded-md border border-blue-300 dark:border-blue-700">
+                  <Radio className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+                  <span className="text-xs font-mono font-bold text-blue-800 dark:text-blue-200">
+                    {rfid.lastScan}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={rfid.clearLastScan}
+                    className="ml-1 text-blue-400 hover:text-blue-600 dark:hover:text-blue-300 text-[10px] leading-none"
+                    title="Clear scan"
+                  >
+                    ✕
+                  </button>
+                </div>
+              )}
             </div>
           </div>
 
@@ -458,16 +570,16 @@ export const TimbanganInputCard = ({ fleetConfigs = [] }) => {
                     </span>
                   )}
                 </span>
-                {isSimPanelOpen
-                  ? <ChevronUp className="w-3.5 h-3.5" />
-                  : <ChevronDown className="w-3.5 h-3.5" />
-                }
+                {isSimPanelOpen ? (
+                  <ChevronUp className="w-3.5 h-3.5" />
+                ) : (
+                  <ChevronDown className="w-3.5 h-3.5" />
+                )}
               </button>
 
               {/* Panel body */}
               {isSimPanelOpen && (
                 <div className="p-3 space-y-3 bg-purple-50/50 dark:bg-purple-950/10">
-
                   {/* Live readout saat simulasi aktif */}
                   {scale.isSimulating && (
                     <div className="flex items-center gap-3 px-3 py-2 bg-white dark:bg-gray-900 border border-purple-200 dark:border-purple-800 rounded-lg">
@@ -492,11 +604,15 @@ export const TimbanganInputCard = ({ fleetConfigs = [] }) => {
                           scale.lockedWeight
                             ? "bg-yellow-100 dark:bg-yellow-900/40 text-yellow-700 dark:text-yellow-300"
                             : scale.isStable
-                            ? "bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300"
-                            : "bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-300"
+                              ? "bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300"
+                              : "bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-300"
                         }`}
                       >
-                        {scale.lockedWeight ? "LOCKED" : scale.isStable ? "STABLE" : "..."}
+                        {scale.lockedWeight
+                          ? "LOCKED"
+                          : scale.isStable
+                            ? "STABLE"
+                            : "..."}
                       </span>
                     </div>
                   )}
@@ -571,57 +687,69 @@ export const TimbanganInputCard = ({ fleetConfigs = [] }) => {
                   </div>
 
                   <p className="text-[10px] text-purple-500 dark:text-purple-500 leading-relaxed">
-                    Alur: set target → mulai simulasi → nilai bergerak ke target sambil jitter
-                    → klik "Force Stabil" untuk snap flat → auto-lock setelah {2}s stabil.
-                    Panel ini tidak muncul di production.
+                    Alur: set target → mulai simulasi → nilai bergerak ke target
+                    sambil jitter → klik "Force Stabil" untuk snap flat →
+                    auto-lock setelah {1}s stabil. Panel ini tidak muncul di
+                    production.
                   </p>
 
                   {/* ===== DEBUG LOG PANEL ===== */}
                   <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
                     <button
                       type="button"
-                      onClick={() => setIsDebugOpen(p => !p)}
+                      onClick={() => setIsDebugOpen((p) => !p)}
                       className="w-full flex items-center justify-between px-2.5 py-1.5 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors text-[11px] font-medium text-gray-600 dark:text-gray-400"
                     >
                       <span className="flex items-center gap-1.5">
                         🔍 Debug Stability Log
-                        {scale.debugLogs.length > 0 && (
+                        {(scale.debugLogs?.length ?? 0) > 0 && (
                           <span className="px-1.5 py-0.5 bg-gray-300 dark:bg-gray-600 rounded text-[10px]">
-                            {scale.debugLogs.length}
+                            {scale.debugLogs?.length ?? 0}
                           </span>
                         )}
                       </span>
                       <span className="flex items-center gap-2">
-                        {scale.debugLogs.length > 0 && (
+                        {(scale.debugLogs?.length ?? 0) > 0 && (
                           <span
                             role="button"
-                            onClick={e => { e.stopPropagation(); scale.clearDebugLogs(); }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              scale.clearDebugLogs?.();
+                            }}
                             className="text-[10px] text-red-500 hover:text-red-700 underline"
                           >
                             clear
                           </span>
                         )}
-                        {isDebugOpen ? '▲' : '▼'}
+                        {isDebugOpen ? "▲" : "▼"}
                       </span>
                     </button>
 
                     {isDebugOpen && (
                       <div className="h-52 overflow-y-auto bg-gray-950 p-2 font-mono text-[10px] space-y-0.5">
-                        {scale.debugLogs.length === 0 ? (
-                          <p className="text-gray-500 italic">Belum ada log. Hubungkan timbangan / mulai simulasi.</p>
+                        {!scale.debugLogs?.length ? (
+                          <p className="text-gray-500 italic">
+                            Belum ada log. Hubungkan timbangan / mulai simulasi.
+                          </p>
                         ) : (
-                          scale.debugLogs.map((log, i) => (
+                          scale.debugLogs?.map((log, i) => (
                             <div
                               key={i}
                               className={`flex gap-2 leading-relaxed ${
-                                log.type === 'lock'  ? 'text-yellow-400 font-bold' :
-                                log.type === 'start' ? 'text-green-400' :
-                                log.type === 'reset' ? 'text-red-400' :
-                                log.type === 'exact' ? 'text-gray-400' :
-                                                       'text-orange-400'
+                                log.type === "lock"
+                                  ? "text-yellow-400 font-bold"
+                                  : log.type === "start"
+                                    ? "text-green-400"
+                                    : log.type === "reset"
+                                      ? "text-red-400"
+                                      : log.type === "exact"
+                                        ? "text-gray-400"
+                                        : "text-orange-400"
                               }`}
                             >
-                              <span className="text-gray-600 shrink-0">{log.ts}</span>
+                              <span className="text-gray-600 shrink-0">
+                                {log.ts}
+                              </span>
                               <span>{log.msg}</span>
                             </div>
                           ))
@@ -629,6 +757,152 @@ export const TimbanganInputCard = ({ fleetConfigs = [] }) => {
                         <div ref={debugLogEndRef} />
                       </div>
                     )}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ===== RFID DEBUG PANEL (DEV ONLY) ===== */}
+          {IS_DEV && (
+            <div className="mt-3 border border-dashed border-cyan-300 dark:border-cyan-700 rounded-lg overflow-hidden">
+              <button
+                type="button"
+                onClick={() => setIsRfidDebugOpen((p) => !p)}
+                className="w-full flex items-center justify-between px-3 py-2 bg-cyan-50 dark:bg-cyan-950/30 hover:bg-cyan-100 dark:hover:bg-cyan-950/50 transition-colors text-cyan-700 dark:text-cyan-400 text-xs font-medium"
+              >
+                <span className="flex items-center gap-1.5">
+                  <Radio className="w-3.5 h-3.5" />
+                  RFID Debug Log
+                  <span className="px-1.5 py-0.5 bg-cyan-200 dark:bg-cyan-800 rounded text-[10px] font-bold tracking-wide">
+                    DEV
+                  </span>
+                  {rfid.isConnected && (
+                    <span className="px-1.5 py-0.5 bg-green-200 dark:bg-green-800 text-green-800 dark:text-green-200 rounded text-[10px] font-bold">
+                      CONNECTED
+                    </span>
+                  )}
+                  {rfid.debugLogs?.length > 0 && (
+                    <span className="px-1.5 py-0.5 bg-cyan-300 dark:bg-cyan-700 rounded text-[10px]">
+                      {rfid.debugLogs.length} logs
+                    </span>
+                  )}
+                </span>
+                {isRfidDebugOpen ? (
+                  <ChevronUp className="w-3.5 h-3.5" />
+                ) : (
+                  <ChevronDown className="w-3.5 h-3.5" />
+                )}
+              </button>
+
+              {isRfidDebugOpen && (
+                <div className="p-3 space-y-2 bg-cyan-50/50 dark:bg-cyan-950/10">
+                  {/* Status row */}
+                  <div className="flex flex-wrap gap-2 text-[11px]">
+                    <span className="px-2 py-1 bg-white dark:bg-gray-900 border border-cyan-200 dark:border-cyan-800 rounded font-mono">
+                      connected:{" "}
+                      <strong>{rfid.isConnected ? "✅" : "❌"}</strong>
+                    </span>
+                    <span className="px-2 py-1 bg-white dark:bg-gray-900 border border-cyan-200 dark:border-cyan-800 rounded font-mono">
+                      scanning: <strong>{rfid.isScanning ? "✅" : "❌"}</strong>
+                    </span>
+                    <span className="px-2 py-1 bg-white dark:bg-gray-900 border border-cyan-200 dark:border-cyan-800 rounded font-mono">
+                      lastScan: <strong>{rfid.lastScan ?? "—"}</strong>
+                    </span>
+                    <span className="px-2 py-1 bg-white dark:bg-gray-900 border border-cyan-200 dark:border-cyan-800 rounded font-mono max-w-[260px] truncate">
+                      rawData: <strong>{rfid.rawData ?? "—"}</strong>
+                    </span>
+                  </div>
+
+                  {/* Log panel */}
+                  <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+                    <div className="flex items-center justify-between px-2.5 py-1.5 bg-gray-100 dark:bg-gray-800 text-[11px] font-medium text-gray-600 dark:text-gray-400">
+                      <span>Serial Data Stream</span>
+                      <div className="flex gap-2">
+                        {rfid.debugLogs?.length > 0 && (
+                          <button
+                            type="button"
+                            onClick={rfid.clearDebugLogs}
+                            className="text-[10px] text-red-500 hover:text-red-700 underline"
+                          >
+                            clear
+                          </button>
+                        )}
+                        {!rfid.isConnected && (
+                          <button
+                            type="button"
+                            onClick={rfid.connect}
+                            className="text-[10px] text-cyan-600 hover:text-cyan-800 underline"
+                          >
+                            connect
+                          </button>
+                        )}
+                        {rfid.isConnected && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              rfid.enableScanning(!rfid.isScanning)
+                            }
+                            className="text-[10px] text-cyan-600 hover:text-cyan-800 underline"
+                          >
+                            {rfid.isScanning ? "pause scan" : "start scan"}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="h-56 overflow-y-auto bg-gray-950 p-2 font-mono text-[10px] space-y-0.5">
+                      {!rfid.debugLogs?.length ? (
+                        <p className="text-gray-500 italic">
+                          Belum ada log. Hubungkan RFID reader lalu tempelkan
+                          kartu.
+                        </p>
+                      ) : (
+                        rfid.debugLogs.map((log, i) => (
+                          <div
+                            key={i}
+                            className={`flex gap-2 leading-relaxed ${
+                              log.type === "scan"
+                                ? "text-green-400 font-bold"
+                                : log.type === "raw"
+                                  ? "text-gray-500"
+                                  : log.type === "line"
+                                    ? "text-cyan-400"
+                                    : log.type === "parse"
+                                      ? "text-yellow-400"
+                                      : log.type === "nomatch"
+                                        ? "text-orange-400"
+                                        : log.type === "connect"
+                                          ? "text-blue-400"
+                                          : log.type === "disconnect"
+                                            ? "text-purple-400"
+                                            : log.type === "warn"
+                                              ? "text-yellow-300 font-bold"
+                                              : log.type === "error"
+                                                ? "text-red-400 font-bold"
+                                                : "text-gray-400"
+                            }`}
+                          >
+                            <span className="text-gray-600 shrink-0 select-none">
+                              {log.ts}
+                            </span>
+                            <span className="break-all">{log.msg}</span>
+                          </div>
+                        ))
+                      )}
+                      <div ref={rfidDebugLogEndRef} />
+                    </div>
+                  </div>
+
+                  {/* Legend */}
+                  <div className="flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-gray-500 dark:text-gray-600">
+                    <span className="text-green-400">■</span> TAG scan
+                    <span className="text-cyan-400">■</span> LINE diterima
+                    <span className="text-yellow-400">■</span> PATTERN match
+                    <span className="text-orange-400">■</span> No match
+                    <span className="text-gray-500">■</span> RAW bytes
+                    <span className="text-red-400">■</span> Error
+                    <span className="text-yellow-300">■</span> Warning
                   </div>
                 </div>
               )}
@@ -731,7 +1005,6 @@ export const TimbanganInputCard = ({ fleetConfigs = [] }) => {
         </CardHeader>
 
         <CardContent>
-
           {/* Tab Timbangan - Form Lengkap */}
           <TabsContent value="timbangan">
             <form onSubmit={handleSubmit} className="space-y-4">
@@ -769,8 +1042,17 @@ export const TimbanganInputCard = ({ fleetConfigs = [] }) => {
                   )}
                   {hullNoOptions.length === 0 && (
                     <p className="text-sm text-orange-600 dark:text-orange-400 font-medium">
-                      ⚠️ Tidak ada data dumptruck. Pastikan sudah ada koneksi atau
-                      data di cache.
+                      ⚠️ Tidak ada data dumptruck. Pastikan sudah ada koneksi
+                      atau data di cache.
+                    </p>
+                  )}
+                  {/* RFID scan hint */}
+                  {rfid.isConnected && (
+                    <p className="text-xs text-blue-600 dark:text-blue-400 flex items-center gap-1">
+                      <Radio className="w-3 h-3" />
+                      {rfid.isScanning
+                        ? "RFID aktif — tempelkan kartu untuk auto-isi hull no"
+                        : "RFID terhubung — scanning standby"}
                     </p>
                   )}
                 </div>
@@ -778,7 +1060,9 @@ export const TimbanganInputCard = ({ fleetConfigs = [] }) => {
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 {/* Gross Weight */}
-                <div className={`space-y-2 ${isOperator ? "order-1" : "order-2"}`}>
+                <div
+                  className={`space-y-2 ${isOperator ? "order-1" : "order-2"}`}
+                >
                   <Label className="flex items-center gap-2 text-gray-700 dark:text-gray-300 font-medium">
                     <Weight className="w-4 h-4" /> Berat Kotor (Ton)
                     {isOperator && (
@@ -866,7 +1150,9 @@ export const TimbanganInputCard = ({ fleetConfigs = [] }) => {
                 </div>
 
                 {/* Net Weight */}
-                <div className={`space-y-2 ${isOperator ? "order-3" : "order-1"}`}>
+                <div
+                  className={`space-y-2 ${isOperator ? "order-3" : "order-1"}`}
+                >
                   <Label className="flex items-center gap-2 text-gray-700 dark:text-gray-300 font-medium">
                     Berat Bersih (Ton)
                     {!isOperator && (
@@ -916,7 +1202,11 @@ export const TimbanganInputCard = ({ fleetConfigs = [] }) => {
                 disabled:opacity-50 disabled:cursor-not-allowed"
                   disabled={
                     isSubmitting ||
-                    (isOperator && scale.isConnected && !scale.lockedWeight)
+                    isWeightMismatch ||
+                    (isOperator &&
+                      (!scale.isConnected ||
+                        parseFloat(formData.gross_weight || "0") <= 0)) ||
+                    (isOperator && scale.isConnected && !scale.isStable)
                   }
                   size="lg"
                 >
@@ -929,9 +1219,11 @@ export const TimbanganInputCard = ({ fleetConfigs = [] }) => {
                     <>
                       <Save className="w-4 h-4 mr-2" />
                       <p className="hidden md:inline">
-                        {isOperator && scale.isConnected && !scale.lockedWeight
+                        {isOperator && scale.isConnected && !scale.isStable
                           ? "Tunggu Stabil..."
-                          : "Simpan Data"}
+                          : isWeightMismatch
+                            ? "Berat Tidak Sesuai Timbangan"
+                            : "Simpan Data"}
                       </p>
                       <span className="md:ml-2 text-xs opacity-75">
                         (Alt+S / Ctrl+Enter)
@@ -946,104 +1238,122 @@ export const TimbanganInputCard = ({ fleetConfigs = [] }) => {
           {/* Tab Bypass - Hanya Pilih DT */}
           {!isChecker && (
             <TabsContent value="bypass">
-              <form onSubmit={(e) => { e.preventDefault(); handleBypassSubmit(); }} className="space-y-4">
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  handleBypassSubmit();
+                }}
+                className="space-y-4"
+              >
                 <div className="space-y-2">
                   <Label className="flex items-center gap-2 text-gray-700 dark:text-gray-300 font-medium">
                     <Truck className="w-4 h-4" /> Nomor Lambung
-                  <span className="text-xs text-blue-600 dark:text-blue-400 font-normal">
-                    (Alt + D)
-                  </span>
-                  {hullNoOptions.length > 0 && (
-                    <span className="text-xs text-gray-500 dark:text-gray-400 font-normal">
-                      ({hullNoOptions.length} unit tersedia)
+                    <span className="text-xs text-blue-600 dark:text-blue-400 font-normal">
+                      (Alt + D)
                     </span>
+                    {hullNoOptions.length > 0 && (
+                      <span className="text-xs text-gray-500 dark:text-gray-400 font-normal">
+                        ({hullNoOptions.length} unit tersedia)
+                      </span>
+                    )}
+                  </Label>
+                  <div className="flex gap-2">
+                    <div className="flex-1">
+                      <SearchableSelect
+                        ref={bypassHullNoInputRef}
+                        items={hullNoOptions}
+                        value={formData.hull_no}
+                        onChange={handleHullNoChange}
+                        placeholder="Cari nomor lambung..."
+                        error={!!errors.hull_no}
+                        disabled={isSubmitting}
+                      />
+                    </div>
+                  </div>
+                  {errors.hull_no && (
+                    <p className="text-sm text-red-600 dark:text-red-400 font-medium">
+                      {errors.hull_no}
+                    </p>
                   )}
-                </Label>
-                <div className="flex gap-2">
-                  <div className="flex-1">
-                    <SearchableSelect
-                      ref={bypassHullNoInputRef}
-                      items={hullNoOptions}
-                      value={formData.hull_no}
-                      onChange={handleHullNoChange}
-                      placeholder="Cari nomor lambung..."
-                      error={!!errors.hull_no}
-                      disabled={isSubmitting}
-                    />
-                  </div>
                 </div>
-                {errors.hull_no && (
-                  <p className="text-sm text-red-600 dark:text-red-400 font-medium">
-                    {errors.hull_no}
-                  </p>
+
+                {/* Preview Info Bypass */}
+                {formData.hull_no && formData.bypass_tonnage && (
+                  <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+                    <h4 className="font-semibold text-blue-900 dark:text-blue-100 mb-2 flex items-center gap-2">
+                      <Zap className="w-4 h-4" />
+                      Preview Bypass
+                    </h4>
+                    <div className="grid grid-cols-2 gap-3 text-sm">
+                      <div>
+                        <span className="text-blue-700 dark:text-blue-300">
+                          Hull No:
+                        </span>
+                        <p className="font-semibold text-blue-900 dark:text-blue-100">
+                          {formData.hull_no}
+                        </p>
+                      </div>
+                      <div>
+                        <span className="text-blue-700 dark:text-blue-300">
+                          Company:
+                        </span>
+                        <p className="font-semibold text-blue-900 dark:text-blue-100">
+                          {formData.company || "-"}
+                        </p>
+                      </div>
+                      <div>
+                        <span className="text-blue-700 dark:text-blue-300">
+                          Bypass Tonnage:
+                        </span>
+                        <p className="font-bold text-lg text-blue-900 dark:text-blue-100">
+                          {formData.bypass_tonnage} ton
+                        </p>
+                      </div>
+                      <div>
+                        <span className="text-blue-700 dark:text-blue-300">
+                          SPPH:
+                        </span>
+                        <p className="font-semibold text-blue-900 dark:text-blue-100">
+                          {formData.spph || "-"}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
                 )}
-              </div>
 
-              {/* Preview Info Bypass */}
-              {formData.hull_no && formData.bypass_tonnage && (
-                <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
-                  <h4 className="font-semibold text-blue-900 dark:text-blue-100 mb-2 flex items-center gap-2">
-                    <Zap className="w-4 h-4" />
-                    Preview Bypass
-                  </h4>
-                  <div className="grid grid-cols-2 gap-3 text-sm">
-                    <div>
-                      <span className="text-blue-700 dark:text-blue-300">Hull No:</span>
-                      <p className="font-semibold text-blue-900 dark:text-blue-100">
-                        {formData.hull_no}
-                      </p>
-                    </div>
-                    <div>
-                      <span className="text-blue-700 dark:text-blue-300">Company:</span>
-                      <p className="font-semibold text-blue-900 dark:text-blue-100">
-                        {formData.company || "-"}
-                      </p>
-                    </div>
-                    <div>
-                      <span className="text-blue-700 dark:text-blue-300">Bypass Tonnage:</span>
-                      <p className="font-bold text-lg text-blue-900 dark:text-blue-100">
-                        {formData.bypass_tonnage} ton
-                      </p>
-                    </div>
-                    <div>
-                      <span className="text-blue-700 dark:text-blue-300">SPPH:</span>
-                      <p className="font-semibold text-blue-900 dark:text-blue-100">
-                        {formData.spph || "-"}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              <div className="pt-4">
-                <Button
-                  type="submit"
-                  className="w-full bg-yellow-600 hover:bg-yellow-700 dark:bg-yellow-500 dark:hover:bg-yellow-600 
+                <div className="pt-4">
+                  <Button
+                    type="submit"
+                    className="w-full bg-yellow-600 hover:bg-yellow-700 dark:bg-yellow-500 dark:hover:bg-yellow-600 
                 text-white font-medium
                 shadow-sm hover:shadow-md
                 transition-all duration-200
                 disabled:opacity-50 disabled:cursor-not-allowed"
-                  disabled={isSubmitting || !formData.hull_no || !formData.bypass_tonnage}
-                  size="lg"
-                >
-                  {isSubmitting ? (
-                    <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Menyimpan...
-                    </>
-                  ) : (
-                    <>
-                      <Zap className="w-4 h-4 mr-2" />
-                      <p className="hidden md:inline">Simpan Bypass</p>
-                      <span className="md:ml-2 text-xs opacity-75">
-                        (Alt+S / Ctrl+Enter)
-                      </span>
-                    </>
-                  )}
-                </Button>
-              </div>
-            </form>
-          </TabsContent>
+                    disabled={
+                      isSubmitting ||
+                      !formData.hull_no ||
+                      !formData.bypass_tonnage
+                    }
+                    size="lg"
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Menyimpan...
+                      </>
+                    ) : (
+                      <>
+                        <Zap className="w-4 h-4 mr-2" />
+                        <p className="hidden md:inline">Simpan Bypass</p>
+                        <span className="md:ml-2 text-xs opacity-75">
+                          (Alt+S / Ctrl+Enter)
+                        </span>
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </form>
+            </TabsContent>
           )}
         </CardContent>
 
@@ -1053,7 +1363,7 @@ export const TimbanganInputCard = ({ fleetConfigs = [] }) => {
             <PrintBukti
               ref={printButtonRef}
               data={lastSubmittedData}
-              autoPrint={false} 
+              autoPrint={false}
             />
           </div>
         )}
