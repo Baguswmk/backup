@@ -109,6 +109,11 @@ const EDIT_VALIDATION_RULES = {
     message: "Work unit wajib dipilih",
     errorMessage: "Pilih work unit yang valid",
   },
+  spph:{
+    required: true,
+    message : "SPPH unit wajib diisi",
+    errorMessage: "Masukkan SPPH dengan Valid"
+  },
   distance: {
     required: true,
     message: "Distance wajib diisi",
@@ -210,6 +215,7 @@ const createInitialFormData = (editingItem, mode, masters = null) => {
         masters.shifts,
         ["name", "id"],
       ),
+      spph: editingItem.spph,
       operator: getFirstTruthyValue(editingItem, "operator", "operatorName"),
       date: getFirstTruthyValue(editingItem, "date", "fleet_date"),
       distance: editingItem.distance?.toString() || "0",
@@ -318,6 +324,7 @@ export const useRitaseForm = (
           excavator: hit.excavator,
           excavatorId: hit.excavatorId,
           shift: hit.shift,
+          spph: hit.spph,
           date: hit.date,
           loadingLocation: hit.loading_location,
           loadingLocationId: hit.loadingLocationId,
@@ -364,6 +371,7 @@ export const useRitaseForm = (
           excavator: hit.excavator,
           excavatorId: hit.excavatorId,
           shift: hit.shift,
+          spph: hit.spph,
           date: hit.date,
           loadingLocation: hit.loading_location,
           loadingLocationId: hit.loadingLocationId,
@@ -620,6 +628,7 @@ export const useRitaseForm = (
             dumping_location: formData.dumping_location,
             shift: formData.shift,
             date: formData.date,
+            spph: formData.spph,
             distance: parseFloat(formData.distance),
             coal_type: formData.coal_type,
             pic_work_unit: formData.pic_work_unit,
@@ -803,6 +812,7 @@ export const useRitaseForm = (
         formData.loading_location !== original.loading_location ||
         formData.dumping_location !== original.dumping_location ||
         formData.shift !== original.shift ||
+        formData.spph !== original.spph ||
         formData.date !== original.date ||
         parseFloat(formData.distance) !== parseFloat(original.distance) ||
         formData.coal_type !== original.coal_type ||

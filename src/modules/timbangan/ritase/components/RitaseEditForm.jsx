@@ -253,23 +253,6 @@ const RitaseEditForm = ({ editingItem, onSuccess, onCancel }) => {
             {/* Row 1: Measurement Type, excavator, dump truck, operator */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <div>
-                <Label className="pb-2 dark:text-gray-300">
-                  Measurement Type
-                </Label>
-                <SearchableSelect
-                  items={MEASUREMENT_TYPE_OPTIONS}
-                  value={formData.measurement_type}
-                  onChange={(value) => updateField("measurement_type", value)}
-                  placeholder="Pilih tipe..."
-                  error={!!errors.measurement_type}
-                />
-                {errors.measurement_type && (
-                  <p className="text-sm text-red-500 mt-1">
-                    {errors.measurement_type}
-                  </p>
-                )}
-              </div>
-              <div>
                 <Label className="pb-2 dark:text-gray-300">Excavator *</Label>
                 <SearchableSelect
                   items={excavatorOptions}
@@ -312,11 +295,44 @@ const RitaseEditForm = ({ editingItem, onSuccess, onCancel }) => {
                   <p className="text-sm text-red-500 mt-1">{errors.operator}</p>
                 )}
               </div>
+              <div>
+                <Label className="pb-2 dark:text-gray-300" htmlFor="spph">Spph *</Label>
+                <Input
+                  id="spph"
+                  type="text"
+                  value={formData.spph}
+                  onChange={(e) => updateField("spph", e.target.value)}
+                  className={`dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600 ${
+                    errors.spph ? "border-red-500" : ""
+                  }`}
+                />
+                {errors.operator && (
+                  <p className="text-sm text-red-500 mt-1">{errors.operator}</p>
+                )}
+              </div>
             </div>
 
             {/* Row 2:  Gross Weight, Tare Weight, Net Weight (computed) */}
             <div className="border-t border-gray-100 dark:border-gray-700 pt-4">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div>
+                  <Label className="pb-2 dark:text-gray-300">
+                    Measurement Type
+                  </Label>
+                  <SearchableSelect
+                    items={MEASUREMENT_TYPE_OPTIONS}
+                    value={formData.measurement_type}
+                    onChange={(value) => updateField("measurement_type", value)}
+                    placeholder="Pilih tipe..."
+                    error={!!errors.measurement_type}
+                  />
+                  {errors.measurement_type && (
+                    <p className="text-sm text-red-500 mt-1">
+                      {errors.measurement_type}
+                    </p>
+                  )}
+                </div>
+
                 {/* Gross Weight */}
                 <div>
                   <Label

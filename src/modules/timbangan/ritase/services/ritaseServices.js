@@ -684,6 +684,7 @@ export const ritaseServices = {
         loading_location: formData.loading_location,
         dumping_location: formData.dumping_location,
         shift: formData.shift,
+        spph: formData.spph,
         date: formData.date,
         distance: parseFloat(formData.distance),
         coal_type: formData.coal_type,
@@ -730,6 +731,7 @@ export const ritaseServices = {
       if (!payload.dumping_location)
         throw new Error("Dumping location wajib dipilih");
       if (!payload.shift) throw new Error("Shift wajib dipilih");
+      if (!payload.spph) throw new Error("SPPH wajib dipilih");
       if (!payload.date) throw new Error("Date wajib diisi");
       if (!payload.coal_type) throw new Error("Coal type wajib dipilih");
       if (!payload.pic_work_unit) throw new Error("Work unit wajib dipilih");
@@ -761,6 +763,7 @@ export const ritaseServices = {
         dumping_location:
           response.data?.dumping_location || payload.dumping_location,
         shift: response.data?.shift || payload.shift,
+        spph: response.data?.spph || payload.spph,
         date: response.data?.date || payload.date,
         distance: response.data?.distance || payload.distance || 0,
         coal_type: response.data?.coal_type || payload.coal_type,
