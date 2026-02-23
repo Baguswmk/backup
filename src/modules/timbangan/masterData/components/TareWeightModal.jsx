@@ -1,8 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
-import {
-  Card,
-  CardContent,
-} from "@/shared/components/ui/card";
+import { Card, CardContent } from "@/shared/components/ui/card";
 import { Button } from "@/shared/components/ui/button";
 import { Label } from "@/shared/components/ui/label";
 import { Badge } from "@/shared/components/ui/badge";
@@ -18,6 +15,13 @@ import {
   Info,
   Wifi,
   Lock,
+  Unlock,
+  FlaskConical,
+  ChevronDown,
+  ChevronUp,
+  Target,
+  Zap,
+  Weight,
 } from "lucide-react";
 import SearchableSelect from "@/shared/components/SearchableSelect";
 import { useWebSerialScale } from "@/shared/hooks/useWebSerialScale";
@@ -77,8 +81,21 @@ const TareWeightModal = ({
   onSave,
   isSaving,
 }) => {
-  const { isConnected, currentWeight, isSupported, connect } =
-    useWebSerialScale();
+  const {
+    isConnected,
+    currentWeight,
+    isSupported,
+    connect,
+    lockedWeight: scaleLockedWeight,
+    stabilityProgress: scaleStabilityProgress,
+    isStable: scaleIsStable,
+    isSimulating,
+    toggleSimulation,
+    setSimulatedTarget,
+    stabilizeSimulation,
+    manualLock,
+    unlockWeight: scaleUnlockWeight,
+  } = useWebSerialScale();
   const isSelectionMode = units !== null && units.length > 0;
   const isSingleUnitMode = unit !== null;
 
@@ -88,10 +105,29 @@ const TareWeightModal = ({
   const [error, setError] = useState("");
   const [stabilityProgress, setStabilityProgress] = useState(0);
 
+  // Simulation panel state (dev only)
+  const IS_DEV = import.meta.env.DEV;
+  const [isSimPanelOpen, setIsSimPanelOpen] = useState(false);
+  const [simTargetInput, setSimTargetInput] = useState("");
+
   // Refs for stability tracking
   const stabilityTimerRef = useRef(null);
   const lastWeightRef = useRef(null);
   const stableStartTimeRef = useRef(null);
+
+  // Sync scaleLockedWeight (from manual/simulation lock) to local state
+  useEffect(() => {
+    if (scaleLockedWeight !== null && lockedWeight === null) {
+      setLockedWeight(scaleLockedWeight);
+      setLockedTime(new Date());
+      setStabilityProgress(100);
+    } else if (scaleLockedWeight === null && lockedWeight !== null) {
+      // Scale was unlocked externally (e.g. toggleSimulation stop)
+      setLockedWeight(null);
+      setLockedTime(null);
+      setStabilityProgress(0);
+    }
+  }, [scaleLockedWeight]);
 
   const currentUnit = useMemo(() => {
     if (isSingleUnitMode) return unit;
@@ -164,18 +200,23 @@ const TareWeightModal = ({
 
     // Check if weight is stable (within tolerance)
     const lastWeight = lastWeightRef.current;
-    const isStable = lastWeight !== null && Math.abs(weight - lastWeight) <= WEIGHT_TOLERANCE * 1000; // Convert to kg
+    const isStable =
+      lastWeight !== null &&
+      Math.abs(weight - lastWeight) <= WEIGHT_TOLERANCE * 1000; // Convert to kg
 
     if (isStable) {
       // Weight is stable
       if (stableStartTimeRef.current === null) {
         // Start tracking stability
         stableStartTimeRef.current = Date.now();
-        
+
         // Start progress timer
         stabilityTimerRef.current = setInterval(() => {
           const elapsed = Date.now() - stableStartTimeRef.current;
-          const progress = Math.min((elapsed / WEIGHT_STABLE_DURATION) * 100, 100);
+          const progress = Math.min(
+            (elapsed / WEIGHT_STABLE_DURATION) * 100,
+            100,
+          );
           setStabilityProgress(progress);
 
           if (elapsed >= WEIGHT_STABLE_DURATION) {
@@ -260,6 +301,8 @@ const TareWeightModal = ({
       clearInterval(stabilityTimerRef.current);
       stabilityTimerRef.current = null;
     }
+    // Also reset hook's internal lock state
+    scaleUnlockWeight();
     showToast.info("🔓 Berat dibuka, tunggu stabilisasi ulang");
   };
 
@@ -298,6 +341,154 @@ const TareWeightModal = ({
         />
 
         <CardContent className="space-y-4">
+          {/* ===== SIMULATION PANEL (DEV ONLY) ===== */}
+          {IS_DEV && (
+            <div className="border border-dashed border-purple-300 dark:border-purple-700 rounded-lg overflow-hidden">
+              {/* Header toggle */}
+              <button
+                type="button"
+                onClick={() => setIsSimPanelOpen((p) => !p)}
+                className="w-full flex items-center justify-between px-3 py-2 bg-purple-50 dark:bg-purple-950/30 hover:bg-purple-100 dark:hover:bg-purple-950/50 transition-colors text-purple-700 dark:text-purple-400 text-xs font-medium"
+              >
+                <span className="flex items-center gap-1.5">
+                  <FlaskConical className="w-3.5 h-3.5" />
+                  Simulasi Timbangan
+                  <span className="px-1.5 py-0.5 bg-purple-200 dark:bg-purple-800 rounded text-[10px] font-bold tracking-wide">
+                    DEV
+                  </span>
+                  {isSimulating && (
+                    <span className="px-1.5 py-0.5 bg-green-200 dark:bg-green-800 text-green-800 dark:text-green-200 rounded text-[10px] font-bold animate-pulse">
+                      AKTIF
+                    </span>
+                  )}
+                </span>
+                {isSimPanelOpen ? (
+                  <ChevronUp className="w-3.5 h-3.5" />
+                ) : (
+                  <ChevronDown className="w-3.5 h-3.5" />
+                )}
+              </button>
+
+              {/* Panel body */}
+              {isSimPanelOpen && (
+                <div className="p-3 space-y-3 bg-purple-50/50 dark:bg-purple-950/10">
+                  {/* Live readout saat simulasi aktif */}
+                  {isSimulating && (
+                    <div className="flex items-center gap-3 px-3 py-2 bg-white dark:bg-gray-900 border border-purple-200 dark:border-purple-800 rounded-lg">
+                      <Weight className="w-4 h-4 text-purple-600 dark:text-purple-400 shrink-0" />
+                      <span className="font-mono font-bold text-lg text-gray-900 dark:text-gray-100">
+                        {currentWeight != null
+                          ? (currentWeight / 1000).toFixed(3)
+                          : "0.000"}{" "}
+                        ton
+                      </span>
+                      <div className="flex-1 h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-purple-500 dark:bg-purple-400 transition-all duration-100"
+                          style={{ width: `${scaleStabilityProgress}%` }}
+                        />
+                      </div>
+                      <span className="text-xs text-gray-500 dark:text-gray-400 w-8 text-right">
+                        {Math.round(scaleStabilityProgress)}%
+                      </span>
+                      <span
+                        className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                          lockedWeight
+                            ? "bg-yellow-100 dark:bg-yellow-900/40 text-yellow-700 dark:text-yellow-300"
+                            : scaleIsStable
+                              ? "bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300"
+                              : "bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-300"
+                        }`}
+                      >
+                        {lockedWeight
+                          ? "LOCKED"
+                          : scaleIsStable
+                            ? "STABLE"
+                            : "..."}
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Set target berat */}
+                  <div className="flex gap-2 items-center">
+                    <div className="relative flex-1">
+                      <Target className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-purple-500 dark:text-purple-400" />
+                      <input
+                        type="number"
+                        min="0"
+                        max="99999"
+                        step="100"
+                        placeholder="Target berat (kg), contoh: 18000"
+                        value={simTargetInput}
+                        onChange={(e) => setSimTargetInput(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            setSimulatedTarget(simTargetInput);
+                          }
+                        }}
+                        className="w-full pl-8 pr-3 py-1.5 text-xs border border-purple-300 dark:border-purple-700 rounded-md bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      disabled={!simTargetInput}
+                      onClick={() => setSimulatedTarget(simTargetInput)}
+                      className="px-3 py-1.5 text-xs font-medium bg-purple-600 hover:bg-purple-700 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-md transition-colors"
+                    >
+                      Set
+                    </button>
+                  </div>
+
+                  {/* Action buttons */}
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={toggleSimulation}
+                      className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                        isSimulating
+                          ? "bg-red-100 hover:bg-red-200 dark:bg-red-900/30 dark:hover:bg-red-900/50 text-red-700 dark:text-red-400 border border-red-300 dark:border-red-700"
+                          : "bg-purple-600 hover:bg-purple-700 text-white"
+                      }`}
+                    >
+                      <FlaskConical className="w-3.5 h-3.5" />
+                      {isSimulating ? "Stop Simulasi" : "Mulai Simulasi"}
+                    </button>
+
+                    {isSimulating && !lockedWeight && (
+                      <button
+                        type="button"
+                        onClick={stabilizeSimulation}
+                        className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-green-600 hover:bg-green-700 text-white rounded-md transition-colors"
+                      >
+                        <Zap className="w-3.5 h-3.5" />
+                        Force Stabil
+                      </button>
+                    )}
+
+                    {isSimulating && lockedWeight && (
+                      <button
+                        type="button"
+                        onClick={handleUnlock}
+                        className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-yellow-500 hover:bg-yellow-600 text-white rounded-md transition-colors"
+                      >
+                        <Unlock className="w-3.5 h-3.5" />
+                        Unlock
+                      </button>
+                    )}
+                  </div>
+
+                  <p className="text-[10px] text-purple-500 dark:text-purple-500 leading-relaxed">
+                    Alur: set target → mulai simulasi → nilai bergerak ke target
+                    sambil jitter → klik "Force Stabil" untuk snap flat →
+                    auto-lock setelah {2}s stabil, atau klik "🔒 Lock Manual"
+                    kapan saja. Panel ini tidak muncul di production.
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Unit Selection (only in selection mode) */}
           {isSelectionMode && (
             <div className="space-y-2">
@@ -468,14 +659,14 @@ const TareWeightModal = ({
             {isConnected && currentWeight !== null && (
               <div
                 className={`bg-white rounded-lg p-4 border-2 ${
-                  lockedWeight !== null
-                    ? "border-green-300"
-                    : "border-blue-300"
+                  lockedWeight !== null ? "border-green-300" : "border-blue-300"
                 }`}
               >
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-sm text-gray-600 font-medium">
-                    {lockedWeight !== null ? "🔒 Locked Weight:" : "⚡ Live Weight:"}
+                    {lockedWeight !== null
+                      ? "🔒 Locked Weight:"
+                      : "⚡ Live Weight:"}
                   </span>
                   <div className="flex items-center gap-2">
                     {lockedWeight === null ? (
@@ -490,20 +681,17 @@ const TareWeightModal = ({
                 <div className="flex items-baseline justify-center gap-2 mb-3">
                   <span
                     className={`text-4xl font-bold font-mono ${
-                      lockedWeight !== null
-                        ? "text-green-900"
-                        : "text-blue-900"
+                      lockedWeight !== null ? "text-green-900" : "text-blue-900"
                     }`}
                   >
                     {formatWeight(
-                      (lockedWeight !== null ? lockedWeight : currentWeight) / 1000
+                      (lockedWeight !== null ? lockedWeight : currentWeight) /
+                        1000,
                     )}
                   </span>
                   <span
                     className={`text-2xl font-medium ${
-                      lockedWeight !== null
-                        ? "text-green-600"
-                        : "text-blue-600"
+                      lockedWeight !== null ? "text-green-600" : "text-blue-600"
                     }`}
                   >
                     ton
@@ -532,13 +720,35 @@ const TareWeightModal = ({
 
                 {/* Lock Status */}
                 {lockedWeight === null ? (
-                  <p className="text-xs text-blue-600 mt-2 text-center">
-                    ⚡ Berat akan terkunci otomatis setelah stabil 2 detik
-                  </p>
+                  <div className="mt-2 space-y-2">
+                    <p className="text-xs text-blue-600 text-center">
+                      ⚡ Berat akan terkunci otomatis setelah stabil 2 detik
+                    </p>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        const result = manualLock();
+                        if (result?.success) {
+                          setLockedWeight(result.weight);
+                          setLockedTime(new Date());
+                          setStabilityProgress(100);
+                          showToast.success("🔒 Berat dikunci manual");
+                        }
+                      }}
+                      disabled={!currentWeight || currentWeight <= 0}
+                      className="w-full h-8 text-xs border-blue-300 text-blue-700 hover:bg-blue-50"
+                    >
+                      <Lock className="w-3 h-3 mr-1" />
+                      🔒 Lock Manual
+                    </Button>
+                  </div>
                 ) : (
                   <div className="mt-2 flex items-center justify-between">
                     <p className="text-xs text-green-600">
-                      🔒 Terkunci pada {lockedTime && format(lockedTime, "HH:mm:ss")}
+                      🔒 Terkunci pada{" "}
+                      {lockedTime && format(lockedTime, "HH:mm:ss")}
                     </p>
                     <Button
                       type="button"
