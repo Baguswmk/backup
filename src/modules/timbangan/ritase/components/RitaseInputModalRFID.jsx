@@ -33,7 +33,7 @@ import { ritaseServices } from "@/modules/timbangan/ritase/services/ritaseServic
 import { useWebSerialScale } from "@/shared/hooks/useWebSerialScale";
 import { useRFIDWebSerial } from "@/shared/hooks/useRFIDWebSerial";
 import { format } from "date-fns";
-import useAuthStore from "@/modules/auth/store/authStore";
+import { useAuth } from "@/modules/auth/hooks/useAuth";
 import { useRitaseStore } from "@/modules/timbangan/ritase/store/ritaseStore";
 
 const MEASUREMENT_TYPES = {
@@ -61,7 +61,7 @@ const RitaseInputModalRFID = ({
   const [calculatedNetWeight, setCalculatedNetWeight] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState({});
-  const user = useAuthStore((state) => state.user);
+  const { user } = useAuth();
 
   const [insertedWeight, setInsertedWeight] = useState(null);
   const [insertedTime, setInsertedTime] = useState(null);
@@ -97,17 +97,18 @@ const RitaseInputModalRFID = ({
   } = useWebSerialScale();
 
   const {
-    isConnected: rfidConnected,
-    isConnecting: rfidConnecting,
-    lastScan: rfidLastScan,
-    isSupported: rfidSupported,
-    connect: rfidConnect,
-    disconnect: rfidDisconnect,
-    autoConnect: rfidAutoConnect,
-    error: rfidError,
-    enableScanning: rfidEnableScanning,
-    clearLastScan: clearRfidScan,
-  } = useRFIDWebSerial();
+  isConnected: rfidConnected,
+  isConnecting: rfidConnecting,
+  lastScan: rfidLastScan,
+  isSupported: rfidSupported,
+  connect: rfidConnect,
+  disconnect: rfidDisconnect,
+  autoConnect: rfidAutoConnect,
+  error: rfidError,
+  enableScanning: rfidEnableScanning,
+  clearLastScan: clearRfidScan,
+} = useRFIDWebSerial();
+
 
   const handleAutoInsert = useCallback(
     (weight) => {
@@ -140,6 +141,7 @@ const RitaseInputModalRFID = ({
     },
     [selectedFleet, user],
   );
+
 
   const getRemainingHiddenTime = useCallback(
     (hullNo) => {
@@ -557,7 +559,7 @@ const RitaseInputModalRFID = ({
   const showWeightFields = showGrossWeight || showNetWeight;
   const canEditWeight = manualEditMode || insertedWeight !== null;
 
-  useEffect(() => {
+    useEffect(() => {
     if (
       manualEditMode ||
       insertedWeight !== null ||
@@ -652,7 +654,7 @@ const RitaseInputModalRFID = ({
     return () => clearTimeout(timeoutId);
   }, [currentWeight, wsConnected, manualEditMode, insertedWeight]);
 
-  useEffect(() => {
+    useEffect(() => {
     if (!isOpen) return;
 
     const checkAndUnhideExpired = () => {
@@ -776,58 +778,45 @@ const RitaseInputModalRFID = ({
   ]);
 
   useEffect(() => {
-    if (
-      shouldAutoConnect &&
-      !rfidConnected &&
-      rfidSupported &&
-      !rfidConnecting &&
-      isOpen
-    ) {
-      setTimeout(() => {
-        rfidAutoConnect();
-      }, 1000);
-    }
-  }, [
-    shouldAutoConnect,
-    rfidConnected,
-    rfidSupported,
-    rfidConnecting,
-    isOpen,
-    rfidAutoConnect,
-  ]);
+  if (
+    shouldAutoConnect &&
+    !rfidConnected &&
+    rfidSupported &&
+    !rfidConnecting &&
+    isOpen
+  ) {
+    setTimeout(() => {
+      rfidAutoConnect();
+    }, 1000);
+  }
+}, [shouldAutoConnect, rfidConnected, rfidSupported, rfidConnecting, isOpen, rfidAutoConnect]);
 
-  useEffect(() => {
-    if (insertedWeight !== null) {
-      rfidEnableScanning(true);
+useEffect(() => {
+  if (insertedWeight !== null) {
+    rfidEnableScanning(true);
+  } else {
+    rfidEnableScanning(false);
+  }
+}, [insertedWeight, rfidEnableScanning]);
+
+useEffect(() => {
+  if (rfidLastScan && insertedWeight !== null) {
+    const matchingOption = hullNoOptions.find(
+      opt => opt.value.toUpperCase() === rfidLastScan.toUpperCase()
+    );
+    
+    if (matchingOption) {
+      handleHullNoChange(matchingOption.value);
+      clearRfidScan();
+      showToast.success(`RFID detected: ${rfidLastScan}`, { duration: 2000 });
     } else {
-      rfidEnableScanning(false);
+      showToast.warning(`RFID ${rfidLastScan} tidak ditemukan di fleet`, { 
+        duration: 3000 
+      });
+      clearRfidScan();
     }
-  }, [insertedWeight, rfidEnableScanning]);
-
-  useEffect(() => {
-    if (rfidLastScan && insertedWeight !== null) {
-      const matchingOption = hullNoOptions.find(
-        (opt) => opt.value.toUpperCase() === rfidLastScan.toUpperCase(),
-      );
-
-      if (matchingOption) {
-        handleHullNoChange(matchingOption.value);
-        clearRfidScan();
-        showToast.success(`RFID detected: ${rfidLastScan}`, { duration: 2000 });
-      } else {
-        showToast.warning(`RFID ${rfidLastScan} tidak ditemukan di fleet`, {
-          duration: 3000,
-        });
-        clearRfidScan();
-      }
-    }
-  }, [
-    rfidLastScan,
-    insertedWeight,
-    hullNoOptions,
-    handleHullNoChange,
-    clearRfidScan,
-  ]);
+  }
+}, [rfidLastScan, insertedWeight, hullNoOptions, handleHullNoChange, clearRfidScan]);
 
   useEffect(() => {
     if (isOpen) {
@@ -851,6 +840,7 @@ const RitaseInputModalRFID = ({
     };
   }, [isOpen]);
 
+
   return (
     <>
       {isOpen && (
@@ -865,28 +855,29 @@ const RitaseInputModalRFID = ({
                 </div>
                 <div className="flex items-center gap-2">
                   {showWeightFields && (
-                    <ScaleConnectionStatusRFID
-                      isSupported={isSupported}
-                      isAutoConnecting={isAutoConnecting}
-                      connectionTimeout={connectionTimeout}
-                      wsConnected={wsConnected}
-                      isConnecting={isConnecting}
-                      waitingForFirstData={waitingForFirstData}
-                      insertedWeight={insertedWeight}
-                      currentWeight={currentWeight}
-                      isWeightStable={isWeightStable}
-                      stableWeightCount={stableWeightCount}
-                      scaleError={scaleError}
-                      onConnect={connect}
-                      onDisconnect={disconnect}
-                      rfidConnected={rfidConnected}
-                      rfidConnecting={rfidConnecting}
-                      rfidLastScan={rfidLastScan}
-                      rfidSupported={rfidSupported}
-                      rfidError={rfidError}
-                      onRfidConnect={rfidConnect}
-                      onRfidDisconnect={rfidDisconnect}
-                    />
+                 <ScaleConnectionStatusRFID
+  isSupported={isSupported}
+  isAutoConnecting={isAutoConnecting}
+  connectionTimeout={connectionTimeout}
+  wsConnected={wsConnected}
+  isConnecting={isConnecting}
+  waitingForFirstData={waitingForFirstData}
+  insertedWeight={insertedWeight}
+  currentWeight={currentWeight}
+  isWeightStable={isWeightStable}
+  stableWeightCount={stableWeightCount}
+  scaleError={scaleError}
+  onConnect={connect}
+  onDisconnect={disconnect}
+  
+  rfidConnected={rfidConnected}
+  rfidConnecting={rfidConnecting}
+  rfidLastScan={rfidLastScan}
+  rfidSupported={rfidSupported}
+  rfidError={rfidError}
+  onRfidConnect={rfidConnect}
+  onRfidDisconnect={rfidDisconnect}
+/>
                   )}
                   <Button
                     variant="ghost"
@@ -1023,7 +1014,7 @@ const RitaseInputModalRFID = ({
                     <div>
                       <Label className="flex items-center gap-2 mb-2 text-gray-700 dark:text-gray-300">
                         <Weight className="w-4 h-4" />
-                        Berat Kotor (ton) *
+                        Gross Weight (ton) *
                       </Label>
 
                       <div className="flex items-center gap-2">
@@ -1201,7 +1192,7 @@ const RitaseInputModalRFID = ({
                     <div>
                       <Label className="flex items-center gap-2 mb-2 text-gray-700 dark:text-gray-300">
                         <Scale className="w-4 h-4" />
-                        Berat Bersih (ton) *
+                        Net Weight (ton) *
                       </Label>
 
                       <div className="flex items-center gap-2">

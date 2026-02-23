@@ -33,7 +33,7 @@ import { ritaseServices } from "@/modules/timbangan/ritase/services/ritaseServic
 import { useWebSerialScale } from "@/shared/hooks/useWebSerialScale";
 import { useRFIDWebSocket } from "@/shared/hooks/useRFIDWebSocket";
 import { format } from "date-fns";
-import useAuthStore from "@/modules/auth/store/authStore";
+import { useAuth } from "@/modules/auth/hooks/useAuth";
 import { useRitaseStore } from "@/modules/timbangan/ritase/store/ritaseStore";
 
 const MEASUREMENT_TYPES = {
@@ -61,7 +61,7 @@ const RitaseInputModalWebSocket = ({
   const [calculatedNetWeight, setCalculatedNetWeight] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState({});
-  const user = useAuthStore((state) => state.user);
+  const { user } = useAuth();
 
   const [insertedWeight, setInsertedWeight] = useState(null);
   const [insertedTime, setInsertedTime] = useState(null);
@@ -109,8 +109,10 @@ const RitaseInputModalWebSocket = ({
   } = useRFIDWebSocket({
     enabled: true,
     autoConnect: shouldAutoConnect && isOpen,
-    onRfidScan: (data) => {},
-    onConnectionChange: (connected) => {},
+    onRfidScan: (data) => {
+    },
+    onConnectionChange: (connected) => {
+    },
   });
 
   const handleAutoInsert = useCallback(
@@ -158,20 +160,18 @@ const RitaseInputModalWebSocket = ({
   useEffect(() => {
     if (rfidLastScan && insertedWeight !== null) {
       const hullNoFromRFID = rfidLastScan.hullNo || rfidLastScan;
-
+      
       const matchingOption = hullNoOptions.find(
-        (opt) => opt.value.toUpperCase() === hullNoFromRFID.toUpperCase(),
+        opt => opt.value.toUpperCase() === hullNoFromRFID.toUpperCase()
       );
-
+      
       if (matchingOption) {
         handleHullNoChange(matchingOption.value);
         clearRfidScan();
-        showToast.success(`RFID detected: ${hullNoFromRFID}`, {
-          duration: 2000,
-        });
+        showToast.success(`RFID detected: ${hullNoFromRFID}`, { duration: 2000 });
       } else {
-        showToast.warning(`RFID ${hullNoFromRFID} tidak ditemukan di fleet`, {
-          duration: 3000,
+        showToast.warning(`RFID ${hullNoFromRFID} tidak ditemukan di fleet`, { 
+          duration: 3000 
         });
         clearRfidScan();
       }
@@ -618,7 +618,7 @@ const RitaseInputModalWebSocket = ({
 
   return (
     <>
-      {isOpen && (
+       {isOpen && (
         <div className="fixed inset-0 bg-black/50 dark:bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 transition-all">
           <div className="bg-white dark:bg-gray-800 rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl dark:shadow-gray-900/50 border border-gray-200 dark:border-gray-700">
             <div className="sticky top-0 bg-white dark:bg-gray-800 px-6 py-4 z-10 border-b border-gray-200 dark:border-gray-700">
@@ -640,6 +640,7 @@ const RitaseInputModalWebSocket = ({
                       scaleError={scaleError}
                       onConnect={connect}
                       onDisconnect={disconnect}
+                      
                       rfidConnected={rfidConnected}
                       rfidConnecting={rfidConnecting}
                       rfidLastScan={rfidLastScan}
@@ -784,7 +785,7 @@ const RitaseInputModalWebSocket = ({
                     <div>
                       <Label className="flex items-center gap-2 mb-2 text-gray-700 dark:text-gray-300">
                         <Weight className="w-4 h-4" />
-                        Berat Kotor (ton) *
+                        Gross Weight (ton) *
                       </Label>
 
                       <div className="flex items-center gap-2">
@@ -962,7 +963,7 @@ const RitaseInputModalWebSocket = ({
                     <div>
                       <Label className="flex items-center gap-2 mb-2 text-gray-700 dark:text-gray-300">
                         <Scale className="w-4 h-4" />
-                        Berat Bersih (ton) *
+                        Net Weight (ton) *
                       </Label>
 
                       <div className="flex items-center gap-2">

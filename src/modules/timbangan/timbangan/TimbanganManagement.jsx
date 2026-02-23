@@ -2,17 +2,7 @@ import React, { useEffect, useCallback, useState } from "react";
 import { TimbanganInputCard } from "./components/TimbanganInputCard";
 import { TimbanganList } from "./components/TimbanganList";
 import LoadingOverlay from "@/shared/components/LoadingOverlay";
-import {
-  WifiOff,
-  Wifi,
-  Maximize,
-  Minimize,
-  ExternalLink,
-  User,
-  Edit2,
-  RefreshCw,
-  Database,
-} from "lucide-react";
+import { WifiOff, Wifi, Maximize, Minimize, ExternalLink, User, Edit2, RefreshCw, Database } from "lucide-react";
 import { useOffline } from "@/shared/components/OfflineProvider";
 import { useFleet } from "../fleet/hooks/useFleet";
 import { calculateCurrentShiftAndGroup } from "@/shared/utils/group";
@@ -48,7 +38,7 @@ const TimbanganManagement = () => {
       setTimeout(() => setIsRefreshingMasterData(false), 1200);
     }
   }, []);
-
+  
   useEffect(() => {
     const savedName = localStorage.getItem("operator_sib_name");
     if (!savedName) {
@@ -76,9 +66,8 @@ const TimbanganManagement = () => {
 
   const handleOpenRitase = useCallback(() => {
     // Buka halaman dengan menu Ritase di tab baru
-    const url =
-      window.location.origin + window.location.pathname + "?menu=Ritase";
-    window.open(url, "_blank");
+    const url = window.location.origin + window.location.pathname + '?menu=Ritase';
+    window.open(url, '_blank');
   }, []);
 
   // const handleRefresh = useCallback(async () => {
@@ -86,7 +75,7 @@ const TimbanganManagement = () => {
   //   try {
   //     // Dispatch event untuk refresh TimbanganList
   //     window.dispatchEvent(new CustomEvent('timbangan:refresh'));
-
+      
   //     // Tunggu sebentar untuk animasi
   //     await new Promise(resolve => setTimeout(resolve, 1000));
   //   } catch (error) {
@@ -95,6 +84,7 @@ const TimbanganManagement = () => {
   //     setIsRefreshing(false);
   //   }
   // }, []);
+
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -124,6 +114,7 @@ const TimbanganManagement = () => {
   };
 
   const dumptruckData = masters?.dumpTruck;
+
 
   const toggleFullscreen = useCallback(() => {
     if (!document.fullscreenElement) {
@@ -194,8 +185,8 @@ const TimbanganManagement = () => {
   return (
     <>
       {/* Operator Name Modal */}
-      <OperatorNameModal
-        isOpen={showOperatorModal}
+      <OperatorNameModal 
+        isOpen={showOperatorModal} 
         onConfirm={handleOperatorConfirm}
         onClose={handleCloseOperatorModal}
       />
@@ -225,48 +216,48 @@ const TimbanganManagement = () => {
                 </Button>
               </div>
             </div>
-            {/* Date, Time, Shift Info - Responsive Grid */}
-            <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-2 text-xs sm:text-sm md:text-base ">
+                 {/* Date, Time, Shift Info - Responsive Grid */}
+          <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-2 text-xs sm:text-sm md:text-base ">
+            <div className="flex items-center gap-2">
+              <span className="font-medium text-gray-900 dark:text-white">
+                {formatDayDate()}
+              </span>
+            </div>
+
+            <span className="hidden sm:inline text-gray-400 dark:text-gray-500">
+              |
+            </span>
+
+            <div className="flex items-center gap-2">
+              <span className="font-semibold text-blue-600 dark:text-blue-400 tabular-nums">
+                {formatTime()}
+              </span>
+            </div>
+
+            <span className="hidden sm:inline text-gray-400 dark:text-gray-500">
+              |
+            </span>
+
+            {/* Group dan Shift dalam satu wrapper agar selalu 1 baris di bawah md */}
+            <div className="flex items-center gap-x-3">
+              <div className="flex items-center gap-2">
+                <span className="text-gray-700 dark:text-gray-300">
+                  Group{" "}
+                  <span className="font-semibold text-gray-900 dark:text-white">
+                    {shiftInfo.activeGroup}
+                  </span>
+                </span>
+              </div>
+
+              <span className="text-gray-400 dark:text-gray-500">|</span>
+
               <div className="flex items-center gap-2">
                 <span className="font-medium text-gray-900 dark:text-white">
-                  {formatDayDate()}
+                  {shiftInfo.currentShift}
                 </span>
-              </div>
-
-              <span className="hidden sm:inline text-gray-400 dark:text-gray-500">
-                |
-              </span>
-
-              <div className="flex items-center gap-2">
-                <span className="font-semibold text-blue-600 dark:text-blue-400 tabular-nums">
-                  {formatTime()}
-                </span>
-              </div>
-
-              <span className="hidden sm:inline text-gray-400 dark:text-gray-500">
-                |
-              </span>
-
-              {/* Group dan Shift dalam satu wrapper agar selalu 1 baris di bawah md */}
-              <div className="flex items-center gap-x-3">
-                <div className="flex items-center gap-2">
-                  <span className="text-gray-700 dark:text-gray-300">
-                    Group{" "}
-                    <span className="font-semibold text-gray-900 dark:text-white">
-                      {shiftInfo.activeGroup}
-                    </span>
-                  </span>
-                </div>
-
-                <span className="text-gray-400 dark:text-gray-500">|</span>
-
-                <div className="flex items-center gap-2">
-                  <span className="font-medium text-gray-900 dark:text-white">
-                    {shiftInfo.currentShift}
-                  </span>
-                </div>
               </div>
             </div>
+          </div>
 
             {/* Status Indicators - Mobile: Stack, Desktop: Inline */}
             <div className="flex flex-row items-center gap-2">
@@ -296,9 +287,7 @@ const TimbanganManagement = () => {
                 className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-100 dark:bg-slate-800 text-xs sm:text-sm font-medium border border-green-300 dark:border-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 text-green-700 dark:text-green-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors "
                 title="Refresh Master Data (Unit, Operator, dll)"
               >
-                <Database
-                  className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${isRefreshingMasterData ? "animate-spin" : ""}`}
-                />
+                <Database className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${isRefreshingMasterData ? "animate-spin" : ""}`} />
                 <span className="hidden sm:inline">Master</span>
               </Button>
 
@@ -312,7 +301,7 @@ const TimbanganManagement = () => {
                 <RefreshCw className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${isRefreshing ? "animate-spin" : ""}`} />
                 <span className="hidden sm:inline">Refresh</span>
               </Button> */}
-
+              
               {/* Button Buka Ritase di Tab Baru */}
               <Button
                 onClick={handleOpenRitase}
@@ -351,7 +340,10 @@ const TimbanganManagement = () => {
                 )}
               </Button>
             </div>
+            
           </div>
+
+     
         </div>
 
         {/* Keyboard Shortcuts Info - Responsive */}
@@ -389,10 +381,7 @@ const TimbanganManagement = () => {
         <div className="grid grid-cols-1">
           {/* Input Section - Takes full width on mobile, 4 columns on large screens */}
           <section className="lg:col-span-4 xl:col-span-3">
-            <TimbanganInputCard
-              fleetConfigs={dumptruckData}
-              operatorName={operatorName}
-            />
+            <TimbanganInputCard fleetConfigs={dumptruckData} operatorName={operatorName} />
           </section>
 
           {/* Queue List Section - Takes full width on mobile, 8 columns on large screens */}

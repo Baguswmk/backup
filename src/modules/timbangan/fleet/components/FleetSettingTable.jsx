@@ -799,7 +799,7 @@ const FleetSettingTable = ({
                       {/* Subtotal grup */}
                       <tr className="bg-blue-50 dark:bg-blue-900/20 font-semibold">
                         <td
-                          colSpan="9"
+                          colSpan="8"
                           className="px-1 py-1 text-right border-r border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100"
                         >
                           <div className="flex flex-col items-end gap-1">
@@ -825,7 +825,7 @@ const FleetSettingTable = ({
                         <td className="px-1 py-1 text-center border-r border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100">
                           {group.totalDumptrucks}
                         </td>
-                        <td colSpan="2" className="px-1 py-1 text-center"></td>
+                        <td colSpan="3" className="px-1 py-1 text-center"></td>
                       </tr>
                     </React.Fragment>
                   ));
