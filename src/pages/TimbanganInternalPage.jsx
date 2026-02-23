@@ -2,7 +2,6 @@ import React, { useState, useMemo, useCallback, useEffect } from "react";
 import { useAuth } from "@/modules/auth/hooks/useAuth";
 import useAuthStore from "@/modules/auth/store/authStore";
 import { QueryClientProvider } from "@tanstack/react-query";
-import { Toaster } from "sonner";
 import { Sidebar } from "@/shared/components/Sidebar";
 import { Alert, AlertDescription } from "@/shared/components/ui/alert";
 import { Button } from "@/shared/components/ui/button";
@@ -338,16 +337,6 @@ const TimbanganInternalPage = () => {
           </div>
         </div>
 
-        {/* Toaster */}
-        <Toaster
-          position="top-right"
-          toastOptions={{
-            className: cn(
-              "bg-neutral-50 dark:bg-slate-800",
-              "text-gray-900 dark:text-gray-100",
-            ),
-          }}
-        />
       </OfflineProvider>
     </QueryClientProvider>
   );

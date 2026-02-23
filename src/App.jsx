@@ -12,7 +12,15 @@ function App() {
       <BrowserRouter>
         <AuthProvider>
           <AppRouter />
-          <Toaster position="top-right" />
+          <Toaster
+          position="top-right"
+          toastOptions={{
+            className: cn(
+              "bg-neutral-50 dark:bg-slate-800",
+              "text-gray-900 dark:text-gray-100",
+            ),
+          }}
+        />
         </AuthProvider>
       </BrowserRouter>
     </QueryClientProvider>
