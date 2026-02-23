@@ -1201,12 +1201,12 @@ export const TimbanganInputCard = () => {
                 transition-all duration-200
                 disabled:opacity-50 disabled:cursor-not-allowed"
                   disabled={
-                    isSubmitting ||
-                    isWeightMismatch ||
-                    (isOperator &&
-                      (!scale.isConnected ||
-                        parseFloat(formData.gross_weight || "0") <= 0)) ||
-                    (isOperator && scale.isConnected && !scale.isStable)
+                    isSubmitting 
+                    // isWeightMismatch ||
+                    // (isOperator &&
+                    //   (!scale.isConnected ||
+                    //     parseFloat(formData.gross_weight || "0") <= 0)) ||
+                    // (isOperator && scale.isConnected && !scale.isStable)
                   }
                   size="lg"
                 >
