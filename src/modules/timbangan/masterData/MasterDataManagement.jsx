@@ -481,7 +481,27 @@ const MasterDataManagement = () => {
     async (data) => {
       setUI({ isSavingTare: true });
       try {
-        const payload = { tare_weight: data.tareWeight };
+        const existingUnit =
+          ui.tareMode === "single"
+            ? ui.weighingUnit
+            : baseData.find((u) => String(u.id) === String(data.unitId));
+
+        const payload = {
+          ...existingUnit,
+          tare_weight: data.tareWeight,
+        };
+
+        if (existingUnit) {
+          payload.companyId =
+            existingUnit.companyId ||
+            existingUnit.id_company ||
+            existingUnit.company?.id;
+          payload.workUnitId =
+            existingUnit.workUnitId ||
+            existingUnit.id_work_unit ||
+            existingUnit.work_unit?.id;
+        }
+
         const result = await masterDataService.updateUnit(data.unitId, payload);
         if (result) {
           showToast.success("Tare weight berhasil disimpan");
@@ -495,7 +515,7 @@ const MasterDataManagement = () => {
         setUI({ isSavingTare: false });
       }
     },
-    [refresh],
+    [refresh, ui.tareMode, ui.weighingUnit, baseData],
   );
 
   const handleSave = useCallback(
@@ -623,7 +643,10 @@ const MasterDataManagement = () => {
         )}
 
         {error && (
-          <Alert variant="destructive" className="bg-red-50 border-red-200 dark:bg-red-900/20 dark:border-red-800">
+          <Alert
+            variant="destructive"
+            className="bg-red-50 border-red-200 dark:bg-red-900/20 dark:border-red-800"
+          >
             <AlertCircle className="w-4 h-4" />
             <AlertDescription>{error}</AlertDescription>
           </Alert>
