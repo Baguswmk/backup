@@ -689,14 +689,15 @@ export const generateKertasCheckerPDF = async (data, params) => {
   </div>
   
   <div class="info-section">
-    <div class="info-row"><strong>Tanggal:</strong> <span>${formattedDate}</span></div>
-    <div class="info-row"><strong>Shift:</strong> <span>${shiftName} (${String(startHour).padStart(2, "0")}:00 - ${String(endHour).padStart(2, "0")}:00)</span></div>
-    <div class="info-row"><strong>Excavator:</strong> <span>${data.excavator}</span></div>
-    <div class="info-row"><strong>Loading Point:</strong> <span>${data.loading_location}</span></div>
-    <div class="info-row"><strong>Dumping Point:</strong> <span>${data.dumping_location}</span></div>
-    <div class="info-row"><strong>Measurement Type:</strong> <span>${data.measurement_type}</span></div>
-    <div class="info-row"><strong>Total Ritase:</strong> <span>${data.tripCount} rit</span></div>
-    <div class="info-row"><strong>Total Tonase:</strong> <span>${data.totalWeight} ton</span></div>
+    <div class="info-row"><strong>Tanggal</strong> <span>: ${formattedDate}</span></div>
+    <div class="info-row"><strong>Shift</strong> <span>: ${shiftName} (${String(startHour).padStart(2, "0")}:00 - ${String(endHour).padStart(2, "0")}:00)</span></div>
+    <div class="info-row"><strong>Excavator</strong> <span>: ${data.excavator}</span></div>
+    <div class="info-row"><strong>Product Brand</strong> <span>: ${data.coal_type}</span></div>
+    <div class="info-row"><strong>Loading Point</strong> <span>: ${data.loading_location}</span></div>
+    <div class="info-row"><strong>Dumping Point</strong> <span>: ${data.dumping_location}</span></div>
+    <div class="info-row"><strong>Measurement Type</strong> <span>: ${data.measurement_type}</span></div>
+    <div class="info-row"><strong>Total Ritase</strong> <span>: ${data.tripCount} rit</span></div>
+    <div class="info-row"><strong>Total Tonase</strong> <span>: ${data.totalWeight} ton</span></div>
   </div>
   
   <table>
