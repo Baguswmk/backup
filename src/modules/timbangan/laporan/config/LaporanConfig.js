@@ -9,41 +9,41 @@ import {
 } from "lucide-react";
 
 export const LAPORAN_CONFIG = [
-  {
-    id: "laporan-spph",
-    type: "spph",
-    title: "Laporan Tonase SPPH",
-    description: "Laporan tonase produksi SPPH per tanggal dan shift",
-    icon: Package,
-    iconBgColor: "bg-blue-100 dark:bg-blue-900/30",
-    iconColor: "text-blue-600 dark:text-blue-400",
-    downloadFormats: [
-      {
-        value: "pdf",
-        label: "PDF",
-        icon: FileText,
-        color:
-          "bg-red-600 hover:bg-red-700 dark:bg-red-700 dark:hover:bg-red-800",
-      },
-      {
-        value: "excel",
-        label: "Excel",
-        icon: FileSpreadsheet,
-        color:
-          "bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-800",
-      },
-      {
-        value: "csv",
-        label: "CSV",
-        icon: File,
-        color:
-          "bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-800",
-      },
-    ],
-    excludeForRehandling: true,
-    showSpphFilter: true,
-    showDumpTruckFilter: false,
-  },
+  // {
+  //   id: "laporan-spph",
+  //   type: "spph",
+  //   title: "Laporan Tonase SPPH",
+  //   description: "Laporan tonase produksi SPPH per tanggal dan shift",
+  //   icon: Package,
+  //   iconBgColor: "bg-blue-100 dark:bg-blue-900/30",
+  //   iconColor: "text-blue-600 dark:text-blue-400",
+  //   downloadFormats: [
+  //     {
+  //       value: "pdf",
+  //       label: "PDF",
+  //       icon: FileText,
+  //       color:
+  //         "bg-red-600 hover:bg-red-700 dark:bg-red-700 dark:hover:bg-red-800",
+  //     },
+  //     {
+  //       value: "excel",
+  //       label: "Excel",
+  //       icon: FileSpreadsheet,
+  //       color:
+  //         "bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-800",
+  //     },
+  //     {
+  //       value: "csv",
+  //       label: "CSV",
+  //       icon: File,
+  //       color:
+  //         "bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-800",
+  //     },
+  //   ],
+  //   excludeForRehandling: true,
+  //   showSpphFilter: true,
+  //   showDumpTruckFilter: false,
+  // },
   {
     id: "laporan-dump-truck",
     type: "dump-truck",
