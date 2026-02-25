@@ -30,6 +30,7 @@ import {
   AlertTriangle,
   Check,
   Printer,
+  Search,
 } from "lucide-react";
 import { format } from "date-fns";
 import { id as localeId } from "date-fns/locale";
@@ -58,6 +59,7 @@ export const TimbanganList = () => {
   const [syncingIds, setSyncingIds] = useState([]);
   const [syncError, setSyncError] = useState(null);
   const [statusFilter, setStatusFilter] = useState("all"); // "all" | "pending" | "failed" | "sent"
+  const [searchTerm, setSearchTerm] = useState("");
 
   /**
    * Returns true only for valid queue item objects (not Axios error objects).
@@ -104,7 +106,7 @@ export const TimbanganList = () => {
   useEffect(() => {
     setCurrentPage(1);
     setSelectedIds([]);
-  }, [statusFilter]);
+  }, [statusFilter, searchTerm]);
 
   useEffect(() => {
     loadData();
@@ -113,9 +115,19 @@ export const TimbanganList = () => {
   }, [syncStatus.lastSync, syncStatus.pendingCount, syncStatus.sentCount]);
 
   const filteredItems = useMemo(() => {
-    if (statusFilter === "all") return items;
-    return items.filter((i) => i.status === statusFilter);
-  }, [items, statusFilter]);
+    let result = items;
+    if (statusFilter !== "all") {
+      result = result.filter((i) => i.status === statusFilter);
+    }
+    if (searchTerm) {
+      const lowerSearch = searchTerm.toLowerCase();
+      result = result.filter((i) => {
+        const hullNo = i.data?.hull_no || "";
+        return hullNo.toLowerCase().includes(lowerSearch);
+      });
+    }
+    return result;
+  }, [items, statusFilter, searchTerm]);
 
   const paginatedItems = useMemo(() => {
     if (itemsPerPage === filteredItems.length && filteredItems.length > 0) {
@@ -253,7 +265,9 @@ export const TimbanganList = () => {
     try {
       // Ambil semua item yang dipilih (pending maupun failed)
       const selectedItems = items.filter(
-        (i) => selectedIds.includes(i.id) && (i.status === "pending" || i.status === "failed"),
+        (i) =>
+          selectedIds.includes(i.id) &&
+          (i.status === "pending" || i.status === "failed"),
       );
 
       // Pending: sync langsung. Failed: hapus dari failed store dulu, lalu sync
@@ -261,7 +275,11 @@ export const TimbanganList = () => {
         selectedItems.map(async (item) => {
           if (item.status === "failed") {
             await offlineService.deleteFailedItem(item.id);
-            return offlineService.syncQueueItem({ ...item, status: "pending", retryCount: 0 });
+            return offlineService.syncQueueItem({
+              ...item,
+              status: "pending",
+              retryCount: 0,
+            });
           }
           return offlineService.syncQueueItem(item);
         }),
@@ -640,74 +658,111 @@ export const TimbanganList = () => {
               )}
             </div>
 
-            {/* Status Filter Tabs */}
-            <div className="flex flex-wrap items-center gap-2">
-              {[
-                { key: "all", label: "Semua", count: counts.total, color: "blue" },
-                { key: "pending", label: "Pending", count: counts.pending, color: "yellow" },
-                { key: "failed", label: "Gagal", count: counts.failed, color: "red" },
-                { key: "sent", label: "Terkirim", count: counts.sent, color: "green" },
-              ].map(({ key, label, count, color }) => {
-                const isActive = statusFilter === key;
-                const colorMap = {
-                  blue: isActive
-                    ? "bg-blue-600 text-white border-blue-600"
-                    : "border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-blue-300 hover:text-blue-600",
-                  yellow: isActive
-                    ? "bg-yellow-500 text-white border-yellow-500"
-                    : "border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-yellow-300 hover:text-yellow-600",
-                  red: isActive
-                    ? "bg-red-600 text-white border-red-600"
-                    : "border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-red-300 hover:text-red-600",
-                  green: isActive
-                    ? "bg-green-600 text-white border-green-600"
-                    : "border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-green-300 hover:text-green-600",
-                };
-                return (
-                  <button
-                    key={key}
-                    onClick={() => setStatusFilter(key)}
-                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-sm font-medium transition-all duration-150 cursor-pointer ${colorMap[color]}`}
-                  >
-                    {label}
-                    <span
-                      className={`text-xs px-1.5 py-0.5 rounded-full font-semibold ${
-                        isActive
-                          ? "bg-white/20"
-                          : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400"
-                      }`}
+            {/* Filters & Search */}
+            <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
+              {/* Status Filter Tabs */}
+              <div className="flex flex-wrap items-center gap-2">
+                {[
+                  {
+                    key: "all",
+                    label: "Semua",
+                    count: counts.total,
+                    color: "blue",
+                  },
+                  {
+                    key: "pending",
+                    label: "Pending",
+                    count: counts.pending,
+                    color: "yellow",
+                  },
+                  {
+                    key: "failed",
+                    label: "Gagal",
+                    count: counts.failed,
+                    color: "red",
+                  },
+                  {
+                    key: "sent",
+                    label: "Terkirim",
+                    count: counts.sent,
+                    color: "green",
+                  },
+                ].map(({ key, label, count, color }) => {
+                  const isActive = statusFilter === key;
+                  const colorMap = {
+                    blue: isActive
+                      ? "bg-blue-600 text-white border-blue-600"
+                      : "border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-blue-300 hover:text-blue-600",
+                    yellow: isActive
+                      ? "bg-yellow-500 text-white border-yellow-500"
+                      : "border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-yellow-300 hover:text-yellow-600",
+                    red: isActive
+                      ? "bg-red-600 text-white border-red-600"
+                      : "border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-red-300 hover:text-red-600",
+                    green: isActive
+                      ? "bg-green-600 text-white border-green-600"
+                      : "border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-green-300 hover:text-green-600",
+                  };
+                  return (
+                    <button
+                      key={key}
+                      onClick={() => setStatusFilter(key)}
+                      className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-sm font-medium transition-all duration-150 cursor-pointer ${colorMap[color]}`}
                     >
-                      {count}
-                    </span>
-                  </button>
-                );
-              })}
+                      {label}
+                      <span
+                        className={`text-xs px-1.5 py-0.5 rounded-full font-semibold ${
+                          isActive
+                            ? "bg-white/20"
+                            : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400"
+                        }`}
+                      >
+                        {count}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
 
-              {/* Select All filtered */}
-              {filteredItems.length > 0 && (
-                <button
-                  onClick={() => {
-                    const allFilteredIds = filteredItems.map((i) => i.id);
-                    const allSelected = allFilteredIds.every((id) =>
-                      selectedIds.includes(id),
-                    );
-                    if (allSelected) {
-                      setSelectedIds((prev) =>
-                        prev.filter((id) => !allFilteredIds.includes(id)),
+              <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto mt-2 lg:mt-0">
+                {/* Search Input */}
+                <div className="relative w-full sm:w-64">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />
+                  <input
+                    type="text"
+                    placeholder="Cari Unit DT..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full pl-9 pr-4 py-2 text-sm border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                {/* Select All filtered */}
+                {filteredItems.length > 0 && (
+                  <button
+                    onClick={() => {
+                      const allFilteredIds = filteredItems.map((i) => i.id);
+                      const allSelected = allFilteredIds.every((id) =>
+                        selectedIds.includes(id),
                       );
-                    } else {
-                      setSelectedIds((prev) => [
-                        ...new Set([...prev, ...allFilteredIds]),
-                      ]);
-                    }
-                  }}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-dashed border-gray-300 dark:border-gray-600 text-sm text-gray-500 dark:text-gray-400 hover:border-blue-400 hover:text-blue-600 transition-all duration-150 cursor-pointer ml-auto"
-                >
-                  {filteredItems.every((i) => selectedIds.includes(i.id))
-                    ? "Batal Pilih Semua"
-                    : `Pilih Semua ${statusFilter !== "all" ? `(${filteredItems.length})` : ""}`}
-                </button>
-              )}
+                      if (allSelected) {
+                        setSelectedIds((prev) =>
+                          prev.filter((id) => !allFilteredIds.includes(id)),
+                        );
+                      } else {
+                        setSelectedIds((prev) => [
+                          ...new Set([...prev, ...allFilteredIds]),
+                        ]);
+                      }
+                    }}
+                    className="inline-flex items-center gap-1.5 px-3 py-2 lg:py-1.5 rounded-lg border border-dashed border-gray-300 dark:border-gray-600 text-sm text-gray-500 dark:text-gray-400 hover:border-blue-400 hover:text-blue-600 transition-all duration-150 cursor-pointer w-full lg:w-auto justify-center"
+                  >
+                    {filteredItems.every((i) => selectedIds.includes(i.id))
+                      ? "Batal Pilih Semua"
+                      : `Pilih Semua ${statusFilter !== "all" || searchTerm ? `(${filteredItems.length})` : ""}`}
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         </CardHeader>
