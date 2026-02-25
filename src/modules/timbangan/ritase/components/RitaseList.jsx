@@ -82,6 +82,7 @@ const RitaseList = ({
     return filteredRitaseData.slice(startIdx, endIdx);
   }, [filteredRitaseData, currentPage, pageSize]);
 
+  console.log(paginatedData);
   const totalPages = useMemo(() => {
     return Math.ceil(filteredRitaseData.length / pageSize);
   }, [filteredRitaseData, pageSize]);
@@ -260,11 +261,28 @@ const RitaseList = ({
                           {(currentPage - 1) * ITEMS_PER_PAGE + index + 1}
                         </TableCell>
                         <TableCell className="text-gray-700 dark:text-gray-300">
-                          {ritase.date
-                            ? format(new Date(ritase.date), "dd MMM yyyy", {
-                                locale: localeId,
-                              })
-                            : "-"}
+                          {ritase.date ? (
+                            <div className="flex flex-col">
+                              <span>
+                                {format(new Date(ritase.date), "dd MMM yyyy", {
+                                  locale: localeId,
+                                })}
+                              </span>
+                              {ritase.createdAt && (
+                                <span className="text-xs text-gray-500 dark:text-gray-400">
+                                  {format(
+                                    new Date(ritase.createdAt),
+                                    "HH:mm:ss",
+                                    {
+                                      locale: localeId,
+                                    },
+                                  )}
+                                </span>
+                              )}
+                            </div>
+                          ) : (
+                            "-"
+                          )}
                         </TableCell>
                         <TableCell className="text-gray-700 dark:text-gray-300">
                           {ritase.shift || "-"}
