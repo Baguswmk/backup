@@ -92,8 +92,6 @@ const OverviewManagement = () => {
     tableData: hookTableData,
   } = useDashboardDaily(hookParams, true);
 
-
-
   useEffect(() => {
     if (isLoading) {
       if (!cachedData) {
@@ -412,11 +410,10 @@ const OverviewManagement = () => {
     });
   }, [filteredTableData, sortConfig]);
 
-  const totalPages = Math.ceil(sortedData.length / itemsPerPage);
+  const { filteredData, workUnitOptions, selectedWorkUnit, ...handlers } =
+    useWorkUnitFilter(sortedData);
 
-
-    const { filteredData, workUnitOptions, selectedWorkUnit, ...handlers } =
-  useWorkUnitFilter(sortedData);
+  const totalPages = Math.ceil(filteredData.length / itemsPerPage);
 
   const paginatedData = useMemo(() => {
     const startIndex = (currentPage - 1) * itemsPerPage;
@@ -456,10 +453,13 @@ const OverviewManagement = () => {
     setCurrentPage(1);
   }, []);
 
-  const handleWorkUnitChange = useCallback((value) => {
-    handlers.onWorkUnitChange(value);
-    setCurrentPage(1); 
-  }, [handlers]);
+  const handleWorkUnitChange = useCallback(
+    (value) => {
+      handlers.onWorkUnitChange(value);
+      setCurrentPage(1);
+    },
+    [handlers],
+  );
 
   const hasActiveFilters =
     selectedExcavators.length > 0 ||
