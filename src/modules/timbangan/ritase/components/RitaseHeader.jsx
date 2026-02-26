@@ -63,7 +63,7 @@ const RitaseHeader = ({
       {/* Header Title & User Info */}
       <div className="flex flex-col gap-2">
         <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">
-          Ritase Timbangan
+          Batubara Tracking System
         </h1>
         <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-0">
           <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">

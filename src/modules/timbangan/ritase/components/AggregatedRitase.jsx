@@ -206,18 +206,31 @@ const AggregatedRitase = ({
     const grouped = {};
     summariesData.forEach((item) => {
       let key;
+      const firstRitase = item?.ritases?.[0] || {};
+
       switch (activeTab) {
         case "checker":
-          key = item.checker || item.unit_exca || "Unknown Checker";
+          key = item.unit_exca || firstRitase.unit_exca || "Unknown Excavator";
           break;
         case "dumping":
-          key = item.dumping_location || "Unknown Dumping";
+          key =
+            item.dumping_location ||
+            firstRitase.dumping_location ||
+            "Unknown Dumping";
           break;
         case "loading":
-          key = item.loading_location || "Unknown Loading";
+          key =
+            item.loading_location ||
+            firstRitase.loading_location ||
+            "Unknown Loading";
           break;
         case "mitra":
-          key = item.company || item.unit_exca || "Unknown Company";
+          key =
+            item.company ||
+            firstRitase.company ||
+            item.unit_exca ||
+            firstRitase.unit_exca ||
+            "Unknown Company";
           break;
         default:
           key = "Unknown";
@@ -234,8 +247,16 @@ const AggregatedRitase = ({
       }
 
       grouped[key].items.push(item);
-      const weight = item.totalWeight || item.total_tonase || 0;
-      const trips = item.tripCount || item.total_ritase || 0;
+      const weight =
+        item.totalWeight ||
+        item.total_tonase ||
+        (item.ritases
+          ? item.ritases.reduce((sum, r) => sum + (r.net_weight || 0), 0)
+          : 0);
+      const trips =
+        item.tripCount ||
+        item.total_ritase ||
+        (item.ritases ? item.ritases.length : 0);
 
       grouped[key].totalWeight += parseFloat(weight);
       grouped[key].totalTrips += parseInt(trips);
@@ -286,11 +307,24 @@ const AggregatedRitase = ({
 
         // Recalculate totals for filtered items
         const totalWeight = filteredItems.reduce((sum, item) => {
-          return sum + parseFloat(item.totalWeight || item.total_tonase || 0);
+          const itemWeight =
+            item.totalWeight ||
+            item.total_tonase ||
+            (item.ritases
+              ? item.ritases.reduce(
+                  (innerSum, r) => innerSum + (r.net_weight || 0),
+                  0,
+                )
+              : 0);
+          return sum + parseFloat(itemWeight);
         }, 0);
 
         const totalTrips = filteredItems.reduce((sum, item) => {
-          return sum + parseInt(item.tripCount || item.total_ritase || 0);
+          const itemTrips =
+            item.tripCount ||
+            item.total_ritase ||
+            (item.ritases ? item.ritases.length : 0);
+          return sum + parseInt(itemTrips);
         }, 0);
 
         return {
@@ -496,7 +530,11 @@ const AggregatedRitase = ({
   };
 
   const getTripCount = (item) => {
-    return item.tripCount || item.total_ritase || 0;
+    return (
+      item.tripCount ||
+      item.total_ritase ||
+      (item.ritases ? item.ritases.length : 0)
+    );
   };
 
   const renderSearchSection = () => (
@@ -609,8 +647,19 @@ const AggregatedRitase = ({
   );
 
   const getTotalWeight = (item) => {
-    const weight = item.totalWeight || item.total_tonase || 0;
-    return parseFloat(weight).toFixed(2);
+    const weight =
+      item.totalWeight ||
+      item.total_tonase ||
+      (item.ritases
+        ? item.ritases.reduce((sum, r) => sum + (r.net_weight || 0), 0)
+        : 0);
+    const parsedWeight = parseFloat(weight);
+    return isNaN(parsedWeight)
+      ? "0.00"
+      : parsedWeight.toLocaleString("en-US", {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        });
   };
 
   const renderGroupedView = () => {
@@ -653,7 +702,10 @@ const AggregatedRitase = ({
                         Total Ritase
                       </div>
                       <div className="text-base sm:text-lg font-bold text-blue-600 dark:text-blue-400">
-                        {group.totalTrips || 0} rit
+                        {group.totalTrips
+                          ? group.totalTrips.toLocaleString("en-US")
+                          : "0"}{" "}
+                        rit
                       </div>
                     </div>
                     <div className="text-left sm:text-right">
@@ -661,7 +713,13 @@ const AggregatedRitase = ({
                         Total Tonase
                       </div>
                       <div className="text-base sm:text-lg font-bold text-green-600 dark:text-green-400">
-                        {group.totalWeight || 0} ton
+                        {group.totalWeight
+                          ? group.totalWeight.toLocaleString("en-US", {
+                              minimumFractionDigits: 2,
+                              maximumFractionDigits: 2,
+                            })
+                          : "0.00"}{" "}
+                        ton
                       </div>
                     </div>
                   </div>
