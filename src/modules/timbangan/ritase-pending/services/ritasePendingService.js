@@ -88,7 +88,7 @@ export const ritasePendingService = {
 
       logger.info("✅ Ritase synced", { id: ritase.id });
 
-      return { success: response.success };
+      return { ...response };
     } catch (error) {
       const errorMessage = extractErrorMessage(error);
 
@@ -108,26 +108,26 @@ export const ritasePendingService = {
 
       const ids = ritases.map((r) => r.id);
 
-        const response = await offlineService.put(
-          "/v1/custom/ritase/offline/sync",
-          { id: ids },
-        );
+      const response = await offlineService.put(
+        "/v1/custom/ritase/offline/sync",
+        { id: ids },
+      );
 
-        logger.info("✅ Bulk ritase synced", {
-          count: ritases.length,
-          ids,
-        });
+      logger.info("✅ Bulk ritase synced", {
+        count: ritases.length,
+        ids,
+      });
 
-        return { success: response.success };
-      } catch (error) {
-        const errorMessage = extractErrorMessage(error);
+      return { ...response };
+    } catch (error) {
+      const errorMessage = extractErrorMessage(error);
 
-        logger.error("❌ Failed to sync bulk ritase", {
-          error: errorMessage,
-          details: error.response?.data,
-        });
+      logger.error("❌ Failed to sync bulk ritase", {
+        error: errorMessage,
+        details: error.response?.data,
+      });
 
-        return { success: false, error: errorMessage };
-      }
-    },
+      return { success: false, error: errorMessage };
+    }
+  },
 };

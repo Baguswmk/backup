@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import {
   Package,
   Send,
@@ -19,36 +19,34 @@ import { ritasePendingService } from "../services/ritasePendingService";
 import Pagination from "@/shared/components/Pagination";
 
 const ITEMS_PER_PAGE_DEFAULT = 10;
+const POLL_INTERVAL_MS = 30000; // 30 detik
 
 export const RitasePendingList = ({ onRegisterRefresh }) => {
   const [ritaseList, setRitaseList] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [selectedGroup, setSelectedGroup] = useState(null); // group user yang dibuka di modal
-
-  const [selectedKeys, setSelectedKeys] = useState(new Set()); // key = userId
-
+  // isInitialLoad = true hanya pada mount pertama → tampilkan full loading skeleton
+  // isRefreshing  = true pada polling/manual refresh → tidak flicker
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [selectedGroup, setSelectedGroup] = useState(null);
+  const [selectedKeys, setSelectedKeys] = useState(new Set());
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(ITEMS_PER_PAGE_DEFAULT);
 
+  const hasFetchedOnce = useRef(false);
   const user = useAuthStore((state) => state.user);
   const { isSyncing, syncRitases } = useRitasePendingSync();
 
-  useEffect(() => {
-    fetchPendingRitases();
-    const interval = setInterval(fetchPendingRitases, 30000);
-    return () => clearInterval(interval);
-  }, []);
+  // ─── Fetch ─────────────────────────────────────────────────────────────────
 
-  useEffect(() => {
-    if (typeof onRegisterRefresh === "function") {
-      onRegisterRefresh(fetchPendingRitases);
+  const fetchPendingRitases = async ({ silent = false } = {}) => {
+    // silent = true → background polling, tidak set isRefreshing (no UI flicker)
+    if (!hasFetchedOnce.current) {
+      setIsInitialLoad(true);
+    } else if (!silent) {
+      setIsRefreshing(true);
     }
-  }, [onRegisterRefresh]);
 
-  const fetchPendingRitases = async () => {
     try {
-      setIsLoading(true);
-
       const result = await ritasePendingService.fetchPendingRitase({
         user,
         forceRefresh: true,
@@ -64,19 +62,47 @@ export const RitasePendingList = ({ onRegisterRefresh }) => {
         });
 
         setRitaseList(filtered);
-        setCurrentPage(1);
-        setSelectedKeys(new Set());
+        // Reset pagination & selection hanya saat manual refresh, bukan polling silent
+        if (!silent) {
+          setCurrentPage(1);
+          setSelectedKeys(new Set());
+        }
 
-        logger.info("✅ Pending ritases loaded", { total: filtered.length });
+        logger.info("✅ Pending ritases loaded", { total: filtered.length, silent });
       }
     } catch (error) {
       logger.error("❌ Failed to fetch pending ritases", error);
     } finally {
-      setIsLoading(false);
+      if (!hasFetchedOnce.current) {
+        setIsInitialLoad(false);
+        hasFetchedOnce.current = true;
+      }
+      setIsRefreshing(false);
     }
   };
 
-  // ─── Group by created_by_user ────────────────────────────────────────────────
+  // Fetch pertama kali saat mount
+  useEffect(() => {
+    fetchPendingRitases({ silent: false });
+  }, []);
+
+  // Background polling — silent agar tidak flicker
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchPendingRitases({ silent: true });
+    }, POLL_INTERVAL_MS);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Daftarkan refresh callback ke parent (RitasePendingManagement)
+  useEffect(() => {
+    if (typeof onRegisterRefresh === "function") {
+      // Manual refresh dari tombol header = non-silent
+      onRegisterRefresh(() => fetchPendingRitases({ silent: false }));
+    }
+  }, [onRegisterRefresh]);
+
+  // ─── Group by created_by_user ────────────────────────────────────────────
 
   const groupedData = useMemo(() => {
     const groups = {};
@@ -85,7 +111,10 @@ export const RitasePendingList = ({ onRegisterRefresh }) => {
       if (!groups[userId]) {
         groups[userId] = {
           userId: String(userId),
-          userName: ritase.created_by_user?.name || ritase.created_by_user?.username || "-",
+          userName:
+            ritase.created_by_user?.name ||
+            ritase.created_by_user?.username ||
+            "-",
           username: ritase.created_by_user?.username || "-",
           ritases: [],
           totalRit: 0,
@@ -99,7 +128,7 @@ export const RitasePendingList = ({ onRegisterRefresh }) => {
     return Object.values(groups).sort((a, b) => b.totalRit - a.totalRit);
   }, [ritaseList]);
 
-  // ─── Pagination ──────────────────────────────────────────────────────────────
+  // ─── Pagination ──────────────────────────────────────────────────────────
 
   const totalPages = Math.max(1, Math.ceil(groupedData.length / itemsPerPage));
 
@@ -120,10 +149,11 @@ export const RitasePendingList = ({ onRegisterRefresh }) => {
     setSelectedKeys(new Set());
   };
 
-  // ─── Checkbox logic (per group/user) ────────────────────────────────────────
+  // ─── Checkbox logic ──────────────────────────────────────────────────────
 
   const allKeys = pagedData.map((g) => g.userId);
-  const allSelected = allKeys.length > 0 && allKeys.every((k) => selectedKeys.has(k));
+  const allSelected =
+    allKeys.length > 0 && allKeys.every((k) => selectedKeys.has(k));
   const someSelected = allKeys.some((k) => selectedKeys.has(k));
   const indeterminate = someSelected && !allSelected;
 
@@ -154,23 +184,25 @@ export const RitasePendingList = ({ onRegisterRefresh }) => {
   const selectedGroups = groupedData.filter((g) => selectedKeys.has(g.userId));
   const totalSelectedRit = selectedGroups.reduce((s, g) => s + g.totalRit, 0);
 
-  // ─── Sync handlers ───────────────────────────────────────────────────────────
+  // ─── Sync handlers ───────────────────────────────────────────────────────
 
   const handleSyncGroup = async (group, event) => {
     event.stopPropagation();
-    const result = await syncRitases(group.ritases);
-    if (result.success || result.partialSuccess) fetchPendingRitases();
+    await syncRitases(group.ritases);
+    // Selalu refresh setelah sync (apapun hasilnya)
+    fetchPendingRitases({ silent: false });
   };
 
   const handleBulkSync = async () => {
     const allRitases = selectedGroups.flatMap((g) => g.ritases);
     await syncRitases(allRitases);
-    fetchPendingRitases();
+    // Selalu refresh setelah sync
+    fetchPendingRitases({ silent: false });
   };
 
-  // ─── Render ──────────────────────────────────────────────────────────────────
+  // ─── Render ──────────────────────────────────────────────────────────────
 
-  if (isLoading) {
+  if (isInitialLoad) {
     return (
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-8">
         <div className="flex items-center justify-center">
@@ -203,12 +235,16 @@ export const RitasePendingList = ({ onRegisterRefresh }) => {
     <>
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
 
-        {/* ── Header ──────────────────────────────────────────────────────── */}
+        {/* ── Header ─────────────────────────────────────────────────────── */}
         <div className="px-4 sm:px-6 py-4 border-b border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between gap-3 flex-wrap">
             <div>
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
                 Ritase Pending
+                {/* Indicator kecil saat background refresh */}
+                {isRefreshing && (
+                  <span className="inline-block w-2 h-2 rounded-full bg-blue-400 animate-pulse" title="Memperbarui data..." />
+                )}
               </h2>
               <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
                 {groupedData.length} pengguna &bull;{" "}
@@ -223,7 +259,9 @@ export const RitasePendingList = ({ onRegisterRefresh }) => {
                 size="sm"
                 className="gap-2 bg-green-600 hover:bg-green-700 text-white"
               >
-                <Send className={`w-3.5 h-3.5 ${isSyncing ? "animate-pulse" : ""}`} />
+                <Send
+                  className={`w-3.5 h-3.5 ${isSyncing ? "animate-pulse" : ""}`}
+                />
                 Sync {selectedKeys.size} Pengguna
                 <span className="ml-0.5 text-green-100 text-xs">
                   ({totalSelectedRit} rit)
@@ -233,7 +271,7 @@ export const RitasePendingList = ({ onRegisterRefresh }) => {
           </div>
         </div>
 
-        {/* ── Select-all bar ───────────────────────────────────────────────── */}
+        {/* ── Select-all bar ──────────────────────────────────────────────── */}
         <div className="px-4 sm:px-6 py-2.5 bg-gray-50 dark:bg-gray-900/40 border-b border-gray-200 dark:border-gray-700 flex items-center gap-3">
           <Button
             onClick={toggleSelectAll}
@@ -258,7 +296,7 @@ export const RitasePendingList = ({ onRegisterRefresh }) => {
           )}
         </div>
 
-        {/* ── Group List ───────────────────────────────────────────────────── */}
+        {/* ── Group List ──────────────────────────────────────────────────── */}
         <div className="divide-y divide-gray-200 dark:divide-gray-700">
           {pagedData.map((group, index) => {
             const isChecked = selectedKeys.has(group.userId);
@@ -267,11 +305,10 @@ export const RitasePendingList = ({ onRegisterRefresh }) => {
             return (
               <div
                 key={group.userId}
-                className={`px-4 sm:px-6 py-4 transition-colors group ${
-                  isChecked
+                className={`px-4 sm:px-6 py-4 transition-colors group ${isChecked
                     ? "bg-blue-50/60 dark:bg-blue-900/10"
                     : "hover:bg-gray-50 dark:hover:bg-gray-700/50"
-                }`}
+                  }`}
               >
                 <div className="flex items-center gap-3">
                   {/* Checkbox */}
@@ -286,7 +323,7 @@ export const RitasePendingList = ({ onRegisterRefresh }) => {
                     )}
                   </Button>
 
-                  {/* Avatar icon */}
+                  {/* Avatar */}
                   <div className="flex-shrink-0">
                     <div className="w-9 h-9 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
                       <User className="w-4 h-4 text-blue-600 dark:text-blue-400" />
@@ -331,7 +368,6 @@ export const RitasePendingList = ({ onRegisterRefresh }) => {
 
                   {/* Action Buttons */}
                   <div className="flex items-center gap-2 flex-shrink-0">
-                    {/* Sync group */}
                     <Button
                       onClick={(e) => handleSyncGroup(group, e)}
                       disabled={isSyncing}
@@ -340,11 +376,12 @@ export const RitasePendingList = ({ onRegisterRefresh }) => {
                       className="gap-1.5 border-green-300 dark:border-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 text-green-700 dark:text-green-400"
                       title={`Sync ${group.totalRit} ritase`}
                     >
-                      <Send className={`w-3.5 h-3.5 ${isSyncing ? "animate-pulse" : ""}`} />
+                      <Send
+                        className={`w-3.5 h-3.5 ${isSyncing ? "animate-pulse" : ""}`}
+                      />
                       <span className="hidden sm:inline">Sync</span>
                     </Button>
 
-                    {/* Detail — buka modal list ritase user ini */}
                     <Button
                       onClick={() => setSelectedGroup(group)}
                       className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
@@ -359,13 +396,13 @@ export const RitasePendingList = ({ onRegisterRefresh }) => {
           })}
         </div>
 
-        {/* ── Pagination ───────────────────────────────────────────────────── */}
+        {/* ── Pagination ──────────────────────────────────────────────────── */}
         <div className="px-4 sm:px-6 py-4 border-t border-gray-200 dark:border-gray-700">
           <Pagination
             currentPage={currentPage}
             totalPages={totalPages}
             onPageChange={handlePageChange}
-            isLoading={isLoading}
+            isLoading={isInitialLoad}
             itemsPerPage={itemsPerPage}
             onItemsPerPageChange={handleItemsPerPageChange}
             totalItems={groupedData.length}
@@ -373,12 +410,12 @@ export const RitasePendingList = ({ onRegisterRefresh }) => {
         </div>
       </div>
 
-      {/* Detail Modal — list ritase milik user yang dipilih */}
+      {/* Detail Modal */}
       {selectedGroup && (
         <RitaseDetailModal
           group={selectedGroup}
           onClose={() => setSelectedGroup(null)}
-          onSyncSuccess={fetchPendingRitases}
+          onSyncSuccess={() => fetchPendingRitases({ silent: false })}
         />
       )}
     </>

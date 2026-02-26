@@ -24,7 +24,7 @@ export const RitaseDetailModal = ({ group, onClose, onSyncSuccess }) => {
 
   const { isSyncing, syncRitases } = useRitasePendingSync();
 
-  // ─── Sorted list ─────────────────────────────────────────────────────────────
+  // ─── Sorted list ──────────────────────────────────────────────────────────
 
   const sortedRitases = [...group.ritases].sort((a, b) => {
     switch (sortBy) {
@@ -39,7 +39,7 @@ export const RitaseDetailModal = ({ group, onClose, onSyncSuccess }) => {
     }
   });
 
-  // ─── Checkbox logic ───────────────────────────────────────────────────────────
+  // ─── Checkbox logic ───────────────────────────────────────────────────────
 
   const allIds = sortedRitases.map((r) => r.id);
   const allSelected = allIds.length > 0 && allIds.every((id) => selectedIds.has(id));
@@ -64,26 +64,27 @@ export const RitaseDetailModal = ({ group, onClose, onSyncSuccess }) => {
 
   const selectedRitases = sortedRitases.filter((r) => selectedIds.has(r.id));
 
-  // ─── Sync handlers ────────────────────────────────────────────────────────────
+  // ─── Sync handlers — selalu refresh setelah selesai ──────────────────────
 
   const handleSyncOne = async (ritase, event) => {
     event?.stopPropagation();
-    const result = await syncRitases([ritase]);
-    if (result?.success && onSyncSuccess) onSyncSuccess();
+    await syncRitases([ritase]);
+    // Selalu refresh, apapun hasilnya
+    if (onSyncSuccess) onSyncSuccess();
   };
 
   const handleBulkSync = async () => {
-    const result = await syncRitases(selectedRitases);
+    await syncRitases(selectedRitases);
     setSelectedIds(new Set());
-    if (result?.success && onSyncSuccess) onSyncSuccess();
+    if (onSyncSuccess) onSyncSuccess();
   };
 
   const handleSyncAll = async () => {
-    const result = await syncRitases(group.ritases);
-    if (result?.success && onSyncSuccess) onSyncSuccess();
+    await syncRitases(group.ritases);
+    if (onSyncSuccess) onSyncSuccess();
   };
 
-  // ─── Formatters ───────────────────────────────────────────────────────────────
+  // ─── Formatters ───────────────────────────────────────────────────────────
 
   const formatDateTime = (dateString) => {
     if (!dateString) return "-";
@@ -117,7 +118,7 @@ export const RitaseDetailModal = ({ group, onClose, onSyncSuccess }) => {
       <div className="absolute inset-0 flex items-center justify-center p-4">
         <div className="relative bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-3xl max-h-[90vh] flex flex-col">
 
-          {/* ── Header ──────────────────────────────────────────────────── */}
+          {/* ── Header ────────────────────────────────────────────────── */}
           <div className="flex items-start justify-between p-4 sm:p-6 border-b border-gray-200 dark:border-gray-700">
             <div className="flex items-center gap-3 min-w-0">
               <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center flex-shrink-0">
@@ -148,7 +149,7 @@ export const RitaseDetailModal = ({ group, onClose, onSyncSuccess }) => {
             </Button>
           </div>
 
-          {/* ── Toolbar ─────────────────────────────────────────────────── */}
+          {/* ── Toolbar ───────────────────────────────────────────────── */}
           <div className="px-4 sm:px-6 py-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50">
             <div className="flex flex-wrap items-center justify-between gap-3">
               {/* Sort */}
@@ -163,11 +164,10 @@ export const RitaseDetailModal = ({ group, onClose, onSyncSuccess }) => {
                     <Button
                       key={key}
                       onClick={() => setSortBy(key)}
-                      className={`px-2.5 py-1 text-xs rounded-lg transition-colors ${
-                        sortBy === key
+                      className={`px-2.5 py-1 text-xs rounded-lg transition-colors ${sortBy === key
                           ? "bg-blue-600 text-white"
                           : "bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600"
-                      }`}
+                        }`}
                     >
                       {label}
                     </Button>
@@ -202,7 +202,7 @@ export const RitaseDetailModal = ({ group, onClose, onSyncSuccess }) => {
             </div>
           </div>
 
-          {/* ── Select-all bar ───────────────────────────────────────────── */}
+          {/* ── Select-all bar ─────────────────────────────────────────── */}
           <div className="px-4 sm:px-6 py-2 border-b border-gray-200 dark:border-gray-700 bg-gray-50/60 dark:bg-gray-900/30 flex items-center gap-3">
             <Button
               onClick={toggleSelectAll}
@@ -226,7 +226,7 @@ export const RitaseDetailModal = ({ group, onClose, onSyncSuccess }) => {
             )}
           </div>
 
-          {/* ── Ritase List ──────────────────────────────────────────────── */}
+          {/* ── Ritase List ────────────────────────────────────────────── */}
           <div className="flex-1 overflow-y-auto p-4 sm:p-6">
             <div className="space-y-3">
               {sortedRitases.map((ritase, index) => {
@@ -235,16 +235,14 @@ export const RitaseDetailModal = ({ group, onClose, onSyncSuccess }) => {
                 return (
                   <div
                     key={ritase.id}
-                    className={`rounded-lg p-4 border transition-colors ${
-                      isChecked
+                    className={`rounded-lg p-4 border transition-colors ${isChecked
                         ? "bg-blue-50 dark:bg-blue-900/10 border-blue-300 dark:border-blue-700"
                         : "bg-gray-50 dark:bg-gray-900/50 border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-600"
-                    }`}
+                      }`}
                   >
                     {/* Row header */}
                     <div className="flex items-start justify-between gap-2 mb-3">
                       <div className="flex items-center gap-2 min-w-0">
-                        {/* Checkbox */}
                         <Button
                           onClick={() => toggleSelectOne(ritase.id)}
                           className="p-0.5 rounded hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors flex-shrink-0"
@@ -260,7 +258,6 @@ export const RitaseDetailModal = ({ group, onClose, onSyncSuccess }) => {
                           {index + 1}
                         </span>
 
-                        {/* Rute */}
                         <div className="flex items-center gap-1.5 min-w-0">
                           <MapPin className="w-3.5 h-3.5 text-orange-500 flex-shrink-0" />
                           <span className="text-sm font-semibold text-gray-900 dark:text-white truncate">
@@ -374,7 +371,7 @@ export const RitaseDetailModal = ({ group, onClose, onSyncSuccess }) => {
             </div>
           </div>
 
-          {/* ── Footer ──────────────────────────────────────────────────── */}
+          {/* ── Footer ────────────────────────────────────────────────── */}
           <div className="px-4 sm:px-6 py-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50 flex items-center justify-between gap-3 flex-wrap">
             <span className="text-sm text-gray-500 dark:text-gray-400">
               Total: {sortedRitases.length} ritase
