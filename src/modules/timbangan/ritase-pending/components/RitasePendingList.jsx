@@ -54,7 +54,6 @@ export const RitasePendingList = ({ onRegisterRefresh }) => {
 
       if (result.status === "success" && result.data) {
         const filtered = result.data.filter((ritase) => {
-          if (ritase.id_setting_fleet) return false;
           if (user?.role?.toLowerCase() !== "ccr") {
             if (ritase.created_by_user?.id !== user?.id) return false;
           }
@@ -306,8 +305,8 @@ export const RitasePendingList = ({ onRegisterRefresh }) => {
               <div
                 key={group.userId}
                 className={`px-4 sm:px-6 py-4 transition-colors group ${isChecked
-                    ? "bg-blue-50/60 dark:bg-blue-900/10"
-                    : "hover:bg-gray-50 dark:hover:bg-gray-700/50"
+                  ? "bg-blue-50/60 dark:bg-blue-900/10"
+                  : "hover:bg-gray-50 dark:hover:bg-gray-700/50"
                   }`}
               >
                 <div className="flex items-center gap-3">
