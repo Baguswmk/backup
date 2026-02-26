@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useRef } from "react";
+import { useState, useMemo, useEffect, useRef, forwardRef, useImperativeHandle } from "react";
 import { Button } from "@/shared/components/ui/button";
 import { ChevronsUpDown, Check } from "lucide-react";
 import {
@@ -16,7 +16,7 @@ import {
 } from "@/shared/components/ui/command";
 import { cn } from "@/lib/utils";
 
-const SearchableSelect = ({
+const SearchableSelect = forwardRef(({
   items = [],
   id,
   value,
@@ -26,10 +26,20 @@ const SearchableSelect = ({
   disabled = false,
   error = false,
   allowClear = false,
-}) => {
+}, ref) => {
   const [open, setOpen] = useState(false);
   const [searchValue, setSearchValue] = useState("");
   const commandListRef = useRef(null);
+  const buttonRef = useRef(null);
+
+  useImperativeHandle(ref, () => ({
+    focus: () => {
+      setOpen(true);
+      if (buttonRef.current) {
+        buttonRef.current.focus();
+      }
+    }
+  }));
 
   const selected = useMemo(
     () => items.find((it) => String(it.value) === String(value)) || null,
@@ -87,6 +97,7 @@ const SearchableSelect = ({
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button
+          ref={buttonRef}
           type="button"
           variant="ghost"
           id={id}
@@ -205,6 +216,7 @@ const SearchableSelect = ({
       </PopoverContent>
     </Popover>
   );
-};
+});
+SearchableSelect.displayName = "SearchableSelect";
 
 export default SearchableSelect;

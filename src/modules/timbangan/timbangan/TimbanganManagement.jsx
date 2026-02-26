@@ -38,7 +38,7 @@ const TimbanganManagement = () => {
       setTimeout(() => setIsRefreshingMasterData(false), 1200);
     }
   }, []);
-  
+
   useEffect(() => {
     const savedName = localStorage.getItem("operator_sib_name");
     if (!savedName) {
@@ -75,7 +75,7 @@ const TimbanganManagement = () => {
   //   try {
   //     // Dispatch event untuk refresh TimbanganList
   //     window.dispatchEvent(new CustomEvent('timbangan:refresh'));
-      
+
   //     // Tunggu sebentar untuk animasi
   //     await new Promise(resolve => setTimeout(resolve, 1000));
   //   } catch (error) {
@@ -185,8 +185,8 @@ const TimbanganManagement = () => {
   return (
     <>
       {/* Operator Name Modal */}
-      <OperatorNameModal 
-        isOpen={showOperatorModal} 
+      <OperatorNameModal
+        isOpen={showOperatorModal}
         onConfirm={handleOperatorConfirm}
         onClose={handleCloseOperatorModal}
       />
@@ -216,48 +216,48 @@ const TimbanganManagement = () => {
                 </Button>
               </div>
             </div>
-                 {/* Date, Time, Shift Info - Responsive Grid */}
-          <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-2 text-xs sm:text-sm md:text-base ">
-            <div className="flex items-center gap-2">
-              <span className="font-medium text-gray-900 dark:text-white">
-                {formatDayDate()}
-              </span>
-            </div>
-
-            <span className="hidden sm:inline text-gray-400 dark:text-gray-500">
-              |
-            </span>
-
-            <div className="flex items-center gap-2">
-              <span className="font-semibold text-blue-600 dark:text-blue-400 tabular-nums">
-                {formatTime()}
-              </span>
-            </div>
-
-            <span className="hidden sm:inline text-gray-400 dark:text-gray-500">
-              |
-            </span>
-
-            {/* Group dan Shift dalam satu wrapper agar selalu 1 baris di bawah md */}
-            <div className="flex items-center gap-x-3">
-              <div className="flex items-center gap-2">
-                <span className="text-gray-700 dark:text-gray-300">
-                  Group{" "}
-                  <span className="font-semibold text-gray-900 dark:text-white">
-                    {shiftInfo.activeGroup}
-                  </span>
-                </span>
-              </div>
-
-              <span className="text-gray-400 dark:text-gray-500">|</span>
-
+            {/* Date, Time, Shift Info - Responsive Grid */}
+            <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-2 text-xs sm:text-sm md:text-base ">
               <div className="flex items-center gap-2">
                 <span className="font-medium text-gray-900 dark:text-white">
-                  {shiftInfo.currentShift}
+                  {formatDayDate()}
                 </span>
               </div>
+
+              <span className="hidden sm:inline text-gray-400 dark:text-gray-500">
+                |
+              </span>
+
+              <div className="flex items-center gap-2">
+                <span className="font-semibold text-blue-600 dark:text-blue-400 tabular-nums">
+                  {formatTime()}
+                </span>
+              </div>
+
+              <span className="hidden sm:inline text-gray-400 dark:text-gray-500">
+                |
+              </span>
+
+              {/* Group dan Shift dalam satu wrapper agar selalu 1 baris di bawah md */}
+              <div className="flex items-center gap-x-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-gray-700 dark:text-gray-300">
+                    Group{" "}
+                    <span className="font-semibold text-gray-900 dark:text-white">
+                      {shiftInfo.activeGroup}
+                    </span>
+                  </span>
+                </div>
+
+                <span className="text-gray-400 dark:text-gray-500">|</span>
+
+                <div className="flex items-center gap-2">
+                  <span className="font-medium text-gray-900 dark:text-white">
+                    {shiftInfo.currentShift}
+                  </span>
+                </div>
+              </div>
             </div>
-          </div>
 
             {/* Status Indicators - Mobile: Stack, Desktop: Inline */}
             <div className="flex flex-row items-center gap-2">
@@ -301,7 +301,7 @@ const TimbanganManagement = () => {
                 <RefreshCw className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${isRefreshing ? "animate-spin" : ""}`} />
                 <span className="hidden sm:inline">Refresh</span>
               </Button> */}
-              
+
               {/* Button Buka Ritase di Tab Baru */}
               <Button
                 onClick={handleOpenRitase}
@@ -340,10 +340,10 @@ const TimbanganManagement = () => {
                 )}
               </Button>
             </div>
-            
+
           </div>
 
-     
+
         </div>
 
         {/* Keyboard Shortcuts Info - Responsive */}

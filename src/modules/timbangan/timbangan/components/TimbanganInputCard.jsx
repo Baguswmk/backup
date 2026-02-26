@@ -420,11 +420,10 @@ export const TimbanganInputCard = () => {
                       scale.isConnected ? scale.disconnect : scale.connect
                     }
                     disabled={scale.isConnecting}
-                    className={`text-xs flex items-center gap-1.5 ${
-                      scale.isConnected
+                    className={`text-xs flex items-center gap-1.5 ${scale.isConnected
                         ? "bg-green-600 hover:bg-green-700 dark:bg-green-500 dark:hover:bg-green-600 text-white"
                         : "border-gray-300 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300"
-                    }`}
+                      }`}
                     title="Alt + C untuk connect, Alt + X untuk disconnect"
                   >
                     {scale.isConnecting ? (
@@ -450,13 +449,12 @@ export const TimbanganInputCard = () => {
                         </span>
                         <Badge
                           variant="outline"
-                          className={`py-0 px-1.5 text-[10px] h-4 ${
-                            scale.lockedWeight
+                          className={`py-0 px-1.5 text-[10px] h-4 ${scale.lockedWeight
                               ? "bg-yellow-50 dark:bg-yellow-950/30 text-yellow-700 dark:text-yellow-300 border-yellow-300 dark:border-yellow-700"
                               : scale.isStable
                                 ? "bg-green-50 dark:bg-green-950/30 text-green-700 dark:text-green-300 border-green-300 dark:border-green-700"
                                 : "bg-orange-50 dark:bg-orange-950/30 text-orange-700 dark:text-orange-300 border-orange-300 dark:border-orange-700 animate-pulse"
-                          }`}
+                            }`}
                         >
                           {scale.lockedWeight
                             ? "LOCKED"
@@ -478,11 +476,10 @@ export const TimbanganInputCard = () => {
                         disabled={
                           !scale.currentWeight || scale.currentWeight <= 0
                         }
-                        className={`text-xs flex items-center gap-1.5 ${
-                          scale.lockedWeight
+                        className={`text-xs flex items-center gap-1.5 ${scale.lockedWeight
                             ? "bg-yellow-600 hover:bg-yellow-700 dark:bg-yellow-500 dark:hover:bg-yellow-600 text-white"
                             : "border-gray-300 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300"
-                        }`}
+                          }`}
                         title="Alt + L untuk lock/unlock berat manual"
                       >
                         {scale.lockedWeight ? (
@@ -508,13 +505,12 @@ export const TimbanganInputCard = () => {
                 size="sm"
                 onClick={rfid.isConnected ? rfid.disconnect : rfid.connect}
                 disabled={rfid.isConnecting}
-                className={`text-xs flex items-center gap-1.5 ${
-                  rfid.isConnected
+                className={`text-xs flex items-center gap-1.5 ${rfid.isConnected
                     ? rfid.isScanning
                       ? "bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white animate-pulse"
                       : "bg-green-600 hover:bg-green-700 dark:bg-green-500 dark:hover:bg-green-600 text-white"
                     : "border-gray-300 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300"
-                }`}
+                  }`}
                 title="Alt + R untuk connect/scan RFID"
               >
                 {rfid.isConnecting ? (
@@ -600,13 +596,12 @@ export const TimbanganInputCard = () => {
                         {Math.round(scale.stabilityProgress)}%
                       </span>
                       <span
-                        className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
-                          scale.lockedWeight
+                        className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${scale.lockedWeight
                             ? "bg-yellow-100 dark:bg-yellow-900/40 text-yellow-700 dark:text-yellow-300"
                             : scale.isStable
                               ? "bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300"
                               : "bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-300"
-                        }`}
+                          }`}
                       >
                         {scale.lockedWeight
                           ? "LOCKED"
@@ -653,11 +648,10 @@ export const TimbanganInputCard = () => {
                     <button
                       type="button"
                       onClick={scale.toggleSimulation}
-                      className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
-                        scale.isSimulating
+                      className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${scale.isSimulating
                           ? "bg-red-100 hover:bg-red-200 dark:bg-red-900/30 dark:hover:bg-red-900/50 text-red-700 dark:text-red-400 border border-red-300 dark:border-red-700"
                           : "bg-purple-600 hover:bg-purple-700 text-white"
-                      }`}
+                        }`}
                     >
                       <FlaskConical className="w-3.5 h-3.5" />
                       {scale.isSimulating ? "Stop Simulasi" : "Mulai Simulasi"}
@@ -735,8 +729,7 @@ export const TimbanganInputCard = () => {
                           scale.debugLogs?.map((log, i) => (
                             <div
                               key={i}
-                              className={`flex gap-2 leading-relaxed ${
-                                log.type === "lock"
+                              className={`flex gap-2 leading-relaxed ${log.type === "lock"
                                   ? "text-yellow-400 font-bold"
                                   : log.type === "start"
                                     ? "text-green-400"
@@ -745,7 +738,7 @@ export const TimbanganInputCard = () => {
                                       : log.type === "exact"
                                         ? "text-gray-400"
                                         : "text-orange-400"
-                              }`}
+                                }`}
                             >
                               <span className="text-gray-600 shrink-0">
                                 {log.ts}
@@ -861,8 +854,7 @@ export const TimbanganInputCard = () => {
                         rfid.debugLogs.map((log, i) => (
                           <div
                             key={i}
-                            className={`flex gap-2 leading-relaxed ${
-                              log.type === "scan"
+                            className={`flex gap-2 leading-relaxed ${log.type === "scan"
                                 ? "text-green-400 font-bold"
                                 : log.type === "raw"
                                   ? "text-gray-500"
@@ -881,7 +873,7 @@ export const TimbanganInputCard = () => {
                                               : log.type === "error"
                                                 ? "text-red-400 font-bold"
                                                 : "text-gray-400"
-                            }`}
+                              }`}
                           >
                             <span className="text-gray-600 shrink-0 select-none">
                               {log.ts}
@@ -1073,11 +1065,10 @@ export const TimbanganInputCard = () => {
                     {isOperator && scale.isConnected && (
                       <Badge
                         variant="outline"
-                        className={`ml-2 py-0 text-[10px] h-5 ${
-                          scale.isStable
+                        className={`ml-2 py-0 text-[10px] h-5 ${scale.isStable
                             ? "bg-green-50 dark:bg-green-950/30 text-green-700 dark:text-green-300 border-green-300 dark:border-green-700"
                             : "bg-orange-50 dark:bg-orange-950/30 text-orange-700 dark:text-orange-300 border-orange-300 dark:border-orange-700"
-                        }`}
+                          }`}
                       >
                         {scale.isStable ? "STABLE" : "UNSTABLE"}
                       </Badge>
@@ -1169,11 +1160,10 @@ export const TimbanganInputCard = () => {
                     disabled={isOperator}
                     onChange={handleNetWeightChange}
                     placeholder="0.00"
-                    className={`${
-                      isOperator
+                    className={`${isOperator
                         ? "bg-gray-100 dark:bg-gray-800 cursor-not-allowed"
                         : "bg-white dark:bg-gray-900 focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400"
-                    } 
+                      } 
       border-gray-300 dark:border-gray-700 
       font-bold text-lg text-right 
       text-gray-900 dark:text-gray-100
@@ -1201,7 +1191,7 @@ export const TimbanganInputCard = () => {
                 transition-all duration-200
                 disabled:opacity-50 disabled:cursor-not-allowed"
                   disabled={
-                    isSubmitting 
+                    isSubmitting
                     // isWeightMismatch ||
                     // (isOperator &&
                     //   (!scale.isConnected ||
