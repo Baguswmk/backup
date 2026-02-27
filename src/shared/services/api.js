@@ -25,7 +25,7 @@ apiClient.interceptors.request.use(
     }
 
     const logoutFlag = secureStorage.getItem("logout_flag");
-    if (logoutFlag && Date.now() - logoutFlag < 5000) {
+    if (logoutFlag && Date.now() - logoutFlag < 2000) {
       throw new axios.Cancel("Request cancelled due to recent logout");
     }
 
@@ -59,26 +59,26 @@ apiClient.interceptors.request.use(
 
 export { apiClient };
 
-let socketConnection = null;
+// let socketConnection = null;
 
-export const connectWebSocket = () => {
-  if (!socketConnection && wsConfig.enabled) {
-    socketConnection = io(wsConfig.url, {
-      transports: ["websocket"],
-      timeout: wsConfig.timeout,
-    });
+// export const connectWebSocket = () => {
+//   if (!socketConnection && wsConfig.enabled) {
+//     socketConnection = io(wsConfig.url, {
+//       transports: ["websocket"],
+//       timeout: wsConfig.timeout,
+//     });
 
-    socketConnection.on("connect", () => {});
+//     socketConnection.on("connect", () => {});
 
-    socketConnection.on("disconnect", () => {});
-  }
+//     socketConnection.on("disconnect", () => {});
+//   }
 
-  return socketConnection;
-};
+//   return socketConnection;
+// };
 
-export const disconnectWebSocket = () => {
-  if (socketConnection) {
-    socketConnection.disconnect();
-    socketConnection = null;
-  }
-};
+// export const disconnectWebSocket = () => {
+//   if (socketConnection) {
+//     socketConnection.disconnect();
+//     socketConnection = null;
+//   }
+// };

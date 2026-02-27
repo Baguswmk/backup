@@ -2,7 +2,7 @@ import { openDB } from "idb";
 import { apiClient } from "@/shared/services/api";
 
 const DB_NAME = "Timbangan_app";
-const DB_VERSION = 2; // ← naik dari 1 ke 2 untuk tambah sent_queue
+const DB_VERSION = 2;
 const STORES = {
   QUEUE: "offline_queue",
   CACHE: "api_cache",
@@ -434,6 +434,7 @@ async function apiCall(url, method = "GET", data = null, options = {}) {
     bypassQueue = false,
     forceRefresh = false,
     params = null,
+    timeout, // <-- Tambahkan parameter opsi timeout di sini
   } = options;
 
   const isOnline = navigator.onLine;
@@ -457,6 +458,7 @@ async function apiCall(url, method = "GET", data = null, options = {}) {
       const config = { method, ...options };
       if (data) config.data = data;
       if (params) config.params = params;
+      if (timeout) config.timeout = timeout;
 
       const response = await apiClient(url, config);
 
@@ -558,37 +560,41 @@ async function get(url, config = {}) {
 }
 
 async function post(url, data, config = {}) {
-  const { bypassQueue = false, ...restConfig } = config;
+  const { bypassQueue = false, timeout, ...restConfig } = config;
 
   return apiCall(url, "POST", data, {
     bypassQueue,
+    timeout,
     ...restConfig,
   });
 }
 
 async function put(url, data, config = {}) {
-  const { bypassQueue = false, ...restConfig } = config;
+  const { bypassQueue = false, timeout, ...restConfig } = config;
 
   return apiCall(url, "PUT", data, {
     bypassQueue,
+    timeout,
     ...restConfig,
   });
 }
 
 async function patch(url, data, config = {}) {
-  const { bypassQueue = false, ...restConfig } = config;
+  const { bypassQueue = false, timeout, ...restConfig } = config;
 
   return apiCall(url, "PATCH", data, {
     bypassQueue,
+    timeout,
     ...restConfig,
   });
 }
 
 async function del(url, config = {}) {
-  const { bypassQueue = true, ...restConfig } = config;
+  const { bypassQueue = true, timeout, ...restConfig } = config;
 
   return apiCall(url, "DELETE", null, {
     bypassQueue,
+    timeout,
     ...restConfig,
   });
 }

@@ -1,4 +1,5 @@
 import { offlineService } from "@/shared/services/offlineService";
+import { apiConfig } from "@/shared/config/env";
 
 const generateId = (prefix = "item") =>
   `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
@@ -12,6 +13,7 @@ export const timbanganService = {
       const result = await offlineService.post(
         "/v1/custom/ritase/offline",
         data,
+        { timeout: apiConfig.timbanganTimeout },
       );
 
       // Online & berhasil → simpan ke sent_queue untuk tracking
