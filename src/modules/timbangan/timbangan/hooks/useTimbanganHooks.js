@@ -54,7 +54,9 @@ const checkDuplicateDT = async (hullNo) => {
     const remainingMs = DT_COOLDOWN_MS - (now - new Date(ts).getTime());
     const totalSec = Math.ceil(remainingMs / 1000);
     const remainingLabel =
-      totalSec >= 60 ? `${Math.ceil(totalSec / 60)} menit` : `${totalSec} detik`;
+      totalSec >= 60
+        ? `${Math.ceil(totalSec / 60)} menit`
+        : `${totalSec} detik`;
 
     return { isDuplicate: true, remainingLabel };
   } catch (error) {
@@ -100,7 +102,10 @@ export const useTimbanganHooks = () => {
         await offlineService.clearCache(UNITS_CACHE_KEY);
       }
 
-      const result = await masterDataService.fetchUnits({ type: "DUMP_TRUCK" });
+      const result = await masterDataService.fetchUnits({
+        type: "DUMP_TRUCK",
+        forceRefresh,
+      });
       const units = Array.isArray(result) ? result : result?.data || [];
 
       await offlineService.setCache(UNITS_CACHE_KEY, units, UNITS_CACHE_TTL);
@@ -174,7 +179,8 @@ export const useTimbanganHooks = () => {
           hull_no: truckData.hullNo || truckData.hull_no,
           unit_dump_truck: truckData.id,
           tare_weight: truckData.tareWeight || truckData.tare_weight || "",
-          bypass_tonnage: truckData.bypassTonnage || truckData.bypass_tonnage || "",
+          bypass_tonnage:
+            truckData.bypassTonnage || truckData.bypass_tonnage || "",
           company: truckData.company || "",
           spph: truckData.spph || "",
         }));
@@ -221,7 +227,12 @@ export const useTimbanganHooks = () => {
         setFormData((prev) => ({ ...prev, gross_weight: "" }));
       }
     }
-  }, [formData.gross_weight, formData.tare_weight, formData.net_weight, user?.role]);
+  }, [
+    formData.gross_weight,
+    formData.tare_weight,
+    formData.net_weight,
+    user?.role,
+  ]);
 
   // ─── Validasi form ─────────────────────────────────────────────────────────
   const validateForm = () => {
@@ -263,8 +274,6 @@ export const useTimbanganHooks = () => {
   const processSubmit = async (currentFormData) => {
     setIsSubmitting(true);
     try {
-      // Anti-duplikat: cek queue lokal, tidak perlu online
-      // Kasus: DT-01 jam 10:52 masuk offline, jam 10:55 coba input lagi -> DITOLAK
       const dupCheck = await checkDuplicateDT(currentFormData.hull_no);
       if (dupCheck.isDuplicate) {
         showToast.error(
@@ -317,7 +326,7 @@ export const useTimbanganHooks = () => {
         );
         return;
       }
-      
+
       const payload = {
         id: parseInt(currentFormData.unit_dump_truck),
         hull_no: currentFormData.hull_no,
@@ -327,14 +336,18 @@ export const useTimbanganHooks = () => {
       const result = await timbanganService.createTimbangan(payload);
 
       if (result.queued || result.status) {
-        showToast.success("Data bypass berhasil disimpan dan karcis akan dicetak");
+        showToast.success(
+          "Data bypass berhasil disimpan dan karcis akan dicetak",
+        );
         setLastSubmittedData(payload);
         setTimeout(() => resetForm(), 500);
       } else {
         throw new Error(result.error || "Gagal menyimpan data bypass");
       }
     } catch (error) {
-      showToast.error(error.response?.data?.message || "Gagal menyimpan data bypass");
+      showToast.error(
+        error.response?.data?.message || "Gagal menyimpan data bypass",
+      );
       console.error("Bypass submit error:", error);
     } finally {
       setIsSubmitting(false);
@@ -386,8 +399,8 @@ export const useTimbanganHooks = () => {
     setErrors,
     isSubmitting,
     availableUnits,
-    isUnitsLoading,       // untuk skeleton saat pertama load
-    refreshUnits,         // panggil dari tombol refresh di UI
+    isUnitsLoading, // untuk skeleton saat pertama load
+    refreshUnits, // panggil dari tombol refresh di UI
     handleHullNoChange,
     handleSubmit,
     handleBypassSubmit,
