@@ -21,9 +21,8 @@ import MasterDataManagement from "@/modules/timbangan/masterData/MasterDataManag
 import RitaseManagement from "@/modules/timbangan/ritase/RitaseManagement";
 import LaporanManagement from "@/modules/timbangan/laporan/LaporanManagement";
 import OverviewPage from "@/modules/timbangan/overview/OverviewManagement";
-import LoginPage from "@/pages/LoginPage";
-import { OfflineProvider } from "@/shared/components/OfflineProvider";
 import { OfflineSyncStatus } from "@/shared/components/OfflineSyncStatus";
+import LoginPage from "@/pages/LoginPage";
 import { queryClient } from "@/shared/config/queryClient";
 import RitaseHistory from "@/modules/timbangan/ritase/RitaseHistory";
 import BeltscaleManagement from "@/modules/timbangan/ritase/BeltScaleManagement";
@@ -241,103 +240,100 @@ const TimbanganInternalPage = () => {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <OfflineProvider>
-        <div className="min-h-screen bg-gray-50 dark:bg-slate-900 transition-colors duration-200">
-          <Sidebar
-            activeMenu={activeMenu}
-            setActiveMenu={setActiveMenu}
-            menuItems={menuItems}
-            user={user}
-            isMenuAccessible={isMenuAccessible}
-            extraHeaderContent={
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleBackToHub}
-                  className={cn(
-                    "ml-2 sm:ml-0 cursor-pointer transition-all duration-200",
-                    "hover:bg-gray-100 dark:bg-slate-800 dark:hover:bg-slate-700",
-                    "border-gray-300 dark:border-slate-600",
-                    "text-gray-700 dark:text-gray-200",
-                  )}
-                >
-                  <ArrowLeft className="h-4 w-4 mr-1" />
-                  <span className="hidden sm:inline">Kembali ke Hub</span>
-                  <span className="sm:hidden">Hub</span>
-                </Button>
-              </div>
-            }
-          />
+      <div className="min-h-screen bg-gray-50 dark:bg-slate-900 transition-colors duration-200">
+        <Sidebar
+          activeMenu={activeMenu}
+          setActiveMenu={setActiveMenu}
+          menuItems={menuItems}
+          user={user}
+          isMenuAccessible={isMenuAccessible}
+          extraHeaderContent={
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleBackToHub}
+                className={cn(
+                  "ml-2 sm:ml-0 cursor-pointer transition-all duration-200",
+                  "hover:bg-gray-100 dark:bg-slate-800 dark:hover:bg-slate-700",
+                  "border-gray-300 dark:border-slate-600",
+                  "text-gray-700 dark:text-gray-200",
+                )}
+              >
+                <ArrowLeft className="h-4 w-4 mr-1" />
+                <span className="hidden sm:inline">Kembali ke Hub</span>
+                <span className="sm:hidden">Hub</span>
+              </Button>
+            </div>
+          }
+        />
 
-          {/* Main Content Area */}
+        {/* Main Content Area */}
+        <div
+          className={cn(
+            "max-w-7xl mx-auto p-4 md:p-6",
+            "transition-all duration-200",
+          )}
+        >
+          {/* Content Container */}
           <div
             className={cn(
-              "max-w-7xl mx-auto p-4 md:p-6",
+              "min-h-[calc(100vh-200px)]",
+              "bg-neutral-50 dark:bg-slate-800/50",
+              "rounded-lg shadow-sm",
+              "p-4 md:p-6",
               "transition-all duration-200",
             )}
           >
-            {/* Content Container */}
-            <div
-              className={cn(
-                "min-h-[calc(100vh-200px)]",
-                "bg-neutral-50 dark:bg-slate-800/50",
-                "rounded-lg shadow-sm",
-                "p-4 md:p-6",
-                "transition-all duration-200",
-              )}
-            >
-              {/* ===== ROUTING SECTION ===== */}
-              {/* Fleet */}
-              {activeMenu === "Setting Fleet" ? (
-                <FleetManagement Type="Setting Fleet" />
-              ) : activeMenu === "Timbangan" ? (
-                <TimbanganManagement Type="Timbangan" />
-              ) : activeMenu === "Ritase" ? (
-                <RitaseManagement Type="Ritase" />
-              ) : activeMenu === "Ritase Pending" ? (
-                <RitasePendingManagement Type="Ritase Pending" />
-              ) : activeMenu === "Ritase History" ? (
-                <RitaseHistory Type="Ritase History" />
-              ) : activeMenu === "Beltscale" ? (
-                <BeltscaleManagement Type="Beltscale" />
-              ) : activeMenu === "Overview" ? (
-                <OverviewPage />
-              ) : activeMenu === "Laporan" ? (
-                <LaporanManagement />
-              ) : activeMenu === "Master Data" ? (
-                <MasterDataManagement />
-              ) : activeMenu === "Laporan" ? (
-                <LaporanManagement />
-              ) : (
-                <div className="flex flex-col items-center justify-center h-full py-16">
-                  <div
-                    className={cn(
-                      "w-24 h-24 rounded-full flex items-center justify-center mb-6",
-                      "bg-gray-100 dark:bg-slate-700",
-                      "transition-colors duration-200",
-                    )}
-                  >
-                    <Construction className="w-12 h-12 text-gray-400 dark:text-gray-500" />
-                  </div>
-                  <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
-                    Menu Tidak Ditemukan
-                  </h3>
-                  <p className="text-gray-600 dark:text-gray-400 text-center max-w-md">
-                    Silakan pilih menu dari navigasi di atas untuk memulai.
-                  </p>
+            {/* ===== ROUTING SECTION ===== */}
+            {/* Fleet */}
+            {activeMenu === "Setting Fleet" ? (
+              <FleetManagement Type="Setting Fleet" />
+            ) : activeMenu === "Timbangan" ? (
+              <TimbanganManagement Type="Timbangan" />
+            ) : activeMenu === "Ritase" ? (
+              <RitaseManagement Type="Ritase" />
+            ) : activeMenu === "Ritase Pending" ? (
+              <RitasePendingManagement Type="Ritase Pending" />
+            ) : activeMenu === "Ritase History" ? (
+              <RitaseHistory Type="Ritase History" />
+            ) : activeMenu === "Beltscale" ? (
+              <BeltscaleManagement Type="Beltscale" />
+            ) : activeMenu === "Overview" ? (
+              <OverviewPage />
+            ) : activeMenu === "Laporan" ? (
+              <LaporanManagement />
+            ) : activeMenu === "Master Data" ? (
+              <MasterDataManagement />
+            ) : activeMenu === "Laporan" ? (
+              <LaporanManagement />
+            ) : (
+              <div className="flex flex-col items-center justify-center h-full py-16">
+                <div
+                  className={cn(
+                    "w-24 h-24 rounded-full flex items-center justify-center mb-6",
+                    "bg-gray-100 dark:bg-slate-700",
+                    "transition-colors duration-200",
+                  )}
+                >
+                  <Construction className="w-12 h-12 text-gray-400 dark:text-gray-500" />
                 </div>
-              )}
-            </div>
-          </div>
-
-          {/* Offline Sync Status */}
-          <div className="fixed bottom-4 right-4 z-40">
-            <OfflineSyncStatus />
+                <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
+                  Menu Tidak Ditemukan
+                </h3>
+                <p className="text-gray-600 dark:text-gray-400 text-center max-w-md">
+                  Silakan pilih menu dari navigasi di atas untuk memulai.
+                </p>
+              </div>
+            )}
           </div>
         </div>
 
-      </OfflineProvider>
+        {/* Offline Sync Status */}
+        <div className="fixed bottom-4 right-4 z-40">
+          <OfflineSyncStatus />
+        </div>
+      </div>
     </QueryClientProvider>
   );
 };
