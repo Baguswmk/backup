@@ -1,6 +1,8 @@
-import React from "react";
-import { RefreshCw, History } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { RefreshCw, History, Edit2 } from "lucide-react";
 import { DateRangePicker } from "@/shared/components/DateRangePicker";
+import { Button } from "@/shared/components/ui/button";
+import OperatorNameModal from "@/modules/timbangan/timbangan/components/OperatorNameModal";
 
 const RitaseHistoryHeader = ({
   user,
@@ -15,6 +17,27 @@ const RitaseHistoryHeader = ({
   totalRecords = 0,
   hasSearched = false,
 }) => {
+  // State for Operator Name
+  const [operatorName, setOperatorName] = useState("");
+  const [isOperatorModalOpen, setIsOperatorModalOpen] = useState(false);
+
+  // Load initial operator name form localStorage
+  useEffect(() => {
+    const savedName = localStorage.getItem("operator_sib_name");
+    if (savedName) {
+      setOperatorName(savedName);
+    } else if (user?.name || user?.username) {
+      setOperatorName(user.name || user.username);
+      localStorage.setItem("operator_sib_name", user.name || user.username);
+    }
+  }, [user]);
+
+  // Handle operator name saved from modal
+  const handleOperatorNameSaved = (newName) => {
+    setOperatorName(newName);
+    setIsOperatorModalOpen(false);
+  };
+
   return (
     <div className="bg-white shadow-sm rounded-lg dark:bg-gray-800 transition-colors">
       <div className="p-4 sm:p-6">
@@ -29,8 +52,19 @@ const RitaseHistoryHeader = ({
               <h1 className="text-lg sm:text-2xl font-bold text-gray-900 truncate dark:text-gray-100">
                 History Ritase
               </h1>
-              <p className="text-xs sm:text-sm text-gray-500 truncate dark:text-gray-400 max-w-[200px] sm:max-w-none">
-                {user?.name || user?.username} • {userRole || "User"}
+              <p className="text-xs sm:text-sm text-gray-500 truncate dark:text-gray-400 max-w-[200px] sm:max-w-none flex flex-wrap items-center gap-1 mt-1">
+                <span className="font-semibold text-gray-700 dark:text-gray-300">
+                  {operatorName || "Pilih Operator"}
+                </span>
+                <Button
+                  onClick={() => setIsOperatorModalOpen(true)}
+                  variant="ghost"
+                  size="icon"
+                  className="h-5 w-5 ml-1 text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/20"
+                  title="Edit Nama Operator"
+                >
+                  <Edit2 className="w-3 h-3" />
+                </Button>
               </p>
             </div>
           </div>
@@ -78,9 +112,9 @@ const RitaseHistoryHeader = ({
           </div>
         </div>
 
-        {/* Search Info */}
-        {hasSearched && (
-          <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+        {/* Search Info & Operator Input */}
+        <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          {hasSearched ? (
             <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
               Ditemukan{" "}
               <span className="font-semibold text-gray-900 dark:text-gray-100">
@@ -88,9 +122,20 @@ const RitaseHistoryHeader = ({
               </span>{" "}
               data
             </p>
-          </div>
-        )}
+          ) : (
+            <div></div> /* Empty div to keep flex-between spacing if not searched yet */
+          )}
+
+          {/* Operator Name Button removed since it is now under the title */}
+        </div>
       </div>
+
+      {/* Operator Name Modal */}
+      <OperatorNameModal
+        isOpen={isOperatorModalOpen}
+        onConfirm={handleOperatorNameSaved}
+        onClose={() => setIsOperatorModalOpen(false)}
+      />
     </div>
   );
 };

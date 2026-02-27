@@ -88,12 +88,28 @@ const PrintBukti = forwardRef(
     };
 
     // Silent print using hidden iframe
-    const handleSilentPrint = () => {
+    const handleSilentPrint = async () => {
       const content = componentRef.current;
 
       if (!content) {
         console.error("❌ Print content not found");
         return;
+      }
+
+      // Refresh operator name from local storage right before printing
+      const currentOperatorName =
+        localStorage.getItem("operator_sib_name") || operatorName;
+      if (currentOperatorName !== operatorName) {
+        setOperatorName(currentOperatorName);
+      }
+
+      // Generate a fresh QR code URL to make sure it contains the latest operator name
+      let printQrCodeUrl = qrCodeUrl;
+      try {
+        printQrCodeUrl = await generateTicketQR(data, currentOperatorName);
+        setQrCodeUrl(printQrCodeUrl);
+      } catch (e) {
+        console.error("Error generating QR code for print", e);
       }
 
       // Remove existing iframe if any
@@ -119,7 +135,7 @@ const PrintBukti = forwardRef(
         data.hull_no || data.dumptruck || data.unit_dump_truck || "-";
       const grossWeight = formatWeight(data.gross_weight);
       const tareWeight = formatWeight(data.tare_weight);
-      const netWeight = formatWeight(data.net_weight || data.bypass_tonnage );
+      const netWeight = formatWeight(data.net_weight || data.bypass_tonnage);
 
       const html = `
     <!DOCTYPE html>
@@ -314,17 +330,17 @@ const PrintBukti = forwardRef(
         </div>
 
                 ${
-                  qrCodeUrl
+                  printQrCodeUrl
                     ? `
         <div class="qr-section">
-          <img src="${qrCodeUrl}" alt="QR Code" class="qr-code" />
+          <img src="${printQrCodeUrl}" alt="QR Code" class="qr-code" />
         </div>
         `
                     : ""
                 }
 
         <div class="operator-name">
-          ${operatorName || "-"}
+          ${currentOperatorName || "-"}
         </div>
       </div>
     </body>

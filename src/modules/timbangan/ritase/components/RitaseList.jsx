@@ -48,7 +48,7 @@ import { id as localeId } from "date-fns/locale";
 import { USER_ROLES } from "@/modules/timbangan/ritase/constant/ritaseConstants";
 import RitaseEditForm from "@/modules/timbangan/ritase/components/RitaseEditForm";
 import RitaseDuplicateForm from "@/modules/timbangan/ritase/components/RitaseDuplicateForm";
-import PrintTicketButton from "@/modules/timbangan/ritase/components/PrintTicketButton";
+import PrintBukti from "@/modules/timbangan/timbangan/components/PrintBukti";
 import { generateRitaseExcel } from "@/modules/timbangan/ritase/services/generateRitaseExcel";
 const ITEMS_PER_PAGE = 10;
 
@@ -342,7 +342,7 @@ const RitaseList = ({
                                 <Eye className="w-4 h-4 mr-2" />
                                 Detail
                               </DropdownMenuItem>
-                              <PrintTicketButton
+                              <PrintBukti
                                 data={ritase}
                                 variant="ghost"
                                 size="sm"
@@ -556,11 +556,11 @@ const RitaseList = ({
 
               {/* Action Buttons */}
               <div className="flex justify-between gap-2 pt-4 border-t border-gray-200 dark:border-gray-700">
-                <PrintTicketButton
+                <PrintBukti
                   data={selectedRitase}
                   variant="ghost"
                   size="sm"
-                ></PrintTicketButton>
+                ></PrintBukti>
                 {isCCR && (
                   <Button
                     onClick={() => {
