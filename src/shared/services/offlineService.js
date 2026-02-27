@@ -694,7 +694,6 @@ async function syncQueueItem(item) {
     if (item.options?.params) config.params = item.options.params;
 
     await apiClient(item.url, config);
-
     await db.delete(STORES.QUEUE, item.id);
 
     // ✅ Setelah berhasil sync, simpan ke sent_queue untuk tracking
@@ -711,16 +710,47 @@ async function syncQueueItem(item) {
 
     return { success: true, item };
   } catch (error) {
-    if (item.retryCount >= 2) {
+    let errorMessage = error.message;
+    let errorResponse = null;
+
+    if (error.response) {
+      const responseData = error.response.data;
+      errorMessage =
+        responseData?.message ||
+        responseData?.error?.message ||
+        responseData?.error ||
+        error.message;
+
+      errorResponse = {
+        message: errorMessage,
+        httpStatus: error.response.status,
+        data: responseData,
+      };
+    }
+
+    const isValidationError =
+      error.response &&
+      error.response.status >= 400 &&
+      error.response.status < 500;
+
+    if (item.retryCount >= 2 || isValidationError) {
       await db.delete(STORES.QUEUE, item.id);
-      await db.add(STORES.FAILED, { ...item, error: error.message });
+      await db.add(STORES.FAILED, {
+        ...item,
+        error: errorMessage,
+        errorResponse,
+      });
     } else {
       await db.put(STORES.QUEUE, {
         ...item,
         retryCount: item.retryCount + 1,
-        lastError: error.message,
+        lastError: errorMessage,
+        lastErrorResponse: errorResponse,
       });
     }
+
+    // Attach extracted message to the error object so the UI can easily display it
+    error.extractedMessage = errorMessage;
 
     return { success: false, item, error };
   }

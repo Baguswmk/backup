@@ -74,7 +74,6 @@ export const TimbanganList = () => {
   const loadData = async () => {
     setIsLoading(true);
     try {
-      // ✅ Pakai timbanganService.getAllQueues() — satu DB, satu sumber
       const { pending, failed, sent } = await timbanganService.getAllQueues();
       const allItems = [
         ...pending
@@ -290,6 +289,7 @@ export const TimbanganList = () => {
     } catch (e) {
       console.error("Bulk sync failed", e);
       const message =
+        e?.extractedMessage ||
         e?.response?.data?.message ||
         e?.response?.data?.error ||
         e?.message ||
@@ -326,6 +326,7 @@ export const TimbanganList = () => {
     } catch (e) {
       console.error("Sync single failed", e);
       const message =
+        e?.extractedMessage ||
         e?.response?.data?.message ||
         e?.response?.data?.error ||
         e?.message ||
@@ -370,6 +371,7 @@ export const TimbanganList = () => {
     } catch (e) {
       console.error("Retry single failed", e);
       const message =
+        e?.extractedMessage ||
         e?.response?.data?.message ||
         e?.response?.data?.error ||
         e?.message ||
@@ -783,7 +785,6 @@ export const TimbanganList = () => {
                 const isSelected = selectedIds.includes(item.id);
                 const expiryWarning = getExpiryWarning(item);
                 const errorInfo = getErrorInfo(item);
-
                 return (
                   <Card
                     key={item.id}
