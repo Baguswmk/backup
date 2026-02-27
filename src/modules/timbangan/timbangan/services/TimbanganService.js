@@ -44,6 +44,35 @@ export const timbanganService = {
 
       // Error beneran (validasi, server error, dll)
       console.error("❌ Create timbangan error:", error);
+
+      // Jika error adalah error response dari backend (bukan network error murni)
+      // Simpan juga ke tab Gagal ("failed" queue) untuk direview operator
+      if (error?.response || error?.validationError) {
+        const errorResponse = error.response
+          ? {
+              message: error.response.data?.message || error.message,
+              httpStatus: error.response.status,
+              data: error.response.data,
+            }
+          : null;
+
+        await offlineService
+          .addToFailedQueue({
+            id: generateId("failed"),
+            url: "/v1/custom/ritase/offline",
+            method: "POST",
+            data,
+            timestamp: Date.now(),
+            clientTimestamp: new Date().toISOString(),
+            error: error.response?.data?.message || error.message,
+            errorResponse,
+            retryCount: 0,
+          })
+          .catch((err) =>
+            console.error("Gagal menyimpan ke failed queue", err),
+          );
+      }
+
       throw error;
     }
   },

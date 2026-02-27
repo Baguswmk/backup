@@ -502,14 +502,13 @@ async function apiCall(url, method = "GET", data = null, options = {}) {
       const isValidationError =
         error.response?.status >= 400 && error.response?.status < 500;
 
+      // Hapus logika yang memasukkan error server/validasi ke dalam antrian `Pending`
+      // Jika errornya berasal dari response BE (ada error.response), lemparkan error-nya
+      // Hanya jika network benar-benar mati (error.request ada tapi error.response tidak ada)
+      // atau `navigator.onLine` false, baru kita masukkan ke antrian.
+
       if (!bypassQueue && ["POST", "PUT", "PATCH"].includes(method)) {
-        if (isValidationError) {
-          const enhancedError = new Error(errorMessage);
-          enhancedError.response = error.response;
-          enhancedError.validationError = true;
-          enhancedError.details = errorDetails;
-          throw enhancedError;
-        } else {
+        if (!error.response && error.request) {
           await addToQueue({ url, method, data, options });
           emitCoalescedEvent("queue:updated");
           throw new Error("Request queued for offline sync");
@@ -518,6 +517,7 @@ async function apiCall(url, method = "GET", data = null, options = {}) {
 
       const enhancedError = new Error(errorMessage);
       enhancedError.response = error.response;
+      enhancedError.validationError = isValidationError;
       enhancedError.details = errorDetails;
       throw enhancedError;
     }
@@ -728,12 +728,12 @@ async function syncQueueItem(item) {
       };
     }
 
-    const isValidationError =
-      error.response &&
-      error.response.status >= 400 &&
-      error.response.status < 500;
+    // Jika error memiliki response (artinya sudah sampai backend tapi ditolak),
+    // atau jika retryCount sudah >= 2
+    // Maka langsung masukkan ke antrian FAILED.
+    // PENDING HANYA jika benar-benar tidak ada response sama sekali (network error / offline)
 
-    if (item.retryCount >= 2 || isValidationError) {
+    if (item.retryCount >= 2 || error.response) {
       await db.delete(STORES.QUEUE, item.id);
       await db.add(STORES.FAILED, {
         ...item,
@@ -1069,6 +1069,17 @@ export const offlineService = {
   getSentQueue,
   deleteSentItem,
   cleanupSentQueue,
+
+  // ── Failed queue (baru) ──
+  addToFailedQueue: async (item) => {
+    try {
+      const db = await getDB();
+      await db.add(STORES.FAILED, item);
+      emitCoalescedEvent("queue:updated");
+    } catch (error) {
+      console.error("Failed to add to failed queue:", error);
+    }
+  },
 
   setCache,
   getCache,

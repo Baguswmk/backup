@@ -6,11 +6,9 @@ import useAuthStore from "@/modules/auth/store/authStore";
 import { showToast } from "@/shared/utils/toast";
 import debounce from "lodash/debounce";
 
-// ─── Cache config (khusus menu timbangan, tidak mempengaruhi modul lain) ──────
 const UNITS_CACHE_KEY = "timbangan:units:dump_truck";
-const UNITS_CACHE_TTL = 24 * 60 * 60 * 1000; // 24 jam
+const UNITS_CACHE_TTL = 24 * 60 * 60 * 1000; 
 
-// ─── Anti-duplikat: cooldown 10 menit per DT ─────────────────────────────────
 const DT_COOLDOWN_MS = 10 * 60 * 1000;
 
 /**
@@ -151,6 +149,63 @@ export const useTimbanganHooks = () => {
     };
   }, [loadUnits]);
 
+  // ─── Filter units based on recent 10-minute submissions ──────────────────────
+  const [filteredUnits, setFilteredUnits] = useState([]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const updateFilteredUnits = async () => {
+      try {
+        const { pending, failed, sent } = await timbanganService.getAllQueues();
+        const allEntries = [...pending, ...failed, ...sent];
+        const now = Date.now();
+
+        const recentHulls = new Set(
+          allEntries
+            .filter((entry) => {
+              const ts =
+                entry.clientTimestamp ||
+                entry.createdAtClient ||
+                entry.data?.createdAt ||
+                entry.data?.timestamp;
+
+              if (!ts) return false;
+              return now - new Date(ts).getTime() < DT_COOLDOWN_MS;
+            })
+            .map((entry) => entry.data?.hull_no)
+            .filter(Boolean),
+        );
+
+        if (isMounted) {
+          setFilteredUnits(
+            availableUnits.filter(
+              (u) => !recentHulls.has(u.hullNo) && !recentHulls.has(u.hull_no),
+            ),
+          );
+        }
+      } catch (error) {
+        console.error("Gagal memfilter unit:", error);
+        if (isMounted) setFilteredUnits(availableUnits);
+      }
+    };
+
+    updateFilteredUnits();
+
+    const interval = setInterval(updateFilteredUnits, 60000);
+
+    const handleQueueUpdate = () => {
+      updateFilteredUnits();
+    };
+    window.addEventListener("timbangan:queueUpdated", handleQueueUpdate);
+
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+      window.removeEventListener("timbangan:queueUpdated", handleQueueUpdate);
+    };
+  }, [availableUnits]);
+
   // ─── Auto-fill: Hull No -> Dumptruck ID & Tare ──────────────────────────────
   const handleHullNoChange = useCallback(
     (value) => {
@@ -273,28 +328,28 @@ export const useTimbanganHooks = () => {
   // ─── Submit normal ─────────────────────────────────────────────────────────
   const processSubmit = async (currentFormData) => {
     setIsSubmitting(true);
-    try {
-      const dupCheck = await checkDuplicateDT(currentFormData.hull_no);
-      if (dupCheck.isDuplicate) {
-        showToast.error(
-          `${currentFormData.hull_no} sudah ditimbang dalam 10 menit terakhir — tunggu ${dupCheck.remainingLabel} lagi`,
-        );
-        return;
-      }
+    const payload = {
+      id: parseInt(currentFormData.unit_dump_truck),
+      hull_no: currentFormData.hull_no,
+      tare_weight: parseFloat(currentFormData.tare_weight),
+      gross_weight: parseFloat(currentFormData.gross_weight),
+      net_weight: parseFloat(currentFormData.net_weight),
+      timestamp: new Date().toISOString(),
+      bypass_tonnage: currentFormData.bypass_tonnage,
+      company: currentFormData.company,
+      spph: currentFormData.spph,
+      createdAt: new Date().toISOString(),
+      is_bypass: false,
+    };
 
-      const payload = {
-        id: parseInt(currentFormData.unit_dump_truck),
-        hull_no: currentFormData.hull_no,
-        tare_weight: parseFloat(currentFormData.tare_weight),
-        gross_weight: parseFloat(currentFormData.gross_weight),
-        net_weight: parseFloat(currentFormData.net_weight),
-        timestamp: new Date().toISOString(),
-        bypass_tonnage: currentFormData.bypass_tonnage,
-        company: currentFormData.company,
-        spph: currentFormData.spph,
-        createdAt: new Date().toISOString(),
-        is_bypass: false,
-      };
+    try {
+      // const dupCheck = await checkDuplicateDT(currentFormData.hull_no);
+      // if (dupCheck.isDuplicate) {
+      //   showToast.error(
+      //     `${currentFormData.hull_no} sudah ditimbang dalam 10 menit terakhir — tunggu ${dupCheck.remainingLabel} lagi`,
+      //   );
+      //   return;
+      // }
 
       const result = await timbanganService.createTimbangan(payload);
 
@@ -309,29 +364,34 @@ export const useTimbanganHooks = () => {
     } catch (error) {
       showToast.error(error.response?.data?.message || "Gagal menyimpan data");
       console.error("Submit error:", error);
+
+      // ✅ Trigger print and reset even if API request failed
+      setLastSubmittedData(payload);
+      setTimeout(() => resetForm(), 500);
     } finally {
       setIsSubmitting(false);
+      window.dispatchEvent(new Event("timbangan:queueUpdated"));
     }
   };
 
   // ─── Submit bypass ─────────────────────────────────────────────────────────
   const processBypassSubmit = async (currentFormData) => {
     setIsSubmitting(true);
+    const payload = {
+      id: parseInt(currentFormData.unit_dump_truck),
+      hull_no: currentFormData.hull_no,
+      timestamp: new Date().toISOString(),
+    };
+
     try {
       // Anti-duplikat berlaku juga untuk mode bypass
-      const dupCheck = await checkDuplicateDT(currentFormData.hull_no);
-      if (dupCheck.isDuplicate) {
-        showToast.error(
-          `${currentFormData.hull_no} sudah ditimbang dalam 10 menit terakhir — tunggu ${dupCheck.remainingLabel} lagi`,
-        );
-        return;
-      }
-
-      const payload = {
-        id: parseInt(currentFormData.unit_dump_truck),
-        hull_no: currentFormData.hull_no,
-        timestamp: new Date().toISOString(),
-      };
+      // const dupCheck = await checkDuplicateDT(currentFormData.hull_no);
+      // if (dupCheck.isDuplicate) {
+      //   showToast.error(
+      //     `${currentFormData.hull_no} sudah ditimbang dalam 10 menit terakhir — tunggu ${dupCheck.remainingLabel} lagi`,
+      //   );
+      //   return;
+      // }
 
       const result = await timbanganService.createTimbangan(payload);
 
@@ -349,8 +409,13 @@ export const useTimbanganHooks = () => {
         error.response?.data?.message || "Gagal menyimpan data bypass",
       );
       console.error("Bypass submit error:", error);
+
+      // ✅ Trigger print and reset even if API request failed
+      setLastSubmittedData(payload);
+      setTimeout(() => resetForm(), 500);
     } finally {
       setIsSubmitting(false);
+      window.dispatchEvent(new Event("timbangan:queueUpdated"));
     }
   };
 
@@ -398,7 +463,8 @@ export const useTimbanganHooks = () => {
     errors,
     setErrors,
     isSubmitting,
-    availableUnits,
+    availableUnits: filteredUnits, // Menampilkan unit yang lolos filter 10 menit
+    rawAvailableUnits: availableUnits, // Opsional jika butuh list asli di komponen lain
     isUnitsLoading, // untuk skeleton saat pertama load
     refreshUnits, // panggil dari tombol refresh di UI
     handleHullNoChange,
