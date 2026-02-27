@@ -188,7 +188,7 @@ const FleetList = ({
                       className="border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800/50"
                     >
                       <TableCell className="text-gray-700 dark:text-gray-300">
-                        {index + 1}
+                        {(currentPage - 1) * pageSize + index + 1}
                       </TableCell>
                       <TableCell className="font-medium">
                         <Badge className="bg-blue-600 dark:bg-blue-500 text-white">
