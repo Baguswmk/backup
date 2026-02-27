@@ -7,6 +7,7 @@ import {
 } from "@/shared/components/ui/card";
 import { Button } from "@/shared/components/ui/button";
 import { Badge } from "@/shared/components/ui/badge";
+import { Input } from "@/shared/components/ui/input";
 import {
   BarChart3,
   RefreshCw,
@@ -19,6 +20,7 @@ import {
   MoreVertical,
   Copy,
   FileDown,
+  Search,
 } from "lucide-react";
 import {
   Table,
@@ -71,21 +73,37 @@ const RitaseList = ({
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isDeletingRitase, setIsDeletingRitase] = useState(false);
   const [pageSize, setPageSize] = useState(10); // Added pageSize state
+  const [searchQuery, setSearchQuery] = useState("");
   const isCCR = userRole.toLowerCase() === "ccr";
   const getInputButtonText = () => {
     return userRole === USER_ROLES.OPERATOR_JT ? "Timbang" : "Input Data";
   };
 
+  const searchedData = useMemo(() => {
+    if (!searchQuery) return filteredRitaseData;
+    const lowerQuery = searchQuery.toLowerCase();
+    return filteredRitaseData.filter((item) => {
+      return (
+        item.unit_dump_truck?.toLowerCase().includes(lowerQuery) ||
+        item.hull_no?.toLowerCase().includes(lowerQuery) ||
+        item.unit_exca?.toLowerCase().includes(lowerQuery) ||
+        item.excavator?.toLowerCase().includes(lowerQuery) ||
+        item.company?.toLowerCase().includes(lowerQuery) ||
+        item.mitra?.toLowerCase().includes(lowerQuery)
+      );
+    });
+  }, [filteredRitaseData, searchQuery]);
+
   const paginatedData = useMemo(() => {
     const startIdx = (currentPage - 1) * pageSize;
     const endIdx = startIdx + pageSize;
-    return filteredRitaseData.slice(startIdx, endIdx);
-  }, [filteredRitaseData, currentPage, pageSize]);
+    return searchedData.slice(startIdx, endIdx);
+  }, [searchedData, currentPage, pageSize]);
 
   console.log(paginatedData);
   const totalPages = useMemo(() => {
-    return Math.ceil(filteredRitaseData.length / pageSize);
-  }, [filteredRitaseData, pageSize]);
+    return Math.ceil(searchedData.length / pageSize);
+  }, [searchedData, pageSize]);
 
   const handleViewDetail = (ritase) => {
     setSelectedRitase(ritase);
@@ -167,11 +185,26 @@ const RitaseList = ({
               Daftar Ritase Detail
             </CardTitle>
             <div className="flex items-center gap-2">
+              {!isCCR && (
+                <div className="relative">
+                  <Search className="absolute left-2.5 top-2 h-4 w-4 text-gray-500 dark:text-gray-400" />
+                  <Input
+                    type="text"
+                    placeholder="Cari DT, Exca, Mitra..."
+                    value={searchQuery}
+                    onChange={(e) => {
+                      setSearchQuery(e.target.value);
+                      if (currentPage !== 1 && onPageChange) onPageChange(1);
+                    }}
+                    className="pl-9 w-[250px] bg-white dark:bg-gray-800 dark:text-neutral-50 border-gray-200 dark:border-gray-700 h-9"
+                  />
+                </div>
+              )}
               <Badge
                 variant="secondary"
                 className="bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300"
               >
-                {filteredRitaseData.length} total
+                {searchedData.length} total
               </Badge>
               <Button
                 onClick={handleExportExcel}
@@ -234,6 +267,9 @@ const RitaseList = ({
                       <TableHead className="text-gray-700 dark:text-gray-300 font-semibold">
                         Company
                       </TableHead>
+                      <TableHead className="text-right text-gray-700 dark:text-gray-300 font-semibold">
+                        Berat Bersih
+                      </TableHead>
                       <TableHead className="text-gray-700 dark:text-gray-300 font-semibold">
                         Measurement
                       </TableHead>
@@ -242,9 +278,6 @@ const RitaseList = ({
                       </TableHead>
                       <TableHead className="text-gray-700 dark:text-gray-300 font-semibold">
                         Dumping
-                      </TableHead>
-                      <TableHead className="text-right text-gray-700 dark:text-gray-300 font-semibold">
-                        Berat Bersih
                       </TableHead>
                       <TableHead className="text-right text-gray-700 dark:text-gray-300 font-semibold">
                         Actions
@@ -298,6 +331,14 @@ const RitaseList = ({
                         <TableCell className="text-gray-700 dark:text-gray-300">
                           {ritase.company || "-"}
                         </TableCell>
+                        <TableCell className="text-right">
+                          <Badge
+                            variant="secondary"
+                            className="bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400"
+                          >
+                            {ritase.net_weight || "0"} ton
+                          </Badge>
+                        </TableCell>
                         <TableCell>
                           <Badge
                             variant="outline"
@@ -311,14 +352,6 @@ const RitaseList = ({
                         </TableCell>
                         <TableCell className="text-gray-700 dark:text-gray-300">
                           {ritase.dumping_location || "-"}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <Badge
-                            variant="secondary"
-                            className="bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400"
-                          >
-                            {ritase.net_weight || "0"} ton
-                          </Badge>
                         </TableCell>
                         <TableCell className="text-right">
                           <DropdownMenu>
@@ -392,7 +425,7 @@ const RitaseList = ({
                   isLoading={false}
                   itemsPerPage={pageSize}
                   onItemsPerPageChange={setPageSize}
-                  totalItems={filteredRitaseData.length}
+                  totalItems={searchedData.length}
                 />
               )}
             </>
