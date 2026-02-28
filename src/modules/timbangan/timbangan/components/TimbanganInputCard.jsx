@@ -63,26 +63,18 @@ export const TimbanganInputCard = () => {
   // State untuk active tab
   const [activeTab, setActiveTab] = useState("timbangan");
 
-  // Debounced submit functions
+  // Submit functions (debounce removed to allow multiple submissions if users clicks fast)
   const debouncedHandleSubmit = useCallback(
-    debounce(
-      (e) => {
-        handleSubmit(e);
-      },
-      5000,
-      { leading: true, trailing: false },
-    ),
+    (e) => {
+      handleSubmit(e);
+    },
     [handleSubmit],
   );
 
   const debouncedHandleBypassSubmit = useCallback(
-    debounce(
-      (e) => {
-        handleBypassSubmit(e);
-      },
-      5000,
-      { leading: true, trailing: false },
-    ),
+    (e) => {
+      handleBypassSubmit(e);
+    },
     [handleBypassSubmit],
   );
 
@@ -431,6 +423,63 @@ export const TimbanganInputCard = () => {
                 </TabsTrigger>
               )}
             </TabsList>
+
+            {/* DEV ONLY TEST DOUBLE SUBMIT */}
+            {IS_DEV && (
+              <Button
+                variant="destructive"
+                size="sm"
+                className="text-xs font-bold shadow animate-pulse"
+                onClick={() => {
+                  console.log("🔥 SIMULATING RAPID DOUBLE SUBMIT...");
+                  const mockEvent = { preventDefault: () => {} };
+
+                  // Disable the time lock temporarily or bypass it
+                  const originalHandle = handleSubmit;
+
+                  // Create 2 fake API submissions that bypass the UI lock and hit the service directly
+                  import("../services/TimbanganService").then(
+                    ({ timbanganService }) => {
+                      const payload = {
+                        id: 238,
+                        hull_no: "DT-01 TEST",
+                        tare_weight: 10,
+                        gross_weight: 30,
+                        net_weight: 20,
+                        timestamp: new Date().toISOString(),
+                        bypass_tonnage: "",
+                        company: "PT. TESTING",
+                        spph: "",
+                        createdAt: new Date().toISOString(),
+                        is_bypass: false,
+                      };
+
+                      console.log("Firing Request 1...");
+                      timbanganService.createTimbangan({
+                        ...payload,
+                        _test: 1,
+                      });
+
+                      setTimeout(() => {
+                        console.log("Firing Request 2 (10ms later)...");
+                        timbanganService.createTimbangan({
+                          ...payload,
+                          _test: 2,
+                        });
+                      }, 10);
+
+                      setTimeout(() => {
+                        alert(
+                          "2 Request terkirim dalam 10ms! Cek Console Log & Tab Terkirim/Gagal.",
+                        );
+                      }, 500);
+                    },
+                  );
+                }}
+              >
+                TEST DOUBLE SUBMIT
+              </Button>
+            )}
 
             {/* Right: Hardware Controls */}
             <div className="flex flex-wrap gap-2">

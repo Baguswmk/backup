@@ -1,8 +1,13 @@
 import { offlineService } from "@/shared/services/offlineService";
 import { apiConfig } from "@/shared/config/env";
 
-const generateId = (prefix = "item") =>
-  `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+const generateId = (prefix = "item") => {
+  const random =
+    typeof crypto !== "undefined" && crypto.randomUUID
+      ? crypto.randomUUID()
+      : `${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
+  return `${prefix}_${random}`;
+};
 
 export const timbanganService = {
   /**
@@ -10,6 +15,8 @@ export const timbanganService = {
    */
   createTimbangan: async (data) => {
     try {
+      const requestId = generateId("online");
+
       const result = await offlineService.post(
         "/v1/custom/ritase/offline",
         data,
@@ -18,16 +25,18 @@ export const timbanganService = {
 
       // Online & berhasil → simpan ke sent_queue untuk tracking
       if (navigator.onLine) {
-        await offlineService.addToSentQueue({
-          id: generateId("online"),
-          url: "/v1/custom/ritase/offline",
-          method: "POST",
-          data,
-          timestamp: Date.now(),
-          clientTimestamp: new Date().toISOString(),
-          retryCount: 0,
-          syncedFrom: "direct",
-        });
+        await offlineService
+          .addToSentQueue({
+            id: requestId,
+            url: "/v1/custom/ritase/offline",
+            method: "POST",
+            data,
+            timestamp: Date.now(),
+            clientTimestamp: new Date().toISOString(),
+            retryCount: 0,
+            syncedFrom: "direct",
+          })
+          .catch((err) => console.error("Gagal simpan ke sent queue:", err));
       }
 
       return result;
@@ -45,33 +54,35 @@ export const timbanganService = {
       // Error beneran (validasi, server error, dll)
       console.error("❌ Create timbangan error:", error);
 
-      // Jika error adalah error response dari backend (bukan network error murni)
-      // Simpan juga ke tab Gagal ("failed" queue) untuk direview operator
-      if (error?.response || error?.validationError) {
-        const errorResponse = error.response
-          ? {
-              message: error.response.data?.message || error.message,
-              httpStatus: error.response.status,
-              data: error.response.data,
-            }
-          : null;
+      // Error beneran (validasi, server error, timeout, network murni, dll)
+      console.error("❌ Create timbangan error:", error);
 
-        await offlineService
-          .addToFailedQueue({
-            id: generateId("failed"),
-            url: "/v1/custom/ritase/offline",
-            method: "POST",
-            data,
-            timestamp: Date.now(),
-            clientTimestamp: new Date().toISOString(),
-            error: error.response?.data?.message || error.message,
-            errorResponse,
-            retryCount: 0,
-          })
-          .catch((err) =>
-            console.error("Gagal menyimpan ke failed queue", err),
-          );
-      }
+      // Simpan APA PUN error-nya ke failed queue agar tidak ada data loss
+      // (terutama saat network error tanpa response backend)
+      const errorResponse = error.response
+        ? {
+            message: error.response.data?.message || error.message,
+            httpStatus: error.response.status,
+            data: error.response.data,
+          }
+        : null;
+
+      await offlineService
+        .addToFailedQueue({
+          id: generateId("failed"),
+          url: "/v1/custom/ritase/offline",
+          method: "POST",
+          data,
+          timestamp: Date.now(),
+          clientTimestamp: new Date().toISOString(),
+          error:
+            error.response?.data?.message ||
+            error.message ||
+            "Network/Unknown Error",
+          errorResponse,
+          retryCount: 0,
+        })
+        .catch((err) => console.error("Gagal menyimpan ke failed queue", err));
 
       throw error;
     }

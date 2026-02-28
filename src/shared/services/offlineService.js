@@ -965,7 +965,8 @@ async function getQueueItem(id) {
 async function addToSentQueue(item) {
   try {
     const db = await getDB();
-    await db.put(STORES.SENT, {
+    // Gunakan add(), bukan put() — supaya tidak overwrite jika ID sama
+    await db.add(STORES.SENT, {
       ...item,
       sentAt: Date.now(),
       sentTimestamp: new Date().toISOString(),
@@ -974,6 +975,25 @@ async function addToSentQueue(item) {
     emitCoalescedEvent("queue:updated");
     return { success: true };
   } catch (error) {
+    // Kalau ID tabrakan, generate ID baru dan coba lagi
+    if (error.name === "ConstraintError") {
+      try {
+        const db = await getDB();
+        const newItem = {
+          ...item,
+          id: `${item.id}_${Math.random().toString(36).slice(2, 9)}`,
+          sentAt: Date.now(),
+          sentTimestamp: new Date().toISOString(),
+          status: "sent",
+        };
+        await db.add(STORES.SENT, newItem);
+        emitCoalescedEvent("queue:updated");
+        return { success: true };
+      } catch (retryError) {
+        console.error("Failed to add to sent queue (retry):", retryError);
+        return { success: false, error: retryError.message };
+      }
+    }
     console.error("Failed to add to sent queue:", error);
     return { success: false, error: error.message };
   }

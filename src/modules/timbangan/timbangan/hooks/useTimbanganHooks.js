@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { timbanganService } from "../services/TimbanganService";
 import { masterDataService } from "@/modules/timbangan/masterData/services/masterDataService";
 import { offlineService } from "@/shared/services/offlineService";
@@ -7,67 +7,60 @@ import { showToast } from "@/shared/utils/toast";
 import debounce from "lodash/debounce";
 
 const UNITS_CACHE_KEY = "timbangan:units:dump_truck";
-const UNITS_CACHE_TTL = 24 * 60 * 60 * 1000; 
+const UNITS_CACHE_TTL = 24 * 60 * 60 * 1000;
 
 const DT_COOLDOWN_MS = 10 * 60 * 1000;
 
-/**
- * Cek apakah DT sudah pernah disubmit dalam 10 menit terakhir.
- * Sumber data: semua queue lokal IndexedDB (pending + failed + sent).
- * Tidak butuh koneksi — murni dari data lokal.
- *
- * Urutan prioritas timestamp yang dibandingkan:
- *   entry.clientTimestamp -> entry.createdAtClient -> entry.data.createdAt -> entry.data.timestamp
- */
-const checkDuplicateDT = async (hullNo) => {
-  if (!hullNo) return { isDuplicate: false };
+// const checkDuplicateDT = async (hullNo) => {
+//   if (!hullNo) return { isDuplicate: false };
 
-  try {
-    const { pending, failed, sent } = await timbanganService.getAllQueues();
-    const allEntries = [...pending, ...failed, ...sent];
-    const now = Date.now();
+//   try {
+//     const { pending, failed, sent } = await timbanganService.getAllQueues();
+//     const allEntries = [...pending, ...failed, ...sent];
+//     const now = Date.now();
 
-    const recentEntry = allEntries.find((entry) => {
-      if (entry?.data?.hull_no !== hullNo) return false;
+//     const recentEntry = allEntries.find((entry) => {
+//       if (entry?.data?.hull_no !== hullNo) return false;
 
-      const ts =
-        entry.clientTimestamp ||
-        entry.createdAtClient ||
-        entry.data?.createdAt ||
-        entry.data?.timestamp;
+//       const ts =
+//         entry.clientTimestamp ||
+//         entry.createdAtClient ||
+//         entry.data?.createdAt ||
+//         entry.data?.timestamp;
 
-      if (!ts) return false;
+//       if (!ts) return false;
 
-      return now - new Date(ts).getTime() < DT_COOLDOWN_MS;
-    });
+//       return now - new Date(ts).getTime() < DT_COOLDOWN_MS;
+//     });
 
-    if (!recentEntry) return { isDuplicate: false };
+//     if (!recentEntry) return { isDuplicate: false };
 
-    const ts =
-      recentEntry.clientTimestamp ||
-      recentEntry.createdAtClient ||
-      recentEntry.data?.createdAt ||
-      recentEntry.data?.timestamp;
+//     const ts =
+//       recentEntry.clientTimestamp ||
+//       recentEntry.createdAtClient ||
+//       recentEntry.data?.createdAt ||
+//       recentEntry.data?.timestamp;
 
-    const remainingMs = DT_COOLDOWN_MS - (now - new Date(ts).getTime());
-    const totalSec = Math.ceil(remainingMs / 1000);
-    const remainingLabel =
-      totalSec >= 60
-        ? `${Math.ceil(totalSec / 60)} menit`
-        : `${totalSec} detik`;
+//     const remainingMs = DT_COOLDOWN_MS - (now - new Date(ts).getTime());
+//     const totalSec = Math.ceil(remainingMs / 1000);
+//     const remainingLabel =
+//       totalSec >= 60
+//         ? `${Math.ceil(totalSec / 60)} menit`
+//         : `${totalSec} detik`;
 
-    return { isDuplicate: true, remainingLabel };
-  } catch (error) {
-    console.error("Gagal cek duplikat DT:", error);
-    // Fail-open: kalau pengecekan sendiri error, jangan blok user
-    return { isDuplicate: false };
-  }
-};
+//     return { isDuplicate: true, remainingLabel };
+//   } catch (error) {
+//     console.error("Gagal cek duplikat DT:", error);
+//     // Fail-open: kalau pengecekan sendiri error, jangan blok user
+//     return { isDuplicate: false };
+//   }
+// };
 
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const useTimbanganHooks = () => {
   const user = useAuthStore((state) => state.user);
+  const submitTimerRef = useRef(null);
 
   const [formData, setFormData] = useState({
     hull_no: "",
@@ -126,19 +119,15 @@ export const useTimbanganHooks = () => {
     }
   }, []);
 
-  // Dipanggil manual dari tombol refresh di UI atau via event
   const refreshUnits = useCallback(async () => {
     await loadUnits({ forceRefresh: true });
     showToast.success("Data unit dump truck berhasil diperbarui");
   }, [loadUnits]);
 
-  // Mount: langsung dari cache, tidak ada loading panjang
   useEffect(() => {
     loadUnits();
   }, [loadUnits]);
 
-  // Bridge: dengarkan event dari luar (misal dari tombol Master di header)
-  // Sehingga TimbanganManagement tidak perlu tahu soal hook ini sama sekali
   useEffect(() => {
     const handleRefreshEvent = () => {
       loadUnits({ forceRefresh: true });
@@ -419,27 +408,56 @@ export const useTimbanganHooks = () => {
     }
   };
 
-  const debouncedProcessSubmit = useCallback(
-    debounce((data) => processSubmit(data), 500),
-    [],
-  );
-
-  const debouncedProcessBypassSubmit = useCallback(
-    debounce((data) => processBypassSubmit(data), 500),
-    [],
-  );
+  const lastSubmitTimeRef = useRef(0);
 
   const handleSubmit = (e) => {
     e?.preventDefault();
+
+    // Absolute lockout: prevent any clicks within 5 seconds of the last allowed click
+    const now = Date.now();
+    if (now - lastSubmitTimeRef.current < 5000) {
+      console.log("Submit blocked by time lock");
+      return;
+    }
+
+    if (isSubmitting) return;
     if (!validateForm()) return;
-    debouncedProcessSubmit(formData);
+
+    lastSubmitTimeRef.current = now;
+
+    // Manual debounce pakai ref — lebih predictable dari lodash debounce + useCallback
+    if (submitTimerRef.current) clearTimeout(submitTimerRef.current);
+    submitTimerRef.current = setTimeout(() => {
+      processSubmit(formData);
+    }, 300);
   };
 
   const handleBypassSubmit = (e) => {
     e?.preventDefault();
+
+    const now = Date.now();
+    if (now - lastSubmitTimeRef.current < 5000) {
+      console.log("Bypass submit blocked by time lock");
+      return;
+    }
+
+    if (isSubmitting) return;
     if (!validateBypassForm()) return;
-    debouncedProcessBypassSubmit(formData);
+
+    lastSubmitTimeRef.current = now;
+
+    if (submitTimerRef.current) clearTimeout(submitTimerRef.current);
+    submitTimerRef.current = setTimeout(() => {
+      processBypassSubmit(formData);
+    }, 300);
   };
+
+  // Cleanup ref saat unmount
+  useEffect(() => {
+    return () => {
+      if (submitTimerRef.current) clearTimeout(submitTimerRef.current);
+    };
+  }, []);
 
   const resetForm = () => {
     setFormData({
@@ -463,10 +481,10 @@ export const useTimbanganHooks = () => {
     errors,
     setErrors,
     isSubmitting,
-    availableUnits: filteredUnits, // Menampilkan unit yang lolos filter 10 menit
-    rawAvailableUnits: availableUnits, // Opsional jika butuh list asli di komponen lain
-    isUnitsLoading, // untuk skeleton saat pertama load
-    refreshUnits, // panggil dari tombol refresh di UI
+    availableUnits: filteredUnits,
+    rawAvailableUnits: availableUnits,
+    isUnitsLoading,
+    refreshUnits,
     handleHullNoChange,
     handleSubmit,
     handleBypassSubmit,

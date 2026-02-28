@@ -12,10 +12,10 @@ class EnvironmentConfig {
     return {
       baseUrl: this.getRequired("VITE_API_URL"),
       basePath: this.get("VITE_API_BASE_PATH", "/api"),
-      timeout: this.getNumber("VITE_API_TIMEOUT", 5000),
+      timeout: this.getNumber("VITE_API_TIMEOUT", 10000),
       version: this.get("VITE_API_VERSION", "v1"),
       fullUrl: `${this.getRequired("VITE_API_URL")}${this.get("VITE_API_BASE_PATH", "/api")}`,
-      timbanganTimeout: this.getNumber("VITE_TIMBANGAN_TIMEOUT", 5000),
+      timbanganTimeout: this.getNumber("VITE_TIMBANGAN_TIMEOUT", 10000),
     };
   }
 
