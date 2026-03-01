@@ -119,7 +119,7 @@ export const masterDataService = {
    * Endpoint: GET /v1/custom/master-data
    */
   async fetchAllMastersFromNewAPI(options = {}) {
-    const { forceRefresh = false} = options;
+    const { forceRefresh = false } = options;
     const cacheKey = "all_master_data";
 
     // Check cache jika tidak force refresh
@@ -132,7 +132,6 @@ export const masterDataService = {
 
     return this._fetchWithDeduplication(cacheKey, async () => {
       try {
-
         const response = await offlineService.get("/v1/custom/master-data", {
           cacheKey,
           ttl: offlineService.CACHE_CONFIG.SHORT,
@@ -141,24 +140,40 @@ export const masterDataService = {
 
         const masterData = response.data?.data || response.data || response;
 
-        const excavators = masterData.units
-          ?.filter((unit) => unit.type === "EXCAVATOR")
-          .sort((a, b) => (a.hull_no || "").localeCompare(b.hull_no || "")) || [];
+        const excavators =
+          masterData.units
+            ?.filter((unit) => unit.type === "EXCAVATOR")
+            .sort((a, b) => (a.hull_no || "").localeCompare(b.hull_no || "")) ||
+          [];
 
-        const dumptrucks = masterData.units
-          ?.filter((unit) => unit.type === "DUMP_TRUCK")
-          .sort((a, b) => (a.hull_no || "").localeCompare(b.hull_no || "")) || [];
+        const dumptrucks =
+          masterData.units
+            ?.filter((unit) => unit.type === "DUMP_TRUCK")
+            .sort((a, b) => (a.hull_no || "").localeCompare(b.hull_no || "")) ||
+          [];
 
         // Sort data
-        const locations = sortAlphabetically(masterData.locations || [], "name");
-        const operators = sortAlphabetically(masterData.operators || [], "name");
-        const companies = sortAlphabetically(masterData.companies || [], "name");
-        const coalTypes = sortAlphabetically(masterData.coal_types || [], "name");
-        const users = (masterData.users || []).sort((a, b) => 
-          (a.username || "").localeCompare(b.username || "")
+        const locations = sortAlphabetically(
+          masterData.locations || [],
+          "name",
+        );
+        const operators = sortAlphabetically(
+          masterData.operators || [],
+          "name",
+        );
+        const companies = sortAlphabetically(
+          masterData.companies || [],
+          "name",
+        );
+        const coalTypes = sortAlphabetically(
+          masterData.coal_types || [],
+          "name",
+        );
+        const users = (masterData.users || []).sort((a, b) =>
+          (a.username || "").localeCompare(b.username || ""),
         );
         const workUnits = (masterData.work_units || []).sort((a, b) =>
-          (a.satker || "").localeCompare(b.satker || "")
+          (a.satker || "").localeCompare(b.satker || ""),
         );
 
         // Cache individual categories
@@ -252,7 +267,7 @@ export const masterDataService = {
 
     // Coba ambil dari cache all_master_data dulu
     const allMasterData = MASTER_DATA_CACHE.get("all_master_data");
-    if (allMasterData?.users) {
+    if (allMasterData?.users && !forceRefresh) {
       MASTER_DATA_CACHE.set("users", allMasterData.users);
       return allMasterData.users;
     }
@@ -273,7 +288,7 @@ export const masterDataService = {
     }
 
     const allMasterData = MASTER_DATA_CACHE.get("all_master_data");
-    if (allMasterData?.companies) {
+    if (allMasterData?.companies && !forceRefresh) {
       MASTER_DATA_CACHE.set("companies", allMasterData.companies);
       return allMasterData.companies;
     }
@@ -293,7 +308,7 @@ export const masterDataService = {
     }
 
     const allMasterData = MASTER_DATA_CACHE.get("all_master_data");
-    if (allMasterData?.locations) {
+    if (allMasterData?.locations && !forceRefresh) {
       MASTER_DATA_CACHE.set("locations", allMasterData.locations);
       return allMasterData.locations;
     }
@@ -317,13 +332,13 @@ export const masterDataService = {
     }
 
     const allMasterData = MASTER_DATA_CACHE.get("all_master_data");
-    if (allMasterData?.operators) {
+    if (allMasterData?.operators && !forceRefresh) {
       let operators = allMasterData.operators;
-      
+
       if (shouldFilterByCompany(userRole) && userCompanyId) {
         operators = operators.filter((op) => op.id_company === userCompanyId);
       }
-      
+
       MASTER_DATA_CACHE.set("operators", operators);
       return operators;
     }
@@ -354,12 +369,16 @@ export const masterDataService = {
     }
 
     const allMasterData = MASTER_DATA_CACHE.get("all_master_data");
-    if (allMasterData) {
-      let units = type === "EXCAVATOR" 
-        ? allMasterData.excavators 
-        : type === "DUMP_TRUCK" 
-        ? allMasterData.dumptrucks 
-        : [...(allMasterData.excavators || []), ...(allMasterData.dumptrucks || [])];
+    if (allMasterData && !forceRefresh) {
+      let units =
+        type === "EXCAVATOR"
+          ? allMasterData.excavators
+          : type === "DUMP_TRUCK"
+            ? allMasterData.dumptrucks
+            : [
+                ...(allMasterData.excavators || []),
+                ...(allMasterData.dumptrucks || []),
+              ];
 
       if (shouldFilterByCompany(userRole) && userCompanyId) {
         units = units.filter((unit) => unit.id_company === userCompanyId);
@@ -370,11 +389,12 @@ export const masterDataService = {
     }
 
     const result = await this.fetchAllMastersFromNewAPI(options);
-    let units = type === "EXCAVATOR" 
-      ? result.excavators 
-      : type === "DUMP_TRUCK" 
-      ? result.dumptrucks 
-      : [...(result.excavators || []), ...(result.dumptrucks || [])];
+    let units =
+      type === "EXCAVATOR"
+        ? result.excavators
+        : type === "DUMP_TRUCK"
+          ? result.dumptrucks
+          : [...(result.excavators || []), ...(result.dumptrucks || [])];
 
     if (shouldFilterByCompany(userRole) && userCompanyId) {
       units = units.filter((unit) => unit.id_company === userCompanyId);
@@ -394,7 +414,7 @@ export const masterDataService = {
     }
 
     const allMasterData = MASTER_DATA_CACHE.get("all_master_data");
-    if (allMasterData?.workUnits) {
+    if (allMasterData?.workUnits && !forceRefresh) {
       MASTER_DATA_CACHE.set("work_units", allMasterData.workUnits);
       return allMasterData.workUnits;
     }
@@ -414,7 +434,7 @@ export const masterDataService = {
     }
 
     const allMasterData = MASTER_DATA_CACHE.get("all_master_data");
-    if (allMasterData?.coalTypes) {
+    if (allMasterData?.coalTypes && !forceRefresh) {
       MASTER_DATA_CACHE.set("coal-types", allMasterData.coalTypes);
       return allMasterData.coalTypes;
     }
@@ -556,7 +576,9 @@ export const masterDataService = {
       clientTimestamp: new Date().toISOString(),
     };
 
-    const response = await offlineService.put(`/units/${id}`, { data: payload });
+    const response = await offlineService.put(`/units/${id}`, {
+      data: payload,
+    });
 
     MASTER_DATA_CACHE.clear("units");
     MASTER_DATA_CACHE.clear("units_EXCAVATOR");
@@ -602,7 +624,9 @@ export const masterDataService = {
       clientTimestamp: new Date().toISOString(),
     };
 
-    const response = await offlineService.put(`/operators/${id}`, { data: payload });
+    const response = await offlineService.put(`/operators/${id}`, {
+      data: payload,
+    });
 
     MASTER_DATA_CACHE.clear("operators");
     MASTER_DATA_CACHE.clear("all_master_data");
@@ -663,7 +687,9 @@ export const masterDataService = {
       clientTimestamp: new Date().toISOString(),
     };
 
-    const response = await offlineService.post("/work-units", { data: payload });
+    const response = await offlineService.post("/work-units", {
+      data: payload,
+    });
 
     MASTER_DATA_CACHE.clear("work-units");
     MASTER_DATA_CACHE.clear("work_units");
@@ -681,7 +707,9 @@ export const masterDataService = {
       clientTimestamp: new Date().toISOString(),
     };
 
-    const response = await offlineService.put(`/work-units/${id}`, { data: payload });
+    const response = await offlineService.put(`/work-units/${id}`, {
+      data: payload,
+    });
 
     MASTER_DATA_CACHE.clear("work-units");
     MASTER_DATA_CACHE.clear("work_units");
@@ -743,7 +771,9 @@ export const masterDataService = {
       clientTimestamp: new Date().toISOString(),
     };
 
-    const response = await offlineService.post("/weigh-bridges", { data: payload });
+    const response = await offlineService.post("/weigh-bridges", {
+      data: payload,
+    });
 
     MASTER_DATA_CACHE.clear("weigh-bridge");
     emitCacheUpdate("weigh-bridge", "created", response.data.id);
@@ -758,7 +788,9 @@ export const masterDataService = {
       clientTimestamp: new Date().toISOString(),
     };
 
-    const response = await offlineService.put(`/weigh-bridges/${id}`, { data: payload });
+    const response = await offlineService.put(`/weigh-bridges/${id}`, {
+      data: payload,
+    });
 
     MASTER_DATA_CACHE.clear("weigh-bridge");
     emitCacheUpdate("weigh-bridge", "updated", id);
