@@ -22,6 +22,7 @@ import {
   Target,
   Zap,
   Weight,
+  PencilLine,
 } from "lucide-react";
 import SearchableSelect from "@/shared/components/SearchableSelect";
 import { useWebSerialScale } from "@/shared/hooks/useWebSerialScale";
@@ -29,6 +30,7 @@ import { showToast } from "@/shared/utils/toast";
 import { format } from "date-fns";
 import { formatWeight } from "@/shared/utils/number";
 import ModalHeader from "@/shared/components/ModalHeader";
+import useAuthStore from "@/modules/auth/store/authStore";
 
 const TARE_WEIGHT_EXPIRY_DAYS = 7;
 const WEIGHT_STABLE_DURATION = 2000; // 2 seconds
@@ -81,6 +83,9 @@ const TareWeightModal = ({
   onSave,
   isSaving,
 }) => {
+  const user = useAuthStore((state) => state.user);
+  const isCCR = user?.role === "ccr";
+
   const {
     isConnected,
     currentWeight,
@@ -98,6 +103,24 @@ const TareWeightModal = ({
   } = useWebSerialScale();
   const isSelectionMode = units !== null && units.length > 0;
   const isSingleUnitMode = unit !== null;
+
+  // CCR manual input state — stores raw digits string (e.g. "1234" => "12.34" ton)
+  const [manualWeightRaw, setManualWeightRaw] = useState("");
+  const [manualWeightError, setManualWeightError] = useState("");
+
+  // Format raw digit string into "XX.XX" display and numeric value
+  const formatManualWeight = (raw) => {
+    const digits = raw.replace(/\D/g, "").replace(/^0+/, "") || "";
+    if (!digits) return { display: "", value: "" };
+    const padded = digits.padStart(3, "0"); // at least "0.XX"
+    const intPart = padded.slice(0, -2);
+    const decPart = padded.slice(-2);
+    const display = `${intPart}.${decPart}`;
+    return { display, value: display };
+  };
+
+  const { display: manualWeightDisplay, value: manualWeight } =
+    formatManualWeight(manualWeightRaw);
 
   const [selectedUnitId, setSelectedUnitId] = useState(null);
   const [lockedWeight, setLockedWeight] = useState(null);
@@ -154,6 +177,8 @@ const TareWeightModal = ({
       setLockedTime(null);
       setError("");
       setStabilityProgress(0);
+      setManualWeightRaw("");
+      setManualWeightError("");
       lastWeightRef.current = null;
       stableStartTimeRef.current = null;
       if (stabilityTimerRef.current) {
@@ -257,6 +282,29 @@ const TareWeightModal = ({
       return;
     }
 
+    // CCR: use manual input
+    if (isCCR) {
+      const weight = parseFloat(manualWeight);
+      if (isNaN(weight) || weight <= 0) {
+        setManualWeightError("Berat harus lebih dari 0 ton");
+        showToast.error("❌ Masukkan berat kosong yang valid");
+        return;
+      }
+      if (weight > 70) {
+        setManualWeightError("Berat terlalu besar (max 70 ton)");
+        return;
+      }
+      setManualWeightError("");
+      const unitId = isSelectionMode ? selectedUnitId : currentUnit?.id;
+      await onSave({
+        unitId,
+        tareWeight: weight,
+        weighedAt: new Date().toISOString(),
+        method: "manual-ccr",
+      });
+      return;
+    }
+
     if (!isConnected) {
       setError("Timbangan belum terhubung");
       showToast.error("❌ Hubungkan timbangan terlebih dahulu");
@@ -321,10 +369,12 @@ const TareWeightModal = ({
       )
     : null;
 
-  const canSave =
-    (isSelectionMode ? selectedUnitId : true) &&
-    isConnected &&
-    lockedWeight !== null;
+  const canSave = isCCR
+    ? (isSelectionMode ? !!selectedUnitId : true) &&
+      parseFloat(manualWeight) > 0
+    : (isSelectionMode ? !!selectedUnitId : true) &&
+      isConnected &&
+      lockedWeight !== null;
 
   return (
     <div className="detail-modal fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
@@ -591,189 +641,279 @@ const TareWeightModal = ({
               </Alert>
             )}
 
-          {/* Connection & Weight Display */}
-          <div
-            className={`rounded-lg p-4 border-2 ${
-              isConnected
-                ? lockedWeight !== null
-                  ? "bg-green-50 border-green-300"
-                  : "bg-blue-50 border-blue-300"
-                : "bg-orange-50 border-orange-300"
-            }`}
-          >
-            <div className="flex items-center justify-between mb-3">
+          {/* ===== CCR: MANUAL INPUT MODE ===== */}
+          {isCCR && (
+            <div className="rounded-lg p-4 border-2 border-amber-300 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-700 space-y-3">
               <div className="flex items-center gap-2">
-                {isConnected ? (
-                  lockedWeight !== null ? (
-                    <>
-                      <Lock className="w-5 h-5 text-green-600" />
-                      <span className="text-sm font-medium text-green-800">
-                        Berat Terkunci
-                      </span>
-                    </>
-                  ) : (
-                    <>
-                      <Radio className="w-5 h-5 text-blue-600 animate-pulse" />
-                      <span className="text-sm font-medium text-blue-800">
-                        Membaca Timbangan...
-                      </span>
-                    </>
-                  )
-                ) : (
-                  <>
-                    <WifiOff className="w-5 h-5 text-orange-600" />
-                    <span className="text-sm font-medium text-orange-800">
-                      Timbangan Offline
-                    </span>
-                  </>
-                )}
+                <PencilLine className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+                <span className="text-sm font-medium text-amber-800 dark:text-amber-300">
+                  Input Manual Berat Kosong
+                </span>
+                <Badge className="bg-amber-200 text-amber-800 dark:bg-amber-800 dark:text-amber-100 text-xs">
+                  Manual
+                </Badge>
               </div>
 
-              {/* Status Badge */}
-              {lockedWeight !== null ? (
-                <Badge variant="default" className="bg-green-600">
-                  <Lock className="w-3 h-3 mr-1" />
-                  Locked
-                </Badge>
-              ) : isConnected ? (
-                <Badge variant="default" className="bg-blue-600 animate-pulse">
-                  <Radio className="w-3 h-3 mr-1" />
-                  Live
-                </Badge>
-              ) : null}
-            </div>
-
-            {/* Connect Button - Show when not connected */}
-            {!isConnected && isSupported && (
-              <Button
-                onClick={connect}
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white"
-                variant="default"
-              >
-                <Wifi className="w-4 h-4 mr-2" />
-                Hubungkan Timbangan
-              </Button>
-            )}
-
-            {/* Live Weight Display */}
-            {isConnected && currentWeight !== null && (
-              <div
-                className={`bg-white rounded-lg p-4 border-2 ${
-                  lockedWeight !== null ? "border-green-300" : "border-blue-300"
-                }`}
-              >
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm text-gray-600 font-medium">
-                    {lockedWeight !== null
-                      ? "🔒 Locked Weight:"
-                      : "⚡ Live Weight:"}
-                  </span>
-                  <div className="flex items-center gap-2">
-                    {lockedWeight === null ? (
-                      <Radio className="w-5 h-5 text-blue-600 animate-pulse" />
-                    ) : (
-                      <Lock className="w-5 h-5 text-green-600" />
-                    )}
-                  </div>
-                </div>
-
-                {/* Weight Display */}
-                <div className="flex items-baseline justify-center gap-2 mb-3">
-                  <span
-                    className={`text-4xl font-bold font-mono ${
-                      lockedWeight !== null ? "text-green-900" : "text-blue-900"
+              <div className="space-y-1">
+                <Label
+                  htmlFor="manual-tare-weight"
+                  className="text-xs text-amber-700 dark:text-amber-300"
+                >
+                  Berat Kosong (ton) *
+                </Label>
+                <div className="flex items-center gap-2">
+                  <input
+                    id="manual-tare-weight"
+                    type="text"
+                    inputMode="numeric"
+                    placeholder="0.00"
+                    value={manualWeightDisplay}
+                    onChange={(e) => {
+                      const onlyDigits = e.target.value.replace(/\D/g, "");
+                      if (onlyDigits.length <= 4) {
+                        setManualWeightRaw(onlyDigits);
+                        setManualWeightError("");
+                      }
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Backspace") {
+                        e.preventDefault();
+                        setManualWeightRaw((prev) => prev.slice(0, -1));
+                        setManualWeightError("");
+                      }
+                    }}
+                    disabled={isSaving}
+                    className={`flex-1 px-3 py-2.5 text-xl font-mono font-bold text-center border rounded-md bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 placeholder:text-gray-300 focus:outline-none focus:ring-2 ${
+                      manualWeightError
+                        ? "border-red-400 focus:ring-red-400"
+                        : "border-amber-300 dark:border-amber-600 focus:ring-amber-400"
                     }`}
-                  >
-                    {formatWeight(
-                      (lockedWeight !== null ? lockedWeight : currentWeight) /
-                        1000,
-                    )}
-                  </span>
-                  <span
-                    className={`text-2xl font-medium ${
-                      lockedWeight !== null ? "text-green-600" : "text-blue-600"
-                    }`}
-                  >
+                  />
+                  <span className="text-sm font-medium text-amber-700 dark:text-amber-300">
                     ton
                   </span>
                 </div>
-
-                {/* Stability Progress Bar */}
-                {lockedWeight === null && stabilityProgress > 0 && (
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs text-blue-600 font-medium">
-                        ⏱️ Menunggu stabilisasi...
-                      </span>
-                      <span className="text-xs text-blue-600 font-mono font-bold">
-                        {Math.round(stabilityProgress)}%
-                      </span>
-                    </div>
-                    <div className="w-full bg-blue-100 rounded-full h-2.5 overflow-hidden">
-                      <div
-                        className="bg-blue-600 h-full transition-all duration-100 ease-linear"
-                        style={{ width: `${stabilityProgress}%` }}
-                      />
-                    </div>
-                  </div>
+                {manualWeightError && (
+                  <p className="text-xs text-red-500 flex items-center gap-1">
+                    <AlertTriangle className="w-3 h-3" />
+                    {manualWeightError}
+                  </p>
                 )}
-
-                {/* Lock Status */}
-                {lockedWeight === null ? (
-                  <div className="mt-2 space-y-2">
-                    <p className="text-xs text-blue-600 text-center">
-                      ⚡ Berat akan terkunci otomatis setelah stabil 2 detik
+                {manualWeight &&
+                  !manualWeightError &&
+                  parseFloat(manualWeight) > 0 && (
+                    <p className="text-xs text-green-600 dark:text-green-400">
+                      ✅ {parseFloat(manualWeight).toFixed(2)} ton siap disimpan
                     </p>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      onClick={() => {
-                        const result = manualLock();
-                        if (result?.success) {
-                          setLockedWeight(result.weight);
-                          setLockedTime(new Date());
-                          setStabilityProgress(100);
-                          showToast.success("🔒 Berat dikunci manual");
-                        }
-                      }}
-                      disabled={!currentWeight || currentWeight <= 0}
-                      className="w-full h-8 text-xs border-blue-300 text-blue-700 hover:bg-blue-50"
-                    >
-                      <Lock className="w-3 h-3 mr-1" />
-                      🔒 Lock Manual
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="mt-2 flex items-center justify-between">
-                    <p className="text-xs text-green-600">
-                      🔒 Terkunci pada{" "}
-                      {lockedTime && format(lockedTime, "HH:mm:ss")}
-                    </p>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      onClick={handleUnlock}
-                      className="h-7 text-xs"
-                    >
-                      🔓 Buka Kunci
-                    </Button>
-                  </div>
-                )}
+                  )}
               </div>
-            )}
 
-            {/* No Connection Warning */}
-            {!isConnected && (
-              <Alert className="mt-3 border-orange-300 bg-orange-50">
-                <AlertTriangle className="w-4 h-4 text-orange-600" />
-                <AlertDescription className="text-xs text-orange-800">
-                  ⚠️ Hubungkan timbangan untuk penimbangan otomatis
+              <Alert className="border-amber-200 bg-amber-50 dark:bg-amber-950/30">
+                <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />
+                <AlertDescription className="text-xs text-amber-700 dark:text-amber-300">
+                  Pastikan nilai berat kosong sesuai dengan hasil timbangan
+                  fisik.
                 </AlertDescription>
               </Alert>
-            )}
-          </div>
+            </div>
+          )}
+
+          {/* Connection & Weight Display — hidden for CCR */}
+          {!isCCR && (
+            <div
+              className={`rounded-lg p-4 border-2 ${
+                isConnected
+                  ? lockedWeight !== null
+                    ? "bg-green-50 border-green-300"
+                    : "bg-blue-50 border-blue-300"
+                  : "bg-orange-50 border-orange-300"
+              }`}
+            >
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  {isConnected ? (
+                    lockedWeight !== null ? (
+                      <>
+                        <Lock className="w-5 h-5 text-green-600" />
+                        <span className="text-sm font-medium text-green-800">
+                          Berat Terkunci
+                        </span>
+                      </>
+                    ) : (
+                      <>
+                        <Radio className="w-5 h-5 text-blue-600 animate-pulse" />
+                        <span className="text-sm font-medium text-blue-800">
+                          Membaca Timbangan...
+                        </span>
+                      </>
+                    )
+                  ) : (
+                    <>
+                      <WifiOff className="w-5 h-5 text-orange-600" />
+                      <span className="text-sm font-medium text-orange-800">
+                        Timbangan Offline
+                      </span>
+                    </>
+                  )}
+                </div>
+
+                {/* Status Badge */}
+                {lockedWeight !== null ? (
+                  <Badge variant="default" className="bg-green-600">
+                    <Lock className="w-3 h-3 mr-1" />
+                    Locked
+                  </Badge>
+                ) : isConnected ? (
+                  <Badge
+                    variant="default"
+                    className="bg-blue-600 animate-pulse"
+                  >
+                    <Radio className="w-3 h-3 mr-1" />
+                    Live
+                  </Badge>
+                ) : null}
+              </div>
+
+              {/* Connect Button - Show when not connected */}
+              {!isConnected && isSupported && (
+                <Button
+                  onClick={connect}
+                  className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+                  variant="default"
+                >
+                  <Wifi className="w-4 h-4 mr-2" />
+                  Hubungkan Timbangan
+                </Button>
+              )}
+
+              {/* Live Weight Display */}
+              {isConnected && currentWeight !== null && (
+                <div
+                  className={`bg-white rounded-lg p-4 border-2 ${
+                    lockedWeight !== null
+                      ? "border-green-300"
+                      : "border-blue-300"
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm text-gray-600 font-medium">
+                      {lockedWeight !== null
+                        ? "🔒 Locked Weight:"
+                        : "⚡ Live Weight:"}
+                    </span>
+                    <div className="flex items-center gap-2">
+                      {lockedWeight === null ? (
+                        <Radio className="w-5 h-5 text-blue-600 animate-pulse" />
+                      ) : (
+                        <Lock className="w-5 h-5 text-green-600" />
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Weight Display */}
+                  <div className="flex items-baseline justify-center gap-2 mb-3">
+                    <span
+                      className={`text-4xl font-bold font-mono ${
+                        lockedWeight !== null
+                          ? "text-green-900"
+                          : "text-blue-900"
+                      }`}
+                    >
+                      {formatWeight(
+                        (lockedWeight !== null ? lockedWeight : currentWeight) /
+                          1000,
+                      )}
+                    </span>
+                    <span
+                      className={`text-2xl font-medium ${
+                        lockedWeight !== null
+                          ? "text-green-600"
+                          : "text-blue-600"
+                      }`}
+                    >
+                      ton
+                    </span>
+                  </div>
+
+                  {/* Stability Progress Bar */}
+                  {lockedWeight === null && stabilityProgress > 0 && (
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-blue-600 font-medium">
+                          ⏱️ Menunggu stabilisasi...
+                        </span>
+                        <span className="text-xs text-blue-600 font-mono font-bold">
+                          {Math.round(stabilityProgress)}%
+                        </span>
+                      </div>
+                      <div className="w-full bg-blue-100 rounded-full h-2.5 overflow-hidden">
+                        <div
+                          className="bg-blue-600 h-full transition-all duration-100 ease-linear"
+                          style={{ width: `${stabilityProgress}%` }}
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Lock Status */}
+                  {lockedWeight === null ? (
+                    <div className="mt-2 space-y-2">
+                      <p className="text-xs text-blue-600 text-center">
+                        ⚡ Berat akan terkunci otomatis setelah stabil 2 detik
+                      </p>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          const result = manualLock();
+                          if (result?.success) {
+                            setLockedWeight(result.weight);
+                            setLockedTime(new Date());
+                            setStabilityProgress(100);
+                            showToast.success("🔒 Berat dikunci manual");
+                          }
+                        }}
+                        disabled={!currentWeight || currentWeight <= 0}
+                        className="w-full h-8 text-xs border-blue-300 text-blue-700 hover:bg-blue-50"
+                      >
+                        <Lock className="w-3 h-3 mr-1" />
+                        🔒 Lock Manual
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="mt-2 flex items-center justify-between">
+                      <p className="text-xs text-green-600">
+                        🔒 Terkunci pada{" "}
+                        {lockedTime && format(lockedTime, "HH:mm:ss")}
+                      </p>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={handleUnlock}
+                        className="h-7 text-xs"
+                      >
+                        🔓 Buka Kunci
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* No Connection Warning */}
+              {!isConnected && (
+                <Alert className="mt-3 border-orange-300 bg-orange-50">
+                  <AlertTriangle className="w-4 h-4 text-orange-600" />
+                  <AlertDescription className="text-xs text-orange-800">
+                    ⚠️ Hubungkan timbangan untuk penimbangan otomatis
+                  </AlertDescription>
+                </Alert>
+              )}
+            </div>
+          )}
+
+          {/* CCR: no scale section spacer */}
 
           {/* Action Buttons */}
           <div className="flex gap-2 pt-4 border-t">
@@ -808,14 +948,31 @@ const TareWeightModal = ({
           <Alert>
             <Clock className="w-4 h-4" />
             <AlertDescription className="text-xs">
-              <p className="font-medium mb-1">ℹ️ Cara Kerja Otomatis:</p>
-              <ul className="list-disc list-inside space-y-1">
-                <li>Hubungkan timbangan terlebih dahulu</li>
-                <li>Sistem akan membaca berat secara otomatis</li>
-                <li>Berat akan terkunci setelah stabil 2 detik</li>
-                <li>Pastikan unit kosong saat ditimbang</li>
-                <li>Tare weight kadaluarsa setelah 7 hari</li>
-              </ul>
+              {isCCR ? (
+                <>
+                  <p className="font-medium mb-1">ℹ️ Cara Kerja (Mode CCR):</p>
+                  <ul className="list-disc list-inside space-y-1">
+                    <li>Pilih unit dump truck yang akan diinput</li>
+                    <li>
+                      Masukkan berat kosong dalam satuan <strong>ton</strong>
+                    </li>
+                    <li>Klik "Simpan Berat Kosong" untuk menyimpan</li>
+                    <li>Pastikan unit kosong saat ditimbang secara fisik</li>
+                    <li>Tare weight kadaluarsa setelah 7 hari</li>
+                  </ul>
+                </>
+              ) : (
+                <>
+                  <p className="font-medium mb-1">ℹ️ Cara Kerja Otomatis:</p>
+                  <ul className="list-disc list-inside space-y-1">
+                    <li>Hubungkan timbangan terlebih dahulu</li>
+                    <li>Sistem akan membaca berat secara otomatis</li>
+                    <li>Berat akan terkunci setelah stabil 2 detik</li>
+                    <li>Pastikan unit kosong saat ditimbang</li>
+                    <li>Tare weight kadaluarsa setelah 7 hari</li>
+                  </ul>
+                </>
+              )}
             </AlertDescription>
           </Alert>
         </CardContent>
