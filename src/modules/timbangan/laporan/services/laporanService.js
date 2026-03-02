@@ -29,7 +29,15 @@ const fetchDataAndGenerateFile = async (endpoint, params, reportType) => {
   try {
     validateDownloadParams(params);
 
-    const { startDate, endDate, shift, format, spph,type_report, unit_dump_truck } = params;
+    const {
+      startDate,
+      endDate,
+      shift,
+      format,
+      spph,
+      type_report,
+      unit_dump_truck,
+    } = params;
 
     logger.info(`🔥 Fetching report data from ${endpoint}`, {
       startDate,
@@ -52,8 +60,8 @@ const fetchDataAndGenerateFile = async (endpoint, params, reportType) => {
       queryParams.spph = spph;
     }
 
-    if(type_report){
-      queryParams.type_report= type_report;
+    if (type_report) {
+      queryParams.type_report = type_report;
     }
 
     if (unit_dump_truck) {
@@ -62,6 +70,7 @@ const fetchDataAndGenerateFile = async (endpoint, params, reportType) => {
 
     const response = await offlineService.get(endpoint, {
       params: queryParams,
+      timeout: 60000, // 1 menit — laporan bisa besar
     });
 
     const data = response.data?.data || response.data;
@@ -82,7 +91,7 @@ const fetchDataAndGenerateFile = async (endpoint, params, reportType) => {
         spph,
         unit_dump_truck,
       },
-      reportType 
+      reportType,
     );
 
     logger.info(`✅ File generated successfully`, {
@@ -127,11 +136,19 @@ const laporanService = {
   },
 
   downloadLaporanSPPHRehandling: async (params) => {
-    return fetchDataAndGenerateFile("/v1/custom/report", params, "spph-rehandling");
+    return fetchDataAndGenerateFile(
+      "/v1/custom/report",
+      params,
+      "spph-rehandling",
+    );
   },
 
   downloadLaporanDumpTruckRehandling: async (params) => {
-    return fetchDataAndGenerateFile("/v1/custom/report", params, "dump-truck-rehandling");
+    return fetchDataAndGenerateFile(
+      "/v1/custom/report",
+      params,
+      "dump-truck-rehandling",
+    );
   },
 
   previewLaporan: async (params) => {
@@ -159,6 +176,7 @@ const laporanService = {
 
       const response = await offlineService.get("/v1/custom/report", {
         params: queryParams,
+        timeout: 60000, // 1 menit — laporan bisa besar
       });
 
       const data = response.data?.data || response.data;
