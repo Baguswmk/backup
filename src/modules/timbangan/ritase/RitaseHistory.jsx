@@ -574,7 +574,7 @@ const RitaseHistory = () => {
 
   return (
     <>
-      <div className="space-y-6 min-h-screen p-6">
+      <div className="space-y-3 min-h-screen p-3">
         {/* Header */}
         <RitaseHistoryHeader
           user={user}

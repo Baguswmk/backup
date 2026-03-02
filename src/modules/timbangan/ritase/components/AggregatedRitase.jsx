@@ -570,14 +570,8 @@ const AggregatedRitase = ({
   };
 
   const renderSearchSection = () => (
-    <div className="mb-4 space-y-3 bg-gray-50 dark:bg-gray-800/50 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
+    <div className="mb-2 space-y-3 bg-gray-50 dark:bg-gray-800/50 p-2 rounded-lg">
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Search className="w-4 h-4 text-gray-500 dark:text-gray-400" />
-          <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
-            Search Ritase
-          </h3>
-        </div>
         {hasActiveSearch && (
           <Button
             variant="ghost"
@@ -713,27 +707,27 @@ const AggregatedRitase = ({
             onOpenChange={(open) =>
               setExpandedGroups((prev) => ({ ...prev, [groupId]: open }))
             }
-            className="mb-4 sm:mb-6 last:mb-0"
+            className="mb-2 sm:mb-3 last:mb-0"
           >
             <div className="bg-gray-100 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
-              <CollapsibleTrigger className="w-full cursor-pointer p-3 sm:p-4 border-b-2 border-blue-500 dark:border-blue-400 hover:bg-gray-200 dark:hover:bg-gray-700/50 transition-colors">
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <CollapsibleTrigger className="w-full cursor-pointer p-2 sm:p-3 border-b-2 border-blue-500 dark:border-blue-400 hover:bg-gray-200 dark:hover:bg-gray-700/50 transition-colors">
+                <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2 sm:gap-3">
                     {isExpanded ? (
-                      <ChevronUp className="h-4 w-4 sm:h-5 sm:w-5 text-gray-600 dark:text-gray-400 shrink-0" />
+                      <ChevronUp className="h-3 w-3 sm:h-4 sm:w-4 text-gray-600 dark:text-gray-400 shrink-0" />
                     ) : (
-                      <ChevronDown className="h-4 w-4 sm:h-5 sm:w-5 text-gray-600 dark:text-gray-400 shrink-0" />
+                      <ChevronDown className="h-3 w-3 sm:h-4 sm:w-4 text-gray-600 dark:text-gray-400 shrink-0" />
                     )}
-                    <Badge className="bg-blue-600 dark:bg-blue-500 text-white text-sm sm:text-base px-2 sm:px-3 py-1">
+                    <Badge className="bg-blue-600 dark:bg-blue-500 text-white text-xs px-2">
                       {group.groupKey}
                     </Badge>
                   </div>
-                  <div className="flex items-center gap-3 sm:gap-6">
+                  <div className="flex items-center gap-2 sm:gap-4">
                     <div className="text-left sm:text-right">
                       <div className="text-xs text-gray-500 dark:text-gray-400">
                         Total Ritase
                       </div>
-                      <div className="text-base sm:text-lg font-bold text-blue-600 dark:text-blue-400">
+                      <div className="text-sm font-bold text-blue-600 dark:text-blue-400">
                         {group.totalTrips
                           ? group.totalTrips.toLocaleString("en-US")
                           : "0"}{" "}
@@ -744,7 +738,7 @@ const AggregatedRitase = ({
                       <div className="text-xs text-gray-500 dark:text-gray-400">
                         Total Tonase
                       </div>
-                      <div className="text-base sm:text-lg font-bold text-green-600 dark:text-green-400">
+                      <div className="text-sm font-bold text-green-600 dark:text-green-400">
                         {group.totalWeight
                           ? group.totalWeight.toLocaleString("en-US", {
                               minimumFractionDigits: 2,
@@ -760,31 +754,31 @@ const AggregatedRitase = ({
 
               <CollapsibleContent>
                 <div className="overflow-x-auto">
-                  <Table>
+                  <Table className="text-xs">
                     <TableHeader>
                       <TableRow className="bg-gray-50 dark:bg-gray-900/30">
-                        <TableHead className="text-gray-700 dark:text-gray-300 font-semibold w-12 text-xs sm:text-sm">
+                        <TableHead className="text-gray-700 dark:text-gray-300 font-semibold w-12 text-xs">
                           No
                         </TableHead>
-                        <TableHead className="text-gray-700 dark:text-gray-300 font-semibold text-xs sm:text-sm min-w-20">
+                        <TableHead className="text-gray-700 dark:text-gray-300 font-semibold text-xs min-w-20">
                           Exca
                         </TableHead>
-                        <TableHead className="text-gray-700 dark:text-gray-300 font-semibold text-xs sm:text-sm min-w-30">
+                        <TableHead className="text-gray-700 dark:text-gray-300 font-semibold text-xs min-w-30">
                           Loading
                         </TableHead>
-                        <TableHead className="text-gray-700 dark:text-gray-300 font-semibold text-xs sm:text-sm min-w-30">
+                        <TableHead className="text-gray-700 dark:text-gray-300 font-semibold text-xs min-w-30">
                           Dumping
                         </TableHead>
-                        <TableHead className="text-gray-700 dark:text-gray-300 font-semibold text-xs sm:text-sm min-w-30">
+                        <TableHead className="text-gray-700 dark:text-gray-300 font-semibold text-xs min-w-30">
                           Measurement
                         </TableHead>
-                        <TableHead className="text-right text-gray-700 dark:text-gray-300 font-semibold text-xs sm:text-sm min-w-20">
+                        <TableHead className="text-right text-gray-700 dark:text-gray-300 font-semibold text-xs min-w-20">
                           Ritase
                         </TableHead>
-                        <TableHead className="text-right text-gray-700 dark:text-gray-300 font-semibold text-xs sm:text-sm min-w-25">
+                        <TableHead className="text-right text-gray-700 dark:text-gray-300 font-semibold text-xs min-w-25">
                           Total Tonase
                         </TableHead>
-                        <TableHead className="text-center text-gray-700 dark:text-gray-300 font-semibold w-16 sm:w-24 text-xs sm:text-sm">
+                        <TableHead className="text-center text-gray-700 dark:text-gray-300 font-semibold w-12 text-xs">
                           Action
                         </TableHead>
                       </TableRow>
@@ -795,32 +789,32 @@ const AggregatedRitase = ({
                           key={itemIdx}
                           className="hover:bg-gray-50 dark:hover:bg-gray-800/50"
                         >
-                          <TableCell className="text-gray-600 dark:text-gray-400 text-xs sm:text-sm">
+                          <TableCell className="text-gray-600 dark:text-gray-400 text-xs">
                             {itemIdx + 1}
                           </TableCell>
                           <TableCell>
-                            <Badge className="bg-blue-600 dark:bg-blue-500 text-white text-xs sm:text-sm">
+                            <Badge className="bg-blue-600 dark:bg-blue-500 text-white text-xs">
                               {item.unit_exca || "-"}
                             </Badge>
                           </TableCell>
-                          <TableCell className="text-gray-700 dark:text-gray-300 text-xs sm:text-sm">
+                          <TableCell className="text-gray-700 dark:text-gray-300 text-xs">
                             {item.loading_location || "-"}
                           </TableCell>
-                          <TableCell className="text-gray-700 dark:text-gray-300 text-xs sm:text-sm">
+                          <TableCell className="text-gray-700 dark:text-gray-300 text-xs">
                             {item.dumping_location || "-"}
                           </TableCell>
                           <TableCell>
                             <Badge
                               variant="outline"
-                              className="capitalize border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 text-xs sm:text-sm"
+                              className="capitalize border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 text-xs"
                             >
                               {item.measurement_type || "-"}
                             </Badge>
                           </TableCell>
-                          <TableCell className="text-right font-semibold text-blue-600 dark:text-blue-400 text-xs sm:text-sm">
+                          <TableCell className="text-right font-semibold text-blue-600 dark:text-blue-400 text-xs">
                             {getTripCount(item)} rit
                           </TableCell>
-                          <TableCell className="text-right font-semibold text-green-600 dark:text-green-400 text-xs sm:text-sm">
+                          <TableCell className="text-right font-semibold text-green-600 dark:text-green-400 text-xs">
                             {getTotalWeight(item)} ton
                           </TableCell>
                           <TableCell className="text-center">
@@ -829,37 +823,36 @@ const AggregatedRitase = ({
                                 <Button
                                   variant="ghost"
                                   size="sm"
-                                  className="h-7 w-7 sm:h-8 sm:w-8 p-0 hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-neutral-50"
+                                  className="h-6 w-6 p-0 hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-neutral-50"
                                 >
-                                  <MoreVertical className="h-3 w-3 sm:h-4 sm:w-4" />
+                                  <MoreVertical className="h-3 w-3" />
                                 </Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent
                                 align="end"
-                                className="w-40 sm:w-48 bg-neutral-50 dark:bg-slate-800 dark:text-neutral-50 border-none shadow-sm shadow-slate-700"
+                                className="w-36 bg-neutral-50 dark:bg-slate-800 dark:text-neutral-50 border-none shadow-sm shadow-slate-700"
                               >
                                 <DropdownMenuItem
                                   onClick={() => handleDetailClick(item)}
-                                  className="cursor-pointer hover:bg-gray-200 dark:hover:bg-slate-700 text-xs sm:text-sm"
+                                  className="cursor-pointer hover:bg-gray-200 dark:hover:bg-slate-700 text-xs"
                                 >
-                                  <Eye className="mr-2 h-3 w-3 sm:h-4 sm:w-4" />
-                                  Detail
+                                  <Eye className="mr-1 h-3 w-3" /> Detail
                                 </DropdownMenuItem>
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem
                                   onClick={() => handleCheckerClick(item)}
-                                  className="cursor-pointer hover:bg-gray-200 dark:hover:bg-slate-700 text-xs sm:text-sm"
+                                  className="cursor-pointer hover:bg-gray-200 dark:hover:bg-slate-700 text-xs"
                                 >
-                                  <Eye className="mr-2 h-3 w-3 sm:h-4 sm:w-4" />
-                                  Lihat Kertas Checker
+                                  <Eye className="mr-1 h-3 w-3" /> Lihat Kertas
+                                  Checker
                                 </DropdownMenuItem>
                                 {isCCR && (
                                   <DropdownMenuItem
                                     onClick={() => handleDuplicate(item)}
-                                    className="cursor-pointer hover:bg-gray-200 dark:hover:bg-slate-700"
+                                    className="cursor-pointer hover:bg-gray-200 dark:hover:bg-slate-700 text-xs"
                                   >
-                                    <Copy className="mr-2 h-4 w-4" />
-                                    Tambah Ritase
+                                    <Copy className="mr-1 h-3 w-3" /> Tambah
+                                    Ritase
                                   </DropdownMenuItem>
                                 )}
                                 {/* <DropdownMenuItem
@@ -1244,8 +1237,8 @@ const AggregatedRitase = ({
         data-aggregated-list
         className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700"
       >
-        <CardHeader className="border-b border-gray-200 dark:border-gray-700 p-4 sm:p-6">
-          <CardTitle className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-0">
+        <CardHeader className="border-b border-gray-200 dark:border-gray-700">
+          <CardTitle className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-2 text-gray-900 dark:text-white text-base sm:text-lg">
               <Scale className="w-4 h-4 sm:w-5 sm:h-5" />
               <span className="text-sm sm:text-base">Ringkasan Ritase</span>
@@ -1294,7 +1287,7 @@ const AggregatedRitase = ({
           </CardTitle>
         </CardHeader>
 
-        <CardContent className="pt-4 sm:pt-6 px-2 sm:px-6">
+        <CardContent className="px-2 sm:px-4">
           <Tabs
             value={activeTab}
             onValueChange={setActiveTab}
@@ -1391,14 +1384,8 @@ const AggregatedRitase = ({
             {isCCR && (
               <TabsContent value="all-shipment" className="mt-0">
                 {/* Search Section */}
-                <div className="mb-4 space-y-3 bg-gray-50 dark:bg-gray-800/50 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
+                <div className="mb-2 space-y-3 bg-gray-50 dark:bg-gray-800/50 p-2 rounded-lg">
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Search className="w-4 h-4 text-gray-500 dark:text-gray-400" />
-                      <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
-                        Search Ritase
-                      </h3>
-                    </div>
                     {hasActiveSearch && (
                       <Button
                         variant="ghost"
@@ -1501,7 +1488,7 @@ const AggregatedRitase = ({
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                         <Input
                           type="text"
-                          placeholder="Cari excavator..."
+                          placeholder="Cari dumptruck..."
                           value={searchDumptruck}
                           onChange={(e) => setSearchDumptruck(e.target.value)}
                           className="pl-9 h-9 text-sm dark:bg-gray-900 dark:border-gray-600 dark:text-gray-200"

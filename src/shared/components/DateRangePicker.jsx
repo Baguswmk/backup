@@ -131,10 +131,19 @@ export const DateRangePicker = ({
     shiftRef.current = resetShift;
   }, [currentShift]);
 
+  const currentYear = new Date().getFullYear();
+  const fmtDate = (d) => {
+    if (!d) return "";
+    const dt = new Date(d);
+    return dt.getFullYear() === currentYear
+      ? format(dt, "dd MMM", { locale: id })
+      : format(dt, "dd/MM/yy", { locale: id });
+  };
+  const shiftShort = getShiftLabel(shift)?.replace("Shift ", "S") || shift;
   const displayText = date?.from
     ? date.to
-      ? `${formatDate(date.from, "dd MMM yyyy")} - ${formatDate(date.to, "dd MMM yyyy")} | ${getShiftLabel(shift)}`
-      : `${formatDate(date.from, "dd MMM yyyy")} | ${getShiftLabel(shift)}`
+      ? `${fmtDate(date.from)}–${fmtDate(date.to)} | ${shiftShort}`
+      : `${fmtDate(date.from)} | ${shiftShort}`
     : "Pilih tanggal & shift";
 
   return (
@@ -150,7 +159,7 @@ export const DateRangePicker = ({
             )}
             disabled={isLoading}
           >
-            <CalendarIcon className="mr-2 h-4 w-4" />
+            <CalendarIcon className="mr-1 h-3 w-3 shrink-0" />
             {displayText}
           </Button>
         </PopoverTrigger>

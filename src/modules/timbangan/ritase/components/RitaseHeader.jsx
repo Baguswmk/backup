@@ -87,11 +87,11 @@ const RitaseHeader = ({
   const isOperatorJT = userRole.toLowerCase().includes("operator jt");
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-2">
       <div className="flex flex-col md:flex-row justify-between">
         {/* Header Title & User Info */}
-        <div className="flex flex-col gap-2">
-          <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">
+        <div className="flex flex-col">
+          <h1 className="text-md sm:text-lg font-bold text-gray-900 dark:text-white">
             Batubara Tracking System
           </h1>
           <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">

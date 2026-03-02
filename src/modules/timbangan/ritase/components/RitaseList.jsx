@@ -180,14 +180,14 @@ const RitaseList = ({
       >
         <CardHeader className="border-b border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between">
-            <CardTitle className="flex items-center gap-2 text-gray-900 dark:text-white">
-              <BarChart3 className="w-5 h-5" />
+            <CardTitle className="flex items-center gap-1.5 text-sm font-semibold text-gray-900 dark:text-white">
+              <BarChart3 className="w-4 h-4" />
               Daftar Ritase Detail
             </CardTitle>
             <div className="flex items-center gap-2">
               {!isCCR && (
                 <div className="relative">
-                  <Search className="absolute left-2.5 top-2 h-4 w-4 text-gray-500 dark:text-gray-400" />
+                  <Search className="absolute left-2 top-1.5 h-3 w-3 text-gray-500 dark:text-gray-400" />
                   <Input
                     type="text"
                     placeholder="Cari DT, Exca, Mitra..."
@@ -196,7 +196,7 @@ const RitaseList = ({
                       setSearchQuery(e.target.value);
                       if (currentPage !== 1 && onPageChange) onPageChange(1);
                     }}
-                    className="pl-9 w-[250px] bg-white dark:bg-gray-800 dark:text-neutral-50 border-gray-200 dark:border-gray-700 h-9"
+                    className="pl-7 w-[180px] text-xs bg-white dark:bg-gray-800 dark:text-neutral-50 border-gray-200 dark:border-gray-700 h-7"
                   />
                 </div>
               )}
@@ -213,13 +213,13 @@ const RitaseList = ({
                 disabled={filteredRitaseData.length === 0}
                 className="border-green-300 dark:border-green-700 text-green-700 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20"
               >
-                <FileDown className="w-4 h-4 mr-2" />
+                <FileDown className="w-3 h-3 mr-1" />
                 Export Excel
               </Button>
             </div>
           </div>
         </CardHeader>
-        <CardContent className="pt-6">
+        <CardContent className="pt-2">
           {isInitialLoading ? (
             <div className="text-center py-12">
               <RefreshCw className="w-8 h-8 animate-spin mx-auto text-gray-400 dark:text-gray-500" />
@@ -245,11 +245,11 @@ const RitaseList = ({
             </div>
           ) : (
             <>
-              <div className="rounded-md border border-gray-200 dark:border-gray-700 overflow-x-auto mt-4">
-                <Table>
+              <div className="rounded-md border border-gray-200 dark:border-gray-700 overflow-x-auto mt-2">
+                <Table className="text-xs">
                   <TableHeader>
                     <TableRow className="bg-gray-50 dark:bg-gray-900/50 hover:bg-gray-50 dark:hover:bg-gray-900/50">
-                      <TableHead className="text-gray-700 dark:text-gray-300 font-semibold w-16">
+                      <TableHead className="text-gray-700 dark:text-gray-300 font-semibold w-16 py-1.5">
                         No
                       </TableHead>
                       <TableHead className="text-gray-700 dark:text-gray-300 font-semibold">
@@ -288,7 +288,7 @@ const RitaseList = ({
                     {paginatedData.map((ritase, index) => (
                       <TableRow
                         key={ritase.id || index}
-                        className="border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800/50"
+                        className="border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800/50 h-8"
                       >
                         <TableCell className="text-gray-700 dark:text-gray-300">
                           {(currentPage - 1) * ITEMS_PER_PAGE + index + 1}
@@ -359,9 +359,9 @@ const RitaseList = ({
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                className="h-8 w-8 p-0 dark:hover:bg-gray-700 cursor-pointer hover:bg-gray-200"
+                                className="h-6 w-6 p-0 dark:hover:bg-gray-700 cursor-pointer hover:bg-gray-200"
                               >
-                                <MoreVertical className="h-4 w-4 text-gray-500 dark:text-gray-400" />
+                                <MoreVertical className="h-3 w-3 text-gray-500 dark:text-gray-400" />
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent
@@ -370,9 +370,9 @@ const RitaseList = ({
                             >
                               <DropdownMenuItem
                                 onClick={() => handleViewDetail(ritase)}
-                                className="dark:hover:bg-gray-700 cursor-pointer hover:bg-gray-200 dark:text-gray-200"
+                                className="dark:hover:bg-gray-700 cursor-pointer hover:bg-gray-200 dark:text-gray-200 text-xs"
                               >
-                                <Eye className="w-4 h-4 mr-2" />
+                                <Eye className="w-3 h-3 mr-1" />
                                 Detail
                               </DropdownMenuItem>
                               <PrintBukti
@@ -386,24 +386,24 @@ const RitaseList = ({
                                   <DropdownMenuSeparator className="dark:bg-gray-700" />
                                   <DropdownMenuItem
                                     onClick={() => handleEdit(ritase)}
-                                    className="dark:hover:bg-gray-700 cursor-pointer hover:bg-gray-200 dark:text-gray-200"
+                                    className="dark:hover:bg-gray-700 cursor-pointer hover:bg-gray-200 dark:text-gray-200 text-xs"
                                   >
-                                    <Edit2 className="w-4 h-4 mr-2" />
+                                    <Edit2 className="w-3 h-3 mr-1" />
                                     Edit
                                   </DropdownMenuItem>
                                   <DropdownMenuItem
                                     onClick={() => handleDuplicate(ritase)}
-                                    className="dark:hover:bg-gray-700 cursor-pointer hover:bg-gray-200 dark:text-gray-200"
+                                    className="dark:hover:bg-gray-700 cursor-pointer hover:bg-gray-200 dark:text-gray-200 text-xs"
                                   >
-                                    <Copy className="w-4 h-4 mr-2" />
+                                    <Copy className="w-3 h-3 mr-1" />
                                     Tambah Ritase
                                   </DropdownMenuItem>
                                   <DropdownMenuSeparator className="dark:bg-gray-700" />
                                   <DropdownMenuItem
                                     onClick={() => handleDelete(ritase)}
-                                    className="text-red-600 dark:text-red-400 dark:hover:bg-gray-700 cursor-pointer hover:bg-gray-200"
+                                    className="text-red-600 dark:text-red-400 dark:hover:bg-gray-700 cursor-pointer hover:bg-gray-200 text-xs"
                                   >
-                                    <Trash2 className="w-4 h-4 mr-2" />
+                                    <Trash2 className="w-3 h-3 mr-1" />
                                     Delete
                                   </DropdownMenuItem>
                                 </>

@@ -262,10 +262,10 @@ const RitaseSummary = ({ summaryData, isLoading = false }) => {
 
   if (isLoading) {
     return (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
         {[1, 2, 3, 4].map((i) => (
           <Card key={i} className="animate-pulse">
-            <CardContent className="p-6">
+            <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div className="flex-1">
                   <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-24 mb-2"></div>
@@ -281,7 +281,7 @@ const RitaseSummary = ({ summaryData, isLoading = false }) => {
   }
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
       {statCards.map((stat, index) => {
         const Icon = stat.icon;
         const isTooltipActive =
@@ -292,7 +292,7 @@ const RitaseSummary = ({ summaryData, isLoading = false }) => {
             key={index}
             className="hover:shadow-lg transition-shadow duration-200 bg-white dark:bg-slate-800"
           >
-            <CardContent className="p-6">
+            <CardContent className="px-4">
               <div className="flex items-center justify-between">
                 <div className="flex-1">
                   <p className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">
@@ -405,10 +405,10 @@ const RitaseSummary = ({ summaryData, isLoading = false }) => {
                   )}
                 </div>
                 <div
-                  className={`${stat.lightColor} ${stat.darkLightColor} p-3 rounded-full`}
+                  className={`${stat.lightColor} ${stat.darkLightColor} p-2 rounded-full`}
                 >
                   <Icon
-                    className={`w-6 h-6 ${stat.textColor} ${stat.darkTextColor}`}
+                    className={`w-5 h-5 ${stat.textColor} ${stat.darkTextColor}`}
                   />
                 </div>
               </div>

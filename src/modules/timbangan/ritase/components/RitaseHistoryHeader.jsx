@@ -3,10 +3,10 @@ import { RefreshCw, History, Edit2 } from "lucide-react";
 import { DateRangePicker } from "@/shared/components/DateRangePicker";
 import { Button } from "@/shared/components/ui/button";
 import OperatorNameModal from "@/modules/timbangan/timbangan/components/OperatorNameModal";
+import { calculateCurrentShiftAndGroup } from "@/shared/utils/group";
 
 const RitaseHistoryHeader = ({
   user,
-  userRole,
   dateRange,
   currentShift,
   viewingShift,
@@ -14,12 +14,14 @@ const RitaseHistoryHeader = ({
   isSearching,
   onDateRangeChange,
   onRefresh,
-  totalRecords = 0,
-  hasSearched = false,
 }) => {
   // State for Operator Name
   const [operatorName, setOperatorName] = useState("");
   const [isOperatorModalOpen, setIsOperatorModalOpen] = useState(false);
+  const [currentTime, setCurrentTime] = useState(new Date());
+  const [shiftInfo, setShiftInfo] = useState(() =>
+    calculateCurrentShiftAndGroup(),
+  );
 
   // Load initial operator name form localStorage
   useEffect(() => {
@@ -32,6 +34,29 @@ const RitaseHistoryHeader = ({
     }
   }, [user]);
 
+  // Live clock
+  useEffect(() => {
+    const timer = setInterval(() => {
+      const now = new Date();
+      setCurrentTime(now);
+      setShiftInfo(calculateCurrentShiftAndGroup(now));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const formatTime = () => {
+    const h = String(currentTime.getHours()).padStart(2, "0");
+    const m = String(currentTime.getMinutes()).padStart(2, "0");
+    const s = String(currentTime.getSeconds()).padStart(2, "0");
+    return `${h}:${m}:${s}`;
+  };
+  const formatDayDate = () =>
+    currentTime.toLocaleDateString("id-ID", {
+      weekday: "long",
+      day: "numeric",
+      month: "short",
+    });
+
   // Handle operator name saved from modal
   const handleOperatorNameSaved = (newName) => {
     setOperatorName(newName);
@@ -40,19 +65,19 @@ const RitaseHistoryHeader = ({
 
   return (
     <div className="bg-white shadow-sm rounded-lg dark:bg-gray-800 transition-colors">
-      <div className="p-4 sm:p-6">
+      <div className="p-3 sm:p-4">
         {/* Header Section */}
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-4 sm:mb-6">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 mb-2 sm:mb-3">
           {/* Title & User Info */}
           <div className="flex flex-row items-center gap-3 min-w-0">
             <div className="p-2 bg-blue-100 rounded-lg shrink-0 dark:bg-blue-900/50">
               <History className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600 dark:text-blue-400" />
             </div>
             <div className="min-w-0 flex-1">
-              <h1 className="text-lg sm:text-2xl font-bold text-gray-900 truncate dark:text-gray-100">
-                History Ritase
+              <h1 className="text-md sm:text-lg font-bold text-gray-900 truncate dark:text-gray-100">
+                Batubara Tracking System
               </h1>
-              <p className="text-xs sm:text-sm text-gray-500 truncate dark:text-gray-400 max-w-[200px] sm:max-w-none flex flex-wrap items-center gap-1 mt-1">
+              <p className="text-xs sm:text-sm text-gray-500 truncate dark:text-gray-400 max-w-[200px] sm:max-w-none flex flex-wrap items-center gap-1">
                 <span className="font-semibold text-gray-700 dark:text-gray-300">
                   {operatorName || "Pilih Operator"}
                 </span>
@@ -69,11 +94,30 @@ const RitaseHistoryHeader = ({
             </div>
           </div>
 
+          {/* Live Clock / Group / Shift */}
+          <div className="flex items-center gap-1.5 text-md text-gray-600 dark:text-gray-400 flex-wrap lg:flex-nowrap">
+            <span className="font-medium text-gray-800 dark:text-gray-200">
+              {formatDayDate()}
+            </span>
+            <span className="text-gray-300 dark:text-gray-600">|</span>
+            <span className="font-semibold text-blue-600 dark:text-blue-400 tabular-nums">
+              {formatTime()}
+            </span>
+            <span className="text-gray-300 dark:text-gray-600">|</span>
+            <span className="font-semibold text-gray-800 dark:text-gray-200 ">
+              Group{" "}
+              <span className="font-semibold text-gray-800 dark:text-gray-200">
+                {shiftInfo.activeGroup}
+              </span>
+            </span>
+            <span className="text-gray-300 dark:text-gray-600">|</span>
+            <span className="font-semibold text-gray-800 dark:text-gray-200">
+              {shiftInfo.currentShift}
+            </span>
+          </div>
+
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 w-full lg:w-auto">
             <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
-              <span className="text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 whitespace-nowrap hidden sm:inline-block">
-                Periode & Shift:
-              </span>
               <div className="flex-1 sm:flex-none min-w-[200px]">
                 <DateRangePicker
                   dateRange={dateRange}
@@ -99,7 +143,6 @@ const RitaseHistoryHeader = ({
                 <RefreshCw
                   className={`w-4 h-4 ${isSearching ? "animate-spin" : ""}`}
                 />
-                <span className="hidden sm:inline">Refresh</span>
               </button>
             </div>
 
@@ -110,23 +153,6 @@ const RitaseHistoryHeader = ({
               </span>
             )}
           </div>
-        </div>
-
-        {/* Search Info & Operator Input */}
-        <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          {hasSearched ? (
-            <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
-              Ditemukan{" "}
-              <span className="font-semibold text-gray-900 dark:text-gray-100">
-                {totalRecords}
-              </span>{" "}
-              data
-            </p>
-          ) : (
-            <div></div> /* Empty div to keep flex-between spacing if not searched yet */
-          )}
-
-          {/* Operator Name Button removed since it is now under the title */}
         </div>
       </div>
 

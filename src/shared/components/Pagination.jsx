@@ -44,18 +44,18 @@ const Pagination = ({
   }
 
   return (
-    <div className="w-full px-2 sm:px-4">
+    <div className="w-full px-1 sm:px-2">
       {/* Mobile View - Compact */}
-      <div className="flex sm:hidden items-center justify-between gap-2 mt-4">
+      <div className="flex sm:hidden items-center justify-between gap-1 mt-2">
         <Button
           variant="ghost"
           size="sm"
           onClick={() => onPageChange(currentPage - 1)}
           disabled={currentPage === 1 || isLoading}
-          className="cursor-pointer disabled:cursor-not-allowed shrink-0 h-8 px-2 dark:border-gray-700 dark:hover:bg-gray-700 dark:text-gray-200"
+          className="cursor-pointer disabled:cursor-not-allowed shrink-0 h-6 w-6 px-0 dark:border-gray-700 dark:hover:bg-gray-700 dark:text-gray-200"
           aria-label="Previous page"
         >
-          <ChevronLeft className="w-4 h-4" />
+          <ChevronLeft className="w-3 h-3" />
         </Button>
 
         <div className="flex items-center gap-1 flex-1 justify-center overflow-x-auto scrollbar-hide">
@@ -66,7 +66,7 @@ const Pagination = ({
               size="sm"
               onClick={() => typeof page === "number" && onPageChange(page)}
               disabled={typeof page !== "number" || isLoading}
-              className="cursor-pointer disabled:cursor-not-allowed min-w-8 h-8 px-2 text-xs shrink-0 dark:border-gray-700 dark:hover:bg-gray-700 dark:text-gray-200"
+              className="cursor-pointer disabled:cursor-not-allowed min-w-6 h-6 px-1 text-xs shrink-0 dark:border-gray-700 dark:hover:bg-gray-700 dark:text-gray-200"
               aria-label={
                 typeof page === "number" ? `Page ${page}` : "More pages"
               }
@@ -82,25 +82,24 @@ const Pagination = ({
           size="sm"
           onClick={() => onPageChange(currentPage + 1)}
           disabled={currentPage === totalPages || isLoading}
-          className="cursor-pointer disabled:cursor-not-allowed shrink-0 h-8 px-2 dark:border-gray-700 dark:hover:bg-gray-700 dark:text-gray-200"
+          className="cursor-pointer disabled:cursor-not-allowed shrink-0 h-6 w-6 px-0 dark:border-gray-700 dark:hover:bg-gray-700 dark:text-gray-200"
           aria-label="Next page"
         >
-          <ChevronRight className="w-4 h-4" />
+          <ChevronRight className="w-3 h-3" />
         </Button>
       </div>
 
       {/* Desktop/Tablet View */}
-      <div className="hidden sm:flex items-center justify-center gap-2 mt-4 flex-wrap">
+      <div className="hidden sm:flex items-center justify-center gap-1 mt-2 flex-wrap">
         <Button
           variant="ghost"
           size="sm"
           onClick={() => onPageChange(currentPage - 1)}
           disabled={currentPage === 1 || isLoading}
-          className="cursor-pointer disabled:cursor-not-allowed dark:border-gray-700 dark:hover:bg-gray-700 dark:text-gray-200"
+          className="cursor-pointer disabled:cursor-not-allowed h-6 w-6 dark:border-gray-700 dark:hover:bg-gray-700 dark:text-gray-200"
           aria-label="Previous page"
         >
-          <ChevronLeft className="w-4 h-4" />
-          <span className="ml-1 hidden md:inline">Previous</span>
+          <ChevronLeft className="w-3 h-3" />
         </Button>
 
         {pages.map((page, idx) => (
@@ -110,7 +109,7 @@ const Pagination = ({
             size="sm"
             onClick={() => typeof page === "number" && onPageChange(page)}
             disabled={typeof page !== "number" || isLoading}
-            className="cursor-pointer disabled:cursor-not-allowed min-w-9 dark:border-gray-700 dark:hover:bg-gray-700 dark:text-gray-200"
+            className="cursor-pointer disabled:cursor-not-allowed min-w-6 h-6 px-1 text-xs dark:border-gray-700 dark:hover:bg-gray-700 dark:text-gray-200"
             aria-label={
               typeof page === "number" ? `Page ${page}` : "More pages"
             }
@@ -125,16 +124,15 @@ const Pagination = ({
           size="sm"
           onClick={() => onPageChange(currentPage + 1)}
           disabled={currentPage === totalPages || isLoading}
-          className="cursor-pointer disabled:cursor-not-allowed dark:border-gray-700 dark:hover:bg-gray-700 dark:text-gray-200"
+          className="cursor-pointer disabled:cursor-not-allowed h-6 w-6 px-0 dark:border-gray-700 dark:hover:bg-gray-700 dark:text-gray-200"
           aria-label="Next page"
         >
-          <span className="mr-1 hidden md:inline">Next</span>
-          <ChevronRight className="w-4 h-4" />
+          <ChevronRight className="w-3 h-3" />
         </Button>
       </div>
 
       {/* Page Info and Items Per Page Selector */}
-      <div className="flex flex-col sm:flex-row items-center justify-between mt-3 gap-2">
+      <div className="flex flex-col sm:flex-row items-center justify-between mt-1 gap-1">
         <div className="text-xs text-muted-foreground dark:text-gray-400">
           Page {currentPage} of {totalPages}
           {totalItems && ` (${totalItems} total items)`}
@@ -160,7 +158,7 @@ const Pagination = ({
                     size="sm"
                     onClick={() => onItemsPerPageChange(value)}
                     disabled={isLoading}
-                    className="cursor-pointer disabled:cursor-not-allowed h-7 px-2 text-xs dark:border-gray-700 dark:hover:bg-gray-700 dark:text-gray-200"
+                    className="cursor-pointer disabled:cursor-not-allowed h-6 px-1.5 text-xs dark:border-gray-700 dark:hover:bg-gray-700 dark:text-gray-200"
                     aria-label={`Show ${label} items per page`}
                   >
                     {label}
