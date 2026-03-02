@@ -69,6 +69,33 @@ import { id as localeId } from "date-fns/locale";
 import RitaseEditForm from "@/modules/timbangan/ritase/components/RitaseEditForm";
 import RitaseDuplicateForm from "@/modules/timbangan/ritase/components/RitaseDuplicateForm";
 import DeleteConfirmDialog from "@/shared/components/DeleteConfirmDialog";
+import { DUMPING_POINT_GROUP } from "@/modules/timbangan/ritase/constant/ritaseConstants";
+
+// Recursive helper: cari top-level operation area dari dumping_location
+const containsDumpingLocation = (valueOrArray, location) => {
+  if (Array.isArray(valueOrArray)) {
+    return valueOrArray.includes(location);
+  }
+  if (typeof valueOrArray === "string") {
+    return valueOrArray === location;
+  }
+  if (valueOrArray && typeof valueOrArray === "object") {
+    return Object.values(valueOrArray).some((v) =>
+      containsDumpingLocation(v, location),
+    );
+  }
+  return false;
+};
+
+const findDumpingOperationGroup = (dumpingLocation) => {
+  if (!dumpingLocation) return "Unknown Dumping";
+  for (const [groupName, value] of Object.entries(DUMPING_POINT_GROUP)) {
+    if (containsDumpingLocation(value, dumpingLocation)) {
+      return groupName;
+    }
+  }
+  return dumpingLocation; // fallback: tampilkan nama aslinya jika tidak masuk group manapun
+};
 
 const AggregatedRitase = ({
   aggregatedData,
@@ -213,10 +240,9 @@ const AggregatedRitase = ({
           key = item.unit_exca || firstRitase.unit_exca || "Unknown Excavator";
           break;
         case "dumping":
-          key =
-            item.dumping_location ||
-            firstRitase.dumping_location ||
-            "Unknown Dumping";
+          key = findDumpingOperationGroup(
+            item.dumping_location || firstRitase.dumping_location,
+          );
           break;
         case "loading":
           key =
@@ -267,12 +293,18 @@ const AggregatedRitase = ({
       }
     });
 
-    return Object.values(grouped).map((group) => ({
-      ...group,
-      totalWeight: parseFloat((group.totalWeight || 0).toFixed(2)),
-      excavatorCount: group.uniqueExcavators.size,
-      uniqueExcavators: undefined, // Remove Set from final object
-    }));
+    return Object.values(grouped)
+      .map((group) => ({
+        ...group,
+        totalWeight: parseFloat((group.totalWeight || 0).toFixed(2)),
+        excavatorCount: group.uniqueExcavators.size,
+        uniqueExcavators: undefined, // Remove Set from final object
+      }))
+      .sort((a, b) =>
+        (a.groupKey || "").localeCompare(b.groupKey || "", "id", {
+          sensitivity: "base",
+        }),
+      );
   }, [aggregatedData, activeTab]);
 
   // Filter groupedData based on search
@@ -673,7 +705,7 @@ const AggregatedRitase = ({
         }
 
         const groupId = `${activeTab}-${index}`;
-        const isExpanded = expandedGroups[groupId] !== false;
+        const isExpanded = expandedGroups[groupId] === true;
         return (
           <Collapsible
             key={index}
@@ -855,6 +887,355 @@ const AggregatedRitase = ({
         );
       })
       .filter(Boolean);
+  };
+
+  const renderDumpingHierarchyView = () => {
+    // Build items lookup by dumping_location from raw summariesData
+    const summariesData =
+      aggregatedData?.summaries?.data ||
+      (Array.isArray(aggregatedData) ? aggregatedData : []);
+
+    // Apply active search filters
+    const filteredSummaries = summariesData.filter((item) => {
+      const matchExcavator =
+        !searchExcavator ||
+        item.unit_exca?.toLowerCase().includes(searchExcavator.toLowerCase());
+      const matchDumping =
+        !searchDumpingPoint ||
+        item.dumping_location
+          ?.toLowerCase()
+          .includes(searchDumpingPoint.toLowerCase());
+      const matchLoading =
+        !searchLoadingPoint ||
+        item.loading_location
+          ?.toLowerCase()
+          .includes(searchLoadingPoint.toLowerCase());
+      return matchExcavator && matchDumping && matchLoading;
+    });
+
+    // Build map: dumping_location -> items[]
+    const locationMap = {};
+    filteredSummaries.forEach((item) => {
+      const loc = item.dumping_location || "-";
+      if (!locationMap[loc]) locationMap[loc] = [];
+      locationMap[loc].push(item);
+    });
+
+    // Check if a node has any matching data
+    const nodeHasData = (node) => {
+      if (Array.isArray(node))
+        return node.some((loc) => locationMap[loc]?.length > 0);
+      if (typeof node === "string") return !!locationMap[node]?.length;
+      if (node && typeof node === "object")
+        return Object.values(node).some((v) => nodeHasData(v));
+      return false;
+    };
+
+    // Accumulate totals recursively for a node
+    const getNodeTotals = (node) => {
+      let totalTrips = 0,
+        totalWeight = 0;
+      const collect = (n) => {
+        if (Array.isArray(n)) {
+          n.forEach((loc) =>
+            (locationMap[loc] || []).forEach((item) => {
+              totalTrips += parseInt(getTripCount(item)) || 0;
+              totalWeight +=
+                parseFloat(item.totalWeight || item.total_tonase || 0) || 0;
+            }),
+          );
+        } else if (typeof n === "string") {
+          (locationMap[n] || []).forEach((item) => {
+            totalTrips += parseInt(getTripCount(item)) || 0;
+            totalWeight +=
+              parseFloat(item.totalWeight || item.total_tonase || 0) || 0;
+          });
+        } else if (n && typeof n === "object") {
+          Object.values(n).forEach((v) => collect(v));
+        }
+      };
+      collect(node);
+      return { totalTrips, totalWeight };
+    };
+
+    // Render items table for a leaf dumping location
+    const renderItemsTable = (items) => {
+      if (!items?.length) return null;
+      return (
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-gray-50 dark:bg-gray-900/30">
+                <TableHead className="text-gray-700 dark:text-gray-300 font-semibold w-10 text-xs">
+                  No
+                </TableHead>
+                <TableHead className="text-gray-700 dark:text-gray-300 font-semibold text-xs">
+                  Exca
+                </TableHead>
+                <TableHead className="text-gray-700 dark:text-gray-300 font-semibold text-xs">
+                  Loading
+                </TableHead>
+                <TableHead className="text-gray-700 dark:text-gray-300 font-semibold text-xs">
+                  Dumping
+                </TableHead>
+                <TableHead className="text-gray-700 dark:text-gray-300 font-semibold text-xs">
+                  Measurement
+                </TableHead>
+                <TableHead className="text-right text-gray-700 dark:text-gray-300 font-semibold text-xs">
+                  Ritase
+                </TableHead>
+                <TableHead className="text-right text-gray-700 dark:text-gray-300 font-semibold text-xs">
+                  Total Tonase
+                </TableHead>
+                <TableHead className="text-center text-gray-700 dark:text-gray-300 font-semibold w-16 text-xs">
+                  Action
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {items.map((item, idx) => (
+                <TableRow
+                  key={idx}
+                  className="hover:bg-gray-50 dark:hover:bg-gray-800/50"
+                >
+                  <TableCell className="text-gray-600 dark:text-gray-400 text-xs">
+                    {idx + 1}
+                  </TableCell>
+                  <TableCell>
+                    <Badge className="bg-blue-600 dark:bg-blue-500 text-white text-xs">
+                      {item.unit_exca || "-"}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-gray-700 dark:text-gray-300 text-xs">
+                    {item.loading_location || "-"}
+                  </TableCell>
+                  <TableCell className="text-gray-700 dark:text-gray-300 text-xs">
+                    {item.dumping_location || "-"}
+                  </TableCell>
+                  <TableCell>
+                    <Badge
+                      variant="outline"
+                      className="capitalize border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 text-xs"
+                    >
+                      {item.measurement_type || "-"}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-right font-semibold text-blue-600 dark:text-blue-400 text-xs">
+                    {getTripCount(item)} rit
+                  </TableCell>
+                  <TableCell className="text-right font-semibold text-green-600 dark:text-green-400 text-xs">
+                    {getTotalWeight(item)} ton
+                  </TableCell>
+                  <TableCell className="text-center">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 w-7 p-0 hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-neutral-50"
+                        >
+                          <MoreVertical className="h-3 w-3" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent
+                        align="end"
+                        className="w-40 bg-neutral-50 dark:bg-slate-800 dark:text-neutral-50 border-none shadow-sm shadow-slate-700"
+                      >
+                        <DropdownMenuItem
+                          onClick={() => handleDetailClick(item)}
+                          className="cursor-pointer hover:bg-gray-200 dark:hover:bg-slate-700 text-xs"
+                        >
+                          <Eye className="mr-2 h-3 w-3" /> Detail
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          onClick={() => handleCheckerClick(item)}
+                          className="cursor-pointer hover:bg-gray-200 dark:hover:bg-slate-700 text-xs"
+                        >
+                          <Eye className="mr-2 h-3 w-3" /> Lihat Kertas Checker
+                        </DropdownMenuItem>
+                        {isCCR && (
+                          <DropdownMenuItem
+                            onClick={() => handleDuplicate(item)}
+                            className="cursor-pointer hover:bg-gray-200 dark:hover:bg-slate-700 text-xs"
+                          >
+                            <Copy className="mr-2 h-3 w-3" /> Tambah Ritase
+                          </DropdownMenuItem>
+                        )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      );
+    };
+
+    // Render a single leaf (individual dumping location) as its own collapsible
+    const renderLeaf = (dumpingLocation, keyPrefix) => {
+      const items = locationMap[dumpingLocation] || [];
+      if (!items.length) return null;
+      const leafId = `${keyPrefix}-${dumpingLocation}`;
+      const isExpanded = expandedGroups[leafId] === true;
+      const leafTrips = items.reduce(
+        (s, i) => s + (parseInt(getTripCount(i)) || 0),
+        0,
+      );
+      const leafWeight = items.reduce(
+        (s, i) => s + (parseFloat(i.totalWeight || i.total_tonase || 0) || 0),
+        0,
+      );
+      return (
+        <Collapsible
+          key={leafId}
+          open={isExpanded}
+          onOpenChange={(open) =>
+            setExpandedGroups((prev) => ({ ...prev, [leafId]: open }))
+          }
+          className="mb-1 last:mb-0"
+        >
+          <div className="border border-gray-200 dark:border-gray-600 rounded-md overflow-hidden">
+            <CollapsibleTrigger className="w-full cursor-pointer p-2 bg-gray-50 dark:bg-gray-900/20 hover:bg-gray-100 dark:hover:bg-gray-800/40 transition-colors border-l-2 border-gray-400 dark:border-gray-500">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 min-w-0">
+                  {isExpanded ? (
+                    <ChevronUp className="h-3 w-3 text-gray-500 shrink-0" />
+                  ) : (
+                    <ChevronDown className="h-3 w-3 text-gray-500 shrink-0" />
+                  )}
+                  <span className="text-xs font-medium text-gray-700 dark:text-gray-300 text-left truncate">
+                    {dumpingLocation}
+                  </span>
+                </div>
+                <div className="flex items-center gap-3 text-xs shrink-0">
+                  <span className="text-blue-600 dark:text-blue-400 font-semibold">
+                    {leafTrips} rit
+                  </span>
+                  <span className="text-green-600 dark:text-green-400 font-semibold">
+                    {leafWeight.toFixed(2)} ton
+                  </span>
+                </div>
+              </div>
+            </CollapsibleTrigger>
+            <CollapsibleContent>{renderItemsTable(items)}</CollapsibleContent>
+          </div>
+        </Collapsible>
+      );
+    };
+
+    // Level styles for visual hierarchy distinction
+    const levelStyles = {
+      1: {
+        badge: "bg-blue-600 dark:bg-blue-500 text-white text-sm px-3",
+        border: "border-b-2 border-blue-500 dark:border-blue-400",
+        containerBg: "bg-gray-100 dark:bg-gray-800/50",
+        wrapper: "mb-4 sm:mb-6 last:mb-0",
+        content: "p-3",
+      },
+      2: {
+        badge: "bg-purple-600 dark:bg-purple-500 text-white text-xs px-2",
+        border: "border-b-2 border-purple-400 dark:border-purple-500",
+        containerBg: "bg-gray-50 dark:bg-gray-900/30",
+        wrapper: "ml-2 mb-2 last:mb-0",
+        content: "p-2",
+      },
+      3: {
+        badge: "bg-teal-600 dark:bg-teal-500 text-white text-xs px-2",
+        border: "border-b border-teal-400 dark:border-teal-500",
+        containerBg: "bg-white dark:bg-gray-900/20",
+        wrapper: "ml-4 mb-1 last:mb-0",
+        content: "p-2",
+      },
+    };
+
+    // Render a group node recursively
+    const renderNode = (label, node, level, keyPrefix) => {
+      if (!nodeHasData(node)) return null;
+      const s = levelStyles[level] || levelStyles[3];
+      const nodeId = `${keyPrefix}-${label}`;
+      const isExpanded = expandedGroups[nodeId] === true;
+      const { totalTrips, totalWeight } = getNodeTotals(node);
+      return (
+        <Collapsible
+          key={nodeId}
+          open={isExpanded}
+          onOpenChange={(open) =>
+            setExpandedGroups((prev) => ({ ...prev, [nodeId]: open }))
+          }
+          className={s.wrapper}
+        >
+          <div
+            className={`${s.containerBg} rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden`}
+          >
+            <CollapsibleTrigger
+              className={`w-full cursor-pointer p-3 ${s.border} hover:bg-gray-200 dark:hover:bg-gray-700/50 transition-colors`}
+            >
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  {isExpanded ? (
+                    <ChevronUp className="h-4 w-4 text-gray-600 dark:text-gray-400 shrink-0" />
+                  ) : (
+                    <ChevronDown className="h-4 w-4 text-gray-600 dark:text-gray-400 shrink-0" />
+                  )}
+                  <Badge className={s.badge}>{label}</Badge>
+                </div>
+                <div className="flex items-center gap-4">
+                  <div className="text-left sm:text-right">
+                    <div className="text-xs text-gray-500 dark:text-gray-400">
+                      Total Ritase
+                    </div>
+                    <div className="text-sm font-bold text-blue-600 dark:text-blue-400">
+                      {totalTrips.toLocaleString("en-US")} rit
+                    </div>
+                  </div>
+                  <div className="text-left sm:text-right">
+                    <div className="text-xs text-gray-500 dark:text-gray-400">
+                      Total Tonase
+                    </div>
+                    <div className="text-sm font-bold text-green-600 dark:text-green-400">
+                      {totalWeight.toLocaleString("en-US", {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      })}{" "}
+                      ton
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <div className={s.content}>
+                {/* Array of dumping location strings */}
+                {Array.isArray(node) &&
+                  node.map((loc) => renderLeaf(loc, nodeId))}
+                {/* Single string location */}
+                {typeof node === "string" && renderLeaf(node, nodeId)}
+                {/* Nested object: recurse */}
+                {!Array.isArray(node) &&
+                  node &&
+                  typeof node === "object" &&
+                  Object.entries(node).map(([subLabel, subNode]) =>
+                    renderNode(subLabel, subNode, level + 1, nodeId),
+                  )}
+              </div>
+            </CollapsibleContent>
+          </div>
+        </Collapsible>
+      );
+    };
+
+    if (!filteredSummaries.length) return null;
+
+    const nodes = Object.entries(DUMPING_POINT_GROUP)
+      .map(([groupName, groupValue]) =>
+        renderNode(groupName, groupValue, 1, "dp-root"),
+      )
+      .filter(Boolean);
+
+    if (!nodes.length) return null;
+    return <div>{nodes}</div>;
   };
 
   return (
@@ -1225,7 +1606,31 @@ const AggregatedRitase = ({
                       Memuat data...
                     </p>
                   </div>
+                ) : tab === "dumping" ? (
+                  // ── Dumping tab: hierarchical view based on DUMPING_POINT_GROUP ──
+                  <>
+                    {renderSearchSection()}
+                    {(aggregatedData?.summaries?.data || aggregatedData || [])
+                      .length === 0 ? (
+                      <div className="text-center py-12">
+                        <Package className="w-10 h-10 sm:w-12 sm:h-12 mx-auto text-gray-300 dark:text-gray-600" />
+                        <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-4">
+                          Belum ada data ritase
+                        </p>
+                      </div>
+                    ) : (
+                      renderDumpingHierarchyView() || (
+                        <div className="text-center py-12">
+                          <Package className="w-10 h-10 sm:w-12 sm:h-12 mx-auto text-gray-300 dark:text-gray-600" />
+                          <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-4">
+                            Tidak ada data yang sesuai dengan pencarian
+                          </p>
+                        </div>
+                      )
+                    )}
+                  </>
                 ) : (
+                  // ── Other tabs: flat grouped view ──
                   <>
                     {renderSearchSection()}
                     {filteredGroupedData.length === 0 ? (
