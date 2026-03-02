@@ -271,6 +271,9 @@ const RitaseList = ({
                         Berat Bersih
                       </TableHead>
                       <TableHead className="text-gray-700 dark:text-gray-300 font-semibold">
+                        Product Brand
+                      </TableHead>
+                      <TableHead className="text-gray-700 dark:text-gray-300 font-semibold">
                         Measurement
                       </TableHead>
                       <TableHead className="text-gray-700 dark:text-gray-300 font-semibold">
@@ -338,6 +341,9 @@ const RitaseList = ({
                           >
                             {ritase.net_weight || "0"} ton
                           </Badge>
+                        </TableCell>
+                           <TableCell className="text-gray-700 dark:text-gray-300">
+                          {ritase.coal_type || "-"}
                         </TableCell>
                         <TableCell>
                           <Badge
