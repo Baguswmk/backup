@@ -135,7 +135,7 @@ class ErrorBoundary extends React.Component {
                           </summary>
                           <div
                             className={cn(
-                              "mt-2 p-3 rounded border overflow-auto max-h-64 transition-colors duration-200",
+                              "mt-2 p-3 rounded border overflow-auto scrollbar-thin max-h-64 transition-colors duration-200",
                               "bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800",
                             )}
                           >

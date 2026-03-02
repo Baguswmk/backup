@@ -103,7 +103,7 @@ const QueueTable = ({ data, isLoading }) => {
       </div>
 
       {/* Queue List */}
-      <div className="max-h-96 overflow-y-auto space-y-3">
+      <div className="max-h-96 overflow-y-auto scrollbar-thin space-y-3">
         {filteredData.length === 0 ? (
           <div className="text-center py-8 text-gray-400">
             Tidak ada hasil untuk "{searchTerm}"

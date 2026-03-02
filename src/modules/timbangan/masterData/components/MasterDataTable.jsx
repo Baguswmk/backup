@@ -230,7 +230,7 @@ const DesktopTable = ({
   canWeigh,
   hasAnyAction,
 }) => (
-  <div className="hidden md:block overflow-x-auto">
+  <div className="hidden md:block overflow-x-auto scrollbar-thin">
     <table className="min-w-full text-sm">
       <thead className="bg-gray-50 shadow-sm dark:bg-gray-900 ">
         <tr>

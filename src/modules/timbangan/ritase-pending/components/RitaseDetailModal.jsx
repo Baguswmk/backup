@@ -42,7 +42,8 @@ export const RitaseDetailModal = ({ group, onClose, onSyncSuccess }) => {
   // ─── Checkbox logic ───────────────────────────────────────────────────────
 
   const allIds = sortedRitases.map((r) => r.id);
-  const allSelected = allIds.length > 0 && allIds.every((id) => selectedIds.has(id));
+  const allSelected =
+    allIds.length > 0 && allIds.every((id) => selectedIds.has(id));
   const someSelected = allIds.some((id) => selectedIds.has(id));
   const indeterminate = someSelected && !allSelected;
 
@@ -112,12 +113,14 @@ export const RitaseDetailModal = ({ group, onClose, onSyncSuccess }) => {
   return (
     <div className="fixed inset-0 z-50 overflow-hidden">
       {/* Backdrop */}
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
+      <div
+        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+        onClick={onClose}
+      />
 
       {/* Modal */}
       <div className="absolute inset-0 flex items-center justify-center p-4">
         <div className="relative bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-3xl max-h-[90vh] flex flex-col">
-
           {/* ── Header ────────────────────────────────────────────────── */}
           <div className="flex items-start justify-between p-4 sm:p-6 border-b border-gray-200 dark:border-gray-700">
             <div className="flex items-center gap-3 min-w-0">
@@ -154,7 +157,9 @@ export const RitaseDetailModal = ({ group, onClose, onSyncSuccess }) => {
             <div className="flex flex-wrap items-center justify-between gap-3">
               {/* Sort */}
               <div className="flex items-center gap-2">
-                <span className="text-xs text-gray-500 dark:text-gray-400">Urutkan:</span>
+                <span className="text-xs text-gray-500 dark:text-gray-400">
+                  Urutkan:
+                </span>
                 <div className="flex gap-1">
                   {[
                     { key: "time", label: "Waktu" },
@@ -164,10 +169,11 @@ export const RitaseDetailModal = ({ group, onClose, onSyncSuccess }) => {
                     <Button
                       key={key}
                       onClick={() => setSortBy(key)}
-                      className={`px-2.5 py-1 text-xs rounded-lg transition-colors ${sortBy === key
+                      className={`px-2.5 py-1 text-xs rounded-lg transition-colors ${
+                        sortBy === key
                           ? "bg-blue-600 text-white"
                           : "bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600"
-                        }`}
+                      }`}
                     >
                       {label}
                     </Button>
@@ -184,7 +190,9 @@ export const RitaseDetailModal = ({ group, onClose, onSyncSuccess }) => {
                     size="sm"
                     className="gap-1.5 bg-green-600 hover:bg-green-700 text-white"
                   >
-                    <Send className={`w-3.5 h-3.5 ${isSyncing ? "animate-pulse" : ""}`} />
+                    <Send
+                      className={`w-3.5 h-3.5 ${isSyncing ? "animate-pulse" : ""}`}
+                    />
                     Sync {selectedIds.size} Ritase
                   </Button>
                 ) : (
@@ -194,7 +202,9 @@ export const RitaseDetailModal = ({ group, onClose, onSyncSuccess }) => {
                     size="sm"
                     className="gap-1.5 bg-green-600 hover:bg-green-700 text-white"
                   >
-                    <Send className={`w-3.5 h-3.5 ${isSyncing ? "animate-pulse" : ""}`} />
+                    <Send
+                      className={`w-3.5 h-3.5 ${isSyncing ? "animate-pulse" : ""}`}
+                    />
                     Sync Semua
                   </Button>
                 )}
@@ -216,7 +226,9 @@ export const RitaseDetailModal = ({ group, onClose, onSyncSuccess }) => {
                 <Square className="w-4 h-4" />
               )}
               <span>
-                {allSelected ? "Batal pilih semua" : `Pilih semua (${allIds.length})`}
+                {allSelected
+                  ? "Batal pilih semua"
+                  : `Pilih semua (${allIds.length})`}
               </span>
             </Button>
             {someSelected && (
@@ -227,7 +239,7 @@ export const RitaseDetailModal = ({ group, onClose, onSyncSuccess }) => {
           </div>
 
           {/* ── Ritase List ────────────────────────────────────────────── */}
-          <div className="flex-1 overflow-y-auto p-4 sm:p-6">
+          <div className="flex-1 overflow-y-auto scrollbar-thin p-4 sm:p-6">
             <div className="space-y-3">
               {sortedRitases.map((ritase, index) => {
                 const isChecked = selectedIds.has(ritase.id);
@@ -235,10 +247,11 @@ export const RitaseDetailModal = ({ group, onClose, onSyncSuccess }) => {
                 return (
                   <div
                     key={ritase.id}
-                    className={`rounded-lg p-4 border transition-colors ${isChecked
+                    className={`rounded-lg p-4 border transition-colors ${
+                      isChecked
                         ? "bg-blue-50 dark:bg-blue-900/10 border-blue-300 dark:border-blue-700"
                         : "bg-gray-50 dark:bg-gray-900/50 border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-600"
-                      }`}
+                    }`}
                   >
                     {/* Row header */}
                     <div className="flex items-start justify-between gap-2 mb-3">
@@ -261,7 +274,8 @@ export const RitaseDetailModal = ({ group, onClose, onSyncSuccess }) => {
                         <div className="flex items-center gap-1.5 min-w-0">
                           <MapPin className="w-3.5 h-3.5 text-orange-500 flex-shrink-0" />
                           <span className="text-sm font-semibold text-gray-900 dark:text-white truncate">
-                            {ritase.loading_location || "-"} → {ritase.dumping_location || "-"}
+                            {ritase.loading_location || "-"} →{" "}
+                            {ritase.dumping_location || "-"}
                           </span>
                         </div>
                       </div>
@@ -277,7 +291,9 @@ export const RitaseDetailModal = ({ group, onClose, onSyncSuccess }) => {
                           size="sm"
                           className="gap-1 border-green-300 dark:border-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 text-green-700 dark:text-green-400 h-7 px-2 text-xs"
                         >
-                          <Send className={`w-3 h-3 ${isSyncing ? "animate-pulse" : ""}`} />
+                          <Send
+                            className={`w-3 h-3 ${isSyncing ? "animate-pulse" : ""}`}
+                          />
                           Sync
                         </Button>
                       </div>
@@ -390,7 +406,9 @@ export const RitaseDetailModal = ({ group, onClose, onSyncSuccess }) => {
                   size="sm"
                   className="gap-1.5 bg-green-600 hover:bg-green-700 text-white"
                 >
-                  <Send className={`w-3.5 h-3.5 ${isSyncing ? "animate-pulse" : ""}`} />
+                  <Send
+                    className={`w-3.5 h-3.5 ${isSyncing ? "animate-pulse" : ""}`}
+                  />
                   Sync {selectedIds.size} Ritase
                 </Button>
               )}

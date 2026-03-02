@@ -170,7 +170,7 @@ const LeaderboardChart = ({ data, isLoading }) => {
         <summary className="cursor-pointer text-sm font-medium text-gray-700 hover:text-gray-900">
           Lihat semua ({data.length})
         </summary>
-        <div className="mt-3 max-h-60 overflow-y-auto">
+        <div className="mt-3 max-h-60 overflow-y-auto scrollbar-thin">
           <table className="w-full text-sm">
             <thead className="bg-gray-50 sticky top-0">
               <tr>

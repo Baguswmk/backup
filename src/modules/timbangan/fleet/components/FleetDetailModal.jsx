@@ -1,13 +1,6 @@
 import { useEffect } from "react";
 import { Button } from "@/shared/components/ui/button";
-import {
-  Settings,
-  MapPin,
-  Truck,
-  Users,
-  UserCheck,
-  User,
-} from "lucide-react";
+import { Settings, MapPin, Truck, Users, UserCheck, User } from "lucide-react";
 import ModalHeader from "@/shared/components/ModalHeader";
 import { InfoCard, InfoItem } from "@/shared/components/InfoCard";
 
@@ -35,8 +28,8 @@ const FleetDetailModal = ({ isOpen, config, onClose, onEdit, dumptruck }) => {
   // Aggregate data untuk merged groups
   let totalDumptruckCount = 0;
   let allDumptrucks = [];
-  
-  fleets.forEach(fleet => {
+
+  fleets.forEach((fleet) => {
     totalDumptruckCount += fleet.dumptruckCount || 0;
     if (fleet.units && Array.isArray(fleet.units)) {
       allDumptrucks = [...allDumptrucks, ...fleet.units];
@@ -53,11 +46,11 @@ const FleetDetailModal = ({ isOpen, config, onClose, onEdit, dumptruck }) => {
   const inspectorIds = new Set();
   const checkerIds = new Set();
 
-  fleets.forEach(fleet => {
+  fleets.forEach((fleet) => {
     // Inspectors
     const fleetInspectors = fleet.inspectors || [];
     if (fleetInspectors.length > 0) {
-      fleetInspectors.forEach(inspector => {
+      fleetInspectors.forEach((inspector) => {
         if (!inspectorIds.has(inspector.id)) {
           inspectorIds.add(inspector.id);
           allInspectors.push(inspector);
@@ -71,7 +64,7 @@ const FleetDetailModal = ({ isOpen, config, onClose, onEdit, dumptruck }) => {
     // Checkers
     const fleetCheckers = fleet.checkers || [];
     if (fleetCheckers.length > 0) {
-      fleetCheckers.forEach(checker => {
+      fleetCheckers.forEach((checker) => {
         if (!checkerIds.has(checker.id)) {
           checkerIds.add(checker.id);
           allCheckers.push(checker);
@@ -88,9 +81,13 @@ const FleetDetailModal = ({ isOpen, config, onClose, onEdit, dumptruck }) => {
 
   return (
     <div className="detail-modal fixed inset-0 bg-black/50 dark:bg-black/70 z-50 flex items-center justify-center p-4">
-      <div className="bg-neutral-50 dark:bg-gray-800 rounded-lg max-w-3xl w-full max-h-[90vh] overflow-auto">
+      <div className="bg-neutral-50 dark:bg-gray-800 rounded-lg max-w-3xl w-full max-h-[90vh] overflow-auto scrollbar-thin">
         <ModalHeader
-          title={isMergedGroup ? `Detail Fleet Configuration (${fleets.length} Split Fleets)` : "Detail Fleet Configuration"}
+          title={
+            isMergedGroup
+              ? `Detail Fleet Configuration (${fleets.length} Split Fleets)`
+              : "Detail Fleet Configuration"
+          }
           icon={Settings}
           onClose={onClose}
         />
@@ -101,22 +98,25 @@ const FleetDetailModal = ({ isOpen, config, onClose, onEdit, dumptruck }) => {
             // Get inspectors & checkers untuk fleet ini
             const fleetInspectors = fleet.inspectors || [];
             const fleetCheckers = fleet.checkers || [];
-            
-            const displayFleetInspectors = fleetInspectors.length > 0 
-              ? fleetInspectors 
-              : fleet.inspector 
-                ? [{ id: fleet.inspectorId, name: fleet.inspector }]
-                : [];
-                
-            const displayFleetCheckers = fleetCheckers.length > 0
-              ? fleetCheckers
-              : fleet.checker
-                ? [{ id: fleet.checkerId, name: fleet.checker }]
-                : [];
+
+            const displayFleetInspectors =
+              fleetInspectors.length > 0
+                ? fleetInspectors
+                : fleet.inspector
+                  ? [{ id: fleet.inspectorId, name: fleet.inspector }]
+                  : [];
+
+            const displayFleetCheckers =
+              fleetCheckers.length > 0
+                ? fleetCheckers
+                : fleet.checker
+                  ? [{ id: fleet.checkerId, name: fleet.checker }]
+                  : [];
 
             // Get dumptrucks untuk fleet ini
             const fleetDumptrucks = fleet.units || [];
-            const fleetDumptruckCount = fleet.dumptruckCount || fleetDumptrucks.length || 0;
+            const fleetDumptruckCount =
+              fleet.dumptruckCount || fleetDumptrucks.length || 0;
 
             return (
               <div key={fleet.id || fleetIndex} className="space-y-6">
@@ -133,7 +133,11 @@ const FleetDetailModal = ({ isOpen, config, onClose, onEdit, dumptruck }) => {
                 )}
 
                 {/* Fleet Configuration */}
-                <InfoCard title="Konfigurasi Fleet" icon={Settings} variant="default">
+                <InfoCard
+                  title="Konfigurasi Fleet"
+                  icon={Settings}
+                  variant="default"
+                >
                   <InfoItem
                     label="Excavator"
                     icon={Settings}
@@ -152,12 +156,18 @@ const FleetDetailModal = ({ isOpen, config, onClose, onEdit, dumptruck }) => {
                 </InfoCard>
 
                 {/* Inspector & Checker */}
-                <InfoCard title="Inspector & Checker" icon={Users} variant="purple">
+                <InfoCard
+                  title="Inspector & Checker"
+                  icon={Users}
+                  variant="purple"
+                >
                   {/* Inspectors */}
                   <div className="space-y-2">
                     <div className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300">
                       <Users className="w-4 h-4" />
-                      <span>Inspector{displayFleetInspectors.length > 1 ? 's' : ''}</span>
+                      <span>
+                        Inspector{displayFleetInspectors.length > 1 ? "s" : ""}
+                      </span>
                       <span className="text-xs bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-300 px-2 py-0.5 rounded-full">
                         {displayFleetInspectors.length}
                       </span>
@@ -165,12 +175,12 @@ const FleetDetailModal = ({ isOpen, config, onClose, onEdit, dumptruck }) => {
                     {displayFleetInspectors.length > 0 ? (
                       <div className="space-y-1 pl-6">
                         {displayFleetInspectors.map((inspector, idx) => (
-                          <div 
+                          <div
                             key={inspector.id || idx}
                             className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400"
                           >
                             <div className="w-1.5 h-1.5 bg-purple-500 dark:bg-purple-400 rounded-full" />
-                            <span>{inspector.name || '-'}</span>
+                            <span>{inspector.name || "-"}</span>
                           </div>
                         ))}
                       </div>
@@ -185,7 +195,9 @@ const FleetDetailModal = ({ isOpen, config, onClose, onEdit, dumptruck }) => {
                   <div className="space-y-2">
                     <div className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300">
                       <UserCheck className="w-4 h-4" />
-                      <span>Checker{displayFleetCheckers.length > 1 ? 's' : ''}</span>
+                      <span>
+                        Checker{displayFleetCheckers.length > 1 ? "s" : ""}
+                      </span>
                       <span className="text-xs bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 px-2 py-0.5 rounded-full">
                         {displayFleetCheckers.length}
                       </span>
@@ -193,12 +205,12 @@ const FleetDetailModal = ({ isOpen, config, onClose, onEdit, dumptruck }) => {
                     {displayFleetCheckers.length > 0 ? (
                       <div className="space-y-1 pl-6">
                         {displayFleetCheckers.map((checker, idx) => (
-                          <div 
+                          <div
                             key={checker.id || idx}
                             className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400"
                           >
                             <div className="w-1.5 h-1.5 bg-green-500 dark:bg-green-400 rounded-full" />
-                            <span>{checker.name || '-'}</span>
+                            <span>{checker.name || "-"}</span>
                           </div>
                         ))}
                       </div>
@@ -220,16 +232,26 @@ const FleetDetailModal = ({ isOpen, config, onClose, onEdit, dumptruck }) => {
                       <InfoItem label="Coal Type" value={fleet.coalType} />
                     )}
                     {fleet.distance > 0 && (
-                      <InfoItem label="Distance" value={`${fleet.distance} m`} />
+                      <InfoItem
+                        label="Distance"
+                        value={`${fleet.distance} m`}
+                      />
                     )}
                     {fleet.measurementType && (
-                      <InfoItem label="Measurement Type" value={fleet.measurementType} />
+                      <InfoItem
+                        label="Measurement Type"
+                        value={fleet.measurementType}
+                      />
                     )}
                   </InfoCard>
                 )}
 
                 {/* Dumptruck Assignment */}
-                <InfoCard title="Dumptruck Assignment" icon={Truck} variant="primary">
+                <InfoCard
+                  title="Dumptruck Assignment"
+                  icon={Truck}
+                  variant="primary"
+                >
                   <div className="md:col-span-2 space-y-3">
                     <div className="flex items-center justify-between">
                       <div>
@@ -245,7 +267,7 @@ const FleetDetailModal = ({ isOpen, config, onClose, onEdit, dumptruck }) => {
 
                     {fleetDumptruckCount > 0 ? (
                       <div className="bg-neutral-50 dark:bg-gray-900 rounded-lg border border-blue-200 dark:border-blue-800 overflow-hidden">
-                        <div className="max-h-64 overflow-y-auto">
+                        <div className="max-h-64 overflow-y-auto scrollbar-thin">
                           <table className="w-full">
                             <thead className="bg-blue-100 dark:bg-blue-900 sticky top-0">
                               <tr>
@@ -326,7 +348,9 @@ const FleetDetailModal = ({ isOpen, config, onClose, onEdit, dumptruck }) => {
                 }}
                 className="cursor-pointer bg-blue-600 hover:bg-blue-700 text-white dark:bg-blue-600 dark:hover:bg-blue-700 dark:text-gray-200"
               >
-                {isMergedGroup ? `Edit ${fleets.length} Split Fleets` : 'Edit Fleet'}
+                {isMergedGroup
+                  ? `Edit ${fleets.length} Split Fleets`
+                  : "Edit Fleet"}
               </Button>
             )}
           </div>

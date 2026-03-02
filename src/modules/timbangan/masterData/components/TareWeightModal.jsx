@@ -378,7 +378,7 @@ const TareWeightModal = ({
 
   return (
     <div className="detail-modal fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-      <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto bg-neutral-50 dark:bg-gray-800 border-none">
+      <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto scrollbar-thin bg-neutral-50 dark:bg-gray-800 border-none">
         <ModalHeader
           title={
             isSelectionMode

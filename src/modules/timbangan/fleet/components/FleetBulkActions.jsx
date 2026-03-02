@@ -220,7 +220,7 @@ const FleetBulkActions = ({
           <p className="text-sm font-medium mb-2 dark:text-gray-200">
             Fleet yang akan diubah:
           </p>
-          <div className="max-h-40 overflow-y-auto space-y-1">
+          <div className="max-h-40 overflow-y-auto scrollbar-thin space-y-1">
             {selectedFleets.slice(0, 10).map((fleet) => (
               <div
                 key={fleet.id}
@@ -254,7 +254,7 @@ const FleetBulkActions = ({
           <p className="text-sm font-medium mb-2 dark:text-gray-200">
             Fleet yang akan dihapus:
           </p>
-          <div className="max-h-40 overflow-y-auto space-y-1">
+          <div className="max-h-40 overflow-y-auto scrollbar-thin space-y-1">
             {selectedFleets.slice(0, 10).map((fleet) => (
               <div
                 key={fleet.id}

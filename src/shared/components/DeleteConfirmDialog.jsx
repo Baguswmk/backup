@@ -19,7 +19,7 @@ import {
 
 /**
  * DeleteConfirmDialog - Enhanced version with split group delete support
- * 
+ *
  * @param {boolean} isOpen - Controls dialog visibility
  * @param {function} onClose - Callback when dialog is closed
  * @param {function} onConfirm - Callback when action is confirmed
@@ -47,7 +47,7 @@ const DeleteConfirmDialog = ({
 
   // Detect if target is multiple fleets
   const isMultipleFleets = Array.isArray(target);
-  const fleetsToProcess = isMultipleFleets ? target : (target ? [target] : []);
+  const fleetsToProcess = isMultipleFleets ? target : target ? [target] : [];
   const fleetCount = fleetsToProcess.length;
 
   // Configuration based on action type
@@ -58,32 +58,40 @@ const DeleteConfirmDialog = ({
       iconBgColor: "bg-red-100 dark:bg-red-900/30",
       iconColor: "text-red-600 dark:text-red-400",
       progressColor: "bg-red-600 dark:bg-red-700",
-      warningMessage: "Penghapusan ini bersifat permanen dan tidak dapat dibatalkan.",
+      warningMessage:
+        "Penghapusan ini bersifat permanen dan tidak dapat dibatalkan.",
       assignedWarningText: "Konfigurasi ini memiliki",
       confirmButtonText: "Hapus",
-      confirmButtonColor: "bg-red-600 hover:bg-red-700 dark:bg-red-700 dark:hover:bg-red-800",
-      step1Question: "Langkah 1: Apakah Anda yakin akan menghapus konfigurasi fleet ini?",
+      confirmButtonColor:
+        "bg-red-600 hover:bg-red-700 dark:bg-red-700 dark:hover:bg-red-800",
+      step1Question:
+        "Langkah 1: Apakah Anda yakin akan menghapus konfigurasi fleet ini?",
       step1YesText: "Ya, Hapus",
       step1NoText: "Tidak",
-      step1CancelMessage: "Penghapusan dibatalkan. Klik tombol \"Batal\" untuk menutup dialog.",
+      step1CancelMessage:
+        'Penghapusan dibatalkan. Klik tombol "Batal" untuk menutup dialog.',
       reasonsTitle: "Langkah 3: Pilih alasan penghapusan (minimal 1):",
       processingText: "Menghapus...",
       reasonOptions: [
         {
           id: "reason-request-head",
-          label: "Penghapusan dilakukan atas permintaan dan persetujuan Sub Section Head terkait",
+          label:
+            "Penghapusan dilakukan atas permintaan dan persetujuan Sub Section Head terkait",
         },
         {
           id: "reason-misconfiguration",
-          label: "Penghapusan dilakukan karena terdapat kesalahan pengaturan (misconfiguration) pada setting fleet",
+          label:
+            "Penghapusan dilakukan karena terdapat kesalahan pengaturan (misconfiguration) pada setting fleet",
         },
         {
           id: "reason-change-request",
-          label: "Penghapusan dilakukan sebagai bagian dari permintaan perubahan atau pembaruan setting fleet",
+          label:
+            "Penghapusan dilakukan sebagai bagian dari permintaan perubahan atau pembaruan setting fleet",
         },
         {
           id: "reason-evaluation",
-          label: "Penghapusan dilakukan berdasarkan hasil evaluasi internal terhadap kebutuhan operasional",
+          label:
+            "Penghapusan dilakukan berdasarkan hasil evaluasi internal terhadap kebutuhan operasional",
         },
       ],
     },
@@ -93,20 +101,25 @@ const DeleteConfirmDialog = ({
       iconBgColor: "bg-blue-100 dark:bg-blue-900/30",
       iconColor: "text-blue-600 dark:text-blue-400",
       progressColor: "bg-blue-600 dark:bg-blue-700",
-      warningMessage: "Fleet akan dipisah menjadi konfigurasi baru. Pastikan data yang Anda masukkan sudah benar.",
+      warningMessage:
+        "Fleet akan dipisah menjadi konfigurasi baru. Pastikan data yang Anda masukkan sudah benar.",
       assignedWarningText: "Konfigurasi ini akan memisahkan",
       confirmButtonText: "Split",
-      confirmButtonColor: "bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-800",
-      step1Question: "Langkah 1: Apakah Anda yakin akan melakukan split pada konfigurasi fleet ini?",
+      confirmButtonColor:
+        "bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-800",
+      step1Question:
+        "Langkah 1: Apakah Anda yakin akan melakukan split pada konfigurasi fleet ini?",
       step1YesText: "Ya, Split",
       step1NoText: "Tidak",
-      step1CancelMessage: "Split dibatalkan. Klik tombol \"Batal\" untuk menutup dialog.",
+      step1CancelMessage:
+        'Split dibatalkan. Klik tombol "Batal" untuk menutup dialog.',
       reasonsTitle: "Langkah 3: Pilih alasan split (minimal 1):",
       processingText: "Memproses Split...",
       reasonOptions: [
         {
           id: "reason-request-head-split",
-          label: "Split dilakukan atas permintaan dan persetujuan Sub Section Head terkait",
+          label:
+            "Split dilakukan atas permintaan dan persetujuan Sub Section Head terkait",
         },
         {
           id: "reason-operational-split",
@@ -118,7 +131,8 @@ const DeleteConfirmDialog = ({
         },
         {
           id: "reason-restructure-split",
-          label: "Split dilakukan sebagai bagian dari restrukturisasi setting fleet",
+          label:
+            "Split dilakukan sebagai bagian dari restrukturisasi setting fleet",
         },
       ],
     },
@@ -128,24 +142,30 @@ const DeleteConfirmDialog = ({
       iconBgColor: "bg-orange-100 dark:bg-orange-900/30",
       iconColor: "text-orange-600 dark:text-orange-400",
       progressColor: "bg-orange-600 dark:bg-orange-700",
-      warningMessage: "Anda akan menghapus SEMUA konfigurasi fleet dalam grup split ini. Penghapusan bersifat permanen dan tidak dapat dibatalkan.",
+      warningMessage:
+        "Anda akan menghapus SEMUA konfigurasi fleet dalam grup split ini. Penghapusan bersifat permanen dan tidak dapat dibatalkan.",
       assignedWarningText: "Total dumptruck dari seluruh grup:",
       confirmButtonText: "Hapus Semua Fleet",
-      confirmButtonColor: "bg-orange-600 hover:bg-orange-700 dark:bg-orange-700 dark:hover:bg-orange-800",
-      step1Question: "Langkah 1: Apakah Anda yakin akan menghapus SEMUA fleet dalam grup split ini?",
+      confirmButtonColor:
+        "bg-orange-600 hover:bg-orange-700 dark:bg-orange-700 dark:hover:bg-orange-800",
+      step1Question:
+        "Langkah 1: Apakah Anda yakin akan menghapus SEMUA fleet dalam grup split ini?",
       step1YesText: "Ya, Hapus Semua",
       step1NoText: "Tidak",
-      step1CancelMessage: "Penghapusan grup dibatalkan. Klik tombol \"Batal\" untuk menutup dialog.",
+      step1CancelMessage:
+        'Penghapusan grup dibatalkan. Klik tombol "Batal" untuk menutup dialog.',
       reasonsTitle: "Langkah 3: Pilih alasan penghapusan grup (minimal 1):",
       processingText: "Menghapus grup fleet...",
       reasonOptions: [
         {
           id: "reason-request-head-group",
-          label: "Penghapusan grup dilakukan atas permintaan dan persetujuan Sub Section Head terkait",
+          label:
+            "Penghapusan grup dilakukan atas permintaan dan persetujuan Sub Section Head terkait",
         },
         {
           id: "reason-reconfig-group",
-          label: "Penghapusan grup dilakukan untuk rekonfigurasi ulang setting fleet",
+          label:
+            "Penghapusan grup dilakukan untuk rekonfigurasi ulang setting fleet",
         },
         {
           id: "reason-consolidate-group",
@@ -153,7 +173,8 @@ const DeleteConfirmDialog = ({
         },
         {
           id: "reason-operational-change",
-          label: "Penghapusan grup dilakukan karena perubahan kebutuhan operasional",
+          label:
+            "Penghapusan grup dilakukan karena perubahan kebutuhan operasional",
         },
       ],
     },
@@ -224,7 +245,7 @@ const DeleteConfirmDialog = ({
       selectedDay,
       selectedReasons,
       reasonLabels: selectedReasons.map(
-        (id) => config.reasonOptions.find((r) => r.id === id)?.label
+        (id) => config.reasonOptions.find((r) => r.id === id)?.label,
       ),
       fleetsToProcess, // Pass the fleets for processing
     });
@@ -326,7 +347,11 @@ const DeleteConfirmDialog = ({
                     {step}
                   </div>
                   <span className="text-xs mt-1 text-gray-600 dark:text-gray-400">
-                    {step === 1 ? "Konfirmasi" : step === 2 ? "Verifikasi" : "Alasan"}
+                    {step === 1
+                      ? "Konfirmasi"
+                      : step === 2
+                        ? "Verifikasi"
+                        : "Alasan"}
                   </span>
                 </div>
                 {step < 3 && (
@@ -344,7 +369,7 @@ const DeleteConfirmDialog = ({
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className="flex-1 overflow-y-auto scrollbar-thin p-6">
           <div className="space-y-4">
             {/* Warning Message & Fleet Info */}
             {currentStep === 1 && (
@@ -386,7 +411,7 @@ const DeleteConfirmDialog = ({
                             <p className="text-sm font-medium text-gray-900 dark:text-white">
                               Grup Fleet Split ({fleetCount} fleet)
                             </p>
-                            
+
                             {showFleetDetails && (
                               <div className="mt-2 space-y-2">
                                 {fleetsToProcess.map((fleet, idx) => (
@@ -402,24 +427,35 @@ const DeleteConfirmDialog = ({
                                       </div>
                                       <div className="flex items-center gap-2">
                                         <Pickaxe className="w-3 h-3 text-gray-500" />
-                                        <span className="font-medium">Excavator:</span>
+                                        <span className="font-medium">
+                                          Excavator:
+                                        </span>
                                         <span>{fleet.excavator}</span>
                                       </div>
                                       <div className="flex items-center gap-2">
                                         <Navigation className="w-3 h-3 text-gray-500" />
-                                        <span className="font-medium">Loading:</span>
+                                        <span className="font-medium">
+                                          Loading:
+                                        </span>
                                         <span>{fleet.loadingLocation}</span>
                                       </div>
                                       <div className="flex items-center gap-2">
                                         <MapPin className="w-3 h-3 text-gray-500" />
-                                        <span className="font-medium">Dumping:</span>
+                                        <span className="font-medium">
+                                          Dumping:
+                                        </span>
                                         <span>{fleet.dumpingLocation}</span>
                                       </div>
                                       <div className="flex items-center gap-2">
                                         <Truck className="w-3 h-3 text-gray-500" />
-                                        <span className="font-medium">Dumptruck:</span>
+                                        <span className="font-medium">
+                                          Dumptruck:
+                                        </span>
                                         <span className="font-semibold">
-                                          {fleet.dumptruckCount || fleet.units?.length || 0} unit
+                                          {fleet.dumptruckCount ||
+                                            fleet.units?.length ||
+                                            0}{" "}
+                                          unit
                                         </span>
                                       </div>
                                     </div>
@@ -430,7 +466,8 @@ const DeleteConfirmDialog = ({
 
                             {!showFleetDetails && (
                               <div className="mt-2 text-xs text-gray-600 dark:text-gray-400">
-                                Klik "Lihat Detail" untuk melihat rincian setiap fleet
+                                Klik "Lihat Detail" untuk melihat rincian setiap
+                                fleet
                               </div>
                             )}
                           </div>
@@ -442,7 +479,9 @@ const DeleteConfirmDialog = ({
                         <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
                           <div className="flex items-center gap-2">
                             <Pickaxe className="w-4 h-4 text-gray-500 dark:text-gray-400" />
-                            <span className="text-gray-600 dark:text-gray-400">Excavator:</span>
+                            <span className="text-gray-600 dark:text-gray-400">
+                              Excavator:
+                            </span>
                           </div>
                           <span className="font-medium text-gray-900 dark:text-white">
                             {fleetsToProcess[0]?.excavator || "-"}
@@ -450,7 +489,9 @@ const DeleteConfirmDialog = ({
 
                           <div className="flex items-center gap-2">
                             <Navigation className="w-4 h-4 text-gray-500 dark:text-gray-400" />
-                            <span className="text-gray-600 dark:text-gray-400">Loading:</span>
+                            <span className="text-gray-600 dark:text-gray-400">
+                              Loading:
+                            </span>
                           </div>
                           <span className="font-medium text-gray-900 dark:text-white">
                             {fleetsToProcess[0]?.loadingLocation || "-"}
@@ -458,7 +499,9 @@ const DeleteConfirmDialog = ({
 
                           <div className="flex items-center gap-2">
                             <MapPin className="w-4 h-4 text-gray-500 dark:text-gray-400" />
-                            <span className="text-gray-600 dark:text-gray-400">Dumping:</span>
+                            <span className="text-gray-600 dark:text-gray-400">
+                              Dumping:
+                            </span>
                           </div>
                           <span className="font-medium text-gray-900 dark:text-white">
                             {fleetsToProcess[0]?.dumpingLocation || "-"}
@@ -466,10 +509,15 @@ const DeleteConfirmDialog = ({
 
                           <div className="flex items-center gap-2">
                             <Truck className="w-4 h-4 text-gray-500 dark:text-gray-400" />
-                            <span className="text-gray-600 dark:text-gray-400">Dumptruck:</span>
+                            <span className="text-gray-600 dark:text-gray-400">
+                              Dumptruck:
+                            </span>
                           </div>
                           <span className="font-medium text-gray-900 dark:text-white">
-                            {fleetsToProcess[0]?.dumptruckCount || fleetsToProcess[0]?.units?.length || 0} unit
+                            {fleetsToProcess[0]?.dumptruckCount ||
+                              fleetsToProcess[0]?.units?.length ||
+                              0}{" "}
+                            unit
                           </span>
                         </div>
                       </div>
@@ -484,7 +532,9 @@ const DeleteConfirmDialog = ({
                       <AlertTriangle className="w-4 h-4 text-yellow-600 dark:text-yellow-400 shrink-0 mt-0.5" />
                       <p className="text-sm text-yellow-800 dark:text-yellow-300">
                         {config.assignedWarningText}{" "}
-                        <span className="font-semibold">{assignedCount} dumptruck</span>
+                        <span className="font-semibold">
+                          {assignedCount} dumptruck
+                        </span>
                         {isMultipleFleets && " dari seluruh grup"} yang terikat.
                       </p>
                     </div>

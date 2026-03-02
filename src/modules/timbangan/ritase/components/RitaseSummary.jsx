@@ -337,7 +337,7 @@ const RitaseSummary = ({ summaryData, isLoading = false }) => {
                           </div>
 
                           {tooltipState.data.length > 0 ? (
-                            <div className="max-h-[300px] overflow-y-auto">
+                            <div className="max-h-[300px] overflow-y-auto scrollbar-thin">
                               <ul className="space-y-1">
                                 {tooltipState.data.map((item, idx) => (
                                   <li

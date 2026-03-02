@@ -521,7 +521,7 @@ const FleetSplitSettingsSection = ({
           </div>
 
           {/* Units Display */}
-          <div className="rounded-lg max-h-96 overflow-y-auto">
+          <div className="rounded-lg max-h-96 overflow-y-auto scrollbar-thin">
             {/* Selected Units in Fleet */}
             {selectedUnitsList.length > 0 && (
               <div className="mb-4">
@@ -623,7 +623,7 @@ const FleetSplitSettingsSection = ({
                     Dump Truck dari Fleet 1 (Klik untuk pindahkan)
                   </span>
                 </div>
-                <div className="space-y-2 max-h-60 overflow-y-auto bg-blue-50 dark:bg-blue-900/10 p-3 rounded-b-lg">
+                <div className="space-y-2 max-h-60 overflow-y-auto scrollbar-thin bg-blue-50 dark:bg-blue-900/10 p-3 rounded-b-lg">
                   {primarySelectedUnits.map((unit) => (
                     <div
                       key={unit.id}
@@ -677,7 +677,7 @@ const FleetSplitSettingsSection = ({
                     Dump Truck Tersedia ({unselectedUnitsList.length})
                   </span>
                 </div>
-                <div className="space-y-2 max-h-60 overflow-y-auto bg-gray-50 dark:bg-gray-900/30 p-3 rounded-b-lg">
+                <div className="space-y-2 max-h-60 overflow-y-auto scrollbar-thin bg-gray-50 dark:bg-gray-900/30 p-3 rounded-b-lg">
                   {unselectedUnitsList.map((unit) => {
                     const dtStatus = getDumptruckStatus(
                       unit.id,

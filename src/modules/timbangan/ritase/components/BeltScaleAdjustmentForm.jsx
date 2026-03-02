@@ -546,7 +546,7 @@ const BeltScaleAdjustmentForm = ({ onSubmit }) => {
             </div>
           </CardHeader>
           <CardContent className="p-0">
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto scrollbar-thin">
               <table className="w-full table-auto">
                 <thead className="bg-gray-50 dark:bg-gray-900/50 border-b border-gray-200 dark:border-gray-700">
                   <tr>
@@ -696,7 +696,7 @@ const BeltScaleAdjustmentForm = ({ onSubmit }) => {
       {/* Modal: Input Net Weight Beltscale */}
       {showAdjustModal && (
         <div className="fixed inset-0 bg-black/50 dark:bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 transition-all">
-          <Card className="max-w-2xl w-full max-h-[90vh] overflow-auto shadow-2xl dark:shadow-gray-900/50 border border-gray-200 dark:border-gray-700 bg-neutral-50 dark:bg-gray-800">
+          <Card className="max-w-2xl w-full max-h-[90vh] overflow-auto scrollbar-thin shadow-2xl dark:shadow-gray-900/50 border border-gray-200 dark:border-gray-700 bg-neutral-50 dark:bg-gray-800">
             <CardHeader className="sticky top-0 bg-neutral-50 dark:bg-gray-800 z-10 border-b border-gray-200 dark:border-gray-700">
               <div className="flex items-center justify-between">
                 <CardTitle className="flex items-center gap-2 text-gray-900 dark:text-white">

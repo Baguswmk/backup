@@ -72,7 +72,12 @@ const MAIN_TABS = {
   },
 };
 
-const MMCTEquipmentListModal = ({ isOpen, onClose, masters, mastersLoading }) => {
+const MMCTEquipmentListModal = ({
+  isOpen,
+  onClose,
+  masters,
+  mastersLoading,
+}) => {
   const [activeMainTab, setActiveMainTab] = useState("unit");
   const [tempEquipmentLists, setTempEquipmentLists] = useState({
     dt_service: [],
@@ -113,17 +118,17 @@ const MMCTEquipmentListModal = ({ isOpen, onClose, masters, mastersLoading }) =>
   const handleEquipmentSelectionChange = (category, selectedIds) => {
     const isDT = category.startsWith("dt_");
     const masterList = isDT ? masters.dumpTruck : masters.excavators;
-    
+
     // Get current list
     const currentList = tempEquipmentLists[category] || [];
     const currentIds = currentList.map((item) => String(item.equipmentId));
-    
+
     // Find newly added IDs
     const newIds = selectedIds.filter((id) => !currentIds.includes(id));
-    
+
     // Find removed IDs
     const removedIds = currentIds.filter((id) => !selectedIds.includes(id));
-    
+
     // Add new items
     const newItems = newIds.map((id) => {
       const equipment = masterList.find((eq) => eq.id === parseInt(id));
@@ -136,20 +141,20 @@ const MMCTEquipmentListModal = ({ isOpen, onClose, masters, mastersLoading }) =>
         isNew: true,
       };
     });
-    
+
     // Remove items
     let updatedList = currentList.filter(
-      (item) => !removedIds.includes(String(item.equipmentId))
+      (item) => !removedIds.includes(String(item.equipmentId)),
     );
-    
+
     // Add new items
     updatedList = [...updatedList, ...newItems];
-    
+
     setTempEquipmentLists((prev) => ({
       ...prev,
       [category]: updatedList,
     }));
-    
+
     if (newIds.length > 0 || removedIds.length > 0) {
       setHasChanges(true);
     }
@@ -193,11 +198,11 @@ const MMCTEquipmentListModal = ({ isOpen, onClose, masters, mastersLoading }) =>
 
   const handleConfirmDelete = async () => {
     const { category, index, item } = deleteConfirmation;
-    
+
     try {
       setIsDeleting(true);
       await removeFromMMCTList(item.id);
-      
+
       // Close dialog
       setDeleteConfirmation({
         isOpen: false,
@@ -205,7 +210,7 @@ const MMCTEquipmentListModal = ({ isOpen, onClose, masters, mastersLoading }) =>
         index: null,
         item: null,
       });
-      
+
       showToast.success("Alat berhasil dihapus dari MMCT list");
     } catch (error) {
       showToast.error("Gagal menghapus alat dari MMCT list");
@@ -230,7 +235,7 @@ const MMCTEquipmentListModal = ({ isOpen, onClose, masters, mastersLoading }) =>
       for (const item of items) {
         if (!item.equipmentId || !item.equipmentName) {
           showToast.error(
-            `Mohon lengkapi semua data pada ${getCategoryConfig(category).label}`
+            `Mohon lengkapi semua data pada ${getCategoryConfig(category).label}`,
           );
           return;
         }
@@ -242,7 +247,7 @@ const MMCTEquipmentListModal = ({ isOpen, onClose, masters, mastersLoading }) =>
       for (const [category, items] of Object.entries(tempEquipmentLists)) {
         // Filter only new items
         const newItems = items.filter(
-          (item) => item.isNew || item.id.toString().startsWith("temp-")
+          (item) => item.isNew || item.id.toString().startsWith("temp-"),
         );
 
         if (newItems.length > 0) {
@@ -261,9 +266,7 @@ const MMCTEquipmentListModal = ({ isOpen, onClose, masters, mastersLoading }) =>
   const handleClose = () => {
     if (hasChanges) {
       if (
-        window.confirm(
-          "Ada perubahan yang belum disimpan. Yakin ingin keluar?"
-        )
+        window.confirm("Ada perubahan yang belum disimpan. Yakin ingin keluar?")
       ) {
         onClose();
         setHasChanges(false);
@@ -292,10 +295,10 @@ const MMCTEquipmentListModal = ({ isOpen, onClose, masters, mastersLoading }) =>
       hint: item.company || "",
     }));
   };
-  
+
   const getSelectedEquipmentIds = (categoryId) => {
     return (tempEquipmentLists[categoryId] || []).map((item) =>
-      String(item.equipmentId)
+      String(item.equipmentId),
     );
   };
 
@@ -339,7 +342,9 @@ const MMCTEquipmentListModal = ({ isOpen, onClose, masters, mastersLoading }) =>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <span className="text-2xl">{config.icon}</span>
-              <h3 className={`font-semibold ${getCategoryTextColor(categoryId)}`}>
+              <h3
+                className={`font-semibold ${getCategoryTextColor(categoryId)}`}
+              >
                 {config.label}
               </h3>
             </div>
@@ -362,7 +367,9 @@ const MMCTEquipmentListModal = ({ isOpen, onClose, masters, mastersLoading }) =>
             <MultiSearchableSelect
               items={options}
               values={getSelectedEquipmentIds(categoryId)}
-              onChange={(values) => handleEquipmentSelectionChange(categoryId, values)}
+              onChange={(values) =>
+                handleEquipmentSelectionChange(categoryId, values)
+              }
               placeholder={`Pilih ${isDT ? "DT" : "Exca"}...`}
               emptyText={`${isDT ? "DT" : "Exca"} tidak ditemukan`}
               disabled={isSaving || mastersLoading}
@@ -415,7 +422,9 @@ const MMCTEquipmentListModal = ({ isOpen, onClose, masters, mastersLoading }) =>
                       type="text"
                       placeholder="Tambahkan catatan (opsional)..."
                       value={item.description || ""}
-                      onChange={(e) => handleNotesChange(categoryId, index, e.target.value)}
+                      onChange={(e) =>
+                        handleNotesChange(categoryId, index, e.target.value)
+                      }
                       disabled={isSaving || (!item.isNew && item.description)}
                       className="w-full text-sm bg-gray-50 dark:bg-gray-900 border-gray-300 dark:border-gray-600 dark:text-neutral-50 focus:border-blue-500 dark:focus:border-blue-400 focus:ring-1 focus:ring-blue-500 dark:focus:ring-blue-400 disabled:opacity-60 disabled:cursor-not-allowed"
                     />
@@ -443,7 +452,8 @@ const MMCTEquipmentListModal = ({ isOpen, onClose, masters, mastersLoading }) =>
                   Kelola List Alat PM/BD MMCT
                 </DialogTitle>
                 <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
-                  Atur daftar alat untuk PM (Preventive Maintenance) dan BD (Breakdown)
+                  Atur daftar alat untuk PM (Preventive Maintenance) dan BD
+                  (Breakdown)
                 </p>
               </div>
             </div>
@@ -475,15 +485,15 @@ const MMCTEquipmentListModal = ({ isOpen, onClose, masters, mastersLoading }) =>
           </div>
 
           {/* Content */}
-          <div className="flex-1 overflow-y-auto px-6 py-4 bg-gray-50 dark:bg-gray-900/50">
+          <div className="flex-1 overflow-y-auto scrollbar-thin px-6 py-4 bg-gray-50 dark:bg-gray-900/50">
             {isLoading ? (
               <div className="flex items-center justify-center py-12">
                 <Loader2 className="w-8 h-8 animate-spin text-gray-400 dark:text-gray-500" />
               </div>
             ) : (
               <div className="flex flex-col gap-4">
-                {MAIN_TABS[activeMainTab.toUpperCase()].categories.map((categoryId) =>
-                  renderEquipmentCard(categoryId)
+                {MAIN_TABS[activeMainTab.toUpperCase()].categories.map(
+                  (categoryId) => renderEquipmentCard(categoryId),
                 )}
               </div>
             )}
@@ -537,7 +547,10 @@ const MMCTEquipmentListModal = ({ isOpen, onClose, masters, mastersLoading }) =>
       </Dialog>
 
       {/* Delete Confirmation Dialog */}
-      <Dialog open={deleteConfirmation.isOpen} onOpenChange={handleCancelDelete}>
+      <Dialog
+        open={deleteConfirmation.isOpen}
+        onOpenChange={handleCancelDelete}
+      >
         <DialogContent className="max-w-md bg-white dark:bg-gray-800 border-none">
           <DialogHeader>
             <div className="flex items-center gap-3 mb-2">

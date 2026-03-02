@@ -28,7 +28,7 @@ const BeltscaleManagement = () => {
   const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [dateRange, setDateRange] = useState(getInitialDateRange);
   const [adjustmentSummary, setAdjustmentSummary] = useState(null);
-  const isCan = user.role.includes("checker") || user.role.includes("ccr")
+  const isCan = user.role.includes("checker") || user.role.includes("ccr");
   const filteredRitaseData = useMemo(() => {
     let filtered = ritaseData;
 
@@ -194,42 +194,42 @@ const BeltscaleManagement = () => {
           </div>
 
           <div className="flex items-center gap-2">
-            {isCan &&(
-            <Button
-              onClick={handleOpenForm}
-              className="flex items-center gap-2 cursor-pointer bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-700 text-white shadow-sm dark:shadow-blue-900/50 transition-all duration-200"
-            >
-              <Plus className="w-4 h-4" />
-              Hitung Beltscale
-            </Button>
+            {isCan && (
+              <Button
+                onClick={handleOpenForm}
+                className="flex items-center gap-2 cursor-pointer bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-700 text-white shadow-sm dark:shadow-blue-900/50 transition-all duration-200"
+              >
+                <Plus className="w-4 h-4" />
+                Hitung Beltscale
+              </Button>
             )}
           </div>
         </div>
 
         {/* Info Card */}
         {isCan && (
-        <Card className="border-blue-200 bg-blue-50 dark:bg-blue-950/50 dark:border-blue-800/50 shadow-sm dark:shadow-lg dark:shadow-blue-900/20 transition-all duration-200">
-          <CardContent className="py-4">
-            <div className="flex items-start gap-3">
-              <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/50 flex items-center justify-center shrink-0 shadow-sm dark:shadow-blue-800/50">
-                <TrendingUp className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+          <Card className="border-blue-200 bg-blue-50 dark:bg-blue-950/50 dark:border-blue-800/50 shadow-sm dark:shadow-lg dark:shadow-blue-900/20 transition-all duration-200">
+            <CardContent className="py-4">
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/50 flex items-center justify-center shrink-0 shadow-sm dark:shadow-blue-800/50">
+                  <TrendingUp className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-sm font-semibold text-blue-900 dark:text-blue-100 mb-1">
+                    Tentang Beltscale Adjustment
+                  </h3>
+                  <p className="text-xs text-blue-700 dark:text-blue-300 leading-relaxed">
+                    Fitur ini digunakan untuk menghitung ulang tonnage ritase
+                    berdasarkan data aktual dari timbangan Beltscale. Pilih
+                    setting fleet, lalu masukkan total berat Beltscale untuk
+                    mendistribusikan secara proporsional ke semua ritase dalam
+                    fleet tersebut. Sistem akan menghitung rasio berdasarkan
+                    net_weight original setiap ritase.
+                  </p>
+                </div>
               </div>
-              <div className="flex-1">
-                <h3 className="text-sm font-semibold text-blue-900 dark:text-blue-100 mb-1">
-                  Tentang Beltscale Adjustment
-                </h3>
-                <p className="text-xs text-blue-700 dark:text-blue-300 leading-relaxed">
-                  Fitur ini digunakan untuk menghitung ulang tonnage ritase
-                  berdasarkan data aktual dari timbangan Beltscale. Pilih
-                  setting fleet, lalu masukkan total berat Beltscale untuk
-                  mendistribusikan secara proporsional ke semua ritase dalam
-                  fleet tersebut. Sistem akan menghitung rasio berdasarkan
-                  net_weight original setiap ritase.
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
         )}
 
         {/* Error Alert */}
@@ -301,7 +301,7 @@ const BeltscaleManagement = () => {
       {/* Form Modal */}
       {showForm && (
         <div className="detail-modal fixed inset-0 bg-black/50 dark:bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 transition-all duration-200">
-          <div className="bg-neutral-50 dark:bg-gray-800 rounded-lg max-w-4xl w-full max-h-[90vh] overflow-auto shadow-2xl dark:shadow-gray-900/50 border border-gray-200 dark:border-gray-700">
+          <div className="bg-neutral-50 dark:bg-gray-800 rounded-lg max-w-4xl w-full max-h-[90vh] overflow-auto scrollbar-thin shadow-2xl dark:shadow-gray-900/50 border border-gray-200 dark:border-gray-700">
             <div className="sticky top-0 bg-neutral-50 dark:bg-gray-800 px-6 py-4 flex items-center justify-between z-10 shadow-sm border-b border-gray-200 dark:border-gray-700">
               <div>
                 <h2 className="text-xl font-bold flex items-center gap-2 text-gray-900 dark:text-white">

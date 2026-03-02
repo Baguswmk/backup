@@ -633,7 +633,7 @@ export const RitaseTable = ({
             ) : (
               <>
                 {/* Table */}
-                <div className="overflow-x-auto">
+                <div className="overflow-x-auto scrollbar-thin">
                   <table className="w-full table-auto">
                     <thead className="bg-gray-50 dark:bg-gray-900  ">
                       <tr>

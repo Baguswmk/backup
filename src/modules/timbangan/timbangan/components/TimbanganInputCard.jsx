@@ -799,7 +799,7 @@ export const TimbanganInputCard = () => {
                     </button>
 
                     {isDebugOpen && (
-                      <div className="h-52 overflow-y-auto bg-gray-950 p-2 font-mono text-[10px] space-y-0.5">
+                      <div className="h-52 overflow-y-auto scrollbar-thin bg-gray-950 p-2 font-mono text-[10px] space-y-0.5">
                         {!scale.debugLogs?.length ? (
                           <p className="text-gray-500 italic">
                             Belum ada log. Hubungkan timbangan / mulai simulasi.
@@ -924,7 +924,7 @@ export const TimbanganInputCard = () => {
                       </div>
                     </div>
 
-                    <div className="h-56 overflow-y-auto bg-gray-950 p-2 font-mono text-[10px] space-y-0.5">
+                    <div className="h-56 overflow-y-auto scrollbar-thin bg-gray-950 p-2 font-mono text-[10px] space-y-0.5">
                       {!rfid.debugLogs?.length ? (
                         <p className="text-gray-500 italic">
                           Belum ada log. Hubungkan RFID reader lalu tempelkan

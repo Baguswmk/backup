@@ -227,7 +227,7 @@ const RitaseDetailModal = ({
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto px-6 py-4 dark:bg-gray-800">
+        <div className="flex-1 overflow-y-auto scrollbar-thin px-6 py-4 dark:bg-gray-800">
           {mode === "delete" ? (
             <>
               <Alert

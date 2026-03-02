@@ -256,7 +256,7 @@ export const Sidebar = ({
         className={cn(
           "fixed left-0 top-16 h-[calc(100vh-4rem)] w-96 bg-neutral-50 dark:bg-slate-900 shadow-lg z-50",
           "transform transition-transform duration-300 ease-in-out",
-          "overflow-y-auto",
+          "overflow-y-auto scrollbar-thin",
           isSidebarOpen ? "translate-x-0" : "-translate-x-full",
         )}
         role="navigation"

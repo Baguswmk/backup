@@ -147,7 +147,7 @@ const LocationBreakdownChart = ({ data, isLoading }) => {
 
         {/* Legend Table */}
         <div className="w-full lg:w-1/2 mt-4 lg:mt-0">
-          <div className="max-h-80 overflow-y-auto">
+          <div className="max-h-80 overflow-y-auto scrollbar-thin">
             <table className="w-full text-sm">
               <thead className="bg-gray-50 sticky top-0">
                 <tr>

@@ -220,7 +220,7 @@ const FleetTableCollapsible = ({
                         Dump Truck Pool ({dtList.length})
                       </p>
                     </div>
-                    <div className="max-h-64 overflow-y-auto">
+                    <div className="max-h-64 overflow-y-auto scrollbar-thin">
                       {dtList.map((dt, i) => (
                         <div
                           key={dt.id}
@@ -335,7 +335,7 @@ const FleetTableCollapsible = ({
 
           {/* Collapsible Content */}
           <CollapsibleContent>
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto scrollbar-thin">
               <table className="w-full table-auto">
                 <thead className="bg-gray-200 dark:bg-gray-900 dark:border-gray-700">
                   <tr>

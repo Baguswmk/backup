@@ -2,12 +2,7 @@ import React, { useState, useMemo, useEffect } from "react";
 import { Card, CardContent } from "@/shared/components/ui/card";
 import { Button } from "@/shared/components/ui/button";
 import { Badge } from "@/shared/components/ui/badge";
-import {
-  Clock,
-  MapPin,
-  Weight,
-  AlertTriangle,
-} from "lucide-react";
+import { Clock, MapPin, Weight, AlertTriangle } from "lucide-react";
 import ModalHeader from "@/shared/components/ModalHeader";
 import KendalaModal from "./KendalaModal";
 import KendalaTable from "./KendalaTable";
@@ -55,10 +50,10 @@ const HourDetailModal = ({ isOpen, data, hour, onClose }) => {
     try {
       // Get date from first ritase or use current date
       const firstRitase = data.ritases?.[0];
-      const ritaseDate = firstRitase?.created_at 
+      const ritaseDate = firstRitase?.created_at
         ? parseMySQLDateTime(firstRitase.created_at)
         : new Date();
-      const dateStr = ritaseDate.toISOString().split('T')[0];
+      const dateStr = ritaseDate.toISOString().split("T")[0];
 
       const result = await hindranceService.getHindranceDetails({
         exca_hull_no: data.unit_exca,
@@ -67,26 +62,26 @@ const HourDetailModal = ({ isOpen, data, hour, onClose }) => {
 
       if (result.success && result.data?.length > 0) {
         // Filter kendala untuk jam ini dan convert hour_data ke hour number
-        const hourKendalaList = result.data.filter(k => {
+        const hourKendalaList = result.data.filter((k) => {
           if (k.hour_data) {
-            const kendalaHour = parseInt(k.hour_data.split(':')[0]);
+            const kendalaHour = parseInt(k.hour_data.split(":")[0]);
             return kendalaHour === hour;
           }
           return false;
         });
 
         // Parse evidence untuk setiap kendala
-        const parsedKendalaList = hourKendalaList.map(k => {
+        const parsedKendalaList = hourKendalaList.map((k) => {
           let photos = [];
           if (k.evidence) {
-            if (typeof k.evidence === 'string') {
+            if (typeof k.evidence === "string") {
               try {
                 photos = JSON.parse(k.evidence);
               } catch (e) {
                 photos = [];
               }
             } else if (Array.isArray(k.evidence)) {
-              photos = k.evidence.map(media => ({
+              photos = k.evidence.map((media) => ({
                 id: media.id,
                 url: media.url,
                 name: media.name,
@@ -140,10 +135,10 @@ const HourDetailModal = ({ isOpen, data, hour, onClose }) => {
       const ritaseCount = ritases.length;
       const targetTonnage = (ritaseCount / totalRitases) * TARGET_PER_HOUR;
       const actualTonnage = ritases.reduce((sum, r) => sum + r.net_weight, 0);
-      
+
       // Filter kendala untuk company ini
-      const companyKendala = kendalaList.filter(k => k.company === company);
-      
+      const companyKendala = kendalaList.filter((k) => k.company === company);
+
       return {
         company,
         ritases,
@@ -164,7 +159,7 @@ const HourDetailModal = ({ isOpen, data, hour, onClose }) => {
   }, [companyData]);
 
   const hasCompaniesWithIssues = useMemo(() => {
-    return companyData.some(cd => cd.isBelowTarget);
+    return companyData.some((cd) => cd.isBelowTarget);
   }, [companyData]);
 
   const totalKendala = useMemo(() => {
@@ -187,7 +182,7 @@ const HourDetailModal = ({ isOpen, data, hour, onClose }) => {
     if (!data?.ritases?.length) return null;
     const firstRitase = data.ritases[0];
     const ritaseDate = parseMySQLDateTime(firstRitase.created_at);
-    return ritaseDate.toISOString().split('T')[0];
+    return ritaseDate.toISOString().split("T")[0];
   }, [data]);
 
   if (!isOpen || !data) return null;
@@ -246,7 +241,7 @@ const HourDetailModal = ({ isOpen, data, hour, onClose }) => {
     setIsDeletingKendala(true);
     try {
       const result = await hindranceService.deleteHindrance(kendalaId);
-      
+
       if (result.success) {
         showToast.success("Kendala berhasil dihapus");
         // Refresh data kendala
@@ -267,40 +262,58 @@ const HourDetailModal = ({ isOpen, data, hour, onClose }) => {
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
         <Card className="w-full max-w-6xl max-h-[90vh] overflow-hidden flex flex-col bg-neutral-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
           <ModalHeader
-            title={`Detail Jam ${hour.toString().padStart(2, '0')}:00 - ${data.unit_exca}`}
+            title={`Detail Jam ${hour.toString().padStart(2, "0")}:00 - ${data.unit_exca}`}
             subtitle={
               <div className="space-y-2 mt-3">
                 <div className="flex flex-wrap gap-4 text-sm">
                   <div className="flex items-center gap-2">
                     <MapPin className="w-4 h-4 text-gray-500 dark:text-gray-400" />
-                    <span className="text-gray-600 dark:text-gray-400">Loading:</span>
-                    <span className="font-medium dark:text-gray-200">{data.loading_location}</span>
+                    <span className="text-gray-600 dark:text-gray-400">
+                      Loading:
+                    </span>
+                    <span className="font-medium dark:text-gray-200">
+                      {data.loading_location}
+                    </span>
                   </div>
                   <div className="flex items-center gap-2">
                     <MapPin className="w-4 h-4 text-gray-500 dark:text-gray-400" />
-                    <span className="text-gray-600 dark:text-gray-400">Dumping:</span>
-                    <span className="font-medium dark:text-gray-200">{data.dumping_location}</span>
+                    <span className="text-gray-600 dark:text-gray-400">
+                      Dumping:
+                    </span>
+                    <span className="font-medium dark:text-gray-200">
+                      {data.dumping_location}
+                    </span>
                   </div>
                   <div className="flex items-center gap-2">
                     <Weight className="w-4 h-4 text-gray-500 dark:text-gray-400" />
-                    <span className="text-gray-600 dark:text-gray-400">Target Jam Ini:</span>
+                    <span className="text-gray-600 dark:text-gray-400">
+                      Target Jam Ini:
+                    </span>
                     <span className="font-bold text-blue-600 dark:text-blue-400">
                       {totalTarget.toFixed(2)} Ton
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
                     <Weight className="w-4 h-4 text-gray-500 dark:text-gray-400" />
-                    <span className="text-gray-600 dark:text-gray-400">Realisasi:</span>
-                    <span className={`font-bold ${totalTonnage < totalTarget ? "text-red-600 dark:text-red-400" : "text-green-600 dark:text-green-400"}`}>
+                    <span className="text-gray-600 dark:text-gray-400">
+                      Realisasi:
+                    </span>
+                    <span
+                      className={`font-bold ${totalTonnage < totalTarget ? "text-red-600 dark:text-red-400" : "text-green-600 dark:text-green-400"}`}
+                    >
                       {totalTonnage.toFixed(2)} Ton
                     </span>
-                 
                   </div>
                   {totalKendala > 0 && (
                     <div className="flex items-center gap-2">
                       <AlertTriangle className="w-4 h-4 text-orange-500 dark:text-orange-400" />
-                      <span className="text-gray-600 dark:text-gray-400">Total Kendala:</span>
-                      <Badge variant="outline" className="bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-200 border-orange-300 dark:border-orange-700">
+                      <span className="text-gray-600 dark:text-gray-400">
+                        Total Kendala:
+                      </span>
+                      <Badge
+                        variant="outline"
+                        className="bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-200 border-orange-300 dark:border-orange-700"
+                      >
                         {totalKendala}
                       </Badge>
                     </div>
@@ -309,7 +322,9 @@ const HourDetailModal = ({ isOpen, data, hour, onClose }) => {
 
                 {data.pic_work_unit && (
                   <div className="flex items-center gap-2 text-sm">
-                    <span className="text-gray-600 dark:text-gray-400">PIC Work Unit:</span>
+                    <span className="text-gray-600 dark:text-gray-400">
+                      PIC Work Unit:
+                    </span>
                     <Badge variant="outline" className="dark:border-gray-600">
                       {data.pic_work_unit}
                     </Badge>
@@ -321,10 +336,13 @@ const HourDetailModal = ({ isOpen, data, hour, onClose }) => {
             onClose={onClose}
           />
 
-          <CardContent className="flex-1 overflow-auto p-4">
+          <CardContent className="flex-1 overflow-auto scrollbar-thin p-4">
             <div className="flex justify-between items-center mb-4">
               <div className="text-sm text-gray-600 dark:text-gray-400">
-                Total {companyData.reduce((sum, cd) => sum + cd.ritases.length, 0)} ritase dari {companyData.length} company pada jam {hour.toString().padStart(2, '0')}:00
+                Total{" "}
+                {companyData.reduce((sum, cd) => sum + cd.ritases.length, 0)}{" "}
+                ritase dari {companyData.length} company pada jam{" "}
+                {hour.toString().padStart(2, "0")}:00
               </div>
 
               <div className="flex gap-2">
@@ -347,8 +365,13 @@ const HourDetailModal = ({ isOpen, data, hour, onClose }) => {
 
             {companyData.length === 0 ? (
               <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-                <p className="text-base font-medium">Tidak ada data ritase pada jam ini</p>
-                <p className="text-sm mt-1">Jam {hour.toString().padStart(2, '0')}:00 - {(hour + 1).toString().padStart(2, '0')}:00</p>
+                <p className="text-base font-medium">
+                  Tidak ada data ritase pada jam ini
+                </p>
+                <p className="text-sm mt-1">
+                  Jam {hour.toString().padStart(2, "0")}:00 -{" "}
+                  {(hour + 1).toString().padStart(2, "0")}:00
+                </p>
               </div>
             ) : (
               <div className="space-y-4">
@@ -377,26 +400,41 @@ const HourDetailModal = ({ isOpen, data, hour, onClose }) => {
                   <div className="flex justify-between items-center">
                     <div>
                       <h3 className="font-bold text-lg text-gray-900 dark:text-gray-100">
-                        Total Keseluruhan Jam {hour.toString().padStart(2, '0')}:00
+                        Total Keseluruhan Jam {hour.toString().padStart(2, "0")}
+                        :00
                       </h3>
                       <p className="text-sm text-gray-600 dark:text-gray-400">
-                        {companyData.length} company • {companyData.reduce((sum, cd) => sum + cd.ritases.length, 0)} ritase
+                        {companyData.length} company •{" "}
+                        {companyData.reduce(
+                          (sum, cd) => sum + cd.ritases.length,
+                          0,
+                        )}{" "}
+                        ritase
                         {totalKendala > 0 && (
-                          <span className="text-orange-600 dark:text-orange-400"> • {totalKendala} kendala</span>
+                          <span className="text-orange-600 dark:text-orange-400">
+                            {" "}
+                            • {totalKendala} kendala
+                          </span>
                         )}
                       </p>
                     </div>
                     <div className="text-right">
                       <div className="flex items-center gap-4">
                         <div>
-                          <div className="text-xs text-gray-500 dark:text-gray-400">Target</div>
+                          <div className="text-xs text-gray-500 dark:text-gray-400">
+                            Target
+                          </div>
                           <div className="font-bold text-lg text-blue-600 dark:text-blue-400">
                             {totalTarget.toFixed(2)} Ton
                           </div>
                         </div>
                         <div>
-                          <div className="text-xs text-gray-500 dark:text-gray-400">Realisasi</div>
-                          <div className={`font-bold text-2xl ${totalTonnage < totalTarget ? "text-red-600 dark:text-red-400" : "text-green-600 dark:text-green-400"}`}>
+                          <div className="text-xs text-gray-500 dark:text-gray-400">
+                            Realisasi
+                          </div>
+                          <div
+                            className={`font-bold text-2xl ${totalTonnage < totalTarget ? "text-red-600 dark:text-red-400" : "text-green-600 dark:text-green-400"}`}
+                          >
                             {totalTonnage.toFixed(2)} Ton
                           </div>
                         </div>
@@ -404,7 +442,8 @@ const HourDetailModal = ({ isOpen, data, hour, onClose }) => {
                       {totalTonnage < totalTarget && (
                         <div className="mt-2">
                           <Badge variants="destructive">
-                            Kurang {(totalTarget - totalTonnage).toFixed(2)} Ton dari target
+                            Kurang {(totalTarget - totalTonnage).toFixed(2)} Ton
+                            dari target
                           </Badge>
                         </div>
                       )}

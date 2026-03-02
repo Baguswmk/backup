@@ -566,7 +566,7 @@ const MasterDataModal = ({
       onKeyDown={handleKeyDown}
     >
       <Card
-        className="w-full sm:max-w-md md:max-w-lg rounded-t-2xl sm:rounded-2xl max-h-[92vh] overflow-y-auto bg-neutral-50   dark:bg-gray-900 border-none"
+        className="w-full sm:max-w-md md:max-w-lg rounded-t-2xl sm:rounded-2xl max-h-[92vh] overflow-y-auto scrollbar-thin bg-neutral-50   dark:bg-gray-900 border-none"
         onClick={(e) => e.stopPropagation()}
       >
         <CardHeader className="sticky top-0 bg-neutral-50 dark:bg-gray-900 z-10 flex flex-row items-center justify-between pb-3 ">

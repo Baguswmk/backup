@@ -645,7 +645,7 @@ const OverviewManagement = () => {
                   </div>
 
                   {tooltipState.data.length > 0 ? (
-                    <div className="max-h-[300px] overflow-y-auto">
+                    <div className="max-h-[300px] overflow-y-auto scrollbar-thin">
                       <ul className="space-y-1">
                         {tooltipState.data.map((item, idx) => (
                           <li
@@ -675,7 +675,13 @@ const OverviewManagement = () => {
               )}
             </div>
             {summaryData.dumptruckBreakdown.length > 0 ? (
-              <div className="space-y-1">
+              <div
+                className={`space-y-1 ${
+                  summaryData.dumptruckBreakdown.length > 5
+                    ? "max-h-[120px] overflow-y-auto scrollbar-thin pr-1 scrollbar-thin"
+                    : ""
+                }`}
+              >
                 {summaryData.dumptruckBreakdown.map((item) => (
                   <div
                     key={item.name}
@@ -744,7 +750,7 @@ const OverviewManagement = () => {
                   </div>
 
                   {tooltipState.data.length > 0 ? (
-                    <div className="max-h-[300px] overflow-y-auto">
+                    <div className="max-h-[300px] overflow-y-auto scrollbar-thin">
                       <ul className="space-y-1">
                         {tooltipState.data.map((item, idx) => (
                           <li
@@ -774,7 +780,13 @@ const OverviewManagement = () => {
               )}
             </div>
             {summaryData.excavatorBreakdown.length > 0 ? (
-              <div className="space-y-1">
+              <div
+                className={`space-y-1 ${
+                  summaryData.excavatorBreakdown.length > 5
+                    ? "max-h-[120px] overflow-y-auto scrollbar-thin pr-1 scrollbar-thin"
+                    : ""
+                }`}
+              >
                 {summaryData.excavatorBreakdown.map((item) => (
                   <div
                     key={item.name}

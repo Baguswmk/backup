@@ -47,7 +47,10 @@ const getHoursByShift = (shift) => {
       return [14, 15, 16, 17, 18, 19, 20, 21];
     case "All":
     default:
-      return [6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 0, 1, 2, 3, 4, 5];
+      return [
+        6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 0,
+        1, 2, 3, 4, 5,
+      ];
   }
 };
 
@@ -160,7 +163,8 @@ const OverviewTable = ({
               variant="secondary"
               className="dark:bg-gray-700 dark:text-gray-200"
             >
-              {shift === "All" ? "Semua Shift" : shift} ({displayHours.length} jam)
+              {shift === "All" ? "Semua Shift" : shift} ({displayHours.length}{" "}
+              jam)
             </Badge>
             <Badge
               variant="secondary"
@@ -187,17 +191,16 @@ const OverviewTable = ({
           filterExpanded={isFilterExpanded}
           onToggleFilter={onToggleFilter}
           extraActions={
-          <WorkUnitFilterBar
-            workUnitOptions={workUnitOptions}
-            selectedWorkUnit={selectedWorkUnit}
-            onWorkUnitChange={onWorkUnitChange}
-            onClearWorkUnitFilter={onClearWorkUnitFilter}
-          />
+            <WorkUnitFilterBar
+              workUnitOptions={workUnitOptions}
+              selectedWorkUnit={selectedWorkUnit}
+              onWorkUnitChange={onWorkUnitChange}
+              onClearWorkUnitFilter={onClearWorkUnitFilter}
+            />
           }
         />
 
         {/* ✅ Work Unit Filter Bar — derive options dari tableData langsung */}
-       
 
         {/* Advanced Filter Panel */}
         {isFilterExpanded && (
@@ -209,7 +212,7 @@ const OverviewTable = ({
           />
         )}
 
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto scrollbar-thin scrollbar-thin">
           <table className="w-full text-sm">
             <thead className="bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
               <tr>
@@ -395,12 +398,18 @@ const OverviewTable = ({
                         row.loading_locations.length > 0 ? (
                           row.loading_locations.map((location, idx) => (
                             <div key={idx} className="flex items-start gap-1.5">
-                              <span className="text-blue-500 dark:text-blue-400 text-xs mt-0.5">•</span>
-                              <span className="text-xs leading-relaxed">{location}</span>
+                              <span className="text-blue-500 dark:text-blue-400 text-xs mt-0.5">
+                                •
+                              </span>
+                              <span className="text-xs leading-relaxed">
+                                {location}
+                              </span>
                             </div>
                           ))
                         ) : (
-                          <span className="text-gray-400 dark:text-gray-500 text-xs">-</span>
+                          <span className="text-gray-400 dark:text-gray-500 text-xs">
+                            -
+                          </span>
                         )}
                       </div>
                     </td>
@@ -410,12 +419,18 @@ const OverviewTable = ({
                         row.dumping_locations.length > 0 ? (
                           row.dumping_locations.map((location, idx) => (
                             <div key={idx} className="flex items-start gap-1.5">
-                              <span className="text-green-500 dark:text-green-400 text-xs mt-0.5">•</span>
-                              <span className="text-xs leading-relaxed">{location}</span>
+                              <span className="text-green-500 dark:text-green-400 text-xs mt-0.5">
+                                •
+                              </span>
+                              <span className="text-xs leading-relaxed">
+                                {location}
+                              </span>
                             </div>
                           ))
                         ) : (
-                          <span className="text-gray-400 dark:text-gray-500 text-xs">-</span>
+                          <span className="text-gray-400 dark:text-gray-500 text-xs">
+                            -
+                          </span>
                         )}
                       </div>
                     </td>

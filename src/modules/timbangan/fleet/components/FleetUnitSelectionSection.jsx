@@ -36,17 +36,15 @@ const FleetUnitSelectionSection = ({
   handleOperatorChange,
   handleUnitToggle,
 }) => {
-  
-
   if (!fleetData.excavator) {
     return null;
   }
 
   // ✅ Hitung jumlah DT di fleet saat edit
-  const currentDTCount = isEdit && editingConfig?.dumpTrucks 
-    ? editingConfig.dumpTrucks.length 
-    : 0;
-  const willBeEmpty = isEdit && selectedUnits.length === 0 && currentDTCount > 0;
+  const currentDTCount =
+    isEdit && editingConfig?.dumpTrucks ? editingConfig.dumpTrucks.length : 0;
+  const willBeEmpty =
+    isEdit && selectedUnits.length === 0 && currentDTCount > 0;
 
   return (
     <InfoCard
@@ -72,9 +70,10 @@ const FleetUnitSelectionSection = ({
           <Alert className="bg-orange-50 dark:bg-orange-900/20 border-orange-200 dark:border-orange-800">
             <AlertCircle className="h-4 w-4 text-orange-600 dark:text-orange-400" />
             <AlertDescription className="text-sm dark:text-orange-300">
-              <strong>⚠️ Perhatian:</strong> Fleet ini akan menjadi kosong (0 dump truck). 
-              Fleet kosong adalah valid, tapi pastikan ini memang yang Anda inginkan. 
-              Saat ini fleet memiliki {currentDTCount} dump truck.
+              <strong>⚠️ Perhatian:</strong> Fleet ini akan menjadi kosong (0
+              dump truck). Fleet kosong adalah valid, tapi pastikan ini memang
+              yang Anda inginkan. Saat ini fleet memiliki {currentDTCount} dump
+              truck.
             </AlertDescription>
           </Alert>
         )}
@@ -120,7 +119,7 @@ const FleetUnitSelectionSection = ({
             karena logic split sudah dipindah ke FleetSplitSettingsSection */}
 
         {!isLoadingFilteredUnits && filteredUnits.length > 0 && (
-          <div className="rounded-lg max-h-96 overflow-y-auto">
+          <div className="rounded-lg max-h-96 overflow-y-auto scrollbar-thin">
             {selectedUnitsList.length > 0 && (
               <div className="mb-4">
                 <div className="flex items-center gap-2 px-3 py-2 bg-blue-100 dark:bg-blue-900/30 rounded-t-lg border-b-2 border-blue-300 dark:border-blue-700">
@@ -132,7 +131,7 @@ const FleetUnitSelectionSection = ({
                 {selectedUnitsList.map((unit) => {
                   const isSelected = true;
                   const hasOperatorError = errors[`operator_${unit.id}`];
-                  
+
                   const dtStatus = getDumptruckStatus(
                     unit.id,
                     selectedUnits,
@@ -204,7 +203,7 @@ const FleetUnitSelectionSection = ({
                               )}
                             </div>
                             <p className="text-xs text-gray-500 dark:text-gray-400">
-                              {unit.company} 
+                              {unit.company}
                             </p>
                           </div>
 
@@ -241,20 +240,20 @@ const FleetUnitSelectionSection = ({
                                 error={!!hasOperatorError}
                               />
 
-                        {getAvailableOperatorCount(unit.id) > 0 &&
-  !unitOperators[unit.id] && (
-    <p className="text-xs text-blue-600 dark:text-blue-400">
-      {getAvailableOperatorCount(unit.id)} operator
-      tersedia
-    </p>
-  )}
+                              {getAvailableOperatorCount(unit.id) > 0 &&
+                                !unitOperators[unit.id] && (
+                                  <p className="text-xs text-blue-600 dark:text-blue-400">
+                                    {getAvailableOperatorCount(unit.id)}{" "}
+                                    operator tersedia
+                                  </p>
+                                )}
 
-  {getAvailableOperatorCount(unit.id) === 0 &&
-  !unitOperators[unit.id] && (
-    <p className="text-xs text-orange-600 dark:text-orange-400">
-      ⚠️ Semua operator sudah dipilih di DT lain
-    </p>
-  )}
+                              {getAvailableOperatorCount(unit.id) === 0 &&
+                                !unitOperators[unit.id] && (
+                                  <p className="text-xs text-orange-600 dark:text-orange-400">
+                                    ⚠️ Semua operator sudah dipilih di DT lain
+                                  </p>
+                                )}
 
                               {hasOperatorError && (
                                 <p className="text-xs text-red-500 dark:text-red-400">
@@ -389,8 +388,8 @@ const FleetUnitSelectionSection = ({
                               {getAvailableOperatorCount(unit.id) > 0 &&
                                 !unitOperators[unit.id] && (
                                   <p className="text-xs text-blue-600 dark:text-blue-400">
-                                    {getAvailableOperatorCount(unit.id)} operator
-                                    tersedia
+                                    {getAvailableOperatorCount(unit.id)}{" "}
+                                    operator tersedia
                                   </p>
                                 )}
 

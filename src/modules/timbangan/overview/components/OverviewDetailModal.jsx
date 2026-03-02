@@ -1,7 +1,14 @@
-import React from "react"
+import React from "react";
 import { Card, CardContent } from "@/shared/components/ui/card";
 import { Badge } from "@/shared/components/ui/badge";
-import { MapPin, Weight, Clock, Briefcase, AlertTriangle, Image as ImageIcon } from "lucide-react";
+import {
+  MapPin,
+  Weight,
+  Clock,
+  Briefcase,
+  AlertTriangle,
+  Image as ImageIcon,
+} from "lucide-react";
 import ModalHeader from "@/shared/components/ModalHeader";
 
 const parseMySQLDateTime = (dateString) => {
@@ -14,9 +21,9 @@ const parseMySQLDateTime = (dateString) => {
 
 const formatLocations = (locations) => {
   if (Array.isArray(locations)) {
-    return locations.join(',');
+    return locations.join(",");
   }
-  return locations || '-';
+  return locations || "-";
 };
 
 const OverviewDetailModal = ({ isOpen, data, onClose }) => {
@@ -108,12 +115,12 @@ const OverviewDetailModal = ({ isOpen, data, onClose }) => {
         />
 
         {/* Content */}
-        <CardContent className="flex-1 overflow-auto p-4">
+        <CardContent className="flex-1 overflow-auto scrollbar-thin p-4">
           <div className="mb-3 text-sm text-gray-600 dark:text-gray-400">
             Total {data.ritases.length} ritase ditemukan
           </div>
 
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto scrollbar-thin">
             <table className="w-full text-sm">
               <thead className="bg-gray-50 dark:bg-gray-800 sticky top-0">
                 <tr>
@@ -130,7 +137,9 @@ const OverviewDetailModal = ({ isOpen, data, onClose }) => {
                     Berat (Ton)
                   </th>
                   <th className="px-3 py-2 text-center font-semibold">Shift</th>
-                  <th className="px-3 py-2 text-center font-semibold">Kendala</th>
+                  <th className="px-3 py-2 text-center font-semibold">
+                    Kendala
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
@@ -143,8 +152,9 @@ const OverviewDetailModal = ({ isOpen, data, onClose }) => {
                       month: "short",
                       year: "numeric",
                     });
-                  
-                  const hasKendala = ritase.kendala && ritase.kendala.trim().length > 0;
+
+                  const hasKendala =
+                    ritase.kendala && ritase.kendala.trim().length > 0;
                   const hasPhotos = ritase.photos && ritase.photos.length > 0;
 
                   return (
@@ -185,7 +195,9 @@ const OverviewDetailModal = ({ isOpen, data, onClose }) => {
                         <td className="px-3 py-2 text-center">
                           <Badge
                             variant={
-                              ritase.shift.includes("1") ? "default" : "secondary"
+                              ritase.shift.includes("1")
+                                ? "default"
+                                : "secondary"
                             }
                             className={
                               ritase.shift.includes("1")
@@ -205,11 +217,13 @@ const OverviewDetailModal = ({ isOpen, data, onClose }) => {
                               )}
                             </div>
                           ) : (
-                            <span className="text-gray-400 dark:text-gray-600">-</span>
+                            <span className="text-gray-400 dark:text-gray-600">
+                              -
+                            </span>
                           )}
                         </td>
                       </tr>
-                      
+
                       {/* Kendala Row - Expandable */}
                       {hasKendala && (
                         <tr className="bg-amber-50/50 dark:bg-amber-900/10">
@@ -222,18 +236,19 @@ const OverviewDetailModal = ({ isOpen, data, onClose }) => {
                                     Kendala:
                                   </span>
                                   {ritase.kategori && (
-                                    <Badge 
-                                      variant="outline" 
+                                    <Badge
+                                      variant="outline"
                                       className="text-xs border-amber-600 dark:border-amber-500 text-amber-700 dark:text-amber-400"
                                     >
-                                      {ritase.kategori.charAt(0).toUpperCase() + ritase.kategori.slice(1)}
+                                      {ritase.kategori.charAt(0).toUpperCase() +
+                                        ritase.kategori.slice(1)}
                                     </Badge>
                                   )}
                                 </div>
                                 <p className="text-sm text-gray-700 dark:text-gray-300 mb-2 whitespace-pre-wrap">
                                   {ritase.kendala}
                                 </p>
-                                
+
                                 {/* Foto Pendukung */}
                                 {hasPhotos && (
                                   <div className="mt-3">
@@ -248,7 +263,12 @@ const OverviewDetailModal = ({ isOpen, data, onClose }) => {
                                         <div
                                           key={photoIdx}
                                           className="relative w-20 h-20 rounded-md overflow-hidden border border-gray-300 dark:border-gray-600 group cursor-pointer hover:opacity-90 transition-opacity"
-                                          onClick={() => window.open(photo.url || photo, '_blank')}
+                                          onClick={() =>
+                                            window.open(
+                                              photo.url || photo,
+                                              "_blank",
+                                            )
+                                          }
                                         >
                                           <img
                                             src={photo.url || photo}

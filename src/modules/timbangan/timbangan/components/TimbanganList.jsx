@@ -971,7 +971,7 @@ export const TimbanganList = () => {
           </div>
 
           {/* Desktop View - Table */}
-          <div className="hidden md:block overflow-x-auto">
+          <div className="hidden md:block overflow-x-auto scrollbar-thin">
             <Table>
               <TableHeader>
                 <TableRow className="bg-gray-50 dark:bg-gray-800/50 hover:bg-gray-50 dark:hover:bg-gray-800/50">

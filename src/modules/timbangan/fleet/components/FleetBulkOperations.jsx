@@ -138,7 +138,7 @@ const FleetBulkOperations = ({
             <p className="text-sm font-medium mb-2 dark:text-gray-200">
               Fleet yang akan dihapus:
             </p>
-            <div className="max-h-60 overflow-y-auto space-y-1 border dark:border-gray-700 rounded p-2">
+            <div className="max-h-60 overflow-y-auto scrollbar-thin space-y-1 border dark:border-gray-700 rounded p-2">
               {selectedFleets.slice(0, 15).map((fleet) => (
                 <div
                   key={fleet.id}

@@ -294,7 +294,7 @@ export const Header = ({
       {/* Mobile Navigation */}
       {isMobileMenuOpen && (
         <div
-          className="lg:hidden bg-neutral-50 dark:bg-slate-900 transition-colors duration-200 max-h-[calc(100vh-4rem)] overflow-y-auto"
+          className="lg:hidden bg-neutral-50 dark:bg-slate-900 transition-colors duration-200 max-h-[calc(100vh-4rem)] overflow-y-auto scrollbar-thin"
           role="navigation"
           aria-label="Mobile navigation"
         >

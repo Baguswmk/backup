@@ -90,7 +90,7 @@ const MultiSearchableSelect = ({
         className="border-none w-[--radix-popover-trigger-width] p-0 dark:bg-gray-800 dark:border-gray-700 z-[60]"
         align="start"
       >
-        <Command 
+        <Command
           loop
           shouldFilter
           className="bg-neutral-50 dark:bg-gray-800 dark:text-gray-200"
@@ -103,9 +103,9 @@ const MultiSearchableSelect = ({
           <CommandEmpty className="dark:text-gray-400">
             {emptyText}
           </CommandEmpty>
-          <CommandGroup 
-            ref={commandListRef} 
-            className="max-h-64 overflow-auto"
+          <CommandGroup
+            ref={commandListRef}
+            className="max-h-64 overflow-auto scrollbar-thin"
           >
             {items.map((item) => {
               const isSelected = values.includes(String(item.value));
@@ -126,7 +126,7 @@ const MultiSearchableSelect = ({
                     // Hover state (mouse)
                     "hover:bg-gray-200 dark:hover:bg-gray-700",
                     // Selected items background
-                    isSelected && "bg-green-50 dark:bg-green-900/20"
+                    isSelected && "bg-green-50 dark:bg-green-900/20",
                   )}
                 >
                   <div className="flex items-center gap-2 w-full">
@@ -135,7 +135,7 @@ const MultiSearchableSelect = ({
                         "h-4 w-4 transition-all",
                         isSelected
                           ? "opacity-100 text-green-600 dark:text-green-400"
-                          : "opacity-0"
+                          : "opacity-0",
                       )}
                     />
                     <div className="flex-1 min-w-0">

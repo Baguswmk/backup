@@ -652,7 +652,7 @@ const MasterDataManagement = () => {
           </Alert>
         )}
 
-        <div className="flex flex-col sm:flex-row gap-2 overflow-x-auto pb-1 -mx-3 px-3 sm:mx-0 sm:px-0 snap-x">
+        <div className="flex flex-col sm:flex-row gap-2 overflow-x-auto scrollbar-thin pb-1 -mx-3 px-3 sm:mx-0 sm:px-0 snap-x">
           {allowedCategories.map((cat) => {
             const CatIcon = cat.icon;
             const active = activeCategory === cat.id;

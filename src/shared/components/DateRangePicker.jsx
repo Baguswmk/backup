@@ -169,7 +169,7 @@ export const DateRangePicker = ({
           side="bottom"
           sideOffset={4}
         >
-          <div className="max-h-[min(85vh,600px)] overflow-y-auto overflow-x-hidden">
+          <div className="max-h-[min(85vh,600px)] overflow-y-auto scrollbar-thin overflow-x-hidden">
             <div className="p-3 sticky top-0 bg-neutral-50 dark:bg-gray-800 dark:border-gray-700 z-10">
               <p className="text-sm font-medium dark:text-gray-200">
                 Filter Tanggal & Shift

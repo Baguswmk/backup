@@ -58,7 +58,7 @@ const Pagination = ({
           <ChevronLeft className="w-3 h-3" />
         </Button>
 
-        <div className="flex items-center gap-1 flex-1 justify-center overflow-x-auto scrollbar-hide">
+        <div className="flex items-center gap-1 flex-1 justify-center overflow-x-auto scrollbar-thin scrollbar-hide">
           {pages.map((page, idx) => (
             <Button
               key={idx}

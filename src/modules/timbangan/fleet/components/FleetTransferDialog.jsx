@@ -3,14 +3,7 @@ import { Button } from "@/shared/components/ui/button";
 import { Label } from "@/shared/components/ui/label";
 import { Checkbox } from "@/shared/components/ui/checkbox";
 import { Alert, AlertDescription } from "@/shared/components/ui/alert";
-import {
-  ArrowRight,
-  Truck,
-  AlertCircle,
-  Info,
-  Loader2,
-  X,
-} from "lucide-react";
+import { ArrowRight, Truck, AlertCircle, Info, Loader2, X } from "lucide-react";
 import SearchableSelect from "@/shared/components/SearchableSelect";
 import ModalHeader from "@/shared/components/ModalHeader";
 
@@ -64,7 +57,7 @@ const FleetTransferDialog = ({
         (f) =>
           String(f.id) !== String(targetFleetId) &&
           f.dumpTrucks &&
-          f.dumpTrucks.length > 0
+          f.dumpTrucks.length > 0,
       )
       .map((f) => ({
         value: String(f.id),
@@ -115,7 +108,7 @@ const FleetTransferDialog = ({
         setSelectedDTs([]);
       }
     },
-    [sourceDTs]
+    [sourceDTs],
   );
 
   const handleReset = useCallback(() => {
@@ -155,7 +148,7 @@ const FleetTransferDialog = ({
           onClose={onClose}
         />
 
-        <div className="p-6 space-y-6 overflow-y-auto flex-1">
+        <div className="p-6 space-y-6 overflow-y-auto scrollbar-thin flex-1">
           {/* Fleet Selection */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Source Fleet */}
@@ -190,17 +183,19 @@ const FleetTransferDialog = ({
           </div>
 
           {/* Warning jika fleet sama */}
-          {sourceFleetId && targetFleetId && sourceFleetId === targetFleetId && (
-            <Alert
-              variant="destructive"
-              className="dark:bg-red-900/20 dark:border-red-800"
-            >
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription>
-                Fleet sumber dan tujuan tidak boleh sama!
-              </AlertDescription>
-            </Alert>
-          )}
+          {sourceFleetId &&
+            targetFleetId &&
+            sourceFleetId === targetFleetId && (
+              <Alert
+                variant="destructive"
+                className="dark:bg-red-900/20 dark:border-red-800"
+              >
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>
+                  Fleet sumber dan tujuan tidak boleh sama!
+                </AlertDescription>
+              </Alert>
+            )}
 
           {/* DT Selection */}
           {sourceFleetId && sourceDTs.length > 0 && (
@@ -221,7 +216,7 @@ const FleetTransferDialog = ({
                 </div>
               </div>
 
-              <div className="border dark:border-gray-700 rounded-lg max-h-60 overflow-y-auto">
+              <div className="border dark:border-gray-700 rounded-lg max-h-60 overflow-y-auto scrollbar-thin">
                 {sourceDTs.map((dt) => {
                   const isSelected = selectedDTs.includes(dt.id);
                   return (

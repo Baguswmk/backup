@@ -2,7 +2,14 @@ import React, { useState, useCallback, useEffect, useMemo } from "react";
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
 import { Label } from "@/shared/components/ui/label";
-import { Settings, Truck, Loader2, AlertCircle, Calendar, UserCheck } from "lucide-react";
+import {
+  Settings,
+  Truck,
+  Loader2,
+  AlertCircle,
+  Calendar,
+  UserCheck,
+} from "lucide-react";
 import { Alert, AlertDescription } from "@/shared/components/ui/alert";
 import { showToast } from "@/shared/utils/toast";
 import { useFleet } from "@/modules/timbangan/fleet/hooks/useFleet";
@@ -32,25 +39,25 @@ const AggregatedInputModal = ({
 }) => {
   const { user } = useAuthStore();
   const { masters, mastersLoading } = useFleet(user ? { user } : null, null);
-const [ritaseData, setRitaseData] = useState({
-  fleetConfigId: "",
-  excavator: "",
-  loadingLocation: "",
-  dumpingLocation: "",
-  coalType: "",
-  workUnit: "",
-  measurementType: "",
-  dumpTruck: "",
-  operator: "",
-  checker: "",      
-  inspector: "",    
-  date: new Date().toISOString().split("T")[0],
-  shift: "",
-  weight: "",
-  grossWeight: "",
-  distance: 0,
-  createdTime: new Date().toTimeString().slice(0, 5), // Format: HH:mm
-});
+  const [ritaseData, setRitaseData] = useState({
+    fleetConfigId: "",
+    excavator: "",
+    loadingLocation: "",
+    dumpingLocation: "",
+    coalType: "",
+    workUnit: "",
+    measurementType: "",
+    dumpTruck: "",
+    operator: "",
+    checker: "",
+    inspector: "",
+    date: new Date().toISOString().split("T")[0],
+    shift: "",
+    weight: "",
+    grossWeight: "",
+    distance: 0,
+    createdTime: new Date().toTimeString().slice(0, 5), // Format: HH:mm
+  });
 
   const [errors, setErrors] = useState({});
   const [isSaving, setIsSaving] = useState(false);
@@ -68,51 +75,51 @@ const [ritaseData, setRitaseData] = useState({
   }, [isOpen]);
 
   // Initialize form with fleet config if provided
-useEffect(() => {
-  if (isOpen && selectedFleetConfig) {
-    setRitaseData({
-      fleetConfigId: selectedFleetConfig.id,
-      excavator: selectedFleetConfig.excavatorId || "",
-      loadingLocation: selectedFleetConfig.loadingLocationId || "",
-      dumpingLocation: selectedFleetConfig.dumpingLocationId || "",
-      coalType: selectedFleetConfig.coalTypeId || "",
-      workUnit: selectedFleetConfig.workUnitId || "",
-      measurementType: selectedFleetConfig.measurementType || "",
-      checker: selectedFleetConfig.checkerId || "",
-      inspector: selectedFleetConfig.inspectorId || "",
-      distance: selectedFleetConfig.distance || 0,
-      dumpTruck: "",
-      operator: "",
-      date: new Date().toISOString().split("T")[0],
-      shift: "",
-      weight: "",
-      grossWeight: "",
-      createdTime: new Date().toTimeString().slice(0, 5),
-    });
-  } else if (isOpen) {
-    // Reset form
-    setRitaseData({
-      fleetConfigId: "",
-      excavator: "",
-      loadingLocation: "",
-      dumpingLocation: "",
-      coalType: "",
-      workUnit: "",
-      measurementType: "",
-      checker: "",
-      inspector: "",
-      distance: 0,
-      dumpTruck: "",
-      operator: "",
-      date: new Date().toISOString().split("T")[0],
-      shift: "",
-      weight: "",
-      grossWeight: "",
-      createdTime: new Date().toTimeString().slice(0, 5),
-    });
-  }
-  setErrors({});
-}, [isOpen, selectedFleetConfig]);
+  useEffect(() => {
+    if (isOpen && selectedFleetConfig) {
+      setRitaseData({
+        fleetConfigId: selectedFleetConfig.id,
+        excavator: selectedFleetConfig.excavatorId || "",
+        loadingLocation: selectedFleetConfig.loadingLocationId || "",
+        dumpingLocation: selectedFleetConfig.dumpingLocationId || "",
+        coalType: selectedFleetConfig.coalTypeId || "",
+        workUnit: selectedFleetConfig.workUnitId || "",
+        measurementType: selectedFleetConfig.measurementType || "",
+        checker: selectedFleetConfig.checkerId || "",
+        inspector: selectedFleetConfig.inspectorId || "",
+        distance: selectedFleetConfig.distance || 0,
+        dumpTruck: "",
+        operator: "",
+        date: new Date().toISOString().split("T")[0],
+        shift: "",
+        weight: "",
+        grossWeight: "",
+        createdTime: new Date().toTimeString().slice(0, 5),
+      });
+    } else if (isOpen) {
+      // Reset form
+      setRitaseData({
+        fleetConfigId: "",
+        excavator: "",
+        loadingLocation: "",
+        dumpingLocation: "",
+        coalType: "",
+        workUnit: "",
+        measurementType: "",
+        checker: "",
+        inspector: "",
+        distance: 0,
+        dumpTruck: "",
+        operator: "",
+        date: new Date().toISOString().split("T")[0],
+        shift: "",
+        weight: "",
+        grossWeight: "",
+        createdTime: new Date().toTimeString().slice(0, 5),
+      });
+    }
+    setErrors({});
+  }, [isOpen, selectedFleetConfig]);
   // Handle weight input with format validation
   const handleWeightChange = useCallback(
     (value) => {
@@ -159,183 +166,184 @@ useEffect(() => {
   );
 
   // Handle gross weight input for Bypass
-  const handleGrossWeightChange = useCallback(
-    (value) => {
-      // Replace comma with dot for decimal separator
-      let formattedValue = value.replace(/,/g, ".");
+  const handleGrossWeightChange = useCallback((value) => {
+    // Replace comma with dot for decimal separator
+    let formattedValue = value.replace(/,/g, ".");
 
-      const grossWeightRegex = /^\d{0,3}(\.\d{0,2})?$/;
+    const grossWeightRegex = /^\d{0,3}(\.\d{0,2})?$/;
 
-      let isValid = false;
-      if (formattedValue === "") {
-        isValid = true;
+    let isValid = false;
+    if (formattedValue === "") {
+      isValid = true;
+    } else {
+      isValid = grossWeightRegex.test(formattedValue);
+      const numValue = parseFloat(formattedValue);
+      if (!isNaN(numValue) && numValue > 199.99) {
+        isValid = false;
+      }
+    }
+
+    if (isValid) {
+      setRitaseData((p) => ({ ...p, grossWeight: formattedValue }));
+      setErrors((prev) => ({ ...prev, grossWeight: null }));
+    }
+  }, []);
+
+  const validate = useCallback(() => {
+    const e = {};
+
+    // Basic validations
+    if (!ritaseData.excavator) e.excavator = "Pilih excavator";
+    if (!ritaseData.loadingLocation) e.loadingLocation = "Pilih lokasi loading";
+    if (!ritaseData.dumpingLocation) e.dumpingLocation = "Pilih lokasi dumping";
+    if (!ritaseData.coalType) e.coalType = "Pilih coal type";
+    if (!ritaseData.workUnit) e.workUnit = "Pilih work unit";
+    if (!ritaseData.measurementType)
+      e.measurementType = "Pilih measurement type";
+    if (!ritaseData.dumpTruck) e.dumpTruck = "Pilih dump truck";
+    if (!ritaseData.operator) e.operator = "Pilih operator";
+    if (!ritaseData.date) e.date = "Pilih tanggal";
+    if (!ritaseData.shift) e.shift = "Pilih shift";
+
+    // ✅ Validasi Checker & Inspector (warning, bukan error)
+    if (!ritaseData.checker) {
+      e.checker = "Pilih checker";
+    }
+
+    if (!ritaseData.inspector) {
+      e.inspector = "Pilih inspector";
+    }
+
+    // Weight validation based on measurement type
+    const measurementType = ritaseData.measurementType;
+    const hasWeighBridge = user?.weigh_bridge != null;
+
+    const isGrossWeight = measurementType === "Timbangan" && hasWeighBridge;
+    const isNetWeight =
+      (measurementType === "Timbangan" && !hasWeighBridge) ||
+      measurementType === "Bypass";
+
+    // For Bypass, validate gross_weight
+    if (measurementType === "Bypass") {
+      if (!ritaseData.grossWeight || ritaseData.grossWeight.trim() === "") {
+        e.grossWeight = "Masukkan gross weight";
       } else {
-        isValid = grossWeightRegex.test(formattedValue);
-        const numValue = parseFloat(formattedValue);
-        if (!isNaN(numValue) && numValue > 199.99) {
-          isValid = false;
+        const grossWeight = parseFloat(ritaseData.grossWeight);
+
+        if (isNaN(grossWeight) || grossWeight <= 0) {
+          e.grossWeight = "Gross weight harus lebih dari 0";
+        } else {
+          const grossWeightRegex = /^\d{0,3}(\.\d{0,2})?$/;
+          if (
+            !grossWeightRegex.test(ritaseData.grossWeight) ||
+            grossWeight > 199.99
+          ) {
+            e.grossWeight = "Gross weight maksimal 199.99 ton";
+          }
         }
       }
-
-      if (isValid) {
-        setRitaseData((p) => ({ ...p, grossWeight: formattedValue }));
-        setErrors((prev) => ({ ...prev, grossWeight: null }));
-      }
-    },
-    [],
-  );
-
-const validate = useCallback(() => {
-  const e = {};
-
-  // Basic validations
-  if (!ritaseData.excavator) e.excavator = "Pilih excavator";
-  if (!ritaseData.loadingLocation) e.loadingLocation = "Pilih lokasi loading";
-  if (!ritaseData.dumpingLocation) e.dumpingLocation = "Pilih lokasi dumping";
-  if (!ritaseData.coalType) e.coalType = "Pilih coal type";
-  if (!ritaseData.workUnit) e.workUnit = "Pilih work unit";
-  if (!ritaseData.measurementType) e.measurementType = "Pilih measurement type";
-  if (!ritaseData.dumpTruck) e.dumpTruck = "Pilih dump truck";
-  if (!ritaseData.operator) e.operator = "Pilih operator";
-  if (!ritaseData.date) e.date = "Pilih tanggal";
-  if (!ritaseData.shift) e.shift = "Pilih shift";
-
-  // ✅ Validasi Checker & Inspector (warning, bukan error)
-  if (!ritaseData.checker) {
-    e.checker = "Pilih checker";
-  }
-  
-  if (!ritaseData.inspector) {
-    e.inspector = "Pilih inspector";
-  }
-
-  // Weight validation based on measurement type
-  const measurementType = ritaseData.measurementType;
-  const hasWeighBridge = user?.weigh_bridge != null;
-  
-  const isGrossWeight = measurementType === "Timbangan" && hasWeighBridge;
-  const isNetWeight = 
-    (measurementType === "Timbangan" && !hasWeighBridge) ||
-    measurementType === "Bypass";
-
-  // For Bypass, validate gross_weight
-  if (measurementType === "Bypass") {
-    if (!ritaseData.grossWeight || ritaseData.grossWeight.trim() === "") {
-      e.grossWeight = "Masukkan gross weight";
-    } else {
-      const grossWeight = parseFloat(ritaseData.grossWeight);
-      
-      if (isNaN(grossWeight) || grossWeight <= 0) {
-        e.grossWeight = "Gross weight harus lebih dari 0";
+    } else if (measurementType !== "Bypass") {
+      // For non-Bypass, validate weight
+      if (!ritaseData.weight || ritaseData.weight.trim() === "") {
+        e.weight = "Masukkan berat";
       } else {
-        const grossWeightRegex = /^\d{0,3}(\.\d{0,2})?$/;
-        if (!grossWeightRegex.test(ritaseData.grossWeight) || grossWeight > 199.99) {
-          e.grossWeight = "Gross weight maksimal 199.99 ton";
+        const weight = parseFloat(ritaseData.weight);
+
+        if (isNaN(weight) || weight <= 0) {
+          e.weight = "Berat harus lebih dari 0";
+        } else if (isGrossWeight) {
+          // Gross weight validation (max 199.99 ton, 3 digits)
+          const grossWeightRegex = /^\d{0,3}(\.\d{0,2})?$/;
+          if (!grossWeightRegex.test(ritaseData.weight) || weight > 199.99) {
+            e.weight = "Berat maksimal 199.99 ton";
+          }
+        } else if (isNetWeight) {
+          // Net weight validation (max 99.99 ton, 2 digits)
+          const netWeightRegex = /^\d{0,2}(\.\d{0,2})?$/;
+          if (!netWeightRegex.test(ritaseData.weight) || weight > 99.99) {
+            e.weight = "Berat maksimal 99.99 ton";
+          }
         }
       }
     }
-  } else if (measurementType !== "Bypass") {
-    // For non-Bypass, validate weight
-    if (!ritaseData.weight || ritaseData.weight.trim() === "") {
-      e.weight = "Masukkan berat";
-    } else {
-      const weight = parseFloat(ritaseData.weight);
-      
-      if (isNaN(weight) || weight <= 0) {
-        e.weight = "Berat harus lebih dari 0";
-      } else if (isGrossWeight) {
-        // Gross weight validation (max 199.99 ton, 3 digits)
-        const grossWeightRegex = /^\d{0,3}(\.\d{0,2})?$/;
-        if (!grossWeightRegex.test(ritaseData.weight) || weight > 199.99) {
-          e.weight = "Berat maksimal 199.99 ton";
+
+    setErrors(e);
+    return Object.keys(e).length === 0;
+  }, [ritaseData, user]);
+
+  const handleSave = useCallback(async () => {
+    if (!validate()) {
+      showToast.error("Mohon lengkapi semua field yang wajib diisi");
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      // ✅ PERBAIKAN: Gunakan nama field yang sesuai dengan backend API
+      const payload = {
+        date: ritaseData.date,
+        shift: ritaseData.shift,
+
+        // Backend expects these field names:
+        unit_exca: parseInt(ritaseData.excavator),
+        loading_location: parseInt(ritaseData.loadingLocation),
+        dumping_location: parseInt(ritaseData.dumpingLocation),
+        coal_type: parseInt(ritaseData.coalType),
+        pic_work_unit: parseInt(ritaseData.workUnit), // Backend mungkin expect 'pic_work_unit'
+        unit_dump_truck: parseInt(ritaseData.dumpTruck),
+        operator: parseInt(ritaseData.operator),
+
+        measurement_type: ritaseData.measurementType,
+        distance: parseFloat(ritaseData.distance) || 0,
+
+        // Gabungkan date + time untuk created_at
+        created_at: `${ritaseData.date}T${ritaseData.createdTime}:00`,
+      };
+
+      // ✅ CRITICAL FIX: Checker & Inspector dengan validasi proper
+      if (ritaseData.checker && ritaseData.checker !== "") {
+        const checkerId = parseInt(ritaseData.checker);
+        if (!isNaN(checkerId)) {
+          payload.checker = checkerId;
         }
-      } else if (isNetWeight) {
-        // Net weight validation (max 99.99 ton, 2 digits)
-        const netWeightRegex = /^\d{0,2}(\.\d{0,2})?$/;
-        if (!netWeightRegex.test(ritaseData.weight) || weight > 99.99) {
-          e.weight = "Berat maksimal 99.99 ton";
+      }
+
+      if (ritaseData.inspector && ritaseData.inspector !== "") {
+        const inspectorId = parseInt(ritaseData.inspector);
+        if (!isNaN(inspectorId)) {
+          payload.inspector = inspectorId;
         }
       }
-    }
-  }
 
-  setErrors(e);
-  return Object.keys(e).length === 0;
-}, [ritaseData, user]);
-
-const handleSave = useCallback(async () => {
-  if (!validate()) {
-    showToast.error("Mohon lengkapi semua field yang wajib diisi");
-    return;
-  }
-
-  setIsSaving(true);
-  try {
-    // ✅ PERBAIKAN: Gunakan nama field yang sesuai dengan backend API
-    const payload = {
-      date: ritaseData.date,
-      shift: ritaseData.shift,
-      
-      // Backend expects these field names:
-      unit_exca: parseInt(ritaseData.excavator),
-      loading_location: parseInt(ritaseData.loadingLocation),
-      dumping_location: parseInt(ritaseData.dumpingLocation),
-      coal_type: parseInt(ritaseData.coalType),
-      pic_work_unit: parseInt(ritaseData.workUnit), // Backend mungkin expect 'pic_work_unit'
-      unit_dump_truck: parseInt(ritaseData.dumpTruck),
-      operator: parseInt(ritaseData.operator),
-      
-      measurement_type: ritaseData.measurementType,
-      distance: parseFloat(ritaseData.distance) || 0,
-      
-      // Gabungkan date + time untuk created_at
-      created_at: `${ritaseData.date}T${ritaseData.createdTime}:00`,
-    };
-
-    // ✅ CRITICAL FIX: Checker & Inspector dengan validasi proper
-    if (ritaseData.checker && ritaseData.checker !== "") {
-      const checkerId = parseInt(ritaseData.checker);
-      if (!isNaN(checkerId)) {
-        payload.checker = checkerId;
-      }
-    }
-    
-    if (ritaseData.inspector && ritaseData.inspector !== "") {
-      const inspectorId = parseInt(ritaseData.inspector);
-      if (!isNaN(inspectorId)) {
-        payload.inspector = inspectorId;
-      }
-    }
-
-    // Handle weight berdasarkan measurement type
-    if (ritaseData.measurementType === "Bypass") {
-      payload.gross_weight = parseFloat(ritaseData.grossWeight);
-    } else {
-      const hasWeighBridge = user?.weigh_bridge != null;
-      if (hasWeighBridge) {
-        payload.gross_weight = parseFloat(ritaseData.weight);
+      // Handle weight berdasarkan measurement type
+      if (ritaseData.measurementType === "Bypass") {
+        payload.gross_weight = parseFloat(ritaseData.grossWeight);
       } else {
-        payload.net_weight = parseFloat(ritaseData.weight);
+        const hasWeighBridge = user?.weigh_bridge != null;
+        if (hasWeighBridge) {
+          payload.gross_weight = parseFloat(ritaseData.weight);
+        } else {
+          payload.net_weight = parseFloat(ritaseData.weight);
+        }
       }
-    }
 
-    const result = await onSave(payload);
+      const result = await onSave(payload);
 
-    if (result?.success) {
-      showToast.success("Data ritase berhasil ditambahkan");
-      onClose();
-    } else {
-      throw new Error(result?.error || "Gagal menyimpan data");
+      if (result?.success) {
+        showToast.success("Data ritase berhasil ditambahkan");
+        onClose();
+      } else {
+        throw new Error(result?.error || "Gagal menyimpan data");
+      }
+    } catch (err) {
+      console.error("❌ Ritase save error:", err);
+      const errorMsg = err?.message || "Gagal menyimpan data ritase";
+      setErrors((p) => ({ ...p, submit: errorMsg }));
+      showToast.error(errorMsg);
+    } finally {
+      setIsSaving(false);
     }
-  } catch (err) {
-    console.error("❌ Ritase save error:", err);
-    const errorMsg = err?.message || "Gagal menyimpan data ritase";
-    setErrors((p) => ({ ...p, submit: errorMsg }));
-    showToast.error(errorMsg);
-  } finally {
-    setIsSaving(false);
-  }
-}, [validate, ritaseData, user, onSave, onClose]);
+  }, [validate, ritaseData, user, onSave, onClose]);
   // Prepare dropdown options
   const excaItems = useMemo(
     () =>
@@ -378,7 +386,7 @@ const handleSave = useCallback(async () => {
     () =>
       (masters?.workUnits || []).map((wu) => ({
         value: String(wu.id),
-        label: wu.subsatker  || wu.satker || wu.name || `Work Unit #${wu.id}`,
+        label: wu.subsatker || wu.satker || wu.name || `Work Unit #${wu.id}`,
         hint: wu.name && wu.satker !== wu.name ? wu.name : undefined,
       })),
     [masters?.workUnits],
@@ -399,76 +407,71 @@ const handleSave = useCallback(async () => {
       (masters?.operators || []).map((ct) => ({
         value: String(ct.id),
         label: ct.name ?? "-",
-        
       })),
     [masters?.operators],
   );
 
-const userItems = useMemo(
-  () =>
-    (masters?.users || []).map((u) => ({
-      value: String(u.id), // ✅ Ensure it's string for dropdown
-      label: u.username || u.email || `User #${u.id}`,
-      hint: u.email && u.username !== u.email ? u.email : undefined,
-      role: u.role,
-    })),
-  [masters?.users],
-);
-            
-            
-const checkerItems = useMemo(() => {
-  const measurementType = ritaseData.measurementType;
-  
-  
-  const filtered = userItems.filter((u) => {
-    const role = (u.role || "").toLowerCase();
-    const label = (u.label || "").toLowerCase();
-    
-    // For Timbangan: allow Checker OR Operator_JT
-    if (measurementType === "Timbangan") {
+  const userItems = useMemo(
+    () =>
+      (masters?.users || []).map((u) => ({
+        value: String(u.id), // ✅ Ensure it's string for dropdown
+        label: u.username || u.email || `User #${u.id}`,
+        hint: u.email && u.username !== u.email ? u.email : undefined,
+        role: u.role,
+      })),
+    [masters?.users],
+  );
+
+  const checkerItems = useMemo(() => {
+    const measurementType = ritaseData.measurementType;
+
+    const filtered = userItems.filter((u) => {
+      const role = (u.role || "").toLowerCase();
+      const label = (u.label || "").toLowerCase();
+
+      // For Timbangan: allow Checker OR Operator_JT
+      if (measurementType === "Timbangan") {
+        return (
+          role === "checker" ||
+          role === "operator_jt" ||
+          role.includes("checker") ||
+          role.includes("operator") ||
+          label.includes("checker") ||
+          label.includes("operator jt")
+        );
+      }
+
+      // For other types: only Checker
       return (
         role === "checker" ||
-        role === "operator_jt" ||
         role.includes("checker") ||
-        role.includes("operator") ||
-        label.includes("checker") ||
-        label.includes("operator jt")
+        label.includes("checker")
       );
-    }
-    
-    // For other types: only Checker
-    return (
-      role === "checker" ||
-      role.includes("checker") ||
-      label.includes("checker")
-    );
-  });
-  
-  return filtered;
-}, [userItems, ritaseData.measurementType]);
+    });
 
-const inspectorItems = useMemo(() => {
-  
-  const filtered = userItems.filter((u) => {
-    const role = (u.role || "").toLowerCase();
-    const label = (u.label || "").toLowerCase();
-    
-    return (
-      role === "pengawas" ||
-      role === "inspector" ||
-      role.includes("pengawas") ||
-      role.includes("inspector") ||
-      label.includes("pengawas") ||
-      label.includes("inspector")
-    );
-  });
-  
-  return filtered;
-}, [userItems]);
-       
+    return filtered;
+  }, [userItems, ritaseData.measurementType]);
+
+  const inspectorItems = useMemo(() => {
+    const filtered = userItems.filter((u) => {
+      const role = (u.role || "").toLowerCase();
+      const label = (u.label || "").toLowerCase();
+
+      return (
+        role === "pengawas" ||
+        role === "inspector" ||
+        role.includes("pengawas") ||
+        role.includes("inspector") ||
+        label.includes("pengawas") ||
+        label.includes("inspector")
+      );
+    });
+
+    return filtered;
+  }, [userItems]);
 
   useEffect(() => {
-    if (ritaseData.dumpTruck ) {
+    if (ritaseData.dumpTruck) {
       const selectedTruck = dumpTruckItems.find(
         (truck) =>
           String(truck.id || truck.dumpTruckId) ===
@@ -482,14 +485,14 @@ const inspectorItems = useMemo(() => {
           (op) => String(op.companyId) === String(truckCompanyId),
         );
       }
-    } 
+    }
   }, [ritaseData.dumpTruck, masters?.operators, dumpTruckItems]);
 
   if (!isOpen) return null;
-  
+
   return (
     <div className="detail-modal fixed inset-0 bg-black/50 dark:bg-black/70 z-50 flex items-center justify-center p-4">
-      <div className="bg-neutral-50 dark:bg-gray-800 rounded-lg max-w-4xl w-full max-h-[90vh] overflow-auto">
+      <div className="bg-neutral-50 dark:bg-gray-800 rounded-lg max-w-4xl w-full max-h-[90vh] overflow-auto scrollbar-thin">
         <ModalHeader
           title="Input Data Ritase"
           subtitle="Tambahkan data ritase baru berdasarkan fleet configuration"
@@ -530,7 +533,7 @@ const inspectorItems = useMemo(() => {
                 )}
               </div>
 
-                            <div className="space-y-2">
+              <div className="space-y-2">
                 <Label className="dark:text-gray-300">Measurement Type</Label>
                 <SearchableSelect
                   items={MEASUREMENT_TYPE_OPTIONS}
@@ -570,7 +573,7 @@ const inspectorItems = useMemo(() => {
                 )}
               </div>
 
-                            <div className="space-y-2">
+              <div className="space-y-2">
                 <Label className="dark:text-gray-300">Coal Type</Label>
                 <SearchableSelect
                   items={coalTypeItems}
@@ -631,22 +634,25 @@ const inspectorItems = useMemo(() => {
               </div>
               <div className="space-y-2">
                 <Label className="dark:text-gray-300">Distance (m)</Label>
-               <Input
-                    type="text"
-                    value={ritaseData.distance}
-                     onChange={(e) => setRitaseData((p) => ({ ...p, distance: parseFloat(e.target.value) || 0 }))}
-                    placeholder="Masukkan gross weight dalam ton"
-                    disabled={isSaving}
-                    className="border-none dark:text-gray-300"
-                  />
+                <Input
+                  type="text"
+                  value={ritaseData.distance}
+                  onChange={(e) =>
+                    setRitaseData((p) => ({
+                      ...p,
+                      distance: parseFloat(e.target.value) || 0,
+                    }))
+                  }
+                  placeholder="Masukkan gross weight dalam ton"
+                  disabled={isSaving}
+                  className="border-none dark:text-gray-300"
+                />
                 {errors.distance && (
                   <p className="text-sm text-red-500 dark:text-red-400">
                     {errors.distance}
                   </p>
                 )}
               </div>
-
-
             </InfoCard>
 
             {/* Date & Shift */}
@@ -664,7 +670,11 @@ const inspectorItems = useMemo(() => {
                   onChange={(e) =>
                     setRitaseData((p) => ({ ...p, date: e.target.value }))
                   }
-                 max={new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split("T")[0]}
+                  max={
+                    new Date(Date.now() + 24 * 60 * 60 * 1000)
+                      .toISOString()
+                      .split("T")[0]
+                  }
                   disabled={isSaving}
                   className="border-none dark:text-gray-300 dark:bg-gray-700"
                 />
@@ -701,7 +711,10 @@ const inspectorItems = useMemo(() => {
                   type="time"
                   value={ritaseData.createdTime}
                   onChange={(e) =>
-                    setRitaseData((p) => ({ ...p, createdTime: e.target.value }))
+                    setRitaseData((p) => ({
+                      ...p,
+                      createdTime: e.target.value,
+                    }))
                   }
                   disabled={isSaving}
                   className="border-none dark:text-gray-300 dark:bg-gray-700"
@@ -734,10 +747,7 @@ const inspectorItems = useMemo(() => {
                     }));
                   }}
                   placeholder="Pilih dump truck"
-                  emptyText={
-                   "Tidak ada dump truck tersedia untuk fleet ini"
-                    
-                  }
+                  emptyText={"Tidak ada dump truck tersedia untuk fleet ini"}
                   error={!!errors.dumpTruck}
                   disabled={isSaving}
                 />
@@ -757,14 +767,9 @@ const inspectorItems = useMemo(() => {
                     setRitaseData((p) => ({ ...p, operator: val || "" }))
                   }
                   placeholder="Pilih operator"
-                  emptyText={
-                    "Pilih dump truck terlebih dahulu"
-                  }
+                  emptyText={"Pilih dump truck terlebih dahulu"}
                   error={!!errors.operator}
-                  disabled={
-                    isSaving ||
-                    !ritaseData.dumpTruck 
-                  }
+                  disabled={isSaving || !ritaseData.dumpTruck}
                 />
                 {errors.operator && (
                   <p className="text-sm text-red-500 dark:text-red-400">
@@ -774,56 +779,52 @@ const inspectorItems = useMemo(() => {
               </div>
             </InfoCard>
 
-<InfoCard
-  title="Inspector & Checker"
-  icon={UserCheck}
-  variant="primary"
-  className="border-none"
->
-  <div className="space-y-2">
-    <Label className="dark:text-gray-300">
-      Inspector
-    </Label>
-    <SearchableSelect
-      items={inspectorItems}
-      value={ritaseData.inspector}
-      onChange={(val) => {
-        setRitaseData((p) => ({ ...p, inspector: val || "" }));
-      }}
-      placeholder="Pilih inspector"
-      emptyText="Inspector tidak ditemukan"
-      error={!!errors.inspector}
-      disabled={isSaving || !!selectedFleetConfig}
-    />
-    {errors.inspector && (
-      <p className="text-sm text-red-500 dark:text-red-400">
-        {errors.inspector}
-      </p>
-    )}
-  </div>
+            <InfoCard
+              title="Inspector & Checker"
+              icon={UserCheck}
+              variant="primary"
+              className="border-none"
+            >
+              <div className="space-y-2">
+                <Label className="dark:text-gray-300">Inspector</Label>
+                <SearchableSelect
+                  items={inspectorItems}
+                  value={ritaseData.inspector}
+                  onChange={(val) => {
+                    setRitaseData((p) => ({ ...p, inspector: val || "" }));
+                  }}
+                  placeholder="Pilih inspector"
+                  emptyText="Inspector tidak ditemukan"
+                  error={!!errors.inspector}
+                  disabled={isSaving || !!selectedFleetConfig}
+                />
+                {errors.inspector && (
+                  <p className="text-sm text-red-500 dark:text-red-400">
+                    {errors.inspector}
+                  </p>
+                )}
+              </div>
 
-  <div className="space-y-2">
-    <Label className="dark:text-gray-300">
-      Checker
-    </Label>
-    <SearchableSelect
-      items={checkerItems}
-      value={ritaseData.checker}
-      onChange={(val) => {
-        setRitaseData((p) => ({ ...p, checker: val || "" }));
-      }}
-      placeholder="Pilih checker"
-      emptyText="Checker tidak ditemukan"
-      error={!!errors.checker}
-      disabled={isSaving || !!selectedFleetConfig}
-    />
-    {errors.checker && (
-      <p className="text-sm text-red-500 dark:text-red-400">
-        {errors.checker}
-      </p>
-    )}
-  </div>
-</InfoCard>
+              <div className="space-y-2">
+                <Label className="dark:text-gray-300">Checker</Label>
+                <SearchableSelect
+                  items={checkerItems}
+                  value={ritaseData.checker}
+                  onChange={(val) => {
+                    setRitaseData((p) => ({ ...p, checker: val || "" }));
+                  }}
+                  placeholder="Pilih checker"
+                  emptyText="Checker tidak ditemukan"
+                  error={!!errors.checker}
+                  disabled={isSaving || !!selectedFleetConfig}
+                />
+                {errors.checker && (
+                  <p className="text-sm text-red-500 dark:text-red-400">
+                    {errors.checker}
+                  </p>
+                )}
+              </div>
+            </InfoCard>
 
             {/* Weight Input */}
             {ritaseData.measurementType === "Bypass" ? (
@@ -831,8 +832,10 @@ const inspectorItems = useMemo(() => {
               <InfoCard title="Berat" variant="primary" className="border-none">
                 <div className="md:col-span-2 space-y-2">
                   <Label className="dark:text-gray-300">
-                   Berat Kotor (ton) *
-                    <span className="text-xs text-gray-500 ml-2">(Max: 199.99 ton)</span>
+                    Berat Kotor (ton) *
+                    <span className="text-xs text-gray-500 ml-2">
+                      (Max: 199.99 ton)
+                    </span>
                   </Label>
                   <Input
                     type="text"
@@ -849,18 +852,25 @@ const inspectorItems = useMemo(() => {
                   )}
                 </div>
               </InfoCard>
-            ) : ritaseData.measurementType && ritaseData.measurementType !== "Bypass" ? (
+            ) : ritaseData.measurementType &&
+              ritaseData.measurementType !== "Bypass" ? (
               // Other measurement types use weight
               <InfoCard title="Berat" variant="primary" className="border-none">
                 <div className="md:col-span-2 space-y-2">
                   <Label className="dark:text-gray-300">
                     Berat Bersih (ton) *
-                    {ritaseData.measurementType === "Timbangan" && user?.weigh_bridge != null && (
-                      <span className="text-xs text-gray-500 ml-2">(Max: 199.99 ton)</span>
-                    )}
-                    {ritaseData.measurementType === "Timbangan" && user?.weigh_bridge == null && (
-                      <span className="text-xs text-gray-500 ml-2">(Max: 99.99 ton)</span>
-                    )}
+                    {ritaseData.measurementType === "Timbangan" &&
+                      user?.weigh_bridge != null && (
+                        <span className="text-xs text-gray-500 ml-2">
+                          (Max: 199.99 ton)
+                        </span>
+                      )}
+                    {ritaseData.measurementType === "Timbangan" &&
+                      user?.weigh_bridge == null && (
+                        <span className="text-xs text-gray-500 ml-2">
+                          (Max: 99.99 ton)
+                        </span>
+                      )}
                   </Label>
                   <Input
                     type="text"

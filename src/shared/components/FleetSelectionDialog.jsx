@@ -218,7 +218,7 @@ const FleetSelectionDialog = ({
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-6 py-4 dark:bg-gray-900">
+        <div className="flex-1 overflow-y-auto scrollbar-thin px-6 py-4 dark:bg-gray-900">
           {isLoadingInitial ? (
             <div className="flex flex-col items-center justify-center py-12 space-y-4">
               <Loader2 className="w-8 h-8 animate-spin text-blue-600 dark:text-blue-400" />

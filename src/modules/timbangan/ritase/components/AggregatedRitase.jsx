@@ -753,7 +753,7 @@ const AggregatedRitase = ({
               </CollapsibleTrigger>
 
               <CollapsibleContent>
-                <div className="overflow-x-auto">
+                <div className="overflow-x-auto scrollbar-thin">
                   <Table className="text-xs">
                     <TableHeader>
                       <TableRow className="bg-gray-50 dark:bg-gray-900/30">
@@ -955,7 +955,7 @@ const AggregatedRitase = ({
     const renderItemsTable = (items) => {
       if (!items?.length) return null;
       return (
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto scrollbar-thin">
           <Table>
             <TableHeader>
               <TableRow className="bg-gray-50 dark:bg-gray-900/30">
@@ -1294,7 +1294,7 @@ const AggregatedRitase = ({
             className="w-full"
           >
             <div className="mb-4 sm:mb-6">
-              <div className="block md:hidden overflow-x-auto scrollbar-hide -mx-2 px-2">
+              <div className="block md:hidden overflow-x-auto scrollbar-thin scrollbar-hide -mx-2 px-2">
                 <TabsList className="inline-flex w-auto min-w-full bg-gray-100 dark:bg-gray-800 dark:text-neutral-50 p-1 gap-1">
                   <TabsTrigger
                     value="checker"
@@ -1672,7 +1672,7 @@ const AggregatedRitase = ({
             </DialogTitle>
           </DialogHeader>
 
-          <div className="overflow-y-auto max-h-[calc(85vh-80px)] p-4 sm:p-6">
+          <div className="overflow-y-auto scrollbar-thin max-h-[calc(85vh-80px)] p-4 sm:p-6">
             {selectedDetail && (
               <>
                 <div className="grid grid-cols-2 gap-3 sm:gap-4 mb-4 sm:mb-6 p-3 sm:p-4 bg-gray-50 dark:bg-gray-900/30 rounded-lg">
@@ -1821,7 +1821,7 @@ const AggregatedRitase = ({
             }
           }}
         >
-          <DialogContent className="max-w-4xl lg:min-w-4xl max-h-[90vh] overflow-y-auto dark:bg-slate-900">
+          <DialogContent className="max-w-4xl lg:min-w-4xl max-h-[90vh] overflow-y-auto scrollbar-thin dark:bg-slate-900">
             <DialogHeader>
               <DialogTitle className="dark:text-neutral-50">
                 Edit Data Ritase
@@ -1846,7 +1846,7 @@ const AggregatedRitase = ({
           open={isDuplicateModalOpen}
           onOpenChange={setIsDuplicateModalOpen}
         >
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto dark:bg-slate-900 bg-white border-none">
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto scrollbar-thin dark:bg-slate-900 bg-white border-none">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2 dark:text-neutral-50">
                 <Copy className="w-5 h-5" />

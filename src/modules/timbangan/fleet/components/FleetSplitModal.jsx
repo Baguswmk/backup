@@ -310,7 +310,7 @@ const FleetSplitModal = ({
 
   return (
     <div className="detail-modal fixed inset-0 bg-black/50 dark:bg-black/70 z-50 flex items-center justify-center p-4">
-      <div className="bg-neutral-50 dark:bg-gray-800 rounded-lg max-w-4xl w-full max-h-[90vh] overflow-auto">
+      <div className="bg-neutral-50 dark:bg-gray-800 rounded-lg max-w-4xl w-full max-h-[90vh] overflow-auto scrollbar-thin">
         <ModalHeader
           title="Split Fleet Setting"
           subtitle="Buat 2 setting fleet sekaligus dengan excavator dan loading point yang sama"

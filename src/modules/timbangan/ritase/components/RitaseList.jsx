@@ -245,7 +245,7 @@ const RitaseList = ({
             </div>
           ) : (
             <>
-              <div className="rounded-md border border-gray-200 dark:border-gray-700 overflow-x-auto mt-2">
+              <div className="rounded-md border border-gray-200 dark:border-gray-700 overflow-x-auto scrollbar-thin mt-2">
                 <Table className="text-xs">
                   <TableHeader>
                     <TableRow className="bg-gray-50 dark:bg-gray-900/50 hover:bg-gray-50 dark:hover:bg-gray-900/50">
@@ -435,7 +435,7 @@ const RitaseList = ({
 
       {/* Detail Dialog */}
       <Dialog open={isDetailDialogOpen} onOpenChange={setIsDetailDialogOpen}>
-        <DialogContent className="max-w-2xl bg-white dark:bg-slate-900 max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-2xl bg-white dark:bg-slate-900 max-h-[90vh] overflow-y-auto scrollbar-thin">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 dark:text-neutral-50">
               <CheckCircle2 className="w-5 h-5 text-green-500" />
@@ -616,7 +616,7 @@ const RitaseList = ({
       {/* Edit Modal */}
       {selectedRitase && (
         <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
-          <DialogContent className="max-w-4xl lg:min-w-4xl max-h-[90vh] overflow-y-auto bg-white dark:bg-slate-900">
+          <DialogContent className="max-w-4xl lg:min-w-4xl max-h-[90vh] overflow-y-auto scrollbar-thin bg-white dark:bg-slate-900">
             <DialogHeader>
               <DialogTitle className="dark:text-neutral-50">
                 Edit Data Ritase
@@ -640,7 +640,7 @@ const RitaseList = ({
           open={isDuplicateModalOpen}
           onOpenChange={setIsDuplicateModalOpen}
         >
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto dark:bg-slate-900 bg-white border-none">
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto scrollbar-thin dark:bg-slate-900 bg-white border-none">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2 dark:text-neutral-50 ">
                 <Copy className="w-5 h-5" />

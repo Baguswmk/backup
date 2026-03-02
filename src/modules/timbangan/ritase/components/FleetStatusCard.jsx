@@ -136,7 +136,7 @@ const FleetStatusCard = ({
                           </Badge>
                         </div>
 
-                        <div className="max-h-64 overflow-y-auto space-y-1.5 dark:text-black">
+                        <div className="max-h-64 overflow-y-auto scrollbar-thin space-y-1.5 dark:text-black">
                           {allSelectedFleets.map((fleet) => (
                             <div
                               key={fleet.id}
