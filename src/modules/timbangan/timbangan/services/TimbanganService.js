@@ -41,48 +41,40 @@ export const timbanganService = {
 
       return result;
     } catch (error) {
-      // "Request queued" bukan error — ini sukses offline
       const isQueued =
         error?.message?.includes("queued") ||
         error?.message?.includes("offline sync");
 
       if (isQueued) {
-        // ✅ Return sukses, bukan throw
         return { queued: true, status: "queued", offline: true };
       }
 
-      // Error beneran (validasi, server error, dll)
-      console.error("❌ Create timbangan error:", error);
+      const isDuplicate = error?.response?.status === 409;
 
-      // Error beneran (validasi, server error, timeout, network murni, dll)
-      console.error("❌ Create timbangan error:", error);
+      if (isDuplicate) {
+        await offlineService
+          .addToSentQueue({
+            id: generateId("duplicate"),
+            url: "/v1/custom/ritase/offline",
+            method: "POST",
+            data,
+            timestamp: Date.now(),
+            clientTimestamp: new Date().toISOString(),
+            retryCount: 0,
+            syncedFrom: "duplicate_409", // ← bisa dibedakan di UI
+            note: error?.response?.data?.message || "Data duplikat di server",
+            isDuplicate: true, // ← flag untuk UI
+          })
+          .catch((err) =>
+            console.error("Gagal simpan duplicate ke sent queue:", err),
+          );
 
-      // Simpan APA PUN error-nya ke failed queue agar tidak ada data loss
-      // (terutama saat network error tanpa response backend)
-      const errorResponse = error.response
-        ? {
-            message: error.response.data?.message || error.message,
-            httpStatus: error.response.status,
-            data: error.response.data,
-          }
-        : null;
-
-      await offlineService
-        .addToFailedQueue({
-          id: generateId("failed"),
-          url: "/v1/custom/ritase/offline",
-          method: "POST",
-          data,
-          timestamp: Date.now(),
-          clientTimestamp: new Date().toISOString(),
-          error:
-            error.response?.data?.message ||
-            error.message ||
-            "Network/Unknown Error",
-          errorResponse,
-          retryCount: 0,
-        })
-        .catch((err) => console.error("Gagal menyimpan ke failed queue", err));
+        return {
+          duplicate: true,
+          status: "sent",
+          note: "Data sudah ada di server",
+        };
+      }
 
       throw error;
     }
