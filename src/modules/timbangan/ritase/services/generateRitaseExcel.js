@@ -18,7 +18,7 @@ export const generateRitaseExcel = (ritaseData = []) => {
     "Shift",
     "SPPH",
     "Dump Truck",
-    "Exca",
+    "Loader",
     "Tonase Bersih",
     "Tonase Kotor",
     "Tonase Kosong",
@@ -39,11 +39,9 @@ export const generateRitaseExcel = (ritaseData = []) => {
 
     const createdAt =
       r.created_at || r.createdAt || r.date
-        ? format(
-            new Date(r.created_at || r.createdAt || r.date),
-            "HH:mm",
-            { locale: localeId },
-          )
+        ? format(new Date(r.created_at || r.createdAt || r.date), "HH:mm", {
+            locale: localeId,
+          })
         : "-";
     wsData.push([
       idx + 1,
