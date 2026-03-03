@@ -392,21 +392,51 @@ export const generateRitasePDF = async (data, supervisorName) => {
   return htmlContent;
 };
 
-export const exportToPDF = async (rowData, supervisorName) => {
+export const exportToPDF = async (
+  rowData,
+  supervisorName,
+  locationFilter = "all",
+) => {
   try {
     // Validasi data
     if (!rowData || !rowData.ritases || rowData.ritases.length === 0) {
       throw new Error("Data ritase tidak tersedia atau kosong");
     }
 
+    // Filter ritases berdasarkan pasangan lokasi yang dipilih
+    let filteredRitases = rowData.ritases;
+    let filteredLoadingLocations = rowData.loading_locations;
+    let filteredDumpingLocations = rowData.dumping_locations;
+
+    if (locationFilter && locationFilter !== "all") {
+      const [chosenLoading, chosenDumping] = locationFilter.split("|");
+      filteredRitases = rowData.ritases.filter(
+        (r) =>
+          r.loading_location === chosenLoading &&
+          r.dumping_location === chosenDumping,
+      );
+      filteredLoadingLocations = [chosenLoading];
+      filteredDumpingLocations = [chosenDumping];
+    }
+
+    if (filteredRitases.length === 0) {
+      throw new Error("Tidak ada data ritase untuk lokasi yang dipilih");
+    }
+
+    // Hitung ulang total tonase dari ritases yang sudah difilter
+    const filteredTotalTonase = filteredRitases.reduce(
+      (sum, r) => sum + (r.net_weight || 0),
+      0,
+    );
+
     const htmlContent = await generateRitasePDF(
       {
         unit_exca: rowData.unit_exca,
         company: rowData.company,
-        loading_location: rowData.loading_locations,
-        dumping_location: rowData.dumping_locations,
-        ritases: rowData.ritases,
-        totalTonase: rowData.totalTonase,
+        loading_location: filteredLoadingLocations,
+        dumping_location: filteredDumpingLocations,
+        ritases: filteredRitases,
+        totalTonase: filteredTotalTonase,
         pic_work_unit: rowData.pic_work_unit,
       },
       supervisorName,

@@ -513,19 +513,38 @@ const OverviewManagement = () => {
   }, []);
 
   const handleExportPDF = useCallback((rowData) => {
+    // Build unique loading→dumping pairs dari ritases
+    const pairMap = {};
+    (rowData.ritases || []).forEach((r) => {
+      const key = `${r.loading_location}|${r.dumping_location}`;
+      if (!pairMap[key]) {
+        pairMap[key] = {
+          loading: r.loading_location,
+          dumping: r.dumping_location,
+          count: 0,
+          totalTonase: 0,
+        };
+      }
+      pairMap[key].count += 1;
+      pairMap[key].totalTonase += r.net_weight || 0;
+    });
+    const locationPairs = Object.values(pairMap);
+
     // Buka modal untuk input supervisor
     setSupervisorModal({
       isOpen: true,
       rowData: rowData,
+      locationPairs,
     });
   }, []);
 
   const handleConfirmExport = useCallback(
-    async (supervisorName) => {
+    async (supervisorName, locationFilter) => {
       try {
         const success = await exportToPDF(
           supervisorModal.rowData,
           supervisorName,
+          locationFilter,
         );
         if (success) {
           showToast.success("PDF berhasil dibuat. Silakan cek tab baru.");
@@ -902,6 +921,7 @@ const OverviewManagement = () => {
         onClose={handleCloseSupervisorModal}
         onConfirm={handleConfirmExport}
         isLoading={false}
+        locationPairs={supervisorModal.locationPairs || []}
       />
     </div>
   );
