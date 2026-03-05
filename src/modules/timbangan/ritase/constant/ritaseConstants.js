@@ -231,18 +231,15 @@ export const DUMPING_POINT_GROUP = {
       "Stockpile 4": [
         "Banko Barat - DH 4 Sumuran",
         "Banko Barat - DH 4 Jembatan",
-        "Banko Barat - LS DH 4",
         "Banko Barat - SP 4",
         "Banko Barat - DH 4",
       ],
+      "LS DH 4": ["Banko Barat - LS DH 4"],
     },
     "Coal Handling Operations 5": {
-      "Stockpile 5": [
-        "Banko Barat - LS DH 5",
-        "Banko Barat - SP 5",
-        "Banko Barat - DH 5",
-        "Banko Barat - RF 5",
-      ],
+      "Stockpile 5": ["Banko Barat - SP 5", "Banko Barat - DH 5"],
+      "LS DH 5": ["Banko Barat - LS DH 5"],
+      "ROM RF 5": ["Banko Barat - RF 5"],
     },
     "Coal Handling Operations CHF SS 8": ["Banko Tengah - LS Sumsel 8"],
   },
@@ -386,15 +383,14 @@ export const LOADING_POINT_GROUP = {
     },
 
     "Coal Handling Operations 4": {
-      "Stockpile 4": ["Banko Barat - SP 4", "Banko Barat - LS DH 4"],
+      "Stockpile 4": ["Banko Barat - SP 4"],
+      "LS DH 4": ["Banko Barat - LS DH 4"],
     },
 
     "Coal Handling Operations 5": {
-      "Stockpile 5": [
-        "Banko Barat - SP 5",
-        "Banko Barat - LS DH 5",
-        "Banko Barat - ROM RF 5",
-      ],
+      "Stockpile 5": ["Banko Barat - SP 5"],
+      "ROM RF 5": ["Banko Barat - ROM RF 5"],
+      "LS DH 5": ["Banko Barat - LS DH 5"],
     },
 
     "Coal Handling Operations CHF SS 8": ["Banko Tengah - LS Sumsel 8"],
