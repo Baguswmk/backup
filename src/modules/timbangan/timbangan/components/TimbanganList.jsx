@@ -1087,7 +1087,7 @@ export const TimbanganList = () => {
                                 ? "Pending"
                                 : item.status === "sent"
                                   ? item.isDuplicate
-                                    ? "Berhasil Tersimpan"
+                                    ? "Berhasil Terkirim"
                                     : "Terkirim"
                                   : "Gagal"}
                             </Badge>

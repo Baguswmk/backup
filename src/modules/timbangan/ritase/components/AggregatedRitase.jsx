@@ -69,10 +69,13 @@ import { id as localeId } from "date-fns/locale";
 import RitaseEditForm from "@/modules/timbangan/ritase/components/RitaseEditForm";
 import RitaseDuplicateForm from "@/modules/timbangan/ritase/components/RitaseDuplicateForm";
 import DeleteConfirmDialog from "@/shared/components/DeleteConfirmDialog";
-import { DUMPING_POINT_GROUP } from "@/modules/timbangan/ritase/constant/ritaseConstants";
+import {
+  DUMPING_POINT_GROUP,
+  LOADING_POINT_GROUP,
+} from "@/modules/timbangan/ritase/constant/ritaseConstants";
 
-// Recursive helper: cari top-level operation area dari dumping_location
-const containsDumpingLocation = (valueOrArray, location) => {
+// Recursive helper: cari top-level operation area dari lokasi
+const containsLocation = (valueOrArray, location) => {
   if (Array.isArray(valueOrArray)) {
     return valueOrArray.includes(location);
   }
@@ -81,7 +84,7 @@ const containsDumpingLocation = (valueOrArray, location) => {
   }
   if (valueOrArray && typeof valueOrArray === "object") {
     return Object.values(valueOrArray).some((v) =>
-      containsDumpingLocation(v, location),
+      containsLocation(v, location),
     );
   }
   return false;
@@ -90,11 +93,21 @@ const containsDumpingLocation = (valueOrArray, location) => {
 const findDumpingOperationGroup = (dumpingLocation) => {
   if (!dumpingLocation) return "Unknown Dumping";
   for (const [groupName, value] of Object.entries(DUMPING_POINT_GROUP)) {
-    if (containsDumpingLocation(value, dumpingLocation)) {
+    if (containsLocation(value, dumpingLocation)) {
       return groupName;
     }
   }
   return dumpingLocation; // fallback: tampilkan nama aslinya jika tidak masuk group manapun
+};
+
+const findLoadingOperationGroup = (loadingLocation) => {
+  if (!loadingLocation) return "Unknown Loading";
+  for (const [groupName, value] of Object.entries(LOADING_POINT_GROUP)) {
+    if (containsLocation(value, loadingLocation)) {
+      return groupName;
+    }
+  }
+  return loadingLocation; // fallback: tampilkan nama aslinya jika tidak masuk group manapun
 };
 
 const AggregatedRitase = ({
@@ -245,10 +258,9 @@ const AggregatedRitase = ({
           );
           break;
         case "loading":
-          key =
-            item.loading_location ||
-            firstRitase.loading_location ||
-            "Unknown Loading";
+          key = findLoadingOperationGroup(
+            item.loading_location || firstRitase.loading_location,
+          );
           break;
         case "mitra":
           key =
@@ -882,8 +894,15 @@ const AggregatedRitase = ({
       .filter(Boolean);
   };
 
-  const renderDumpingHierarchyView = () => {
-    // Build items lookup by dumping_location from raw summariesData
+  const renderHierarchyView = (type) => {
+    const isDumping = type === "dumping";
+    const hierarchyGroup = isDumping
+      ? DUMPING_POINT_GROUP
+      : LOADING_POINT_GROUP;
+    const locationKey = isDumping ? "dumping_location" : "loading_location";
+    const prefix = isDumping ? "dp-root" : "lp-root";
+
+    // Build items lookup by location field from raw summariesData
     const summariesData =
       aggregatedData?.summaries?.data ||
       (Array.isArray(aggregatedData) ? aggregatedData : []);
@@ -906,10 +925,10 @@ const AggregatedRitase = ({
       return matchExcavator && matchDumping && matchLoading;
     });
 
-    // Build map: dumping_location -> items[]
+    // Build map: location -> items[]
     const locationMap = {};
     filteredSummaries.forEach((item) => {
-      const loc = item.dumping_location || "-";
+      const loc = item[locationKey] || "-";
       if (!locationMap[loc]) locationMap[loc] = [];
       locationMap[loc].push(item);
     });
@@ -1066,11 +1085,11 @@ const AggregatedRitase = ({
       );
     };
 
-    // Render a single leaf (individual dumping location) as its own collapsible
-    const renderLeaf = (dumpingLocation, keyPrefix) => {
-      const items = locationMap[dumpingLocation] || [];
+    // Render a single leaf (individual location) as its own collapsible
+    const renderLeaf = (locationName, keyPrefix) => {
+      const items = locationMap[locationName] || [];
       if (!items.length) return null;
-      const leafId = `${keyPrefix}-${dumpingLocation}`;
+      const leafId = `${keyPrefix}-${locationName}`;
       const isExpanded = expandedGroups[leafId] === true;
       const leafTrips = items.reduce(
         (s, i) => s + (parseInt(getTripCount(i)) || 0),
@@ -1099,7 +1118,7 @@ const AggregatedRitase = ({
                     <ChevronDown className="h-3 w-3 text-gray-500 shrink-0" />
                   )}
                   <span className="text-xs font-medium text-gray-700 dark:text-gray-300 text-left truncate">
-                    {dumpingLocation}
+                    {locationName}
                   </span>
                 </div>
                 <div className="flex items-center gap-3 text-xs shrink-0">
@@ -1200,7 +1219,7 @@ const AggregatedRitase = ({
             </CollapsibleTrigger>
             <CollapsibleContent>
               <div className={s.content}>
-                {/* Array of dumping location strings */}
+                {/* Array of location strings */}
                 {Array.isArray(node) &&
                   node.map((loc) => renderLeaf(loc, nodeId))}
                 {/* Single string location */}
@@ -1221,9 +1240,9 @@ const AggregatedRitase = ({
 
     if (!filteredSummaries.length) return null;
 
-    const nodes = Object.entries(DUMPING_POINT_GROUP)
+    const nodes = Object.entries(hierarchyGroup)
       .map(([groupName, groupValue]) =>
-        renderNode(groupName, groupValue, 1, "dp-root"),
+        renderNode(groupName, groupValue, 1, prefix),
       )
       .filter(Boolean);
 
@@ -1593,8 +1612,8 @@ const AggregatedRitase = ({
                       Memuat data...
                     </p>
                   </div>
-                ) : tab === "dumping" ? (
-                  // ── Dumping tab: hierarchical view based on DUMPING_POINT_GROUP ──
+                ) : tab === "dumping" || tab === "loading" ? (
+                  // ── Hierarchical view based on POINT_GROUP ──
                   <>
                     {renderSearchSection()}
                     {(aggregatedData?.summaries?.data || aggregatedData || [])
@@ -1606,7 +1625,7 @@ const AggregatedRitase = ({
                         </p>
                       </div>
                     ) : (
-                      renderDumpingHierarchyView() || (
+                      renderHierarchyView(tab) || (
                         <div className="text-center py-12">
                           <Package className="w-10 h-10 sm:w-12 sm:h-12 mx-auto text-gray-300 dark:text-gray-600" />
                           <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-4">

@@ -132,25 +132,25 @@ export const DUMPING_POINT_GROUP = {
   ],
 
   "BANKO 1 Mining Operations": [
-    "Bangko Tengah - BT-B PIT E",
-    "Bangko Tengah - TS Merbau",
-    "Bangko Tengah - TS Merawan",
-    "Bangko Tengah - TS Mahoni",
-    "Bangko Tengah - TS INPIT BWE",
+    "Banko Tengah - BT-B PIT E",
+    "Banko Tengah - TS Merbau",
+    "Banko Tengah - TS Merawan",
+    "Banko Tengah - TS Mahoni",
+    "Banko Tengah - TS INPIT BWE",
   ],
 
   "BANKO 2 Mining Operations": [
-    "Bangko Tengah - TS Ulin 1",
-    "Bangko Tengah - TS Ulin 2",
-    "Bangko Tengah - TS Ulin 3",
-    "Bangko Tengah - TS Ulin 4",
-    "Bangko Tengah - TS Ulin 1 Ext",
-    "Bangko Tengah - TS Ulin 3 Ext",
-    "Bangko Tengah - TS Cendana",
-    "Bangko Tengah - TS Beringin",
-    "Bangko Tengah - TS Waringin",
-    "Bangko Tengah - Pit BT-A",
-    "Bangko Tengah - BT-B PIT SJS",
+    "Banko Tengah - TS Ulin 1",
+    "Banko Tengah - TS Ulin 2",
+    "Banko Tengah - TS Ulin 3",
+    "Banko Tengah - TS Ulin 4",
+    "Banko Tengah - TS Ulin 1 Ext",
+    "Banko Tengah - TS Ulin 3 Ext",
+    "Banko Tengah - TS Cendana",
+    "Banko Tengah - TS Beringin",
+    "Banko Tengah - TS Waringin",
+    "Banko Tengah - Pit BT-A",
+    "Banko Tengah - BT-B PIT SJS",
   ],
 
   "West Block Coal Handling Operation": {
@@ -221,47 +221,47 @@ export const DUMPING_POINT_GROUP = {
   "East Block Coal Handling Operation": {
     "Coal Handling Operations 3": {
       "Stockpile 3": [
-        "Bangko Barat - Livestock DH3 - 1A",
-        "Bangko Barat - Livestock DH3 - 1A Ext",
-        "Bangko Barat - SP 3",
-        "Bangko Barat - DH 3",
+        "Banko Barat - Livestock DH3 - 1A",
+        "Banko Barat - Livestock DH3 - 1A Ext",
+        "Banko Barat - SP 3",
+        "Banko Barat - DH 3",
       ],
     },
     "Coal Handling Operations 4": {
       "Stockpile 4": [
-      "Bangko Barat - DH 4 Sumuran",
-      "Bangko Barat - DH 4 Jembatan",
-      "Bangko Barat - LS DH 4",
-      "Bangko Barat - SP 4",
-      "Bangko Barat - DH 4",
-      ]
+        "Banko Barat - DH 4 Sumuran",
+        "Banko Barat - DH 4 Jembatan",
+        "Banko Barat - LS DH 4",
+        "Banko Barat - SP 4",
+        "Banko Barat - DH 4",
+      ],
     },
     "Coal Handling Operations 5": {
       "Stockpile 5": [
-      "Bangko Barat - LS DH 5",
-      "Bangko Barat - SP 5",
-      "Bangko Barat - DH 5",
-      "Bangko Barat - RF 5",
-      ]
+        "Banko Barat - LS DH 5",
+        "Banko Barat - SP 5",
+        "Banko Barat - DH 5",
+        "Banko Barat - RF 5",
+      ],
     },
-    "Coal Handling Operations CHF SS 8": ["Bangko Tengah - LS Sumsel 8"],
+    "Coal Handling Operations CHF SS 8": ["Banko Tengah - LS Sumsel 8"],
   },
 
   "In-House Mining Operations 1": [
-    "Bangko Tengah - PIT 2",
-    "Bangko Barat - TS Pit 1E-1",
-    "Bangko Barat - TS Meranti",
-    "Bangko Barat - TS Lily",
-    "Bangko Barat - TS Green Belt 1",
+    "Banko Tengah - PIT 2",
+    "Banko Barat - TS Pit 1E-1",
+    "Banko Barat - TS Meranti",
+    "Banko Barat - TS Lily",
+    "Banko Barat - TS Green Belt 1",
   ],
 
   "In-House Mining Operations 2": [
-    "Bangko Tengah - TS Sakura",
-    "Bangko Tengah - TS Tulip",
-    "Bangko Tengah - TS Raflesia",
-    "Bangko Tengah - TS Ext Sakura",
-    "Bangko Tengah - TS Aren",
-    "Bangko Tengah - TS PIT 3 Timur",
+    "Banko Tengah - TS Sakura",
+    "Banko Tengah - TS Tulip",
+    "Banko Tengah - TS Raflesia",
+    "Banko Tengah - TS Ext Sakura",
+    "Banko Tengah - TS Aren",
+    "Banko Tengah - TS PIT 3 Timur",
   ],
 
   "Mine-Mouth Coal Transportation": [
@@ -274,8 +274,158 @@ export const DUMPING_POINT_GROUP = {
     "Housekeeping CHO 5",
     "Housekeeping CHO Inpit",
     "Housekeeping CHO MTB BWE",
-    "Dumping HK Bangko Barat",
+    "Dumping HK Banko Barat",
     "Dumping HK TAL",
     "Dumping HK MTB",
+  ],
+};
+
+export const LOADING_POINT_GROUP = {
+  "Air Laya Mining Operations": [
+    "TAL - TAL UTARA BARAT",
+    "TAL - TAL UTARA TIMUR",
+    "TAL - TAL-TSBC",
+  ],
+
+  "BANKO 1 Mining Operations": [
+    "Banko Tengah - TS INPIT BWE",
+    "Banko Tengah - TS Mahoni",
+    "Banko Tengah - TS Merawan",
+    "Banko Tengah - TS Merbau",
+    "Banko Tengah - BT-B PIT E",
+  ],
+
+  "BANKO 2 Mining Operations": [
+    "Banko Tengah - TS Beringin",
+    "Banko Tengah - TS Cendana",
+    "Banko Tengah - TS Ulin 1",
+    "Banko Tengah - TS Ulin 1 Ext",
+    "Banko Tengah - TS ULIN 2",
+    "Banko Tengah - TS Ulin 3",
+    "Banko Tengah - TS Ulin 3 Ext",
+    "Banko Tengah - TS Ulin 4",
+    "Banko Tengah - TS Waringin",
+    "Banko Tengah - BT-B PIT SJS",
+    "Banko Tengah - Pit BT-A",
+  ],
+
+  "West Block Coal Handling Operation": {
+    "Quary": ["Quary"],
+    "TAL - TS Pabum": ["TAL - TS Pabum"],
+    "Coal Handling Operations 1": {
+      "Stockpile 1": [
+        "TAL - Crusher PLTU BA",
+        "TAL - SP 1 COALFEEDER",
+        "TAL - SP 1 SELATAN 1",
+        "TAL - SP 1 SELATAN 2",
+        "TAL - SP 1 SELATAN 3",
+        "TAL - SP 1 SELATAN 4",
+        "TAL - SP 1 SELATAN 5",
+        "TAL - SP 1 SELATAN 6",
+        "TAL - SP 1 SELATAN 7",
+        "TAL - SP 1 SELATAN 8",
+        "TAL - SP 1 SELATAN 9",
+        "TAL - SP 1 UTARA 1",
+        "TAL - SP 1 UTARA 2",
+        "TAL - SP 1 UTARA 3",
+        "TAL - SP 1 UTARA 4",
+        "TAL - SP 1 UTARA 5",
+        "TAL - SP 1 UTARA 6",
+        "TAL - SP 1 UTARA 7",
+        "TAL - SP 1 UTARA 8",
+        "TAL - SP 1 UTARA 9",
+      ],
+    },
+    "Coal Handling Operations 2": {
+      "Stockpile 2": [
+        "TAL - SP 2 R5",
+        "TAL - SP 2 SELATAN VF 1",
+        "TAL - SP 2 SELATAN VF 2",
+        "TAL - SP 2 SELATAN VF 3",
+        "TAL - SP 2 SELATAN VF 4",
+        "TAL - SP 2 SELATAN VF 5",
+        "TAL - SP 2 UTARA VF 1",
+        "TAL - SP 2 UTARA VF 2",
+        "TAL - SP 2 UTARA VF 3",
+        "TAL - SP 2 UTARA VF 4",
+        "TAL - SP 2 UTARA VF 5",
+      ],
+    },
+
+    "Non-Rail Coal Transportation": ["MTB - SP Giok Ext"],
+
+    "MTB Mining Operations": [
+      "MTB - STOCK TS WESTHAM",
+      "MTB - TS CCP MTB",
+      "MTB - MTBS",
+      "MTB - MTBU",
+    ],
+
+    "MTB BWE SP Coal Handling Operations": [
+      "MTB - PLTU Banjarsari",
+      "MTB - RF 10",
+      "MTB - SP MTB CC21",
+      "MTB - SP MTB CC21 RF 01",
+      "MTB - SP MTB CC21 RF 02",
+      "MTB - SP MTB CC21 RF 03",
+    ],
+
+    "INPIT TAL SP Coal Handling Operations": [
+      "TAL - SP Elevasi 56",
+      "TAL - RL 56+ Ext Utara",
+    ],
+  },
+
+  "East Block Coal Handling Operation": {
+    "Coal Handling Operations 3": {
+      "Stockpile 3": [
+        "Banko Barat - SP 3",
+        "Banko Barat - Livestock DH3 - 1A",
+        "Banko Barat - Livestock DH3 - 1A Ext",
+      ],
+    },
+
+    "Coal Handling Operations 4": {
+      "Stockpile 4": ["Banko Barat - SP 4", "Banko Barat - LS DH 4"],
+    },
+
+    "Coal Handling Operations 5": {
+      "Stockpile 5": [
+        "Banko Barat - SP 5",
+        "Banko Barat - LS DH 5",
+        "Banko Barat - ROM RF 5",
+      ],
+    },
+
+    "Coal Handling Operations CHF SS 8": ["Banko Tengah - LS Sumsel 8"],
+  },
+
+  "In-House Mining Operations 1": [
+    "Banko Barat - TS Green belt 1",
+    "Banko Barat - TS Lily",
+    "Banko Barat - TS Meranti",
+    "Banko Barat - TS Pit 1E-1",
+    "Banko Tengah - PIT 2",
+  ],
+
+  "In-House Mining Operations 2": [
+    "Banko Tengah - TS Aren",
+    "Banko Tengah - TS Ext Sakura",
+    "Banko Tengah - TS Raflesia",
+    "Banko Tengah - TS Sakura",
+    "Banko Tengah - TS Tulip",
+    "Banko Tengah - PIT 3 TIMUR",
+  ],
+
+  "Mine-Mouth Coal Transportation": [
+    "Housekeeping CHO MTB BWE",
+    "Housekeeping CHO Inpit",
+    "Housekeeping CHO 5",
+    "Housekeeping CHO 4",
+    "Housekeeping CHO 3",
+    "Housekeeping CHO 2",
+    "Housekeeping CHO 1",
+    "Housekeeping CHO SS 8",
+    "Housekeeping Non-Rail",
   ],
 };
