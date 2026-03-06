@@ -209,13 +209,6 @@ export const DUMPING_POINT_GROUP = {
     ],
 
     "Non-Rail Coal Transportation": ["MTB - SP Giok Ext"],
-
-    "MTB Mining Operations": [
-      "MTB - MTBS",
-      "MTB - MTBU",
-      "MTB - TS CCP MTB",
-      "MTB - STOCK TS WESTHAM",
-    ],
   },
 
   "East Block Coal Handling Operation": {
@@ -274,6 +267,13 @@ export const DUMPING_POINT_GROUP = {
     "Dumping HK Banko Barat",
     "Dumping HK TAL",
     "Dumping HK MTB",
+  ],
+
+  "MTB Mining Operations": [
+    "MTB - MTBS",
+    "MTB - MTBU",
+    "MTB - TS CCP MTB",
+    "MTB - STOCK TS WESTHAM",
   ],
 };
 
@@ -351,13 +351,6 @@ export const LOADING_POINT_GROUP = {
 
     "Non-Rail Coal Transportation": ["MTB - SP Giok Ext"],
 
-    "MTB Mining Operations": [
-      "MTB - STOCK TS WESTHAM",
-      "MTB - TS CCP MTB",
-      "MTB - MTBS",
-      "MTB - MTBU",
-    ],
-
     "MTB BWE SP Coal Handling Operations": [
       "MTB - PLTU Banjarsari",
       "MTB - RF 10",
@@ -423,5 +416,12 @@ export const LOADING_POINT_GROUP = {
     "Housekeeping CHO 1",
     "Housekeeping CHO SS 8",
     "Housekeeping Non-Rail",
+  ],
+
+  "MTB Mining Operations": [
+    "MTB - STOCK TS WESTHAM",
+    "MTB - TS CCP MTB",
+    "MTB - MTBS",
+    "MTB - MTBU",
   ],
 };
