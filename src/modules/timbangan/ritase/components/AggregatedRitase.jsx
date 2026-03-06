@@ -782,6 +782,9 @@ const AggregatedRitase = ({
                           Dumping
                         </TableHead>
                         <TableHead className="text-gray-700 dark:text-gray-300 font-semibold text-xs min-w-30">
+                          Product Brand
+                        </TableHead>
+                        <TableHead className="text-gray-700 dark:text-gray-300 font-semibold text-xs min-w-30">
                           Measurement
                         </TableHead>
                         <TableHead className="text-right text-gray-700 dark:text-gray-300 font-semibold text-xs min-w-20">
@@ -814,6 +817,9 @@ const AggregatedRitase = ({
                           </TableCell>
                           <TableCell className="text-gray-700 dark:text-gray-300 text-xs">
                             {item.dumping_location || "-"}
+                          </TableCell>
+                          <TableCell className="text-gray-700 dark:text-gray-300 text-xs">
+                            {item.coal_type || "-"}
                           </TableCell>
                           <TableCell>
                             <Badge
@@ -991,6 +997,9 @@ const AggregatedRitase = ({
                   Dumping
                 </TableHead>
                 <TableHead className="text-gray-700 dark:text-gray-300 font-semibold text-xs">
+                  Product Brand
+                </TableHead>
+                <TableHead className="text-gray-700 dark:text-gray-300 font-semibold text-xs">
                   Measurement
                 </TableHead>
                 <TableHead className="text-right text-gray-700 dark:text-gray-300 font-semibold text-xs">
@@ -1023,6 +1032,9 @@ const AggregatedRitase = ({
                   </TableCell>
                   <TableCell className="text-gray-700 dark:text-gray-300 text-xs">
                     {item.dumping_location || "-"}
+                  </TableCell>
+                  <TableCell className="text-gray-700 dark:text-gray-300 text-xs">
+                    {item.coal_type || "-"}
                   </TableCell>
                   <TableCell>
                     <Badge
