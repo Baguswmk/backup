@@ -113,7 +113,9 @@ export const useUnitLog = () => {
     setError(null);
 
     try {
-      const result = await unitLogService.fetchMMCTEquipmentLists({ forceRefresh });
+      const result = await unitLogService.fetchMMCTEquipmentLists({
+        forceRefresh,
+      });
 
       if (!result.success) {
         throw new Error(result.error);
@@ -134,105 +136,153 @@ export const useUnitLog = () => {
   /**
    * Add to MMCT list
    */
-  const addToMMCTList = useCallback(async (category, unitId, unitName, description) => {
-    setIsSaving(true);
-    setError(null);
+  const addToMMCTList = useCallback(
+    async (category, unitId, unitName, description) => {
+      setIsSaving(true);
+      setError(null);
 
-    try {
-      // Validate description
-      if (!description || description.trim() === "") {
-        throw new Error("Keterangan tidak boleh kosong");
+      try {
+        // Validate description
+        if (!description || description.trim() === "") {
+          throw new Error("Keterangan tidak boleh kosong");
+        }
+
+        const result = await unitLogService.addToMMCTList(
+          category,
+          unitId,
+          unitName,
+          description,
+        );
+
+        if (!result.success) {
+          throw new Error(result.error);
+        }
+
+        showToast.success("Berhasil menambahkan alat ke MMCT list");
+
+        // Reload lists and statistics
+        await Promise.all([loadMMCTEquipmentLists(true)]);
+
+        return result;
+      } catch (err) {
+        const errorMessage = err.message || "Gagal menambahkan ke MMCT list";
+        setError(errorMessage);
+        showToast.error(errorMessage);
+        return { success: false, error: errorMessage };
+      } finally {
+        setIsSaving(false);
       }
-
-      const result = await unitLogService.addToMMCTList(category, unitId, unitName, description);
-
-      if (!result.success) {
-        throw new Error(result.error);
-      }
-
-      showToast.success("Berhasil menambahkan alat ke MMCT list");
-
-      // Reload lists and statistics
-      await Promise.all([
-        loadMMCTEquipmentLists(true),
-      ]);
-
-      return result;
-    } catch (err) {
-      const errorMessage = err.message || "Gagal menambahkan ke MMCT list";
-      setError(errorMessage);
-      showToast.error(errorMessage);
-      return { success: false, error: errorMessage };
-    } finally {
-      setIsSaving(false);
-    }
-  }, [loadMMCTEquipmentLists]);
+    },
+    [loadMMCTEquipmentLists],
+  );
 
   /**
    * Remove from MMCT list
    */
-  const removeFromMMCTList = useCallback(async (unitLogId) => {
-    setIsSaving(true);
-    setError(null);
+  const removeFromMMCTList = useCallback(
+    async (unitLogId) => {
+      setIsSaving(true);
+      setError(null);
 
-    try {
-      const result = await unitLogService.removeFromMMCTList(unitLogId);
+      try {
+        const result = await unitLogService.removeFromMMCTList(unitLogId);
 
-      if (!result.success) {
-        throw new Error(result.error);
+        if (!result.success) {
+          throw new Error(result.error);
+        }
+
+        showToast.success("Berhasil menghapus alat dari MMCT list");
+
+        // Reload lists and statistics
+        await Promise.all([loadMMCTEquipmentLists(true)]);
+
+        return result;
+      } catch (err) {
+        const errorMessage = err.message || "Gagal menghapus dari MMCT list";
+        setError(errorMessage);
+        showToast.error(errorMessage);
+        return { success: false, error: errorMessage };
+      } finally {
+        setIsSaving(false);
       }
+    },
+    [loadMMCTEquipmentLists],
+  );
 
-      showToast.success("Berhasil menghapus alat dari MMCT list");
+  /**
+   * Bulk remove from MMCT list
+   */
+  const bulkRemoveFromMMCTList = useCallback(
+    async (unitLogIds) => {
+      setIsSaving(true);
+      setError(null);
 
-      // Reload lists and statistics
-      await Promise.all([
-        loadMMCTEquipmentLists(true),
-      ]);
+      try {
+        const result = await unitLogService.bulkRemoveFromMMCTList(unitLogIds);
 
-      return result;
-    } catch (err) {
-      const errorMessage = err.message || "Gagal menghapus dari MMCT list";
-      setError(errorMessage);
-      showToast.error(errorMessage);
-      return { success: false, error: errorMessage };
-    } finally {
-      setIsSaving(false);
-    }
-  }, [loadMMCTEquipmentLists]);
+        if (!result.success) {
+          throw new Error(result.error);
+        }
+
+        showToast.success(
+          result.message ||
+            "Berhasil menghapus alat dari MMCT list secara bulk",
+        );
+
+        // Reload lists and statistics
+        await Promise.all([loadMMCTEquipmentLists(true)]);
+
+        return result;
+      } catch (err) {
+        const errorMessage =
+          err.message || "Gagal menghapus secara bulk dari MMCT list";
+        setError(errorMessage);
+        showToast.error(errorMessage);
+        return { success: false, error: errorMessage };
+      } finally {
+        setIsSaving(false);
+      }
+    },
+    [loadMMCTEquipmentLists],
+  );
 
   /**
    * Bulk add to MMCT list
    */
-  const bulkAddToMMCTList = useCallback(async (category, equipmentList) => {
-    setIsSaving(true);
-    setError(null);
+  const bulkAddToMMCTList = useCallback(
+    async (category, equipmentList) => {
+      setIsSaving(true);
+      setError(null);
 
-    try {
-      const result = await unitLogService.bulkAddToMMCTList(category, equipmentList);
+      try {
+        const result = await unitLogService.bulkAddToMMCTList(
+          category,
+          equipmentList,
+        );
         if (result.success) {
-        showToast.success(result.message);
-      } else if (result.partialSuccess) {
-        showToast.warning(result.message);
-      } else {
-        throw new Error(result.error);
+          showToast.success(result.message);
+        } else if (result.partialSuccess) {
+          showToast.warning(result.message);
+        } else {
+          throw new Error(result.error);
+        }
+
+        // Reload lists and statistics
+        await Promise.all([loadMMCTEquipmentLists(true)]);
+
+        return result;
+      } catch (err) {
+        const errorMessage =
+          err.message || "Gagal menambahkan bulk ke MMCT list";
+        setError(errorMessage);
+        showToast.error(errorMessage);
+        return { success: false, error: errorMessage };
+      } finally {
+        setIsSaving(false);
       }
-
-
-      // Reload lists and statistics
-      await Promise.all([
-        loadMMCTEquipmentLists(true),
-      ]);
-
-      return result;
-    } catch (err) {
-      const errorMessage = err.message || "Gagal menambahkan bulk ke MMCT list";
-      setError(errorMessage);
-      showToast.error(errorMessage);
-      return { success: false, error: errorMessage };
-    } finally {
-      setIsSaving(false);
-    }
-  }, [loadMMCTEquipmentLists]);
+    },
+    [loadMMCTEquipmentLists],
+  );
 
   /**
    * Clear cache
@@ -246,9 +296,7 @@ export const useUnitLog = () => {
    */
   const refreshMMCT = useCallback(async () => {
     await clearCache();
-    await Promise.all([
-      loadMMCTEquipmentLists(true),
-    ]);
+    await Promise.all([loadMMCTEquipmentLists(true)]);
   }, [clearCache, loadMMCTEquipmentLists]);
 
   // Auto-load on mount
@@ -274,6 +322,7 @@ export const useUnitLog = () => {
     loadMMCTEquipmentLists,
     addToMMCTList,
     removeFromMMCTList,
+    bulkRemoveFromMMCTList,
     bulkAddToMMCTList,
     refreshMMCT,
     clearCache,

@@ -38,7 +38,7 @@ export const unitLogService = {
 
       const response = await offlineService.post(
         "/v1/custom/unit-log",
-        payload
+        payload,
       );
 
       if (!response?.data) {
@@ -98,7 +98,7 @@ export const unitLogService = {
 
       const response = await offlineService.post(
         "/v1/custom/unit-log/verification",
-        payload
+        payload,
       );
 
       if (!response?.data) {
@@ -183,13 +183,13 @@ export const unitLogService = {
           });
 
           let unitLogs = response.data;
-          
+
           // If response.data is an object with nested data array (Strapi v4)
           if (!Array.isArray(response.data) && response.data?.data) {
             logger.info("📦 Detected nested data structure, extracting...");
             unitLogs = response.data.data;
           }
-          
+
           // Ensure it's an array
           if (!Array.isArray(unitLogs)) {
             logger.warn("⚠️ Response is not an array, returning empty", {
@@ -317,7 +317,12 @@ export const unitLogService = {
       logger.info("➕ Adding unit to MMCT list", { category, unitId });
 
       // Validate category
-      const validCategories = ["dt_service", "dt_bd", "exca_service", "exca_bd"];
+      const validCategories = [
+        "dt_service",
+        "dt_bd",
+        "exca_service",
+        "exca_bd",
+      ];
       if (!validCategories.includes(category)) {
         throw new Error("Kategori tidak valid");
       }
@@ -406,12 +411,71 @@ export const unitLogService = {
   },
 
   /**
+   * Bulk remove equipment from MMCT list
+   */
+  async bulkRemoveFromMMCTList(unitLogIds) {
+    try {
+      if (!Array.isArray(unitLogIds) || unitLogIds.length === 0) {
+        throw new Error(
+          "Daftar ID unit log harus berupa array dan tidak boleh kosong",
+        );
+      }
+
+      logger.info("🗑️ Bulk removing units from MMCT list", {
+        count: unitLogIds.length,
+      });
+
+      const completionDate = new Date().toISOString();
+      const payload = unitLogIds.map((id) => ({
+        id: parseInt(id),
+        completion_date: completionDate,
+      }));
+
+      const response = await offlineService.post(
+        "/v1/custom/unit-log/verification/bulk",
+        payload,
+      );
+
+      if (!response?.data) {
+        throw new Error("Invalid response format");
+      }
+
+      logger.info("✅ Successfully bulk removed from MMCT list", {
+        count: unitLogIds.length,
+      });
+
+      // Clear cache after bulk verification
+      await this.clearCache();
+
+      return {
+        success: true,
+        data: response.data.data,
+        message: `Berhasil menghapus ${unitLogIds.length} alat`,
+      };
+    } catch (error) {
+      const errorMessage = extractErrorMessage(error);
+
+      logger.error("❌ Failed to bulk remove from MMCT list", {
+        error: errorMessage,
+        details: error.response?.data,
+      });
+
+      return {
+        success: false,
+        error: errorMessage,
+      };
+    }
+  },
+
+  /**
    * Bulk add to MMCT list
    */
   async bulkAddToMMCTList(category, equipmentList) {
     try {
       if (!Array.isArray(equipmentList) || equipmentList.length === 0) {
-        throw new Error("Equipment list harus berupa array dan tidak boleh kosong");
+        throw new Error(
+          "Equipment list harus berupa array dan tidak boleh kosong",
+        );
       }
 
       logger.info("📦 Bulk adding to MMCT list", {
@@ -419,74 +483,87 @@ export const unitLogService = {
         count: equipmentList.length,
       });
 
-      const results = {
-        success: [],
-        failed: [],
-        total: equipmentList.length,
-      };
+      // Filter and prepare payload
+      const validItems = [];
+      const failedValidations = [];
 
       for (const equipment of equipmentList) {
-        try {
-          // Validate description
-          if (!equipment.description || equipment.description.trim() === "") {
-            results.failed.push({
-              id: equipment.equipmentId,
-              name: equipment.equipmentName,
-              error: "Keterangan tidak boleh kosong",
-            });
-            continue;
-          }
+        let description = equipment.description
+          ? equipment.description.trim()
+          : "-";
 
-          const result = await this.addToMMCTList(
-            category,
-            equipment.equipmentId,
-            equipment.equipmentName,
-            equipment.description
-          );
+        if (description === "") {
+          description = "-";
+        }
 
-          if (result.success) {
-            results.success.push({
-              id: equipment.equipmentId,
-              name: equipment.equipmentName,
-              data: result.data,
-            });
-          } else {
-            results.failed.push({
-              id: equipment.equipmentId,
-              name: equipment.equipmentName,
-              error: result.error,
-            });
-          }
-        } catch (error) {
-          const errorMessage = extractErrorMessage(error);
-
-          results.failed.push({
+        const validCategories = [
+          "dt_service",
+          "dt_bd",
+          "exca_service",
+          "exca_bd",
+        ];
+        if (!validCategories.includes(category)) {
+          failedValidations.push({
             id: equipment.equipmentId,
             name: equipment.equipmentName,
-            error: errorMessage,
+            error: "Kategori tidak valid",
           });
-
-          logger.error(`❌ Failed to add equipment ${equipment.equipmentId}`, {
-            error: errorMessage,
-          });
+          continue;
         }
+
+        const status = category.includes("service") ? "SERVICE" : "BREAKDOWN";
+
+        validItems.push({
+          entry_date: new Date().toISOString(),
+          status: status,
+          unit: parseInt(equipment.equipmentId),
+          description: description,
+        });
       }
 
-      const allSuccess = results.failed.length === 0;
+      if (validItems.length === 0) {
+        return {
+          success: false,
+          partialSuccess: false,
+          error: "Tidak ada data yang valid untuk disimpan",
+          results: {
+            success: [],
+            failed: failedValidations,
+            total: equipmentList.length,
+          },
+        };
+      }
 
-      logger.info("📊 Bulk add summary", {
-        total: results.total,
-        success: results.success.length,
-        failed: results.failed.length,
+      // Hit Bulk Endpoint
+      logger.info("📡 Sending bulk request to API", {
+        itemCount: validItems.length,
       });
+
+      const response = await offlineService.post(
+        "/v1/custom/unit-log/bulk",
+        validItems,
+      );
+
+      if (!response?.data) {
+        throw new Error("Invalid response format from bulk API");
+      }
+
+      // Clear cache after create
+      await this.clearCache();
+
+      const allSuccess = failedValidations.length === 0;
 
       return {
         success: allSuccess,
-        partialSuccess: results.success.length > 0 && results.failed.length > 0,
-        results,
+        partialSuccess: validItems.length > 0 && failedValidations.length > 0,
+        results: {
+          success: validItems,
+          failed: failedValidations,
+          total: equipmentList.length,
+        },
         message: allSuccess
-          ? `Berhasil menambahkan ${results.success.length} alat`
-          : `${results.success.length} berhasil, ${results.failed.length} gagal`,
+          ? `Berhasil menambahkan ${validItems.length} alat`
+          : `${validItems.length} berhasil, ${failedValidations.length} gagal (validasi)`,
       };
     } catch (error) {
       const errorMessage = extractErrorMessage(error);
@@ -499,7 +576,7 @@ export const unitLogService = {
       return {
         success: false,
         error: errorMessage,
-        results: { success: [], failed: [], total: 0 },
+        results: { success: [], failed: [], total: equipmentList?.length || 0 },
       };
     }
   },
@@ -587,7 +664,7 @@ export const unitLogService = {
         // Handle both Strapi wrapped and direct data
         const log = logItem.attributes || logItem;
         const logId = logItem.id || log.id;
-        
+
         // Get unit data
         const unitData = log.unit?.data?.attributes || log.unit;
         if (!unitData) {
@@ -610,7 +687,8 @@ export const unitLogService = {
 
         if (category && result[category]) {
           // Get company data
-          const companyData = unitData.company?.data?.attributes || unitData.company;
+          const companyData =
+            unitData.company?.data?.attributes || unitData.company;
 
           result[category].push({
             id: logId,
@@ -644,7 +722,7 @@ export const unitLogService = {
     if (unit.category === "dump_truck") return true;
     if (unit.hull_no?.toUpperCase().startsWith("DT")) return true;
     if (unit.hull_no?.toUpperCase().includes("DUMP")) return true;
-    
+
     // Default to false for excavators
     return false;
   },
@@ -656,7 +734,7 @@ export const unitLogService = {
     logger.info("🗑️ Unit log cache cleared", {
       pattern: pattern || "all",
     });
-    
+
     return Promise.all([
       offlineService.clearCache("active_unit_logs"),
       offlineService.clearCache("mmct_equipment_lists"),
