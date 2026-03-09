@@ -21,6 +21,54 @@ import { useDashboardDaily } from "@/modules/timbangan/dashboard/hooks/useDashbo
 import SupervisorInputModal from "@/modules/timbangan/overview/components/SupervisorInputModal";
 import { getCurrentShift } from "@/shared/utils/shift";
 import { useWorkUnitFilter } from "./hooks/useWorkUnitFilter";
+import {
+  LOADING_POINT_GROUP,
+  DUMPING_POINT_GROUP,
+} from "@/modules/timbangan/ritase/constant/ritaseConstants";
+  
+// Helper to flatten nested group objects into an array of strings in order
+const flattenGroupOrder = (groupObj) => {
+  let result = [];
+  const traverse = (node) => {
+    if (Array.isArray(node)) {
+      node.forEach((item) => traverse(item));
+    } else if (typeof node === "object" && node !== null) {
+      Object.keys(node).forEach((key) => traverse(node[key]));
+    } else if (typeof node === "string") {
+      result.push(node);
+    }
+  };
+  traverse(groupObj);
+  return result;
+};
+
+const LOADING_ORDER = flattenGroupOrder(LOADING_POINT_GROUP);
+const DUMPING_ORDER = flattenGroupOrder(DUMPING_POINT_GROUP);
+
+const sortLocations = (locations, orderArray) => {
+  if (!Array.isArray(locations)) return locations;
+  return [...locations].sort((a, b) => {
+    const indexA = orderArray.indexOf(a);
+    const indexB = orderArray.indexOf(b);
+
+    if (indexA === -1 && indexB === -1) return a.localeCompare(b);
+    if (indexA === -1) return 1;
+    if (indexB === -1) return -1;
+
+    return indexA - indexB;
+  });
+};
+
+const getSortIndex = (locationList, orderArray) => {
+  if (!locationList || locationList.length === 0) return 999999;
+  if (Array.isArray(locationList)) {
+    const sorted = sortLocations(locationList, orderArray);
+    const idx = orderArray.indexOf(sorted[0]);
+    return idx !== -1 ? idx : 999999;
+  }
+  const idx = orderArray.indexOf(locationList);
+  return idx !== -1 ? idx : 999999;
+};
 
 const OverviewManagement = () => {
   const [dateRange, setDateRange] = useState(() => {
@@ -402,6 +450,54 @@ const OverviewManagement = () => {
       } else if (sortConfig.key === "total_tonase") {
         aValue = parseFloat(a.total_tonase) || 0;
         bValue = parseFloat(b.total_tonase) || 0;
+      } else if (sortConfig.key === "loading") {
+        const aLocations = Array.isArray(a.loading_locations)
+          ? sortLocations(a.loading_locations, LOADING_ORDER)
+          : a.loading_locations
+            ? [a.loading_locations]
+            : [];
+        const bLocations = Array.isArray(b.loading_locations)
+          ? sortLocations(b.loading_locations, LOADING_ORDER)
+          : b.loading_locations
+            ? [b.loading_locations]
+            : [];
+        const aIndex = getSortIndex(aLocations, LOADING_ORDER);
+        const bIndex = getSortIndex(bLocations, LOADING_ORDER);
+
+        if (aIndex !== bIndex) {
+          return sortConfig.direction === "asc"
+            ? aIndex - bIndex
+            : bIndex - aIndex;
+        }
+        const aStr = aLocations.join(",");
+        const bStr = bLocations.join(",");
+        return sortConfig.direction === "asc"
+          ? aStr.localeCompare(bStr)
+          : bStr.localeCompare(aStr);
+      } else if (sortConfig.key === "dumping") {
+        const aLocations = Array.isArray(a.dumping_locations)
+          ? sortLocations(a.dumping_locations, DUMPING_ORDER)
+          : a.dumping_locations
+            ? [a.dumping_locations]
+            : [];
+        const bLocations = Array.isArray(b.dumping_locations)
+          ? sortLocations(b.dumping_locations, DUMPING_ORDER)
+          : b.dumping_locations
+            ? [b.dumping_locations]
+            : [];
+        const aIndex = getSortIndex(aLocations, DUMPING_ORDER);
+        const bIndex = getSortIndex(bLocations, DUMPING_ORDER);
+
+        if (aIndex !== bIndex) {
+          return sortConfig.direction === "asc"
+            ? aIndex - bIndex
+            : bIndex - aIndex;
+        }
+        const aStr = aLocations.join(",");
+        const bStr = bLocations.join(",");
+        return sortConfig.direction === "asc"
+          ? aStr.localeCompare(bStr)
+          : bStr.localeCompare(aStr);
       }
 
       if (aValue < bValue) return sortConfig.direction === "asc" ? -1 : 1;

@@ -35,6 +35,45 @@ import { formatWeight } from "@/shared/utils/number";
 import Pagination from "@/shared/components/Pagination";
 import TableToolbar from "@/shared/components/TableToolbar";
 import AdvancedFilter from "@/shared/components/AdvancedFilter";
+import {
+  LOADING_POINT_GROUP,
+  DUMPING_POINT_GROUP,
+} from "@/modules/timbangan/ritase/constant/ritaseConstants";
+
+// Helper to flatten nested group objects into an array of strings in order
+const flattenGroupOrder = (groupObj) => {
+  let result = [];
+  const traverse = (node) => {
+    if (Array.isArray(node)) {
+      node.forEach((item) => traverse(item));
+    } else if (typeof node === "object" && node !== null) {
+      Object.keys(node).forEach((key) => traverse(node[key]));
+    } else if (typeof node === "string") {
+      result.push(node);
+    }
+  };
+  traverse(groupObj);
+  return result;
+};
+
+const LOADING_ORDER = flattenGroupOrder(LOADING_POINT_GROUP);
+const DUMPING_ORDER = flattenGroupOrder(DUMPING_POINT_GROUP);
+
+const sortLocations = (locations, orderArray) => {
+  if (!Array.isArray(locations)) return locations;
+  return [...locations].sort((a, b) => {
+    const indexA = orderArray.indexOf(a);
+    const indexB = orderArray.indexOf(b);
+
+    // Jika keduanya tidak ada di urutan, urutkan sesuai abjad
+    if (indexA === -1 && indexB === -1) return a.localeCompare(b);
+    // Jika salah satu tidak ada, taruh di paling bawah
+    if (indexA === -1) return 1;
+    if (indexB === -1) return -1;
+
+    return indexA - indexB;
+  });
+};
 
 // Helper function untuk mendapatkan jam berdasarkan shift
 const getHoursByShift = (shift) => {
@@ -251,11 +290,21 @@ const OverviewTable = ({
                     Total <ArrowUpDown className="w-3 h-3" />
                   </div>
                 </th>
-                <th className="px-3 py-3 text-left font-semibold min-w-30 border-r border-gray-200 dark:border-gray-700">
-                  Loading
+                <th
+                  className="px-3 py-3 text-left font-semibold cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 min-w-30 border-r border-gray-200 dark:border-gray-700"
+                  onClick={() => onSort("loading")}
+                >
+                  <div className="flex items-center gap-1">
+                    Loading <ArrowUpDown className="w-3 h-3" />
+                  </div>
                 </th>
-                <th className="px-3 py-3 text-left font-semibold min-w-30 border-r border-gray-200 dark:border-gray-700">
-                  Dumping
+                <th
+                  className="px-3 py-3 text-left font-semibold cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 min-w-30 border-r border-gray-200 dark:border-gray-700"
+                  onClick={() => onSort("dumping")}
+                >
+                  <div className="flex items-center gap-1">
+                    Dumping <ArrowUpDown className="w-3 h-3" />
+                  </div>
                 </th>
                 <th className="px-3 py-3 text-center font-semibold min-w-25">
                   Action
@@ -396,7 +445,10 @@ const OverviewTable = ({
                       <div className="space-y-1">
                         {Array.isArray(row.loading_locations) &&
                         row.loading_locations.length > 0 ? (
-                          row.loading_locations.map((location, idx) => (
+                          sortLocations(
+                            row.loading_locations,
+                            LOADING_ORDER,
+                          ).map((location, idx) => (
                             <div key={idx} className="flex items-start gap-1.5">
                               <span className="text-blue-500 dark:text-blue-400 text-xs mt-0.5">
                                 •
@@ -417,7 +469,10 @@ const OverviewTable = ({
                       <div className="space-y-1">
                         {Array.isArray(row.dumping_locations) &&
                         row.dumping_locations.length > 0 ? (
-                          row.dumping_locations.map((location, idx) => (
+                          sortLocations(
+                            row.dumping_locations,
+                            DUMPING_ORDER,
+                          ).map((location, idx) => (
                             <div key={idx} className="flex items-start gap-1.5">
                               <span className="text-green-500 dark:text-green-400 text-xs mt-0.5">
                                 •
