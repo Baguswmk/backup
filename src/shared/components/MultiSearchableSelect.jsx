@@ -61,7 +61,7 @@ const MultiSearchableSelect = ({
   }, [open]);
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={open} onOpenChange={setOpen} modal={true}>
       <PopoverTrigger asChild>
         <Button
           type="button"
@@ -87,8 +87,9 @@ const MultiSearchableSelect = ({
       </PopoverTrigger>
 
       <PopoverContent
-        className="border-none w-[--radix-popover-trigger-width] p-0 dark:bg-gray-800 dark:border-gray-700 z-[60]"
+        className="w-[--radix-popover-trigger-width] p-0 dark:bg-gray-800 dark:border-gray-700 pointer-events-auto z-[9999]"
         align="start"
+        sideOffset={4}
       >
         <Command
           loop
@@ -113,7 +114,11 @@ const MultiSearchableSelect = ({
                 <CommandItem
                   key={item.value}
                   value={`${item.label} ${item.hint ?? ""}`}
-                  onSelect={() => toggleItem(item.value)}
+                  onSelect={() => {
+                    if (!item.disabled) {
+                      toggleItem(item.value);
+                    }
+                  }}
                   className={cn(
                     "cursor-pointer transition-all duration-150",
                     "dark:text-gray-200",
@@ -127,6 +132,8 @@ const MultiSearchableSelect = ({
                     "hover:bg-gray-200 dark:hover:bg-gray-700",
                     // Selected items background
                     isSelected && "bg-green-50 dark:bg-green-900/20",
+                    // Disabled items
+                    item.disabled && "opacity-50 pointer-events-none",
                   )}
                 >
                   <div className="flex items-center gap-2 w-full">

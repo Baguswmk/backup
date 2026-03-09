@@ -184,8 +184,10 @@ const SearchableSelect = forwardRef(
                       key={item.id || `item-${idx}-${item.value}`}
                       value={`${item.label} ${item.hint ?? ""}`}
                       onSelect={() => {
-                        onChange?.(item.value);
-                        setOpen(false);
+                        if (!item.disabled) {
+                          onChange?.(item.value);
+                          setOpen(false);
+                        }
                       }}
                       data-selected={isSelected}
                       className={cn(
@@ -201,6 +203,8 @@ const SearchableSelect = forwardRef(
                         "hover:bg-gray-200 dark:hover:bg-gray-700",
                         // Selected item (current value) background
                         isSelected && "bg-gray-100 dark:bg-gray-800/50",
+                        // Disabled item
+                        item.disabled && "opacity-50 pointer-events-none",
                       )}
                     >
                       <div className="flex items-center gap-2 w-full">

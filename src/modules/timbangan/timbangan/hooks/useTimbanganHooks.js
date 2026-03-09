@@ -416,7 +416,6 @@ export const useTimbanganHooks = () => {
     // Absolute lockout: prevent any clicks within 5 seconds of the last allowed click
     const now = Date.now();
     if (now - lastSubmitTimeRef.current < 5000) {
-      console.log("Submit blocked by time lock");
       return;
     }
 
@@ -437,7 +436,6 @@ export const useTimbanganHooks = () => {
 
     const now = Date.now();
     if (now - lastSubmitTimeRef.current < 5000) {
-      console.log("Bypass submit blocked by time lock");
       return;
     }
 

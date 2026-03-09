@@ -24,6 +24,7 @@ const TimbanganManagement = () => {
   const [showOperatorModal, setShowOperatorModal] = useState(false);
   const [operatorName, setOperatorName] = useState("");
   const [isRefreshingMasterData, setIsRefreshingMasterData] = useState(false);
+  const [activeInputTab, setActiveInputTab] = useState("timbangan");
 
   const handleRefreshMasterData = useCallback(async () => {
     setIsRefreshingMasterData(true);
@@ -381,13 +382,15 @@ const TimbanganManagement = () => {
         <div className="grid grid-cols-1">
           {/* Input Section - Takes full width on mobile, 4 columns on large screens */}
           <section className="lg:col-span-4 xl:col-span-3">
-            <TimbanganInputCard fleetConfigs={dumptruckData} operatorName={operatorName} />
+            <TimbanganInputCard fleetConfigs={dumptruckData} operatorName={operatorName} onTabChange={setActiveInputTab} />
           </section>
 
-          {/* Queue List Section - Takes full width on mobile, 8 columns on large screens */}
-          <section className="lg:col-span-8 xl:col-span-9">
-            <TimbanganList />
-          </section>
+          {/* Queue List Section - hidden on manual tab */}
+          {activeInputTab !== "manual" && (
+            <section className="lg:col-span-8 xl:col-span-9">
+              <TimbanganList />
+            </section>
+          )}
         </div>
 
         <LoadingOverlay
