@@ -28,7 +28,15 @@ export const ROLE_GROUPS = {
 
   TIMBANGAN_FOB: ["operator_timbangan_fob"],
   TIMBANGAN_FOT: ["operator_timbangan_fot"],
-
+  PENGELUARAN_BATUBARA: [ "checker",
+    "pic",
+    "pengawas",
+    "operator_jt",
+    "evaluator",
+    "mitra",
+    "admin",
+    "super_admin",
+    "ccr",],
   SUPERVISOR: ["supervisor_timbangan", "kepala_timbangan"],
 };
 
@@ -58,6 +66,8 @@ export const APP_ROLES = {
     ...ROLE_GROUPS.TIMBANGAN_FOT,
     ...ROLE_GROUPS.SUPERVISOR,
   ],
+
+  "pengeluaran-batubara": [...ROLE_GROUPS.PENGELUARAN_BATUBARA],
 };
 
 export const APP_METADATA = {
@@ -82,7 +92,7 @@ export const APP_METADATA = {
   },
 
   "timbangan-internal": {
-    name: "Batubara Tracking System", 
+    name: "Batubara Tracking System",
     description: "Internal System Tracking",
     type: "internal",
     url: null,
@@ -90,6 +100,17 @@ export const APP_METADATA = {
     icon: "Scale",
     color: "bg-orange-500 hover:bg-orange-600",
     loadingMessage: "Loading Batubara Tracking System...",
+  },
+
+  "pengeluaran-batubara": {
+    name: "Train Loading System",
+    description: "Train Loading System",
+    type: "external",
+    url: "https://btrace.bukitasam.co.id/pengeluaran-batubara/auth/login",
+    path: null,
+    icon: "Train",
+    color: "bg-green-500 hover:bg-green-600",
+    loadingMessage: "Loading Train Loading System...",
   },
 };
 

@@ -26,8 +26,8 @@ const ICON_MAP = {
 };
 
 const SuperAppsHub = () => {
-  const { logout, userName, userRole, navigateToApp, getUserApps } = useAuth();
-
+  const { logout, userName, userRole, navigateToApp, getUserApps, token } =
+    useAuth();
   const timbanganApps = getUserApps().filter((app) =>
     app.key.startsWith("timbangan"),
   );
@@ -45,10 +45,11 @@ const SuperAppsHub = () => {
     if (!isAppAccessible(app)) {
       return;
     }
-
     if (app.url && app.url.trim() !== "") {
       const url = new URL(app.url);
-      url.searchParams.set("user_role", userRole);
+      if (token) {
+        url.searchParams.set("token", token);
+      }
       window.location.href = url.toString();
     } else if (app.path && app.path.trim() !== "") {
       if (navigateToApp) {
