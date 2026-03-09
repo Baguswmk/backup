@@ -26,6 +26,7 @@ import {
   ChevronDown,
   ChevronUp,
   Target,
+  ClipboardList,
 } from "lucide-react";
 import { useTimbanganHooks } from "../hooks/useTimbanganHooks";
 import useAuthStore from "@/modules/auth/store/authStore";
@@ -33,6 +34,7 @@ import { useWebSerialScale } from "@/shared/hooks/useWebSerialScale";
 import { useRFIDWebSerial } from "@/shared/hooks/useRFIDWebSerial";
 import { Badge } from "@/shared/components/ui/badge";
 import PrintBukti from "@/modules/timbangan/timbangan/components/PrintBukti";
+import ManualWeighTab from "@/modules/timbangan/timbangan/components/ManualWeighTab";
 import {
   Tabs,
   TabsContent,
@@ -40,7 +42,7 @@ import {
   TabsTrigger,
 } from "@/shared/components/ui/tabs";
 
-export const TimbanganInputCard = () => {
+export const TimbanganInputCard = ({ onTabChange }) => {
   const { user } = useAuthStore();
   const isOperator = user?.role.toLowerCase() === "operator_jt";
   const isChecker = user?.role.toLowerCase() === "checker";
@@ -62,6 +64,15 @@ export const TimbanganInputCard = () => {
 
   // State untuk active tab
   const [activeTab, setActiveTab] = useState("timbangan");
+
+  // Notify parent when tab changes
+  const handleTabChange = useCallback(
+    (value) => {
+      setActiveTab(value);
+      onTabChange?.(value);
+    },
+    [onTabChange],
+  );
 
   // Submit functions (debounce removed to allow multiple submissions if users clicks fast)
   const debouncedHandleSubmit = useCallback(
@@ -400,7 +411,7 @@ export const TimbanganInputCard = () => {
   }, [isOperator, activeTab, handleSubmit, handleBypassSubmit, scale, rfid]);
   return (
     <Card className="shadow-lg border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800 transition-colors">
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
         <CardHeader className="border-b border-gray-200 dark:border-gray-800 ">
           {/* Row 1: Title-as-Tabs + Hardware Controls */}
           <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
@@ -412,6 +423,13 @@ export const TimbanganInputCard = () => {
               >
                 <Scale className="w-5 h-5 text-blue-600 dark:text-blue-400" />
                 Timbangan
+              </TabsTrigger>
+              <TabsTrigger
+                value="manual"
+                className="flex items-center gap-2 px-5 text-xl font-semibold data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:text-gray-900 dark:data-[state=active]:text-gray-100 data-[state=inactive]:text-gray-400 dark:data-[state=inactive]:text-gray-600 data-[state=inactive]:hover:text-gray-600 dark:data-[state=inactive]:hover:text-gray-400 transition-colors rounded-none border-b-2  data-[state=inactive]:border-transparent pb-1 cursor-pointer"
+              >
+                <ClipboardList className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+                Timbang Manual
               </TabsTrigger>
               {isChecker && (
                 <TabsTrigger
@@ -1434,6 +1452,11 @@ export const TimbanganInputCard = () => {
               </form>
             </TabsContent>
           )}
+
+          {/* Tab Timbang Manual */}
+          <TabsContent value="manual">
+            <ManualWeighTab scale={scale} />
+          </TabsContent>
         </CardContent>
 
         {/* Operator name automatically retrieved from localStorage ("operator_sib_name") */}
