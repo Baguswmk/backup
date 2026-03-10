@@ -726,6 +726,26 @@ async function syncQueueItem(item) {
         httpStatus: error.response.status,
         data: responseData,
       };
+
+      // Jika error 409 (Conflict/Duplicate), anggap sebagai sukses terkirim
+      if (error.response.status === 409) {
+        await db.delete(STORES.QUEUE, item.id);
+
+        await addToSentQueue({
+          id: `synced_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+          url: item.url,
+          method: item.method || "POST",
+          data: item.data,
+          timestamp: item.timestamp || Date.now(),
+          clientTimestamp: item.clientTimestamp || new Date().toISOString(),
+          retryCount: item.retryCount || 0,
+          syncedFrom: "auto_sync_409",
+          isDuplicate: true,
+          note: errorMessage || "Data duplikat di server",
+        });
+
+        return { success: true, item, note: "Resolved as 409 Conflict" };
+      }
     }
 
     // Jika error memiliki response (artinya sudah sampai backend tapi ditolak),
