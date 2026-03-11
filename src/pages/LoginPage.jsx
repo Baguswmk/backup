@@ -1,5 +1,6 @@
 import React from "react";
 import { useAuth } from "@/modules/auth/hooks/useAuth";
+import { useSearchParams } from "react-router-dom";
 import {
   Card,
   CardContent,
@@ -13,6 +14,8 @@ import LoadingContent from "@/shared/components/LoadingContent";
 
 const LoginPage = () => {
   const { login, isLoading, isAuthenticated, error, clearError } = useAuth();
+  const [searchParams] = useSearchParams();
+  const ssoError = searchParams.get("error");
 
   if (isLoading && isAuthenticated) {
     return (
@@ -44,6 +47,14 @@ const LoginPage = () => {
           </CardHeader>
 
           <CardContent>
+            {ssoError && (
+              <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+                <p className="text-sm text-red-700 dark:text-red-400">
+                  SSO Login gagal: {decodeURIComponent(ssoError)}
+                </p>
+              </div>
+            )}
+
             {isLoading && !isAuthenticated ? (
               <LoadingContent />
             ) : (

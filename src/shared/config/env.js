@@ -100,6 +100,16 @@ class EnvironmentConfig {
     };
   }
 
+  get sso() {
+    return {
+      callbackPath: this.get("VITE_SSO_CALLBACK_PATH", "/timbangan-internal/sso/callback"),
+      tokenPath: this.get("VITE_SSO_TOKEN_PATH", "/v1/sso/token"),
+      exchangePath: this.get("VITE_SSO_EXCHANGE_PATH", "/v1/sso/exchange"),
+      profilePath: this.get("VITE_SSO_PROFILE_PATH", "/users/me"),
+      useCookieSession: this.getBoolean("VITE_SSO_USE_COOKIE_SESSION", true),
+    };
+  }
+
   get security() {
     return {
       https: this.getBoolean("VITE_ENABLE_HTTPS", false),
@@ -260,6 +270,7 @@ export const {
   debug: debugConfig,
   performance: performanceConfig,
   business: businessConfig,
+  sso: ssoConfig,
 } = env;
 
 export const { isDevelopment, isStaging, isProduction } = env;

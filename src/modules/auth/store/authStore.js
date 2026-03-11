@@ -78,6 +78,51 @@ const useAuthStore = create(
         }
       },
 
+      completeSSOLogin: async (payload) => {
+        try {
+          set({ isLoading: true, error: null });
+
+          const response = await authService.completeSSOLogin(payload);
+
+          if (response.success) {
+            const { user, token } = response.data;
+            const loginTimestamp = Date.now();
+
+            secureStorage.setItem("login_timestamp", loginTimestamp);
+            if (token) secureStorage.setItem("auth_token", token);
+            secureStorage.setItem("user_data", user);
+            secureStorage.setItem("sso_login", true);
+            secureStorage.removeItem("logout");
+            secureStorage.removeItem("session_expired");
+
+            set({
+              user,
+              token: token || null,
+              isAuthenticated: true,
+              isLoading: false,
+              error: null,
+            });
+
+            logger.logUserAction("SSO Login Success", {
+              userId: user.id,
+              role: user.role,
+              cookieMode: !token,
+              timestamp: loginTimestamp,
+            });
+
+            return { success: true, data: { user, token } };
+          } else {
+            set({ isLoading: false, error: response.message || "SSO login failed" });
+            return { success: false, error: response.message };
+          }
+        } catch (error) {
+          const errorMessage = error.message || "SSO login error";
+          set({ isLoading: false, error: errorMessage });
+          logger.error("SSO Login Error", { error: errorMessage });
+          return { success: false, error: errorMessage };
+        }
+      },
+
       checkAuth: async () => {
         if (isCheckingAuth) return;
         isCheckingAuth = true;
@@ -87,6 +132,33 @@ const useAuthStore = create(
           const token = secureStorage.getItem("auth_token");
           const userData = secureStorage.getItem("user_data");
           const loginTimestamp = secureStorage.getItem("login_timestamp");
+          const isSSOLogin = secureStorage.getItem("sso_login");
+
+          // Cookie-based SSO: tidak ada token lokal tapi ada session
+          if (!token && isSSOLogin && userData && loginTimestamp) {
+            const threeDays = 3 * 24 * 60 * 60 * 1000;
+            if (Date.now() - loginTimestamp > threeDays) {
+              get().logout();
+              return false;
+            }
+            try {
+              const profileResponse = await authService.getProfile();
+              if (profileResponse.success) {
+                set({
+                  user: profileResponse.data,
+                  token: null,
+                  isAuthenticated: true,
+                  isLoading: false,
+                  error: null,
+                });
+                return true;
+              }
+            } catch {
+              // fall through to logout
+            }
+            get().logout();
+            return false;
+          }
 
           if (!token || !userData || !loginTimestamp) {
             set({ isLoading: false });
@@ -195,6 +267,7 @@ const useAuthStore = create(
         secureStorage.removeItem("auth_token");
         secureStorage.removeItem("user_data");
         secureStorage.removeItem("login_timestamp");
+        secureStorage.removeItem("sso_login");
         secureStorage.setItem("logout_flag", Date.now());
         secureStorage.removeItem("timbangan_store");
         secureStorage.setItem("logout_flag", Date.now());

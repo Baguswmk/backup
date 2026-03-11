@@ -2,6 +2,7 @@ import { apiClient } from "@/shared/services/api";
 import { offlineService } from "@/shared/services/offlineService";
 import { logger } from "@/shared/services/log";
 import { ROLE_CONFIG } from "@/shared/permissions/roleConfig";
+import { ssoConfig } from "@/shared/config/env";
 
 export const authService = {
   async login(credentials) {
@@ -325,6 +326,94 @@ export const authService = {
       return {
         success: false,
         message: error?.response?.data?.error?.message || error.message,
+      };
+    }
+  },
+
+  /**
+   * FE A: Generate short-lived SSO token from BE A
+   */
+  async generateSSOToken(targetApp = null) {
+    try {
+      const payload = targetApp ? { target_app: targetApp } : {};
+      const response = await apiClient.post(
+        ssoConfig.tokenPath || ssoConfig.exchangePath,
+        payload,
+      );
+      const { sso_token, expires_in } = response.data?.data || response.data;
+
+      logger.info("SSO token generated", { expires_in, targetApp });
+      return { success: true, data: { sso_token, expires_in } };
+    } catch (error) {
+      logger.error("Failed to generate SSO token", { error: error.message });
+      return {
+        success: false,
+        message: error.response?.data?.message || error.message,
+      };
+    }
+  },
+
+  /**
+   * FE B: Complete SSO login by exchanging sso_token with BE B
+   * Supports: direct token, cookie session, sso_token exchange
+   */
+  async completeSSOLogin({ code, ssoToken, token, status, state }) {
+    try {
+      // Mode 1: JWT token langsung dari query param
+      if (token) {
+        const userResponse = await apiClient.get(ssoConfig.profilePath, {
+          headers: { Authorization: `Bearer ${token}` },
+          params: { populate: ["role", "company", "work_unit"] },
+        });
+        const user = this.normalizeUserData(userResponse.data);
+
+        logger.info("SSO login via direct token", { userId: user.id });
+        return { success: true, data: { user, token } };
+      }
+
+      // Mode 2: Cookie session (status=ok dari BE B redirect)
+      if (ssoConfig.useCookieSession && status === "ok") {
+        const userResponse = await apiClient.get(ssoConfig.profilePath, {
+          params: { populate: ["role", "company", "work_unit"] },
+          withCredentials: true,
+        });
+        const user = this.normalizeUserData(userResponse.data);
+
+        logger.info("SSO login via cookie session", { userId: user.id });
+        return { success: true, data: { user, token: null } };
+      }
+
+      // Mode 3: Exchange sso_token atau code ke BE B
+      const exchangePayload = ssoToken ? { sso_token: ssoToken } : { code };
+      const exchangeResponse = await apiClient.post(
+        ssoConfig.exchangePath,
+        exchangePayload,
+      );
+
+      const result = exchangeResponse.data?.data || exchangeResponse.data;
+      const jwt = result.jwt || result.token;
+      let user = result.user ? this.normalizeUserData(result.user) : null;
+
+      // Jika BE B hanya return JWT tanpa user, fetch profile
+      if (!user && jwt) {
+        const profileResponse = await apiClient.get(ssoConfig.profilePath, {
+          headers: { Authorization: `Bearer ${jwt}` },
+          params: { populate: ["role", "company", "work_unit"] },
+        });
+        user = this.normalizeUserData(profileResponse.data);
+      }
+
+      logger.info("SSO login via token exchange", { userId: user?.id });
+      return { success: true, data: { user, token: jwt } };
+    } catch (error) {
+      logger.error("SSO login failed", { error: error.message });
+      return {
+        success: false,
+        message:
+          error.response?.data?.error?.message ||
+          error.response?.data?.message ||
+          error.message ||
+          "SSO login gagal",
       };
     }
   },

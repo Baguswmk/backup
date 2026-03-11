@@ -11,6 +11,8 @@ const APP_COMPONENTS = {
   "timbangan-internal": lazy(() => import("@/pages/TimbanganInternalPage")),
 };
 
+const SSOCallbackPage = lazy(() => import("@/pages/SSOCallbackPage"));
+
 const AppHub = lazy(() =>
   import("@/pages/AppHubPage").catch((error) => {
     console.error("Failed to load App Hub:", error);
@@ -199,6 +201,18 @@ export const AppRouter = () => {
           }
         />
 
+        {/* SSO Callback Route */}
+        <Route
+          path="/timbangan-internal/sso/callback"
+          element={
+            <Suspense
+              fallback={<LoadingOverlay message="Processing SSO..." />}
+            >
+              <SSOCallbackPage />
+            </Suspense>
+          }
+        />
+
         {/* Application Hub */}
         <Route
           path="/timbangan-internal/hub"
@@ -206,7 +220,7 @@ export const AppRouter = () => {
             <ProtectedRoute>
               <Suspense
                 fallback={
-                  <LoadingOverlay message="Loading application hub..." />
+                  <LoadingOverlay />
                 }
               >
                 <AppHub />
