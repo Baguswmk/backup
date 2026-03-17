@@ -126,10 +126,10 @@ const TimbanganInternalPage = () => {
         locationId: "belt-conveyor",
       },
       {
-        name: "Rencana & Realisasi",
+        name: "Rencana Coal Flow",
         icon: ClipboardList,
         roles: ["admin", "super_admin", "ccr"],
-        locationId: "rencana-realisasi",
+        locationId: "rencana-coal-flow",
       },
       {
         name: "Overview",
@@ -342,7 +342,7 @@ const TimbanganInternalPage = () => {
               <BeltscaleManagement Type="Adjustment Beltscale" />
             ) : selectedMenu === "Overview" ? (
               <OverviewPage />
-            ) : selectedMenu === "Rencana & Realisasi" ? (
+            ) : selectedMenu === "Rencana Coal Flow" ? (
               <RencanaRealisasiManagement />
             ) : selectedMenu === "Laporan" ? (
               <LaporanManagement />
