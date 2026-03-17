@@ -73,22 +73,22 @@ const TimbanganInternalPage = () => {
         ],
         locationId: "ritase",
       },
-      // {
-      //   name: "Belt Conveyor",
-      //   icon: Grid3x3,
-      //   roles: [
-      //     "checker",
-      //     "pic",
-      //     "pengawas",
-      //     "operator_jt",
-      //     "evaluator",
-      //     "mitra",
-      //     "admin",
-      //     "super_admin",
-      //     "ccr",
-      //   ],
-      //   locationId: "belt-conveyor",
-      // },
+      {
+        name: "Belt Conveyor",
+        icon: Grid3x3,
+        roles: [
+          "checker",
+          "pic",
+          "pengawas",
+          "operator_jt",
+          "evaluator",
+          "mitra",
+          "admin",
+          "super_admin",
+          "ccr",
+        ],
+        locationId: "belt-conveyor",
+      },
       {
         name: "Ritase Pending",
         icon: History,
@@ -341,6 +341,8 @@ const TimbanganInternalPage = () => {
               <TimbanganManagement Type="Timbangan" />
             ) : selectedMenu === "Ritase" ? (
               <RitaseManagement Type="Ritase" />
+            ) : selectedMenu === "Belt Conveyor" ? (
+              <BeltConveyorManagement />
             ) : selectedMenu === "Ritase Pending" ? (
               <RitasePendingManagement Type="Ritase Pending" />
             ) : selectedMenu === "Ritase History" ? (
