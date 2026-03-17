@@ -45,6 +45,7 @@ export const dashboardService = {
         {
           ttl: offlineService.CACHE_CONFIG.SHORT,
           forceRefresh,
+          timeout: 60000,
         },
       );
 

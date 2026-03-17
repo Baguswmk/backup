@@ -8,7 +8,7 @@ const OperatorNameModal = ({ isOpen, onConfirm }) => {
 
   useEffect(() => {
     // Check if operator name already exists in localStorage
-    const savedName = localStorage.getItem("operator_sib_name");
+    const savedName = localStorage.getItem("internal_operator_sib_name");
     if (savedName) {
       setOperatorName(savedName);
     }
@@ -30,7 +30,7 @@ const OperatorNameModal = ({ isOpen, onConfirm }) => {
     setIsLoading(true);
     
     // Save to localStorage
-    localStorage.setItem("operator_sib_name", operatorName.trim());
+    localStorage.setItem("internal_operator_sib_name", operatorName.trim());
     
     setTimeout(() => {
       setIsLoading(false);
@@ -40,7 +40,7 @@ const OperatorNameModal = ({ isOpen, onConfirm }) => {
   };
 
   const handleClear = () => {
-    localStorage.removeItem("operator_sib_name");
+    localStorage.removeItem("internal_operator_sib_name");
     setOperatorName("");
     showToast.info("Nama operator dihapus");
   };

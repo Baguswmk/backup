@@ -41,7 +41,7 @@ const TimbanganManagement = () => {
   }, []);
 
   useEffect(() => {
-    const savedName = localStorage.getItem("operator_sib_name");
+    const savedName = localStorage.getItem("internal_operator_sib_name");
     if (!savedName) {
       setShowOperatorModal(true);
     } else {
@@ -59,7 +59,7 @@ const TimbanganManagement = () => {
   };
 
   const handleCloseOperatorModal = () => {
-    const savedName = localStorage.getItem("operator_sib_name");
+    const savedName = localStorage.getItem("internal_operator_sib_name");
     if (savedName) {
       setShowOperatorModal(false);
     }

@@ -16,7 +16,7 @@ const ThemeToggle = () => {
   useEffect(() => {
     setMounted(true);
 
-    const savedTheme = localStorage.getItem("theme");
+    const savedTheme = localStorage.getItem("internal_theme");
 
     if (savedTheme) {
       setTheme(savedTheme);
@@ -68,7 +68,7 @@ const ThemeToggle = () => {
 
   const toggleTheme = (newTheme) => {
     setTheme(newTheme);
-    localStorage.setItem("theme", newTheme);
+    localStorage.setItem("internal_theme", newTheme);
     applyTheme(newTheme);
   };
 

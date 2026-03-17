@@ -13,8 +13,8 @@
  */
 
 const LS = {
-  scale: "serial_port_scale",
-  rfid: "serial_port_rfid",
+  scale: "internal_serial_port_scale",
+  rfid: "internal_serial_port_rfid",
 };
 
 // ─── Active Connections State ────────────────────────────────────────────────
@@ -31,7 +31,6 @@ export async function forceDisconnect(role) {
   const conn = activeConnections[role];
   if (!conn || !conn.port) return;
 
-  console.log(`[Coordinator] forceDisconnect: mematikan ${role}`);
 
   if (conn.reader) {
     try {
@@ -70,7 +69,6 @@ export async function forceDisconnect(role) {
 async function portKey(port) {
   const info = port.getInfo?.() ?? {};
   const ports = await navigator.serial.getPorts();
-  console.log("Granted ports:", ports);
   const idx = ports.indexOf(port);
   return `${info.usbVendorId ?? 0}:${info.usbProductId ?? 0}:${idx >= 0 ? idx : 0}`;
 }
@@ -137,7 +135,6 @@ export async function findSavedPort(role) {
 
   try {
     const ports = await navigator.serial.getPorts();
-    console.log("Granted ports:", ports);
     for (let i = 0; i < ports.length; i++) {
       const info = ports[i].getInfo?.() ?? {};
       const key = `${info.usbVendorId ?? 0}:${info.usbProductId ?? 0}:${i}`;

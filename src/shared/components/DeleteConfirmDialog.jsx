@@ -53,7 +53,7 @@ const DeleteConfirmDialog = ({
   // Configuration based on action type
   const defaultConfigs = {
     delete: {
-      title: "Hapus Konfigurasi Fleet",
+      title: "Hapus Konfigurasi",
       icon: Trash2,
       iconBgColor: "bg-red-100 dark:bg-red-900/30",
       iconColor: "text-red-600 dark:text-red-400",
@@ -65,7 +65,7 @@ const DeleteConfirmDialog = ({
       confirmButtonColor:
         "bg-red-600 hover:bg-red-700 dark:bg-red-700 dark:hover:bg-red-800",
       step1Question:
-        "Langkah 1: Apakah Anda yakin akan menghapus konfigurasi fleet ini?",
+        "Langkah 1: Apakah Anda yakin akan menghapus konfigurasi ini?",
       step1YesText: "Ya, Hapus",
       step1NoText: "Tidak",
       step1CancelMessage:

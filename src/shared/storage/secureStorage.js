@@ -2,6 +2,11 @@ import CryptoJS from "crypto-js";
 
 const SECRET_KEY = import.meta.env.VITE_SECRET_KEY;
 
+/** Prefix agar localStorage tidak bentrok dengan app lain di domain yang sama */
+export const STORAGE_PREFIX = "internal_";
+
+const prefixKey = (key) => `${STORAGE_PREFIX}${key}`;
+
 export const secureStorage = {
   setItem: (key, value) => {
     try {
@@ -12,6 +17,8 @@ export const secureStorage = {
       if (value === undefined) {
         throw new Error("Value cannot be undefined");
       }
+
+      const prefixed = prefixKey(key);
 
       let jsonString;
       try {
@@ -30,7 +37,7 @@ export const secureStorage = {
       }
 
       try {
-        localStorage.setItem(key, encrypted);
+        localStorage.setItem(prefixed, encrypted);
       } catch (storageError) {
         console.error("LocalStorage error:", storageError);
         throw new Error(`Failed to store: ${storageError.message}`);
@@ -49,7 +56,8 @@ export const secureStorage = {
         throw new Error("Storage key is required");
       }
 
-      const encrypted = localStorage.getItem(key);
+      const prefixed = prefixKey(key);
+      const encrypted = localStorage.getItem(prefixed);
 
       if (!encrypted) {
         return null;
@@ -71,7 +79,7 @@ export const secureStorage = {
       console.error(`❌ Decryption error for key "${key}":`, error.message);
 
       try {
-        localStorage.removeItem(key);
+        localStorage.removeItem(prefixKey(key));
       } catch (removeError) {
         console.error(
           `❌ Failed to remove corrupted key "${key}":`,
@@ -89,7 +97,7 @@ export const secureStorage = {
         throw new Error("Storage key is required");
       }
 
-      localStorage.removeItem(key);
+      localStorage.removeItem(prefixKey(key));
     } catch (error) {
       console.error(`❌ Failed to remove key "${key}":`, error);
       throw error;
@@ -101,7 +109,9 @@ export const secureStorage = {
       const keys = [];
       for (let i = 0; i < localStorage.length; i++) {
         const key = localStorage.key(i);
-        if (key) keys.push(key);
+        if (key && key.startsWith(STORAGE_PREFIX)) {
+          keys.push(key.slice(STORAGE_PREFIX.length));
+        }
       }
       return keys;
     } catch (error) {

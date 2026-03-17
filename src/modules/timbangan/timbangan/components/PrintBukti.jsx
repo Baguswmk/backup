@@ -32,7 +32,7 @@ const PrintBukti = forwardRef(
 
     // Load operator name from localStorage
     useEffect(() => {
-      const savedName = localStorage.getItem("operator_sib_name");
+      const savedName = localStorage.getItem("internal_operator_sib_name");
       if (savedName) {
         setOperatorName(savedName);
       }
@@ -98,7 +98,7 @@ const PrintBukti = forwardRef(
 
       // Refresh operator name from local storage right before printing
       const currentOperatorName =
-        localStorage.getItem("operator_sib_name") || operatorName;
+        localStorage.getItem("internal_operator_sib_name") || operatorName;
       if (currentOperatorName !== operatorName) {
         setOperatorName(currentOperatorName);
       }

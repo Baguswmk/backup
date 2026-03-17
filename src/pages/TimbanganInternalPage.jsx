@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback, useEffect } from "react";
+import React, { useState, useMemo, useCallback } from "react";
 import { useAuth } from "@/modules/auth/hooks/useAuth";
 import useAuthStore from "@/modules/auth/store/authStore";
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -15,6 +15,8 @@ import {
   Cog,
   Construction,
   History,
+  ClipboardList,
+  Grid3x3,
 } from "lucide-react";
 import FleetManagement from "@/modules/timbangan/fleet/FleetManagement";
 import MasterDataManagement from "@/modules/timbangan/masterData/MasterDataManagement";
@@ -28,6 +30,8 @@ import RitaseHistory from "@/modules/timbangan/ritase/RitaseHistory";
 import BeltscaleManagement from "@/modules/timbangan/ritase/BeltScaleManagement";
 import TimbanganManagement from "@/modules/timbangan/timbangan/TimbanganManagement";
 import RitasePendingManagement from "@/modules/timbangan/ritase-pending/RitasePendingManagement";
+import RencanaRealisasiManagement from "@/modules/timbangan/rencana-realisasi/RencanaRealisasiManagement";
+import BeltConveyorManagement from "@/modules/timbangan/beltconveyor/BeltConveyorManagement";
 // import RitasePendingManagement from "@/modules/timbangan/ritase-pending/RitasePendingManagement";
 
 const TimbanganInternalPage = () => {
@@ -39,17 +43,6 @@ const TimbanganInternalPage = () => {
   const isCheckpoint =
     userRole === "checker" && user.username.includes("checkpoint");
 
-  const getDefaultMenu = () => {
-    if (isOperator || isCheckpoint) {
-      return "Timbangan";
-    } else if (userRole === "checker" && !isCheckpoint) {
-      return "Ritase";
-    } else {
-      return "Setting Fleet";
-    }
-  };
-
-  const [activeMenu, setActiveMenu] = useState(getDefaultMenu());
   const menuItems = useMemo(
     () => [
       {
@@ -80,6 +73,22 @@ const TimbanganInternalPage = () => {
         ],
         locationId: "ritase",
       },
+      // {
+      //   name: "Belt Conveyor",
+      //   icon: Grid3x3,
+      //   roles: [
+      //     "checker",
+      //     "pic",
+      //     "pengawas",
+      //     "operator_jt",
+      //     "evaluator",
+      //     "mitra",
+      //     "admin",
+      //     "super_admin",
+      //     "ccr",
+      //   ],
+      //   locationId: "belt-conveyor",
+      // },
       {
         name: "Ritase Pending",
         icon: History,
@@ -117,6 +126,21 @@ const TimbanganInternalPage = () => {
         locationId: "beltscale",
       },
       {
+        name: "Rencana & Realisasi",
+        icon: ClipboardList,
+        roles: [
+          "checker",
+          "pic",
+          "pengawas",
+          "operator_jt",
+          "evaluator",
+          "admin",
+          "super_admin",
+          "ccr",
+        ],
+        locationId: "rencana-realisasi",
+      },
+      {
         name: "Overview",
         icon: BarChart3,
         roles: ["admin", "super_admin", "ccr", "pengawas", "pic"],
@@ -149,26 +173,50 @@ const TimbanganInternalPage = () => {
     [userRole, isOperator, isCheckpoint],
   );
 
-  useEffect(() => {
+  const getDefaultMenu = useCallback(() => {
+    if (isOperator || isCheckpoint) {
+      return "Timbangan";
+    }
+
+    if (userRole === "checker" && !isCheckpoint) {
+      return "Ritase";
+    }
+
+    return "Setting Fleet";
+  }, [isOperator, isCheckpoint, userRole]);
+
+  const getUrlMenu = useCallback(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const menuParam = urlParams.get("menu");
 
-    if (menuParam) {
-      const targetMenu = menuItems.find((item) => item.name === menuParam);
-
-      if (targetMenu && isMenuAccessible(targetMenu)) {
-        setActiveMenu(menuParam);
-      } else {
-        const defaultMenu = getDefaultMenu();
-        if (menuParam !== defaultMenu) {
-          const newUrl = new URL(window.location);
-          newUrl.searchParams.set("menu", defaultMenu);
-          window.history.replaceState({}, "", newUrl);
-        }
-        setActiveMenu(defaultMenu);
-      }
+    if (!menuParam) {
+      return null;
     }
+
+    const targetMenu = menuItems.find((item) => item.name === menuParam);
+    return targetMenu && isMenuAccessible(targetMenu) ? menuParam : null;
   }, [menuItems, isMenuAccessible]);
+
+  const [activeMenu, setActiveMenuState] = useState(
+    () => getUrlMenu() || getDefaultMenu(),
+  );
+
+  const selectedMenu = useMemo(() => {
+    const currentMenu = menuItems.find((item) => item.name === activeMenu);
+
+    if (currentMenu && isMenuAccessible(currentMenu)) {
+      return activeMenu;
+    }
+
+    return getUrlMenu() || getDefaultMenu();
+  }, [activeMenu, menuItems, isMenuAccessible, getUrlMenu, getDefaultMenu]);
+
+  const setActiveMenu = useCallback((menuName) => {
+    const newUrl = new URL(window.location);
+    newUrl.searchParams.set("menu", menuName);
+    window.history.replaceState({}, "", newUrl);
+    setActiveMenuState(menuName);
+  }, []);
 
   const hasAnyAccess = useMemo(() => {
     const checkAccess = (items) => {
@@ -242,7 +290,7 @@ const TimbanganInternalPage = () => {
     <QueryClientProvider client={queryClient}>
       <div className="min-h-screen bg-gray-50 dark:bg-slate-900 transition-colors duration-200">
         <Sidebar
-          activeMenu={activeMenu}
+          activeMenu={selectedMenu}
           setActiveMenu={setActiveMenu}
           menuItems={menuItems}
           user={user}
@@ -287,25 +335,27 @@ const TimbanganInternalPage = () => {
           >
             {/* ===== ROUTING SECTION ===== */}
             {/* Fleet */}
-            {activeMenu === "Setting Fleet" ? (
+            {selectedMenu === "Setting Fleet" ? (
               <FleetManagement Type="Setting Fleet" />
-            ) : activeMenu === "Timbangan" ? (
+            ) : selectedMenu === "Timbangan" ? (
               <TimbanganManagement Type="Timbangan" />
-            ) : activeMenu === "Ritase" ? (
+            ) : selectedMenu === "Ritase" ? (
               <RitaseManagement Type="Ritase" />
-            ) : activeMenu === "Ritase Pending" ? (
+            ) : selectedMenu === "Ritase Pending" ? (
               <RitasePendingManagement Type="Ritase Pending" />
-            ) : activeMenu === "Ritase History" ? (
+            ) : selectedMenu === "Ritase History" ? (
               <RitaseHistory Type="Ritase History" />
-            ) : activeMenu === "Beltscale" ? (
+            ) : selectedMenu === "Beltscale" ? (
               <BeltscaleManagement Type="Beltscale" />
-            ) : activeMenu === "Overview" ? (
+            ) : selectedMenu === "Overview" ? (
               <OverviewPage />
-            ) : activeMenu === "Laporan" ? (
+            ) : selectedMenu === "Rencana & Realisasi" ? (
+              <RencanaRealisasiManagement />
+            ) : selectedMenu === "Laporan" ? (
               <LaporanManagement />
-            ) : activeMenu === "Master Data" ? (
+            ) : selectedMenu === "Master Data" ? (
               <MasterDataManagement />
-            ) : activeMenu === "Laporan" ? (
+            ) : selectedMenu === "Laporan" ? (
               <LaporanManagement />
             ) : (
               <div className="flex flex-col items-center justify-center h-full py-16">

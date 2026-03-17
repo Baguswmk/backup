@@ -107,7 +107,7 @@ export const useRitasePendingSync = () => {
         logger.info("🔄 Syncing bulk ritase", { count: ritases.length });
         result = await ritasePendingService.syncBulkRitase(ritases);
       }
-      console.log(result);
+      (result);
       showSyncResultToast(result);
 
       const successCount = result?.data?.success ?? 0;

@@ -81,11 +81,13 @@ export const ritaseServices = {
       const response = await offlineService.get("/v1/custom/ritase/summaries", {
         params: queryParams,
         forceRefresh: true,
+        timeout: 60000,
       });
 
       const data = {
         summaries: response.data?.summaries || [],
         ritases: response.data?.ritases || [],
+        coal_flow: response.data?.coal_flow || [],
       };
 
       logger.info("✅ Summary fleet fetched from API", {
@@ -192,11 +194,6 @@ export const ritaseServices = {
         filters: apiFilters,
       };
 
-      const dateRange =
-        filters.startDate && filters.endDate
-          ? { from: filters.startDate, to: filters.endDate }
-          : null;
-
       logger.info("🔍 Fetching ritase data", {
         filters: apiFilters,
         dateRange: validation.days ? `${validation.days} days` : "all",
@@ -208,6 +205,7 @@ export const ritaseServices = {
       const response = await offlineService.get("/ritases", {
         params,
         forceRefresh: true,
+        timeout: 60000,
       });
 
       // ✅ FIX: Handle different response structures
@@ -386,6 +384,51 @@ export const ritaseServices = {
         "Gagal menyimpan data ritase";
 
       logger.error("❌ Failed to create manual ritase", {
+        error: errorMessage,
+        details: error.response?.data,
+      });
+
+      return {
+        success: false,
+        error: errorMessage,
+      };
+    }
+  },
+
+  async bulkApprove({ ritase_ids, approval_type, status }) {
+    try {
+      logger.info(`📤 BULK APPROVE Ritase Payload:`, {
+        ritase_ids,
+        approval_type,
+        status,
+      });
+
+      const response = await offlineService.put(
+        "/v1/custom/ritase/bulk-approve",
+        {
+          ritase_ids,
+          approval_type,
+          status,
+        },
+      );
+
+      const serverData = response.data || {};
+
+      logger.info("✅ Bulk Approve Success:", serverData);
+
+      return {
+        success: true,
+        data: serverData,
+        message: "Berhasil melakukan bulk approve",
+      };
+    } catch (error) {
+      const errorMessage =
+        error.response?.data?.message ||
+        error.response?.data?.error?.message ||
+        error.message ||
+        "Gagal melakukan bulk approve";
+
+      logger.error("❌ Failed to bulk approve ritase", {
         error: errorMessage,
         details: error.response?.data,
       });

@@ -510,7 +510,7 @@ export const useRitaseStore = create(
 
       hardResetFleetData: () => {
         try {
-          localStorage.removeItem("timbangan-store");
+          localStorage.removeItem("internal_timbangan-store");
 
           set({
             fleetConfigs: [],
@@ -519,7 +519,6 @@ export const useRitaseStore = create(
             hiddenDumptrucks: {},
             lastFetchTimestamp: null,
           });
-
         } catch (error) {
           console.error("❌ Hard reset failed:", error);
         }
@@ -569,18 +568,21 @@ export const useRitaseStore = create(
           if (result.success) {
             // ✅ FIX: Ensure result.data is an array
             let fleetConfigs = result.data;
-            
+
             // Handle nested Strapi response
             if (!Array.isArray(fleetConfigs) && fleetConfigs?.data) {
               fleetConfigs = fleetConfigs.data;
             }
-            
+
             // Ensure it's an array
             if (!Array.isArray(fleetConfigs)) {
-              console.warn("⚠️ Fleet configs is not an array, using empty array", {
-                type: typeof fleetConfigs,
-                value: fleetConfigs
-              });
+              console.warn(
+                "⚠️ Fleet configs is not an array, using empty array",
+                {
+                  type: typeof fleetConfigs,
+                  value: fleetConfigs,
+                },
+              );
               fleetConfigs = [];
             }
 
@@ -668,18 +670,21 @@ export const useRitaseStore = create(
           if (result.success) {
             // ✅ FIX: Ensure result.data is an array
             let ritaseData = result.data;
-            
+
             // Handle nested Strapi response {data: {data: [...], meta: {...}}}
             if (!Array.isArray(ritaseData) && ritaseData?.data) {
               ritaseData = ritaseData.data;
             }
-            
+
             // Ensure it's an array
             if (!Array.isArray(ritaseData)) {
-              console.warn("⚠️ Ritase data is not an array, using empty array", {
-                type: typeof ritaseData,
-                value: ritaseData
-              });
+              console.warn(
+                "⚠️ Ritase data is not an array, using empty array",
+                {
+                  type: typeof ritaseData,
+                  value: ritaseData,
+                },
+              );
               ritaseData = [];
             }
 
@@ -709,6 +714,29 @@ export const useRitaseStore = create(
 
         const result = await get().loadRitaseDataFromAPI(dateRange, true);
         return result;
+      },
+
+      bulkApproveRitase: async ({ ritase_ids, approval_type, status }) => {
+        try {
+          const result = await ritaseServices.bulkApprove({
+            ritase_ids,
+            approval_type,
+            status,
+          });
+
+          if (result.success) {
+            // Re-fetch data to get the updated status
+            // get().loadRitaseDataFromAPI(null, true);
+            return {
+              success: true,
+              count: result.data?.count || ritase_ids.length,
+            };
+          }
+          throw new Error(result.error);
+        } catch (error) {
+          console.error("❌ bulkApproveRitase error:", error);
+          return { success: false, error: error.message };
+        }
       },
 
       setActiveFleetConfig: (configId) =>
