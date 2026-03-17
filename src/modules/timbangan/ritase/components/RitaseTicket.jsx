@@ -33,7 +33,7 @@ const RitaseTicket = forwardRef(({ data }, ref) => {
   }
 
   // Get operator name from localStorage (SIB name)
-  const operatorSibName = localStorage.getItem("operator_sib_name");
+  const operatorSibName = localStorage.getItem("internal_operator_sib_name");
 
   const ticketData = {
     hullNo: getFirstTruthyValue(

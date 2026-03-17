@@ -42,6 +42,9 @@ const RitaseHistory = () => {
   const loadFleetConfigsFromAPI = useRitaseStore(
     (state) => state.loadFleetConfigsFromAPI,
   );
+  const bulkApproveRitase = useRitaseStore(
+    (state) => state.bulkApproveRitase,
+  );
 
   const [isInitialLoading, setIsInitialLoading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -53,6 +56,7 @@ const RitaseHistory = () => {
   const [summaryData, setSummaryData] = useState({
     summaries: [],
     ritases: [],
+    coal_flow: [],
   });
 
   // ✅ Set initial state sebagai null agar user harus pilih dulu
@@ -130,11 +134,11 @@ const RitaseHistory = () => {
         } else {
           console.error("❌ Failed to load history:", result.error);
           showToast.error(result.error || "Gagal memuat data history");
-          setSummaryData({ summaries: [], ritases: [] });
+          setSummaryData({ summaries: [], ritases: [], coal_flow: [] });
         }
       } catch (error) {
         showToast.error("Gagal memuat data history");
-        setSummaryData({ summaries: [], ritases: [] });
+        setSummaryData({ summaries: [], ritases: [], coal_flow: [] });
       } finally {
         setIsInitialLoading(false);
       }
@@ -151,7 +155,7 @@ const RitaseHistory = () => {
   const loadSummaryData = useCallback(
     async (forceRefresh = false) => {
       if (!currentDateRange.from || !currentDateRange.to || !viewingShift) {
-        return { summaries: [], ritases: [] };
+        return { summaries: [], ritases: [], coal_flow: [] };
       }
 
       try {
@@ -168,16 +172,17 @@ const RitaseHistory = () => {
         } else {
           console.error("❌ Failed to load summary data:", result.error);
           showToast.error(result.error || "Gagal memuat data summary");
-          return { summaries: [], ritases: [] };
+          return { summaries: [], ritases: [], coal_flow: [] };
         }
       } catch (error) {
         console.error("❌ Error loading summary data:", error);
         showToast.error("Gagal memuat data summary");
-        return { summaries: [], ritases: [] };
+        return { summaries: [], ritases: [], coal_flow: [] };
       }
     },
     [user, currentDateRange, viewingShift],
   );
+
 
   // ✅ HANYA load fleet configs saat mount, TIDAK load summary data
   useEffect(() => {
@@ -562,6 +567,51 @@ const RitaseHistory = () => {
     [loadSummaryData, loadRitaseDataFromAPI],
   );
 
+  const handleApproveRitase = useCallback(
+    async (item) => {
+      try {
+        const rawIds = Array.isArray(item?.ritase_ids)
+          ? item.ritase_ids
+          : Array.isArray(item?.ritases)
+            ? item.ritases.map((r) => r?.id)
+            : item?.id
+              ? [item.id]
+              : [];
+
+        const ritaseIds = [...new Set(rawIds.filter(Boolean))];
+
+        if (ritaseIds.length === 0) {
+          showToast.error("Tidak ada data ritase untuk di-approve");
+          return { success: false };
+        }
+
+        const result = await bulkApproveRitase({
+          ritase_ids: ritaseIds,
+          status: "APPROVED",
+        });
+
+        if (result.success) {
+          showToast.success(
+            `Berhasil approve ${result.count || ritaseIds.length} data ritase`,
+          );
+          await Promise.all([
+            loadSummaryData(true),
+            loadRitaseDataFromAPI(null, true),
+          ]);
+          return { success: true };
+        }
+
+        showToast.error(result.error || "Gagal melakukan approval");
+        return { success: false, error: result.error };
+      } catch (error) {
+        console.error("❌ Approve ritase error:", error);
+        showToast.error(error.message || "Gagal melakukan approval");
+        return { success: false, error: error.message };
+      }
+    },
+    [bulkApproveRitase, loadSummaryData, loadRitaseDataFromAPI],
+  );
+
   const handlePrintTicket = useCallback((ritase) => {
     showToast.info("Print ticket: " + ritase.id);
   }, []);
@@ -648,7 +698,7 @@ const RitaseHistory = () => {
         )}
         {/* Aggregated Ritase */}
         <AggregatedRitase
-          aggregatedData={aggregatedRitaseData}
+          aggregatedData={summaryData}
           isInitialLoading={isInitialLoading}
           isRefreshing={isRefreshing}
           currentPage={currentAggregatedPage}
@@ -678,6 +728,7 @@ const RitaseHistory = () => {
           onUpdateRitase={handleRefreshAfterEdit}
           onDeleteRitase={handleDeleteRitase}
           onDuplicateRitase={handleDuplicateRitase}
+          onApproveRitase={handleApproveRitase}
           refreshButtonRef={refreshButtonRef}
         />
 

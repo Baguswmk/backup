@@ -25,12 +25,12 @@ const RitaseHistoryHeader = ({
 
   // Load initial operator name form localStorage
   useEffect(() => {
-    const savedName = localStorage.getItem("operator_sib_name");
+    const savedName = localStorage.getItem("internal_operator_sib_name");
     if (savedName) {
       setOperatorName(savedName);
     } else if (user?.name || user?.username) {
       setOperatorName(user.name || user.username);
-      localStorage.setItem("operator_sib_name", user.name || user.username);
+      localStorage.setItem("internal_operator_sib_name", user.name || user.username);
     }
   }, [user]);
 

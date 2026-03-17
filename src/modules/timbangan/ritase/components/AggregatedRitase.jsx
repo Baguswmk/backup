@@ -25,7 +25,7 @@ import {
   Package,
   Eye,
   MoreVertical,
-  Trash2,
+  CheckCircle2,   Trash2,
   MapPin,
   Upload,
   Building2,
@@ -63,6 +63,7 @@ import {
 import Pagination from "@/shared/components/Pagination";
 import RitaseList from "@/modules/timbangan/ritase/components/RitaseList";
 import AggregatedInputModal from "./AggregatedInputModal";
+import AggregatedCoalFlow from "./AggregatedCoalFlow";
 import KertasCheckerDialog from "./KertasCheckerDialog";
 import { format } from "date-fns";
 import { id as localeId } from "date-fns/locale";
@@ -140,6 +141,7 @@ const AggregatedRitase = ({
   onUpdateRitase,
   onDeleteRitase,
   onDuplicateRitase,
+  onApproveRitase,
   refreshButtonRef,
 }) => {
   const [selectedDetail, setSelectedDetail] = useState(null);
@@ -237,8 +239,9 @@ const AggregatedRitase = ({
 
   const groupedData = useMemo(() => {
     // Extract summaries data from new structure
-    const summariesData =
+    const rawSummaries =
       aggregatedData?.summaries?.data || aggregatedData || [];
+    const summariesData = Array.isArray(rawSummaries) ? rawSummaries : [];
 
     if (activeTab === "excavator") {
       return summariesData;
@@ -452,6 +455,11 @@ const AggregatedRitase = ({
     } catch (error) {
       console.error("Error duplicating ritase:", error);
     }
+  };
+
+  const handleApprovalClick = async (item) => {
+    if (!onApproveRitase) return;
+    await onApproveRitase(item);
   };
 
   const handleSubmitRitase = async (ritaseData) => {
@@ -900,368 +908,6 @@ const AggregatedRitase = ({
       .filter(Boolean);
   };
 
-  const renderHierarchyView = (type) => {
-    const isDumping = type === "dumping";
-    const hierarchyGroup = isDumping
-      ? DUMPING_POINT_GROUP
-      : LOADING_POINT_GROUP;
-    const locationKey = isDumping ? "dumping_location" : "loading_location";
-    const prefix = isDumping ? "dp-root" : "lp-root";
-
-    // Build items lookup by location field from raw summariesData
-    const summariesData =
-      aggregatedData?.summaries?.data ||
-      (Array.isArray(aggregatedData) ? aggregatedData : []);
-
-    // Apply active search filters
-    const filteredSummaries = summariesData.filter((item) => {
-      const matchExcavator =
-        !searchExcavator ||
-        item.unit_exca?.toLowerCase().includes(searchExcavator.toLowerCase());
-      const matchDumping =
-        !searchDumpingPoint ||
-        item.dumping_location
-          ?.toLowerCase()
-          .includes(searchDumpingPoint.toLowerCase());
-      const matchLoading =
-        !searchLoadingPoint ||
-        item.loading_location
-          ?.toLowerCase()
-          .includes(searchLoadingPoint.toLowerCase());
-      return matchExcavator && matchDumping && matchLoading;
-    });
-
-    // Build map: location -> items[]
-    const locationMap = {};
-    filteredSummaries.forEach((item) => {
-      const loc = item[locationKey] || "-";
-      if (!locationMap[loc]) locationMap[loc] = [];
-      locationMap[loc].push(item);
-    });
-
-    // Check if a node has any matching data
-    const nodeHasData = (node) => {
-      if (Array.isArray(node))
-        return node.some((loc) => locationMap[loc]?.length > 0);
-      if (typeof node === "string") return !!locationMap[node]?.length;
-      if (node && typeof node === "object")
-        return Object.values(node).some((v) => nodeHasData(v));
-      return false;
-    };
-
-    // Accumulate totals recursively for a node
-    const getNodeTotals = (node) => {
-      let totalTrips = 0,
-        totalWeight = 0;
-      const collect = (n) => {
-        if (Array.isArray(n)) {
-          n.forEach((loc) =>
-            (locationMap[loc] || []).forEach((item) => {
-              totalTrips += parseInt(getTripCount(item)) || 0;
-              totalWeight +=
-                parseFloat(item.totalWeight || item.total_tonase || 0) || 0;
-            }),
-          );
-        } else if (typeof n === "string") {
-          (locationMap[n] || []).forEach((item) => {
-            totalTrips += parseInt(getTripCount(item)) || 0;
-            totalWeight +=
-              parseFloat(item.totalWeight || item.total_tonase || 0) || 0;
-          });
-        } else if (n && typeof n === "object") {
-          Object.values(n).forEach((v) => collect(v));
-        }
-      };
-      collect(node);
-      return { totalTrips, totalWeight };
-    };
-
-    // Render items table for a leaf dumping location
-    const renderItemsTable = (items) => {
-      if (!items?.length) return null;
-      return (
-        <div className="overflow-x-auto scrollbar-thin">
-          <Table>
-            <TableHeader>
-              <TableRow className="bg-gray-50 dark:bg-gray-900/30">
-                <TableHead className="text-gray-700 dark:text-gray-300 font-semibold w-10 text-xs">
-                  No
-                </TableHead>
-                <TableHead className="text-gray-700 dark:text-gray-300 font-semibold text-xs">
-                  Exca
-                </TableHead>
-                <TableHead className="text-gray-700 dark:text-gray-300 font-semibold text-xs">
-                  Loading
-                </TableHead>
-                <TableHead className="text-gray-700 dark:text-gray-300 font-semibold text-xs">
-                  Dumping
-                </TableHead>
-                <TableHead className="text-gray-700 dark:text-gray-300 font-semibold text-xs">
-                  Product Brand
-                </TableHead>
-                <TableHead className="text-gray-700 dark:text-gray-300 font-semibold text-xs">
-                  Measurement
-                </TableHead>
-                <TableHead className="text-right text-gray-700 dark:text-gray-300 font-semibold text-xs">
-                  Ritase
-                </TableHead>
-                <TableHead className="text-right text-gray-700 dark:text-gray-300 font-semibold text-xs">
-                  Total Tonase
-                </TableHead>
-                <TableHead className="text-center text-gray-700 dark:text-gray-300 font-semibold w-16 text-xs">
-                  Action
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {items.map((item, idx) => (
-                <TableRow
-                  key={idx}
-                  className="hover:bg-gray-50 dark:hover:bg-gray-800/50"
-                >
-                  <TableCell className="text-gray-600 dark:text-gray-400 text-xs">
-                    {idx + 1}
-                  </TableCell>
-                  <TableCell>
-                    <Badge className="bg-blue-600 dark:bg-blue-500 text-white text-xs">
-                      {item.unit_exca || "-"}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-gray-700 dark:text-gray-300 text-xs">
-                    {item.loading_location || "-"}
-                  </TableCell>
-                  <TableCell className="text-gray-700 dark:text-gray-300 text-xs">
-                    {item.dumping_location || "-"}
-                  </TableCell>
-                  <TableCell className="text-gray-700 dark:text-gray-300 text-xs">
-                    {item.coal_type || "-"}
-                  </TableCell>
-                  <TableCell>
-                    <Badge
-                      variant="outline"
-                      className="capitalize border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 text-xs"
-                    >
-                      {item.measurement_type || "-"}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right font-semibold text-blue-600 dark:text-blue-400 text-xs">
-                    {getTripCount(item)} rit
-                  </TableCell>
-                  <TableCell className="text-right font-semibold text-green-600 dark:text-green-400 text-xs">
-                    {getTotalWeight(item)} ton
-                  </TableCell>
-                  <TableCell className="text-center">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-7 w-7 p-0 hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-neutral-50"
-                        >
-                          <MoreVertical className="h-3 w-3" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent
-                        align="end"
-                        className="w-40 bg-neutral-50 dark:bg-slate-800 dark:text-neutral-50 border-none shadow-sm shadow-slate-700"
-                      >
-                        <DropdownMenuItem
-                          onClick={() => handleDetailClick(item)}
-                          className="cursor-pointer hover:bg-gray-200 dark:hover:bg-slate-700 text-xs"
-                        >
-                          <Eye className="mr-2 h-3 w-3" /> Detail
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem
-                          onClick={() => handleCheckerClick(item)}
-                          className="cursor-pointer hover:bg-gray-200 dark:hover:bg-slate-700 text-xs"
-                        >
-                          <Eye className="mr-2 h-3 w-3" /> Lihat Kertas Checker
-                        </DropdownMenuItem>
-                        {isCCR && (
-                          <DropdownMenuItem
-                            onClick={() => handleDuplicate(item)}
-                            className="cursor-pointer hover:bg-gray-200 dark:hover:bg-slate-700 text-xs"
-                          >
-                            <Copy className="mr-2 h-3 w-3" /> Tambah Ritase
-                          </DropdownMenuItem>
-                        )}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-      );
-    };
-
-    // Render a single leaf (individual location) as its own collapsible
-    const renderLeaf = (locationName, keyPrefix) => {
-      const items = locationMap[locationName] || [];
-      if (!items.length) return null;
-      const leafId = `${keyPrefix}-${locationName}`;
-      const isExpanded = expandedGroups[leafId] === true;
-      const leafTrips = items.reduce(
-        (s, i) => s + (parseInt(getTripCount(i)) || 0),
-        0,
-      );
-      const leafWeight = items.reduce(
-        (s, i) => s + (parseFloat(i.totalWeight || i.total_tonase || 0) || 0),
-        0,
-      );
-      return (
-        <Collapsible
-          key={leafId}
-          open={isExpanded}
-          onOpenChange={(open) =>
-            setExpandedGroups((prev) => ({ ...prev, [leafId]: open }))
-          }
-          className="mb-1 last:mb-0"
-        >
-          <div className="border border-gray-200 dark:border-gray-600 rounded-md overflow-hidden">
-            <CollapsibleTrigger className="w-full cursor-pointer p-2 bg-gray-50 dark:bg-gray-900/20 hover:bg-gray-100 dark:hover:bg-gray-800/40 transition-colors border-l-2 border-gray-400 dark:border-gray-500">
-              <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2 min-w-0">
-                  {isExpanded ? (
-                    <ChevronUp className="h-3 w-3 text-gray-500 shrink-0" />
-                  ) : (
-                    <ChevronDown className="h-3 w-3 text-gray-500 shrink-0" />
-                  )}
-                  <span className="text-xs font-medium text-gray-700 dark:text-gray-300 text-left truncate">
-                    {locationName}
-                  </span>
-                </div>
-                <div className="flex items-center gap-3 text-xs shrink-0">
-                  <span className="text-blue-600 dark:text-blue-400 font-semibold">
-                    {leafTrips} rit
-                  </span>
-                  <span className="text-green-600 dark:text-green-400 font-semibold">
-                    {leafWeight.toFixed(2)} ton
-                  </span>
-                </div>
-              </div>
-            </CollapsibleTrigger>
-            <CollapsibleContent>{renderItemsTable(items)}</CollapsibleContent>
-          </div>
-        </Collapsible>
-      );
-    };
-
-    // Level styles for visual hierarchy distinction
-    const levelStyles = {
-      1: {
-        badge: "bg-blue-600 dark:bg-blue-500 text-white text-sm px-3",
-        border: "border-b-2 border-blue-500 dark:border-blue-400",
-        containerBg: "bg-gray-100 dark:bg-gray-800/50",
-        wrapper: "mb-4 sm:mb-6 last:mb-0",
-        content: "p-3",
-      },
-      2: {
-        badge: "bg-purple-600 dark:bg-purple-500 text-white text-xs px-2",
-        border: "border-b-2 border-purple-400 dark:border-purple-500",
-        containerBg: "bg-gray-50 dark:bg-gray-900/30",
-        wrapper: "ml-2 mb-2 last:mb-0",
-        content: "p-2",
-      },
-      3: {
-        badge: "bg-teal-600 dark:bg-teal-500 text-white text-xs px-2",
-        border: "border-b border-teal-400 dark:border-teal-500",
-        containerBg: "bg-white dark:bg-gray-900/20",
-        wrapper: "ml-4 mb-1 last:mb-0",
-        content: "p-2",
-      },
-    };
-
-    // Render a group node recursively
-    const renderNode = (label, node, level, keyPrefix) => {
-      if (!nodeHasData(node)) return null;
-      const s = levelStyles[level] || levelStyles[3];
-      const nodeId = `${keyPrefix}-${label}`;
-      const isExpanded = expandedGroups[nodeId] === true;
-      const { totalTrips, totalWeight } = getNodeTotals(node);
-      return (
-        <Collapsible
-          key={nodeId}
-          open={isExpanded}
-          onOpenChange={(open) =>
-            setExpandedGroups((prev) => ({ ...prev, [nodeId]: open }))
-          }
-          className={s.wrapper}
-        >
-          <div
-            className={`${s.containerBg} rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden`}
-          >
-            <CollapsibleTrigger
-              className={`w-full cursor-pointer p-3 ${s.border} hover:bg-gray-200 dark:hover:bg-gray-700/50 transition-colors`}
-            >
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                <div className="flex items-center gap-2">
-                  {isExpanded ? (
-                    <ChevronUp className="h-4 w-4 text-gray-600 dark:text-gray-400 shrink-0" />
-                  ) : (
-                    <ChevronDown className="h-4 w-4 text-gray-600 dark:text-gray-400 shrink-0" />
-                  )}
-                  <Badge className={s.badge}>{label}</Badge>
-                </div>
-                <div className="flex items-center gap-4">
-                  <div className="text-left sm:text-right">
-                    <div className="text-xs text-gray-500 dark:text-gray-400">
-                      Total Ritase
-                    </div>
-                    <div className="text-sm font-bold text-blue-600 dark:text-blue-400">
-                      {totalTrips.toLocaleString("en-US")} rit
-                    </div>
-                  </div>
-                  <div className="text-left sm:text-right">
-                    <div className="text-xs text-gray-500 dark:text-gray-400">
-                      Total Tonase
-                    </div>
-                    <div className="text-sm font-bold text-green-600 dark:text-green-400">
-                      {totalWeight.toLocaleString("en-US", {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2,
-                      })}{" "}
-                      ton
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </CollapsibleTrigger>
-            <CollapsibleContent>
-              <div className={s.content}>
-                {/* Array of location strings */}
-                {Array.isArray(node) &&
-                  node.map((loc) => renderLeaf(loc, nodeId))}
-                {/* Single string location */}
-                {typeof node === "string" && renderLeaf(node, nodeId)}
-                {/* Nested object: recurse */}
-                {!Array.isArray(node) &&
-                  node &&
-                  typeof node === "object" &&
-                  Object.entries(node).map(([subLabel, subNode]) =>
-                    renderNode(subLabel, subNode, level + 1, nodeId),
-                  )}
-              </div>
-            </CollapsibleContent>
-          </div>
-        </Collapsible>
-      );
-    };
-
-    if (!filteredSummaries.length) return null;
-
-    const nodes = Object.entries(hierarchyGroup)
-      .map(([groupName, groupValue]) =>
-        renderNode(groupName, groupValue, 1, prefix),
-      )
-      .filter(Boolean);
-
-    if (!nodes.length) return null;
-    return <div>{nodes}</div>;
-  };
-
   return (
     <>
       <Card
@@ -1637,7 +1283,18 @@ const AggregatedRitase = ({
                         </p>
                       </div>
                     ) : (
-                      renderHierarchyView(tab) || (
+                      <AggregatedCoalFlow
+                        type={tab}
+                        aggregatedData={aggregatedData}
+                        searchExcavator={searchExcavator}
+                        searchDumpingPoint={searchDumpingPoint}
+                        searchLoadingPoint={searchLoadingPoint}
+                        isCCR={isCCR}
+                        handleDetailClick={handleDetailClick}
+                        handleCheckerClick={handleCheckerClick}
+                        handleDuplicate={handleDuplicate}
+                        handleApprovalClick={handleApprovalClick}
+                      /> || (
                         <div className="text-center py-12">
                           <Package className="w-10 h-10 sm:w-12 sm:h-12 mx-auto text-gray-300 dark:text-gray-600" />
                           <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-4">

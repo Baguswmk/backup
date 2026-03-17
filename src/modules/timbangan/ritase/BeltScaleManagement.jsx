@@ -96,7 +96,9 @@ const BeltscaleManagement = () => {
   const handleRefresh = useCallback(async () => {
     setIsLoading(true);
     try {
-      await loadRitaseDataFromAPI(
+      // Always grab fresh reference from store to avoid stale closure
+      const { loadRitaseDataFromAPI: freshLoad } = useRitaseStore.getState();
+      await freshLoad(
         { from: dateRange.from, to: dateRange.to },
         true,
         "Beltscale",
@@ -107,7 +109,7 @@ const BeltscaleManagement = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [dateRange, loadRitaseDataFromAPI]);
+  }, [dateRange]);
 
   const handleFormSubmit = useCallback(
     async (result) => {

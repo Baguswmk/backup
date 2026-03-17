@@ -74,6 +74,12 @@ const RitaseList = ({
   const [isDeletingRitase, setIsDeletingRitase] = useState(false);
   const [pageSize, setPageSize] = useState(10); // Added pageSize state
   const [searchQuery, setSearchQuery] = useState("");
+
+  // Bulk Approve States
+  const [selectedIds, setSelectedIds] = useState([]);
+  const [isBulkApproving, setIsBulkApproving] = useState(false);
+  const [isApprovalModalOpen, setIsApprovalModalOpen] = useState(false);
+
   const isCCR = userRole.toLowerCase() === "ccr";
   const getInputButtonText = () => {
     return userRole === USER_ROLES.OPERATOR_JT ? "Timbang" : "Input Data";
@@ -100,7 +106,6 @@ const RitaseList = ({
     return searchedData.slice(startIdx, endIdx);
   }, [searchedData, currentPage, pageSize]);
 
-  console.log(paginatedData);
   const totalPages = useMemo(() => {
     return Math.ceil(searchedData.length / pageSize);
   }, [searchedData, pageSize]);
@@ -172,6 +177,55 @@ const RitaseList = ({
   const handleExportExcel = () => {
     generateRitaseExcel(filteredRitaseData);
   };
+
+  const handleSelectAll = (e) => {
+    if (e.target.checked) {
+      setSelectedIds(paginatedData.map((r) => r.id));
+    } else {
+      setSelectedIds([]);
+    }
+  };
+
+  const handleSelectOne = (e, id) => {
+    if (e.target.checked) {
+      setSelectedIds((prev) => [...prev, id]);
+    } else {
+      setSelectedIds((prev) => prev.filter((item) => item !== id));
+    }
+  };
+
+  const handleBulkApprove = async () => {
+    if (selectedIds.length === 0) return;
+    setIsApprovalModalOpen(true);
+  };
+
+  const handleConfirmBulkApprove = async () => {
+    if (selectedIds.length === 0 || isBulkApproving) return;
+
+    setIsBulkApproving(true);
+    try {
+      const { useRitaseStore } =
+        await import("@/modules/timbangan/ritase/store/ritaseStore");
+
+      const { bulkApproveRitase } = useRitaseStore.getState();
+      const result = await bulkApproveRitase({
+        ritase_ids: selectedIds,
+        status: "APPROVED",
+      });
+
+      if (result.success) {
+        setSelectedIds([]);
+        setIsApprovalModalOpen(false);
+      } else {
+        console.error("Bulk approve failed:", result.error);
+      }
+    } catch (error) {
+      console.error("Bulk approve exception:", error);
+    } finally {
+      setIsBulkApproving(false);
+    }
+  };
+
   return (
     <>
       <Card
@@ -206,16 +260,49 @@ const RitaseList = ({
               >
                 {searchedData.length} total
               </Badge>
-              <Button
-                onClick={handleExportExcel}
-                variant="outline"
-                size="sm"
-                disabled={filteredRitaseData.length === 0}
-                className="border-green-300 dark:border-green-700 text-green-700 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20"
-              >
-                <FileDown className="w-3 h-3 mr-1" />
-                Export Excel
-              </Button>
+                <Button
+                    onClick={handleExportExcel}
+                    variant="outline"
+                    size="sm"
+                    className="border-green-300 dark:border-green-700 text-green-700 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20"
+                  >
+                    <FileDown className="w-3 h-3 mr-1" />
+                    Export Excel
+                  </Button>
+              {/* {(() => {
+                const isRitaseApproved = (r) =>
+                  r.approval_status_company === "APPROVED" &&
+                  r.approval_status_work_unit === "APPROVED" &&
+                  r.approval_status_dumping_point === "APPROVED";
+
+                const allApproved =
+                  filteredRitaseData.length > 0 &&
+                  filteredRitaseData.every(isRitaseApproved);
+
+                return allApproved ? (
+                  <Button
+                    onClick={handleExportExcel}
+                    variant="outline"
+                    size="sm"
+                    className="border-green-300 dark:border-green-700 text-green-700 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20"
+                  >
+                    <FileDown className="w-3 h-3 mr-1" />
+                    Export Excel
+                  </Button>
+                ) : null;
+              })()} */}
+              {/* {selectedIds.length > 0 && (
+                <Button
+                  variant="default"
+                  size="sm"
+                  className="bg-blue-600 hover:bg-blue-700 text-white"
+                  disabled={isBulkApproving}
+                  onClick={handleBulkApprove}
+                >
+                  <CheckCircle2 className="w-3 h-3 mr-1" />
+                  {isBulkApproving ? "Approving..." : `Approve (${selectedIds.length})`}
+                </Button>
+              )} */}
             </div>
           </div>
         </CardHeader>
@@ -249,6 +336,17 @@ const RitaseList = ({
                 <Table className="text-xs">
                   <TableHeader>
                     <TableRow className="bg-gray-50 dark:bg-gray-900/50 hover:bg-gray-50 dark:hover:bg-gray-900/50">
+                      {/* <TableHead className="w-10">
+                        <input
+                          type="checkbox"
+                          className="rounded border-gray-300 dark:border-gray-600"
+                          checked={
+                            paginatedData.length > 0 &&
+                            selectedIds.length === paginatedData.length
+                          }
+                          onChange={handleSelectAll}
+                        />
+                      </TableHead> */}
                       <TableHead className="text-gray-700 dark:text-gray-300 font-semibold w-16 py-1.5">
                         No
                       </TableHead>
@@ -293,6 +391,14 @@ const RitaseList = ({
                         key={ritase.id || index}
                         className="border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800/50 h-8"
                       >
+                        {/* <TableCell>
+                          <input
+                            type="checkbox"
+                            className="rounded border-gray-300 dark:border-gray-600"
+                            checked={selectedIds.includes(ritase.id)}
+                            onChange={(e) => handleSelectOne(e, ritase.id)}
+                          />
+                        </TableCell> */}
                         <TableCell className="text-gray-700 dark:text-gray-300">
                           {(currentPage - 1) * ITEMS_PER_PAGE + index + 1}
                         </TableCell>
@@ -342,7 +448,7 @@ const RitaseList = ({
                             {ritase.net_weight || "0"} ton
                           </Badge>
                         </TableCell>
-                           <TableCell className="text-gray-700 dark:text-gray-300">
+                        <TableCell className="text-gray-700 dark:text-gray-300">
                           {ritase.coal_type || "-"}
                         </TableCell>
                         <TableCell>
@@ -689,6 +795,56 @@ const RitaseList = ({
           isProcessing={isDeletingRitase}
         />
       )}
+
+      {/* Approval Confirmation Modal */}
+      <Dialog
+        open={isApprovalModalOpen}
+        onOpenChange={(open) => {
+          if (!open && !isBulkApproving) {
+            setIsApprovalModalOpen(false);
+          }
+        }}
+      >
+        <DialogContent className="max-w-sm dark:bg-slate-900 bg-white border-none">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 dark:text-neutral-50 text-gray-900">
+              <CheckCircle2 className="w-5 h-5 text-blue-500" />
+              Konfirmasi Approval
+            </DialogTitle>
+          </DialogHeader>
+          <div className="py-3 space-y-3">
+            <p className="text-sm text-gray-700 dark:text-gray-300">
+              Anda yakin ingin melakukan approval untuk{" "}
+              <span className="font-semibold">{selectedIds.length}</span> data ritase yang dipilih?
+            </p>
+            <div className="bg-gray-50 dark:bg-gray-800 rounded-md p-3 space-y-1 text-xs text-gray-600 dark:text-gray-400">
+              <div>
+                <span className="font-semibold">Jumlah data:</span>{" "}
+                {selectedIds.length} ritase
+              </div>
+            </div>
+          </div>
+          <div className="flex items-center justify-end gap-2 pt-1">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={isBulkApproving}
+              onClick={() => setIsApprovalModalOpen(false)}
+              className="h-8 px-4 text-sm border-gray-300 dark:border-gray-600 dark:text-gray-200"
+            >
+              Tidak
+            </Button>
+            <Button
+              size="sm"
+              disabled={isBulkApproving}
+              onClick={handleConfirmBulkApprove}
+              className="h-8 px-4 text-sm bg-blue-600 hover:bg-blue-700 text-white"
+            >
+              {isBulkApproving ? "Memproses..." : "Ya, Approve"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </>
   );
 };
