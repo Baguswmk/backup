@@ -59,7 +59,7 @@ const TimbanganInternalPage = () => {
         locationId: "timbangan",
       },
       {
-        name: "Ritase",
+        name: "Penerimaan Batubara",
         icon: Scale,
         roles: [
           "checker",
@@ -72,6 +72,42 @@ const TimbanganInternalPage = () => {
           "ccr",
         ],
         locationId: "ritase",
+      },
+      {
+        name: "Penerimaan Batubara History",
+        icon: History,
+        roles: [
+          "checker",
+          "pic",
+          "pengawas",
+          "operator_jt",
+          "evaluator",
+          "admin",
+          "super_admin",
+          "ccr",
+        ],
+        locationId: "ritase-history",
+      },
+      {
+        name: "Ritase Pending",
+        icon: History,
+        roles: ["admin", "super_admin", "ccr"],
+        locationId: "ritase-pending",
+      },
+      {
+        name: "Adjustment Beltscale",
+        icon: Scale,
+        roles: [
+          "checker",
+          "pic",
+          "pengawas",
+          "operator_jt",
+          "evaluator",
+          "admin",
+          "super_admin",
+          "ccr",
+        ],
+        locationId: "beltscale",
       },
       {
         name: "Belt Conveyor",
@@ -90,54 +126,9 @@ const TimbanganInternalPage = () => {
         locationId: "belt-conveyor",
       },
       {
-        name: "Ritase Pending",
-        icon: History,
-        roles: ["admin", "super_admin", "ccr"],
-        locationId: "ritase-pending",
-      },
-      {
-        name: "Ritase History",
-        icon: History,
-        roles: [
-          "checker",
-          "pic",
-          "pengawas",
-          "operator_jt",
-          "evaluator",
-          "admin",
-          "super_admin",
-          "ccr",
-        ],
-        locationId: "ritase-history",
-      },
-      {
-        name: "Beltscale",
-        icon: Scale,
-        roles: [
-          "checker",
-          "pic",
-          "pengawas",
-          "operator_jt",
-          "evaluator",
-          "admin",
-          "super_admin",
-          "ccr",
-        ],
-        locationId: "beltscale",
-      },
-      {
         name: "Rencana & Realisasi",
         icon: ClipboardList,
-        roles: [
-          "checker",
-          "pic",
-          "pengawas",
-          "operator_jt",
-          "evaluator",
-          "admin",
-          "super_admin",
-          "ccr",
-        ],
+        roles: ["admin", "super_admin", "ccr"],
         locationId: "rencana-realisasi",
       },
       {
@@ -339,16 +330,16 @@ const TimbanganInternalPage = () => {
               <FleetManagement Type="Setting Fleet" />
             ) : selectedMenu === "Timbangan" ? (
               <TimbanganManagement Type="Timbangan" />
-            ) : selectedMenu === "Ritase" ? (
-              <RitaseManagement Type="Ritase" />
+            ) : selectedMenu === "Penerimaan Batubara" ? (
+              <RitaseManagement Type="Penerimaan Batubara" />
             ) : selectedMenu === "Belt Conveyor" ? (
               <BeltConveyorManagement />
             ) : selectedMenu === "Ritase Pending" ? (
               <RitasePendingManagement Type="Ritase Pending" />
-            ) : selectedMenu === "Ritase History" ? (
-              <RitaseHistory Type="Ritase History" />
-            ) : selectedMenu === "Beltscale" ? (
-              <BeltscaleManagement Type="Beltscale" />
+            ) : selectedMenu === "Penerimaan Batubara History" ? (
+              <RitaseHistory Type="Penerimaan Batubara History" />
+            ) : selectedMenu === "Adjustment Beltscale" ? (
+              <BeltscaleManagement Type="Adjustment Beltscale" />
             ) : selectedMenu === "Overview" ? (
               <OverviewPage />
             ) : selectedMenu === "Rencana & Realisasi" ? (

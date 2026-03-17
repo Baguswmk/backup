@@ -21,11 +21,71 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from "@/shared/components/ui/dropdown-menu";
-import { ChevronDown, ChevronUp, Eye, MoreVertical, Copy,CheckCircle } from "lucide-react";
+import { ChevronDown, ChevronUp, Eye, MoreVertical, Copy } from "lucide-react";
 import {
   DUMPING_POINT_GROUP,
   LOADING_POINT_GROUP,
 } from "@/modules/timbangan/ritase/constant/ritaseConstants";
+
+// Reusable badge dengan 3 sub-nilai
+function StatBadge({ label, accent, items }) {
+  const accentMap = {
+    green: {
+      wrap: "bg-green-50  dark:bg-green-900/20  border-green-200  dark:border-green-800",
+      label: "text-green-600 dark:text-green-400",
+      value: "text-green-700 dark:text-green-300",
+    },
+    blue: {
+      wrap: "bg-blue-50   dark:bg-blue-900/20   border-blue-200   dark:border-blue-800",
+      label: "text-blue-600  dark:text-blue-400",
+      value: "text-blue-700  dark:text-blue-300",
+    },
+    amber: {
+      wrap: "bg-amber-50  dark:bg-amber-900/20  border-amber-200  dark:border-amber-800",
+      label: "text-amber-600 dark:text-amber-400",
+      value: "text-amber-700 dark:text-amber-300",
+    },
+  };
+  const c = accentMap[accent];
+
+  return (
+    <div
+      className={`flex flex-col rounded border px-2 py-1 min-w-22 ${c.wrap}`}
+    >
+      <span
+        className={`text-[9px] font-semibold uppercase tracking-wide leading-none mb-1 ${c.label}`}
+      >
+        {label}
+      </span>
+      <div className="flex gap-2">
+        {items.map(({ sub, value }) => (
+          <span key={sub} className="flex flex-col items-center">
+            <span className="text-[8px] text-gray-400 dark:text-gray-500 leading-none mb-0.5">
+              {sub}
+            </span>
+            <span className={`text-[11px] font-bold leading-none ${c.value}`}>
+              {value}
+            </span>
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// Reusable summary value di sebelah kanan
+function SummaryValue({ label, value }) {
+  return (
+    <span className="flex flex-col items-end px-1">
+      <span className="text-[9px] text-gray-400 dark:text-gray-500 uppercase tracking-wide leading-none mb-0.5">
+        {label}
+      </span>
+      <span className="text-[11px] font-bold text-gray-700 dark:text-gray-200 leading-none">
+        {value}
+      </span>
+    </span>
+  );
+}
 
 const AggregatedCoalFlow = ({
   type,
@@ -40,6 +100,10 @@ const AggregatedCoalFlow = ({
   handleApprovalClick,
 }) => {
   const [expandedGroups, setExpandedGroups] = useState({});
+
+  const isMMCTWorkUnit = (picWorkUnit) =>
+    (picWorkUnit || "").trim().toLowerCase() ===
+    "mine-mouth coal transportation";
 
   const getTripCount = (item) => {
     return (
@@ -243,12 +307,6 @@ const AggregatedCoalFlow = ({
                         </DropdownMenuItem>
                       )}
                       <DropdownMenuSeparator />
-                      {/* <DropdownMenuItem
-                        onClick={() => handleApprovalClick(item)}
-                        className="cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-900/30 text-blue-600 dark:text-blue-400 text-xs"
-                      >
-                        <CheckCircle className="mr-2 h-3 w-3" /> Approval
-                      </DropdownMenuItem> */}
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </TableCell>
@@ -263,8 +321,10 @@ const AggregatedCoalFlow = ({
   const renderLeaf = (locationName, keyPrefix) => {
     const items = locationMap[locationName] || [];
     if (!items.length) return null;
+
     const leafId = `${keyPrefix}-${locationName}`;
     const isExpanded = expandedGroups[leafId] === true;
+
     const leafTrips = items.reduce(
       (s, i) => s + (parseInt(getTripCount(i)) || 0),
       0,
@@ -274,29 +334,94 @@ const AggregatedCoalFlow = ({
       0,
     );
 
-    const activeFleetCount = items.filter(
-      (item) => item.is_beltconveyor !== true,
-    ).length;
+    // ── Summaries: pisahkan Mining vs CHT ────────────────────────────────────
+    const mmctItems = items.filter((item) =>
+      isMMCTWorkUnit(item.pic_work_unit),
+    );
+    const miningItems = items.filter(
+      (item) => !isMMCTWorkUnit(item.pic_work_unit),
+    );
+
+    const getRealizationMetrics = (groupItems) => {
+      const fleetActive = groupItems.filter(
+        (item) => item.is_beltconveyor !== true,
+      ).length;
+      const fleetRealisasi = groupItems.reduce(
+        (sum, item) => sum + (parseInt(item.total_active_dt) || 0),
+        0,
+      );
+      const tonase = groupItems.reduce(
+        (sum, item) =>
+          sum + (parseFloat(item.totalWeight || item.total_tonase || 0) || 0),
+        0,
+      );
+      return { fleetActive, fleetRealisasi, tonase };
+    };
+
+    const miningRealization = getRealizationMetrics(miningItems);
+    const mmctRealization = getRealizationMetrics(mmctItems);
+
+    // ── coal_flow: hitung fleet target per kategori ───────────────────────────
     const rawCoalFlow = aggregatedData?.coal_flow;
     const coalFlowList = Array.isArray(rawCoalFlow)
       ? rawCoalFlow
       : rawCoalFlow && typeof rawCoalFlow === "object"
-      ? [rawCoalFlow]
-      : [];
-    const matchedCoalFlow = coalFlowList.filter((item) => {
-      if (type === "dumping") return item.dumping_location === locationName;
-      return item.loading_location === locationName;
-    });
+        ? [rawCoalFlow]
+        : [];
 
-    let targetFleet = 0;
-    let targetTonase = 0;
-    matchedCoalFlow.forEach((item) => {
-      targetFleet += parseInt(item.total_fleet) || 0;
-      targetTonase += parseFloat(item.total_tonase) || 0;
-    });
+    const matchedCoalFlow = coalFlowList.filter((item) =>
+      type === "dumping"
+        ? item.dumping_location === locationName
+        : item.loading_location === locationName,
+    );
 
-    const remainingFleetCount =
-      targetFleet > 0 ? targetFleet - activeFleetCount : 0;
+    // Mining fleet target — coal_flow non-MMCT
+    const miningCoalFlow = matchedCoalFlow.filter(
+      (item) => !isMMCTWorkUnit(item.pic_work_unit),
+    );
+    const miningTargetFleet = miningCoalFlow.reduce(
+      (sum, item) => sum + (parseInt(item.total_fleet) || 0),
+      0,
+    );
+    const miningTargetTonase = miningCoalFlow.reduce(
+      (sum, item) => sum + (parseFloat(item.total_tonase) || 0),
+      0,
+    );
+    // Aktif fleet Mining dari summaries
+    const miningActiveFleet = miningItems.filter(
+      (item) => item.is_beltconveyor !== true,
+    ).length;
+
+    // CHT fleet target — coal_flow MMCT
+    const chtCoalFlow = matchedCoalFlow.filter((item) =>
+      isMMCTWorkUnit(item.pic_work_unit),
+    );
+    const chtTargetFleet = chtCoalFlow.reduce(
+      (sum, item) => sum + (parseInt(item.total_fleet) || 0),
+      0,
+    );
+    const chtTargetTonase = chtCoalFlow.reduce(
+      (sum, item) => sum + (parseFloat(item.total_tonase) || 0),
+      0,
+    );
+    // Aktif fleet CHT dari summaries
+    const chtActiveFleet = mmctItems.filter(
+      (item) => item.is_beltconveyor !== true,
+    ).length;
+
+    // Total Fleet — semua coal_flow tanpa filter
+    const totalTargetFleet = matchedCoalFlow.reduce(
+      (sum, item) => sum + (parseInt(item.total_fleet) || 0),
+      0,
+    );
+    const totalTargetTonase = matchedCoalFlow.reduce(
+      (sum, item) => sum + (parseFloat(item.total_tonase) || 0),
+      0,
+    );
+    const totalActiveFleet = items.filter(
+      (item) => item.is_beltconveyor !== true,
+    ).length;
+    // ─────────────────────────────────────────────────────────────────────────
 
     return (
       <Collapsible
@@ -307,100 +432,87 @@ const AggregatedCoalFlow = ({
         }
         className="mb-1 last:mb-0"
       >
-        <div className="border border-gray-200 dark:border-gray-600 rounded-md overflow-hidden">
-          <CollapsibleTrigger className="w-full h-full cursor-pointer p-2 bg-gray-50 dark:bg-gray-900/20 hover:bg-gray-100 dark:hover:bg-gray-800/40 transition-colors border-l-2 border-gray-400 dark:border-gray-500">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 h-full">
+        <div className="border border-gray-200 dark:border-gray-700 rounded-md overflow-hidden">
+          <CollapsibleTrigger className="w-full cursor-pointer p-2.5 bg-gray-50 dark:bg-gray-900/30 hover:bg-gray-100 dark:hover:bg-gray-800/40 transition-colors border-l-2 border-slate-400 dark:border-slate-500">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              {/* Location name + chevron */}
               <div className="flex items-center gap-2 min-w-0">
                 {isExpanded ? (
-                  <ChevronUp className="h-3 w-3 text-gray-500 shrink-0" />
+                  <ChevronUp className="h-3 w-3 text-gray-400 shrink-0" />
                 ) : (
-                  <ChevronDown className="h-3 w-3 text-gray-500 shrink-0" />
+                  <ChevronDown className="h-3 w-3 text-gray-400 shrink-0" />
                 )}
-                <span className="text-xs font-medium text-gray-700 dark:text-gray-300 text-left truncate">
+                <span className="text-xs font-semibold text-gray-700 dark:text-gray-200 text-left truncate">
                   {locationName}
                 </span>
               </div>
-              <div className="flex items-center gap-3 text-[10px] sm:text-xs shrink-0 flex-wrap sm:flex-nowrap">
-                {targetFleet > 0 && (
-                  <div className="flex flex-col items-center justify-center bg-blue-50 dark:bg-blue-900/30 px-2 py-0.5 rounded border border-blue-100 dark:border-blue-800 mr-2 min-w-16">
-                    <div className="text-[9px] text-blue-600 dark:text-blue-400 uppercase leading-none mb-0.5 font-semibold">
-                      T.Fleet
-                    </div>
-                    <div className="flex justify-between w-full text-gray-700 dark:text-gray-300 gap-2">
-                      <span
-                        className="flex flex-col items-center"
-                        title="Target Fleet"
-                      >
-                        <span className="text-[8px] text-gray-400">Target</span>
-                        <span className="leading-none text-blue-600 dark:text-blue-400 font-bold">
-                          {targetFleet}
-                        </span>
-                      </span>
-                      <span
-                        className="flex flex-col items-center"
-                        title="Aktif"
-                      >
-                        <span className="text-[8px] text-gray-400">Aktif</span>
-                        <span className="leading-none text-green-600 dark:text-green-400 font-bold">
-                          {activeFleetCount}
-                        </span>
-                      </span>
-                      <span className="flex flex-col items-center" title="Sisa">
-                        <span className="text-[8px] text-gray-400">Sisa</span>
-                        <span className="leading-none text-amber-600 dark:text-amber-400 font-bold">
-                          {remainingFleetCount}
-                        </span>
-                      </span>
-                    </div>
-                  </div>
+
+              {/* Stats group */}
+              <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+                {/* Mining Badge — realisasi + fleet target dari coal_flow non-MMCT */}
+                <StatBadge
+                  label="Mining"
+                  accent="green"
+                  items={[
+                    { sub: "Target", value: totalTargetFleet },
+                    { sub: "Aktif", value: miningRealization.fleetActive },
+                    {
+                      sub: "Sisa",
+                      value: Math.max(0, totalTargetFleet - miningActiveFleet),
+                    },
+                  ]}
+                />
+
+                {/* CHT Badge — realisasi + fleet target dari coal_flow MMCT */}
+                <StatBadge
+                  label="CHT"
+                  accent="blue"
+                  items={[
+                    { sub: "Target", value: totalTargetFleet },
+                    { sub: "Aktif", value: mmctRealization.fleetActive },
+                    {
+                      sub: "Sisa",
+                      value: Math.max(0, totalTargetFleet - chtActiveFleet),
+                    },
+                  ]}
+                />
+
+                {/* Total Fleet — semua coal_flow tanpa filter */}
+                {totalTargetFleet > 0 && (
+                  <StatBadge
+                    label="Total Fleet"
+                    accent="amber"
+                    items={[
+                      { sub: "Target", value: totalTargetFleet },
+                      { sub: "Aktif", value: totalActiveFleet },
+                      {
+                        sub: "Sisa",
+                        value: Math.max(0, totalTargetFleet - totalActiveFleet),
+                      },
+                    ]}
+                  />
                 )}
-                {targetTonase > 0 && (
-                  <div className="flex flex-col items-center justify-center bg-indigo-50 dark:bg-indigo-900/30 px-2 py-0.5 rounded border border-indigo-100 dark:border-indigo-800 mr-2 min-w-16">
-                    <div className="text-[9px] text-indigo-600 dark:text-indigo-400 uppercase leading-none mb-0.5 font-semibold">
-                      T.Tonase
-                    </div>
-                    <div className="flex justify-between w-full text-gray-700 dark:text-gray-300 gap-2">
-                      <span
-                        className="flex flex-col items-center"
-                        title="Target Tonase"
-                      >
-                        <span className="text-[8px] text-gray-400">Target</span>
-                        <span className="leading-none text-indigo-600 dark:text-indigo-400 font-bold">
-                          {targetTonase.toLocaleString("en-US", {
-                            maximumFractionDigits: 0,
-                          })}
-                        </span>
-                      </span>
-                      <span
-                        className="flex flex-col items-center"
-                        title="Tercapai"
-                      >
-                        <span className="text-[8px] text-gray-400">Aktual</span>
-                        <span className="leading-none text-green-600 dark:text-green-400 font-bold">
-                          {leafWeight.toLocaleString("en-US", {
-                            maximumFractionDigits: 0,
-                          })}
-                        </span>
-                      </span>
-                    </div>
-                  </div>
+
+                {/* Divider */}
+                <div className="hidden sm:block h-8 w-px bg-gray-200 dark:bg-gray-700 mx-1" />
+
+                <SummaryValue label="Total Rit" value={`${leafTrips} rit`} />
+
+                {totalTargetTonase > 0 && (
+                  <SummaryValue
+                    label="Total Ton Realisasi"
+                    value={`${totalTargetTonase.toFixed(2)} ton`}
+                  />
                 )}
-                <span className="text-blue-600 flex flex-col items-end dark:text-blue-400 font-semibold px-2">
-                  <span className="text-[9px] text-gray-500 uppercase font-normal leading-none mb-0.5">
-                    Total Rit
-                  </span>
-                  {leafTrips} rit
-                </span>
-                <span className="text-green-600 flex flex-col items-end dark:text-green-400 font-semibold px-2">
-                  <span className="text-[9px] text-gray-500 uppercase font-normal leading-none mb-0.5">
-                    Total Ton
-                  </span>
-                  {leafWeight.toFixed(2)} ton
-                </span>
-                <div className="flex items-center bl-1 border-l border-gray-300 dark:border-gray-600 pl-2"></div>
+
+                <SummaryValue
+                  label="Total Ton Aktual"
+                  value={`${leafWeight.toFixed(2)} ton`}
+                />
               </div>
             </div>
           </CollapsibleTrigger>
+
           <CollapsibleContent>{renderItemsTable(items)}</CollapsibleContent>
         </div>
       </Collapsible>
