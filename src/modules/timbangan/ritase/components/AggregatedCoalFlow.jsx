@@ -50,7 +50,7 @@ function StatBadge({ label, accent, items }) {
 
   return (
     <div
-      className={`flex flex-col rounded border px-2 py-1 min-w-22 ${c.wrap}`}
+      className={`flex flex-col items-center rounded border px-2 py-1 min-w-22 ${c.wrap}`}
     >
       <span
         className={`text-[9px] font-semibold uppercase tracking-wide leading-none mb-1 ${c.label}`}
@@ -171,30 +171,80 @@ const AggregatedCoalFlow = ({
     return false;
   };
 
-  const getNodeTotals = (node) => {
-    let totalTrips = 0,
-      totalWeight = 0;
-    const collect = (n) => {
-      if (Array.isArray(n)) {
-        n.forEach((loc) =>
-          (locationMap[loc] || []).forEach((item) => {
-            totalTrips += parseInt(getTripCount(item)) || 0;
-            totalWeight +=
-              parseFloat(item.totalWeight || item.total_tonase || 0) || 0;
-          }),
-        );
-      } else if (typeof n === "string") {
-        (locationMap[n] || []).forEach((item) => {
-          totalTrips += parseInt(getTripCount(item)) || 0;
-          totalWeight +=
-            parseFloat(item.totalWeight || item.total_tonase || 0) || 0;
-        });
-      } else if (n && typeof n === "object") {
-        Object.values(n).forEach((v) => collect(v));
-      }
+  const getLocationsFromNode = (node) => {
+    let locations = [];
+    const extract = (n) => {
+      if (Array.isArray(n)) locations.push(...n);
+      else if (typeof n === "string") locations.push(n);
+      else if (n && typeof n === "object") Object.values(n).forEach(extract);
     };
-    collect(node);
-    return { totalTrips, totalWeight };
+    extract(node);
+    return [...new Set(locations)];
+  };
+
+  const getNodeMetrics = (node) => {
+    const locations = getLocationsFromNode(node);
+    
+    let totalTrips = 0;
+    let totalWeight = 0;
+    
+    const miningExcaSet = new Set();
+    const chtExcaSet = new Set();
+    const totalExcaSet = new Set();
+    
+    locations.forEach(loc => {
+      const items = locationMap[loc] || [];
+      items.forEach(item => {
+        totalTrips += parseInt(getTripCount(item)) || 0;
+        totalWeight += parseFloat(item.totalWeight || item.total_tonase || 0) || 0;
+        
+        if (item.is_beltconveyor !== true) {
+          const excaId = item.unit_exca || `unknown-${Math.random()}`;
+          totalExcaSet.add(excaId);
+          if (isMMCTWorkUnit(item.pic_work_unit)) chtExcaSet.add(excaId);
+          else miningExcaSet.add(excaId);
+        }
+      });
+    });
+
+    let miningActive = miningExcaSet.size;
+    let chtActive = chtExcaSet.size;
+    let totalActive = totalExcaSet.size;
+
+    let miningTarget = 0, chtTarget = 0, totalTarget = 0;
+    let totalTargetTonase = 0;
+
+    const rawCoalFlow = aggregatedData?.coal_flow;
+    const coalFlowList = Array.isArray(rawCoalFlow)
+      ? rawCoalFlow
+      : rawCoalFlow && typeof rawCoalFlow === "object"
+        ? [rawCoalFlow]
+        : [];
+
+    locations.forEach(loc => {
+      const matchedCoalFlow = coalFlowList.filter((item) =>
+        type === "dumping"
+          ? item.dumping_location === loc
+          : item.loading_location === loc,
+      );
+
+      matchedCoalFlow.forEach(item => {
+        const fleet = parseInt(item.total_fleet) || 0;
+        const tonase = parseFloat(item.total_tonase) || 0;
+        totalTarget += fleet;
+        totalTargetTonase += tonase;
+        if (isMMCTWorkUnit(item.pic_work_unit)) chtTarget += fleet;
+        else miningTarget += fleet;
+      });
+    });
+
+    return { 
+      totalTrips, totalWeight,
+      miningTarget, miningActive, 
+      chtTarget, chtActive, 
+      totalTarget, totalActive,
+      totalTargetTonase
+    };
   };
 
   const renderItemsTable = (items) => {
@@ -324,104 +374,7 @@ const AggregatedCoalFlow = ({
 
     const leafId = `${keyPrefix}-${locationName}`;
     const isExpanded = expandedGroups[leafId] === true;
-
-    const leafTrips = items.reduce(
-      (s, i) => s + (parseInt(getTripCount(i)) || 0),
-      0,
-    );
-    const leafWeight = items.reduce(
-      (s, i) => s + (parseFloat(i.totalWeight || i.total_tonase || 0) || 0),
-      0,
-    );
-
-    // ── Summaries: pisahkan Mining vs CHT ────────────────────────────────────
-    const mmctItems = items.filter((item) =>
-      isMMCTWorkUnit(item.pic_work_unit),
-    );
-    const miningItems = items.filter(
-      (item) => !isMMCTWorkUnit(item.pic_work_unit),
-    );
-
-    const getRealizationMetrics = (groupItems) => {
-      const fleetActive = groupItems.filter(
-        (item) => item.is_beltconveyor !== true,
-      ).length;
-      const fleetRealisasi = groupItems.reduce(
-        (sum, item) => sum + (parseInt(item.total_active_dt) || 0),
-        0,
-      );
-      const tonase = groupItems.reduce(
-        (sum, item) =>
-          sum + (parseFloat(item.totalWeight || item.total_tonase || 0) || 0),
-        0,
-      );
-      return { fleetActive, fleetRealisasi, tonase };
-    };
-
-    const miningRealization = getRealizationMetrics(miningItems);
-    const mmctRealization = getRealizationMetrics(mmctItems);
-
-    // ── coal_flow: hitung fleet target per kategori ───────────────────────────
-    const rawCoalFlow = aggregatedData?.coal_flow;
-    const coalFlowList = Array.isArray(rawCoalFlow)
-      ? rawCoalFlow
-      : rawCoalFlow && typeof rawCoalFlow === "object"
-        ? [rawCoalFlow]
-        : [];
-
-    const matchedCoalFlow = coalFlowList.filter((item) =>
-      type === "dumping"
-        ? item.dumping_location === locationName
-        : item.loading_location === locationName,
-    );
-
-    // Mining fleet target — coal_flow non-MMCT
-    const miningCoalFlow = matchedCoalFlow.filter(
-      (item) => !isMMCTWorkUnit(item.pic_work_unit),
-    );
-    const miningTargetFleet = miningCoalFlow.reduce(
-      (sum, item) => sum + (parseInt(item.total_fleet) || 0),
-      0,
-    );
-    const miningTargetTonase = miningCoalFlow.reduce(
-      (sum, item) => sum + (parseFloat(item.total_tonase) || 0),
-      0,
-    );
-    // Aktif fleet Mining dari summaries
-    const miningActiveFleet = miningItems.filter(
-      (item) => item.is_beltconveyor !== true,
-    ).length;
-
-    // CHT fleet target — coal_flow MMCT
-    const chtCoalFlow = matchedCoalFlow.filter((item) =>
-      isMMCTWorkUnit(item.pic_work_unit),
-    );
-    const chtTargetFleet = chtCoalFlow.reduce(
-      (sum, item) => sum + (parseInt(item.total_fleet) || 0),
-      0,
-    );
-    const chtTargetTonase = chtCoalFlow.reduce(
-      (sum, item) => sum + (parseFloat(item.total_tonase) || 0),
-      0,
-    );
-    // Aktif fleet CHT dari summaries
-    const chtActiveFleet = mmctItems.filter(
-      (item) => item.is_beltconveyor !== true,
-    ).length;
-
-    // Total Fleet — semua coal_flow tanpa filter
-    const totalTargetFleet = matchedCoalFlow.reduce(
-      (sum, item) => sum + (parseInt(item.total_fleet) || 0),
-      0,
-    );
-    const totalTargetTonase = matchedCoalFlow.reduce(
-      (sum, item) => sum + (parseFloat(item.total_tonase) || 0),
-      0,
-    );
-    const totalActiveFleet = items.filter(
-      (item) => item.is_beltconveyor !== true,
-    ).length;
-    // ─────────────────────────────────────────────────────────────────────────
+    const metrics = getNodeMetrics(locationName);
 
     return (
       <Collapsible
@@ -449,65 +402,37 @@ const AggregatedCoalFlow = ({
 
               {/* Stats group */}
               <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
-                {/* Mining Badge — realisasi + fleet target dari coal_flow non-MMCT */}
                 <StatBadge
                   label="Mining"
                   accent="green"
                   items={[
-                    { sub: "Target", value: totalTargetFleet },
-                    { sub: "Aktif", value: miningRealization.fleetActive },
-                    {
-                      sub: "Sisa",
-                      value: Math.max(0, totalTargetFleet - miningActiveFleet),
-                    },
+                    { sub: "Aktif", value: metrics.miningActive },
                   ]}
                 />
-
-                {/* CHT Badge — realisasi + fleet target dari coal_flow MMCT */}
                 <StatBadge
                   label="CHT"
                   accent="blue"
                   items={[
-                    { sub: "Target", value: totalTargetFleet },
-                    { sub: "Aktif", value: mmctRealization.fleetActive },
-                    {
-                      sub: "Sisa",
-                      value: Math.max(0, totalTargetFleet - chtActiveFleet),
-                    },
+                    { sub: "Aktif", value: metrics.chtActive },
                   ]}
                 />
-
-                {/* Total Fleet — semua coal_flow tanpa filter */}
-                {totalTargetFleet > 0 && (
                   <StatBadge
                     label="Total Fleet"
                     accent="amber"
                     items={[
-                      { sub: "Target", value: totalTargetFleet },
-                      { sub: "Aktif", value: totalActiveFleet },
-                      {
-                        sub: "Sisa",
-                        value: Math.max(0, totalTargetFleet - totalActiveFleet),
-                      },
+                      { sub: "Aktif", value: metrics.totalActive },
                     ]}
                   />
-                )}
 
-                {/* Divider */}
                 <div className="hidden sm:block h-8 w-px bg-gray-200 dark:bg-gray-700 mx-1" />
-
-                <SummaryValue label="Total Rit" value={`${leafTrips} rit`} />
-
-                {totalTargetTonase > 0 && (
+                <SummaryValue label="Total Rit" value={`${metrics.totalTrips.toLocaleString("en-US")} rit`} />
                   <SummaryValue
                     label="Total Ton Realisasi"
-                    value={`${totalTargetTonase.toFixed(2)} ton`}
+                    value={`${metrics.totalTargetTonase.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ton`}
                   />
-                )}
-
                 <SummaryValue
                   label="Total Ton Aktual"
-                  value={`${leafWeight.toFixed(2)} ton`}
+                  value={`${metrics.totalWeight.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ton`}
                 />
               </div>
             </div>
@@ -548,7 +473,7 @@ const AggregatedCoalFlow = ({
     const s = levelStyles[level] || levelStyles[3];
     const nodeId = `${keyPrefix}-${label}`;
     const isExpanded = expandedGroups[nodeId] === true;
-    const { totalTrips, totalWeight } = getNodeTotals(node);
+    const metrics = getNodeMetrics(node);
 
     return (
       <Collapsible
@@ -565,37 +490,55 @@ const AggregatedCoalFlow = ({
           <CollapsibleTrigger
             className={`w-full cursor-pointer p-3 ${s.border} hover:bg-gray-200 dark:hover:bg-gray-700/50 transition-colors`}
           >
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-              <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-                <div className="flex items-center gap-2">
-                  {isExpanded ? (
-                    <ChevronUp className="h-4 w-4 text-gray-600 dark:text-gray-400 shrink-0" />
-                  ) : (
-                    <ChevronDown className="h-4 w-4 text-gray-600 dark:text-gray-400 shrink-0" />
-                  )}
-                  <Badge className={s.badge}>{label}</Badge>
-                </div>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div className="flex items-center gap-2 min-w-0">
+                {isExpanded ? (
+                  <ChevronUp className="h-4 w-4 text-gray-600 dark:text-gray-400 shrink-0" />
+                ) : (
+                  <ChevronDown className="h-4 w-4 text-gray-600 dark:text-gray-400 shrink-0" />
+                )}
+                <Badge className={s.badge}>{label}</Badge>
               </div>
-              <div className="flex items-center gap-4">
-                <div className="text-left sm:text-right flex flex-col justify-center">
-                  <div className="text-[10px] text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    Ritase
-                  </div>
-                  <div className="text-sm font-bold text-blue-600 dark:text-blue-400">
-                    {totalTrips.toLocaleString("en-US")}
-                  </div>
-                </div>
-                <div className="text-left sm:text-right flex flex-col justify-center">
-                  <div className="text-[10px] text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    Tonase
-                  </div>
-                  <div className="text-sm font-bold text-green-600 dark:text-green-400">
-                    {totalWeight.toLocaleString("en-US", {
-                      minimumFractionDigits: 2,
-                      maximumFractionDigits: 2,
-                    })}
-                  </div>
-                </div>
+
+              <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+                <StatBadge
+                  label="Mining"
+                  accent="green"
+                  items={[
+                    { sub: "Target", value: metrics.miningTarget },
+                    { sub: "Aktif", value: metrics.miningActive },
+                    { sub: "Sisa", value: Math.max(0, metrics.miningTarget - metrics.miningActive) },
+                  ]}
+                />
+                <StatBadge
+                  label="CHT"
+                  accent="blue"
+                  items={[
+                    { sub: "Target", value: metrics.chtTarget },
+                    { sub: "Aktif", value: metrics.chtActive },
+                    { sub: "Sisa", value: Math.max(0, metrics.chtTarget - metrics.chtActive) },
+                  ]}
+                />
+                  <StatBadge
+                    label="Total Fleet"
+                    accent="amber"
+                    items={[
+                      { sub: "Target", value: metrics.totalTarget },
+                      { sub: "Aktif", value: metrics.totalActive },
+                      { sub: "Sisa", value: Math.max(0, metrics.totalTarget - metrics.totalActive) },
+                    ]}
+                  />
+
+                <div className="hidden sm:block h-8 w-px bg-gray-200 dark:bg-gray-700 mx-1" />
+                <SummaryValue label="Total Rit" value={`${metrics.totalTrips.toLocaleString("en-US")} rit`} />
+                  <SummaryValue
+                    label="Total Ton Realisasi"
+                    value={`${metrics.totalTargetTonase.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ton`}
+                  />
+                <SummaryValue
+                  label="Total Ton Aktual"
+                  value={`${metrics.totalWeight.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ton`}
+                />
               </div>
             </div>
           </CollapsibleTrigger>
