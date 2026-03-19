@@ -86,6 +86,16 @@ export const useManualWeighHooks = () => {
     loadMasters();
   }, [loadMasters]);
 
+  useEffect(() => {
+    const handleRefresh = () => {
+      loadMasters({ forceRefresh: true });
+    };
+    window.addEventListener("timbangan:refreshManualMasters", handleRefresh);
+    return () => {
+      window.removeEventListener("timbangan:refreshManualMasters", handleRefresh);
+    };
+  }, [loadMasters]);
+
   // ─── Dropdown options (memoized) ──────────────────────────────────────
   const excavatorOptions = useMemo(
     () =>

@@ -31,7 +31,8 @@ const TimbanganManagement = () => {
     try {
       await offlineService.clearCache("timbangan:units:dump_truck");
       window.dispatchEvent(new CustomEvent("timbangan:refreshUnits"));
-      showToast.success("Cache unit dump truck dikosongkan, memuat ulang...");
+      window.dispatchEvent(new CustomEvent("timbangan:refreshManualMasters"));
+      showToast.success("Data master berhasil dimuat ulang...");
     } catch (error) {
       console.error("Gagal refresh master timbangan:", error);
       showToast.error("Gagal memperbarui data master");
