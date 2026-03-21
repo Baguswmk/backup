@@ -126,35 +126,17 @@ const AggregatedInputModal = ({
       // Replace comma with dot for decimal separator
       let formattedValue = value.replace(/,/g, ".");
 
-      const measurementType = ritaseData.measurementType;
-      const hasWeighBridge = user?.weigh_bridge != null;
-
-      const isGrossWeight = measurementType === "Timbangan" && hasWeighBridge;
-      const isNetWeight =
-        (measurementType === "Timbangan" && !hasWeighBridge) ||
-        measurementType === "Bypass";
-
       const netWeightRegex = /^\d{0,2}(\.\d{0,2})?$/;
-      const grossWeightRegex = /^\d{0,3}(\.\d{0,2})?$/;
 
       let isValid = false;
       if (formattedValue === "") {
         isValid = true;
-      } else if (isGrossWeight) {
-        isValid = grossWeightRegex.test(formattedValue);
-        const numValue = parseFloat(formattedValue);
-        if (!isNaN(numValue) && numValue > 199.99) {
-          isValid = false;
-        }
-      } else if (isNetWeight) {
+      } else {
         isValid = netWeightRegex.test(formattedValue);
         const numValue = parseFloat(formattedValue);
         if (!isNaN(numValue) && numValue > 99.99) {
           isValid = false;
         }
-      } else {
-        // For other measurement types, allow any valid number
-        isValid = /^\d*\.?\d*$/.test(formattedValue);
       }
 
       if (isValid) {
@@ -162,7 +144,7 @@ const AggregatedInputModal = ({
         setErrors((prev) => ({ ...prev, weight: null }));
       }
     },
-    [ritaseData.measurementType, user],
+    [],
   );
 
   // Handle gross weight input for Bypass
@@ -216,15 +198,9 @@ const AggregatedInputModal = ({
 
     // Weight validation based on measurement type
     const measurementType = ritaseData.measurementType;
-    const hasWeighBridge = user?.weigh_bridge != null;
 
-    const isGrossWeight = measurementType === "Timbangan" && hasWeighBridge;
-    const isNetWeight =
-      (measurementType === "Timbangan" && !hasWeighBridge) ||
-      measurementType === "Bypass";
-
-    // For Bypass, validate gross_weight
-    if (measurementType === "Bypass") {
+    // For Timbangan, validate gross_weight
+    if (measurementType === "Timbangan") {
       if (!ritaseData.grossWeight || ritaseData.grossWeight.trim() === "") {
         e.grossWeight = "Masukkan gross weight";
       } else {
@@ -242,8 +218,8 @@ const AggregatedInputModal = ({
           }
         }
       }
-    } else if (measurementType !== "Bypass") {
-      // For non-Bypass, validate weight
+    } else if (measurementType !== "Timbangan") {
+      // For Bypass and others, validate weight
       if (!ritaseData.weight || ritaseData.weight.trim() === "") {
         e.weight = "Masukkan berat";
       } else {
@@ -251,13 +227,7 @@ const AggregatedInputModal = ({
 
         if (isNaN(weight) || weight <= 0) {
           e.weight = "Berat harus lebih dari 0";
-        } else if (isGrossWeight) {
-          // Gross weight validation (max 199.99 ton, 3 digits)
-          const grossWeightRegex = /^\d{0,3}(\.\d{0,2})?$/;
-          if (!grossWeightRegex.test(ritaseData.weight) || weight > 199.99) {
-            e.weight = "Berat maksimal 199.99 ton";
-          }
-        } else if (isNetWeight) {
+        } else {
           // Net weight validation (max 99.99 ton, 2 digits)
           const netWeightRegex = /^\d{0,2}(\.\d{0,2})?$/;
           if (!netWeightRegex.test(ritaseData.weight) || weight > 99.99) {
@@ -316,15 +286,10 @@ const AggregatedInputModal = ({
       }
 
       // Handle weight berdasarkan measurement type
-      if (ritaseData.measurementType === "Bypass") {
+      if (ritaseData.measurementType === "Timbangan") {
         payload.gross_weight = parseFloat(ritaseData.grossWeight);
       } else {
-        const hasWeighBridge = user?.weigh_bridge != null;
-        if (hasWeighBridge) {
-          payload.gross_weight = parseFloat(ritaseData.weight);
-        } else {
-          payload.net_weight = parseFloat(ritaseData.weight);
-        }
+        payload.net_weight = parseFloat(ritaseData.weight);
       }
 
       const result = await onSave(payload);
@@ -827,8 +792,8 @@ const AggregatedInputModal = ({
             </InfoCard>
 
             {/* Weight Input */}
-            {ritaseData.measurementType === "Bypass" ? (
-              // Bypass uses gross_weight
+            {ritaseData.measurementType === "Timbangan" ? (
+              // Timbangan uses gross_weight
               <InfoCard title="Berat" variant="primary" className="border-none">
                 <div className="md:col-span-2 space-y-2">
                   <Label className="dark:text-gray-300">
@@ -853,24 +818,15 @@ const AggregatedInputModal = ({
                 </div>
               </InfoCard>
             ) : ritaseData.measurementType &&
-              ritaseData.measurementType !== "Bypass" ? (
+              ritaseData.measurementType !== "Timbangan" ? (
               // Other measurement types use weight
               <InfoCard title="Berat" variant="primary" className="border-none">
                 <div className="md:col-span-2 space-y-2">
                   <Label className="dark:text-gray-300">
                     Berat Bersih (ton) *
-                    {ritaseData.measurementType === "Timbangan" &&
-                      user?.weigh_bridge != null && (
-                        <span className="text-xs text-gray-500 ml-2">
-                          (Max: 199.99 ton)
-                        </span>
-                      )}
-                    {ritaseData.measurementType === "Timbangan" &&
-                      user?.weigh_bridge == null && (
-                        <span className="text-xs text-gray-500 ml-2">
-                          (Max: 99.99 ton)
-                        </span>
-                      )}
+                    <span className="text-xs text-gray-500 ml-2">
+                      (Max: 99.99 ton)
+                    </span>
                   </Label>
                   <Input
                     type="text"
