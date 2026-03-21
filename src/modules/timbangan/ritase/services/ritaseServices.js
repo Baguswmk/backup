@@ -324,7 +324,6 @@ export const ritaseServices = {
 
   async createManualRitase(data) {
     try {
-      console.log(data)
       const payload = {
         date: data.date,
         shift: data.shift,

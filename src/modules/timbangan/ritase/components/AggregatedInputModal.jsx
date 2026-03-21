@@ -246,7 +246,6 @@ const AggregatedInputModal = ({
       showToast.error("Mohon lengkapi semua field yang wajib diisi");
       return;
     }
-    console.log(ritaseData)
     setIsSaving(true);
     try {
       // ✅ PERBAIKAN: Gunakan nama field yang sesuai dengan backend API
@@ -295,7 +294,6 @@ const AggregatedInputModal = ({
         payload.net_weight = parseFloat(ritaseData.weight);
       }
 
-      console.log("SENDING PAYLOAD:", payload);
 
       const result = await onSave(payload);
 
@@ -452,13 +450,10 @@ const AggregatedInputModal = ({
         (truck) => String(truck.id) === String(ritaseData.dumpTruck)
       );
 
-      console.log(`[DEBUG] Dump Truck ID changed to:`, ritaseData.dumpTruck);
-      console.log(`[DEBUG] Found in masters.dumpTruck:`, selectedTruckMaster);
 
       if (selectedTruckMaster) {
         const weightRaw = selectedTruckMaster.empty_weight ?? selectedTruckMaster.tare_weight ?? 0;
         const weight = parseFloat(weightRaw) || 0;
-        console.log(`[DEBUG] Extracted weightRaw:`, weightRaw, `-> Parsed weight:`, weight);
         setRitaseData((prev) => {
           if (prev.tareWeight !== weight) {
             return { ...prev, tareWeight: weight };
