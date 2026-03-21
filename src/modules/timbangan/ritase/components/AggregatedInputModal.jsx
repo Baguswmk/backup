@@ -40,7 +40,6 @@ const AggregatedInputModal = ({
   const { user } = useAuthStore();
   const { masters, mastersLoading } = useFleet(user ? { user } : null, null);
   const [ritaseData, setRitaseData] = useState({
-    fleetConfigId: "",
     excavator: "",
     loadingLocation: "",
     dumpingLocation: "",
@@ -55,6 +54,7 @@ const AggregatedInputModal = ({
     shift: "",
     weight: "",
     grossWeight: "",
+    tareWeight: 0,
     distance: 0,
     createdTime: new Date().toTimeString().slice(0, 5), // Format: HH:mm
   });
@@ -78,7 +78,6 @@ const AggregatedInputModal = ({
   useEffect(() => {
     if (isOpen && selectedFleetConfig) {
       setRitaseData({
-        fleetConfigId: selectedFleetConfig.id,
         excavator: selectedFleetConfig.excavatorId || "",
         loadingLocation: selectedFleetConfig.loadingLocationId || "",
         dumpingLocation: selectedFleetConfig.dumpingLocationId || "",
@@ -94,12 +93,12 @@ const AggregatedInputModal = ({
         shift: "",
         weight: "",
         grossWeight: "",
+        tareWeight: 0,
         createdTime: new Date().toTimeString().slice(0, 5),
       });
     } else if (isOpen) {
       // Reset form
       setRitaseData({
-        fleetConfigId: "",
         excavator: "",
         loadingLocation: "",
         dumpingLocation: "",
@@ -115,6 +114,7 @@ const AggregatedInputModal = ({
         shift: "",
         weight: "",
         grossWeight: "",
+        tareWeight: 0,
         createdTime: new Date().toTimeString().slice(0, 5),
       });
     }
@@ -246,7 +246,7 @@ const AggregatedInputModal = ({
       showToast.error("Mohon lengkapi semua field yang wajib diisi");
       return;
     }
-
+    console.log(ritaseData)
     setIsSaving(true);
     try {
       // ✅ PERBAIKAN: Gunakan nama field yang sesuai dengan backend API
@@ -262,7 +262,6 @@ const AggregatedInputModal = ({
         pic_work_unit: parseInt(ritaseData.workUnit), // Backend mungkin expect 'pic_work_unit'
         unit_dump_truck: parseInt(ritaseData.dumpTruck),
         operator: parseInt(ritaseData.operator),
-
         measurement_type: ritaseData.measurementType,
         distance: parseFloat(ritaseData.distance) || 0,
 
@@ -288,9 +287,15 @@ const AggregatedInputModal = ({
       // Handle weight berdasarkan measurement type
       if (ritaseData.measurementType === "Timbangan") {
         payload.gross_weight = parseFloat(ritaseData.grossWeight);
+        payload.tare_weight = parseFloat(ritaseData.tareWeight) || 0;
+        
+        const calculatedNet = payload.gross_weight - payload.tare_weight;
+        payload.net_weight = calculatedNet > 0 ? Number(calculatedNet.toFixed(2)) : 0;
       } else {
         payload.net_weight = parseFloat(ritaseData.weight);
       }
+
+      console.log("SENDING PAYLOAD:", payload);
 
       const result = await onSave(payload);
 
@@ -437,21 +442,45 @@ const AggregatedInputModal = ({
 
   useEffect(() => {
     if (ritaseData.dumpTruck) {
-      const selectedTruck = dumpTruckItems.find(
+      const selectedTruckItem = dumpTruckItems.find(
         (truck) =>
           String(truck.id || truck.dumpTruckId) ===
           String(ritaseData.dumpTruck),
       );
 
-      if (selectedTruck) {
+      const selectedTruckMaster = (masters?.dumpTruck || []).find(
+        (truck) => String(truck.id) === String(ritaseData.dumpTruck)
+      );
+
+      console.log(`[DEBUG] Dump Truck ID changed to:`, ritaseData.dumpTruck);
+      console.log(`[DEBUG] Found in masters.dumpTruck:`, selectedTruckMaster);
+
+      if (selectedTruckMaster) {
+        const weightRaw = selectedTruckMaster.empty_weight ?? selectedTruckMaster.tare_weight ?? 0;
+        const weight = parseFloat(weightRaw) || 0;
+        console.log(`[DEBUG] Extracted weightRaw:`, weightRaw, `-> Parsed weight:`, weight);
+        setRitaseData((prev) => {
+          if (prev.tareWeight !== weight) {
+            return { ...prev, tareWeight: weight };
+          }
+          return prev;
+        });
+      }
+
+      if (selectedTruckItem) {
         // Filter operators by company
-        const truckCompanyId = selectedTruck.companyId;
+        const truckCompanyId = selectedTruckItem.companyId;
         const filteredOperators = (masters?.operators || []).filter(
           (op) => String(op.companyId) === String(truckCompanyId),
         );
       }
+    } else {
+      setRitaseData((prev) => {
+        if (prev.tareWeight !== 0) return { ...prev, tareWeight: 0 };
+        return prev;
+      });
     }
-  }, [ritaseData.dumpTruck, masters?.operators, dumpTruckItems]);
+  }, [ritaseData.dumpTruck, masters?.dumpTruck, masters?.operators, dumpTruckItems]);
 
   if (!isOpen) return null;
 
@@ -716,6 +745,11 @@ const AggregatedInputModal = ({
                   error={!!errors.dumpTruck}
                   disabled={isSaving}
                 />
+                {ritaseData.dumpTruck && (
+                  <p className={`text-xs ${ritaseData.tareWeight > 0 ? 'text-blue-600 dark:text-blue-400' : 'text-orange-500 dark:text-orange-400'}`}>
+                    Berat Kosong Truk: {ritaseData.tareWeight > 0 ? `${ritaseData.tareWeight} ton` : "Data tidak tersedia di master / 0 ton"}
+                  </p>
+                )}
                 {errors.dumpTruck && (
                   <p className="text-sm text-red-500 dark:text-red-400">
                     {errors.dumpTruck}

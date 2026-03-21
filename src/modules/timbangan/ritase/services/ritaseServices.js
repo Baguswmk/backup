@@ -324,6 +324,7 @@ export const ritaseServices = {
 
   async createManualRitase(data) {
     try {
+      console.log(data)
       const payload = {
         date: data.date,
         shift: data.shift,
@@ -345,15 +346,19 @@ export const ritaseServices = {
 
       // Handle weight based on measurement type
       if (data.measurement_type === "Bypass") {
-        if (data.gross_weight) {
+        if (data.gross_weight !== undefined && data.gross_weight !== null && data.gross_weight !== "") {
           payload.gross_weight = parseFloat(data.gross_weight);
         }
       } else {
         // For Timbangan
-        if (data.gross_weight) {
+        if (data.gross_weight !== undefined && data.gross_weight !== null && data.gross_weight !== "") {
           payload.gross_weight = parseFloat(data.gross_weight);
-        } else if (data.net_weight) {
+        }
+        if (data.net_weight !== undefined && data.net_weight !== null && data.net_weight !== "") {
           payload.net_weight = parseFloat(data.net_weight);
+        }
+        if (data.tare_weight !== undefined && data.tare_weight !== null && data.tare_weight !== "") {
+          payload.tare_weight = parseFloat(data.tare_weight);
         }
       }
 
