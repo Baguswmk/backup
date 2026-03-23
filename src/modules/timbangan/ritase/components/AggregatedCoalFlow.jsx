@@ -98,6 +98,7 @@ const AggregatedCoalFlow = ({
   handleCheckerClick,
   handleDuplicate,
   handleApprovalClick,
+  currentShift,
 }) => {
   const [expandedGroups, setExpandedGroups] = useState({});
 
@@ -229,8 +230,14 @@ const AggregatedCoalFlow = ({
       );
 
       matchedCoalFlow.forEach(item => {
-        const fleet = parseInt(item.total_fleet) || 0;
-        const tonase = parseFloat(item.total_tonase) || 0;
+        let fleet = parseInt(item.total_fleet) || 0;
+        let tonase = parseFloat(item.total_tonase) || 0;
+        
+        if (currentShift && currentShift.toLowerCase() !== "all shift") {
+          fleet = Math.ceil(fleet / 3);
+          tonase = tonase / 3;
+        }
+
         totalTarget += fleet;
         totalTargetTonase += tonase;
         if (isMMCTWorkUnit(item.pic_work_unit)) chtTarget += fleet;
@@ -427,7 +434,7 @@ const AggregatedCoalFlow = ({
                 <div className="hidden sm:block h-8 w-px bg-gray-200 dark:bg-gray-700 mx-1" />
                 <SummaryValue label="Total Rit" value={`${metrics.totalTrips.toLocaleString("en-US")} rit`} />
                   <SummaryValue
-                    label="Total Ton Realisasi"
+                    label="Total Ton Rencana"
                     value={`${metrics.totalTargetTonase.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ton`}
                   />
                 <SummaryValue
@@ -532,7 +539,7 @@ const AggregatedCoalFlow = ({
                 <div className="hidden sm:block h-8 w-px bg-gray-200 dark:bg-gray-700 mx-1" />
                 <SummaryValue label="Total Rit" value={`${metrics.totalTrips.toLocaleString("en-US")} rit`} />
                   <SummaryValue
-                    label="Total Ton Realisasi"
+                    label="Total Ton Rencana"
                     value={`${metrics.totalTargetTonase.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ton`}
                   />
                 <SummaryValue

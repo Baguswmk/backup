@@ -699,6 +699,7 @@ const RitaseHistory = () => {
         {/* Aggregated Ritase */}
         <AggregatedRitase
           aggregatedData={summaryData}
+          currentShift={viewingShift}
           isInitialLoading={isInitialLoading}
           isRefreshing={isRefreshing}
           currentPage={currentAggregatedPage}

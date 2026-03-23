@@ -143,6 +143,7 @@ const AggregatedRitase = ({
   onDuplicateRitase,
   onApproveRitase,
   refreshButtonRef,
+  currentShift,
 }) => {
   const [selectedDetail, setSelectedDetail] = useState(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -1294,6 +1295,7 @@ const AggregatedRitase = ({
                         handleCheckerClick={handleCheckerClick}
                         handleDuplicate={handleDuplicate}
                         handleApprovalClick={handleApprovalClick}
+                        currentShift={currentShift}
                       /> || (
                         <div className="text-center py-12">
                           <Package className="w-10 h-10 sm:w-12 sm:h-12 mx-auto text-gray-300 dark:text-gray-600" />

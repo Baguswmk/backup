@@ -601,6 +601,7 @@ const RitaseManagement = () => {
         {/* Aggregated Ritase */}
         <AggregatedRitase
           aggregatedData={summaryData}
+          currentShift={currentShift}
           isInitialLoading={isInitialLoading}
           isRefreshing={isRefreshing}
           currentPage={currentAggregatedPage}
