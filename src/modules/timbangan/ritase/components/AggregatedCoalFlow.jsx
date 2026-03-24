@@ -239,7 +239,6 @@ const AggregatedCoalFlow = ({
           currentShift.toLowerCase() !== "semua shift" &&
           currentShift.toLowerCase() !== "all"
         ) {
-          fleet = Math.ceil(fleet / 3);
           tonase = tonase / 3;
         }
 
