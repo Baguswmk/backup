@@ -438,7 +438,7 @@ const RitaseList = ({
                           {ritase.unit_exca || ritase.excavator || "-"}
                         </TableCell>
                         <TableCell className="text-gray-700 dark:text-gray-300">
-                          {ritase.company || "-"}
+                          {(typeof ritase.company === "object" ? ritase.company?.name : ritase.company) || "-"}
                         </TableCell>
                         <TableCell className="text-right">
                           <Badge
@@ -449,7 +449,7 @@ const RitaseList = ({
                           </Badge>
                         </TableCell>
                         <TableCell className="text-gray-700 dark:text-gray-300">
-                          {ritase.coal_type || "-"}
+                          {(typeof ritase.coal_type === "object" ? ritase.coal_type?.name : ritase.coal_type) || "-"}
                         </TableCell>
                         <TableCell>
                           <Badge

@@ -564,15 +564,15 @@ const AggregatedRitase = ({
   };
 
   const handleUpdateTripFromChecker = async (updatedTrip) => {
-    if (onUpdateRitase && updatedTrip?.id) {
-      await onUpdateRitase(updatedTrip.id, updatedTrip);
-    }
-
-    setTimeout(() => {
-      if (refreshButtonRef?.current) {
-        refreshButtonRef.current.click();
+    if (onUpdateRitase) {
+      if (updatedTrip?.id) {
+        // Update normal per-trip
+        await onUpdateRitase(updatedTrip.id, updatedTrip);
+      } else {
+        // null signal dari bulk edit = force refresh saja (1x loadSummaryData)
+        await onUpdateRitase(null, null);
       }
-    }, 10);
+    }
   };
 
   // Handler untuk delete trip dari KertasCheckerDialog

@@ -40,6 +40,7 @@ import RitaseEditForm from "@/modules/timbangan/ritase/components/RitaseEditForm
 import { useFleet } from "@/modules/timbangan/fleet/hooks/useFleet";
 import useAuthStore from "@/modules/auth/store/authStore";
 import { SHIFT_CONFIG, getShiftFromHour } from "@/shared/utils/shift";
+import { ritaseServices } from "@/modules/timbangan/ritase/services/ritaseServices";
 const KertasCheckerDialog = ({
   isOpen,
   onClose,
@@ -67,6 +68,7 @@ const KertasCheckerDialog = ({
     loading_location: "",
     dumping_location: "",
     measurement_type: "",
+    coal_type: "",
     distance: "",
   });
   const [isBulkEditing, setIsBulkEditing] = useState(false);
@@ -147,6 +149,13 @@ const KertasCheckerDialog = ({
     }));
   }, [masters.excavators]);
 
+  const coalTypeOptions = useMemo(() => {
+    return (masters.coalTypes || []).map((ct) => ({
+      value: ct.name || ct.id,
+      label: ct.name,
+    }));
+  }, [masters.coalTypes]);
+
   const getCurrentDay = () => {
     const days = [
       "Minggu",
@@ -180,6 +189,7 @@ const KertasCheckerDialog = ({
         loading_location: "",
         dumping_location: "",
         measurement_type: "",
+        coal_type: "",
         distance: "",
       });
     }
@@ -199,6 +209,7 @@ const KertasCheckerDialog = ({
           firstTrip?.dumping_location || data.dumping_location || "",
         measurement_type:
           firstTrip?.measurement_type || data.measurement_type || "",
+        coal_type: firstTrip?.coal_type || data.coal_type || "",
         distance: firstTrip?.distance || data.distance || "",
       });
     }
@@ -402,7 +413,6 @@ const KertasCheckerDialog = ({
       return;
     }
 
-    // Validasi input - minimal satu field harus diisi
     const hasChanges = Object.values(bulkEditData).some((val) => val !== "");
     if (!hasChanges) {
       showToast.error("Tidak ada perubahan yang dibuat");
@@ -411,77 +421,43 @@ const KertasCheckerDialog = ({
 
     setIsBulkEditing(true);
     try {
-      let successCount = 0;
-      let failCount = 0;
+      const payload = {
+        ritase_ids: data.trips.map((trip) => trip.id),
+        updates: {},
+      };
 
-      // Loop through all trips and update them
-      for (const trip of data.trips) {
-        try {
-          const updateData = {
-            id: trip.id,
-            date: trip.date,
-            time: trip.time || trip.createdAt,
-            unit_dump_truck: trip.unit_dump_truck || trip.hull_no,
-            unit_exca: trip.unit_exca || trip.excavator,
-            operator: trip.operator,
-            checker: trip.checker,
-            company: trip.company,
-            shift: bulkEditData.shift || trip.shift,
-            loading_location:
-              bulkEditData.loading_location || trip.loading_location,
-            dumping_location:
-              bulkEditData.dumping_location || trip.dumping_location,
-            measurement_type:
-              bulkEditData.measurement_type || trip.measurement_type,
-            distance: bulkEditData.distance
-              ? parseInt(bulkEditData.distance)
-              : trip.distance || 0,
-            gross_weight: trip.gross_weight,
-            net_weight: trip.net_weight,
-            tare_weight: trip.tare_weight,
-            coal_type: trip.coal_type,
-            pic_work_unit: trip.pic_work_unit,
-            inspector: trip.inspector,
-            spph: trip.spph,
-            pic_loading_point: trip.pic_loading_point,
-            pic_dumping_point: trip.pic_dumping_point,
-            id_setting_fleet: trip.id_setting_fleet,
-          };
-
-          if (bulkEditData.excavator) {
-            updateData.unit_exca = bulkEditData.excavator;
-          }
-
-          if (onUpdateTrip) {
-            await onUpdateTrip(updateData);
-            successCount++;
-          }
-        } catch (error) {
-          console.error("Error updating trip:", error);
-          failCount++;
+      // Hanya masukkan field yang tidak kosong
+      Object.entries(bulkEditData).forEach(([key, value]) => {
+        if (value !== "") {
+          payload.updates[key] = value;
         }
+      });
+
+      const result = await ritaseServices.bulkEditRitase(payload, user);
+
+      if (result.success) {
+        showToast.success(`Berhasil mengupdate ${data.trips.length} data DT`);
+      } else {
+        showToast.error(result.error || "Gagal melakukan bulk edit");
       }
 
-      if (successCount > 0) {
-        showToast.success(`Berhasil mengupdate ${successCount} data DT`);
-      }
-      if (failCount > 0) {
-        showToast.error(`Gagal mengupdate ${failCount} data DT`);
-      }
-
-      // Close dialog
       setIsBulkEditDialogOpen(false);
 
-      // Close main dialog
       if (onClose) {
         onClose();
       }
 
-      // Trigger refresh
-      if (refreshButtonRef?.current) {
+      // Trigger refresh di parent langsung lewat callback (bukan via refreshButtonRef)
+      // onUpdateRitase → handleRefreshAfterEdit → loadSummaryData(true) → fresh data
+      if (onUpdateTrip) {
+        setTimeout(() => {
+          onUpdateTrip(null, null); // null,null = signal untuk force refresh saja
+        }, 100);
+      } else if (refreshButtonRef?.current) {
+        // Fallback jika onUpdateTrip tidak ada
         setTimeout(() => {
           refreshButtonRef.current.click();
-        }, 10);
+        }, 100);
       }
     } catch (error) {
       console.error("Error in bulk edit:", error);
@@ -534,7 +510,7 @@ const KertasCheckerDialog = ({
                     <span className="xs:hidden">DT</span>
                   </Button>
                 )}
-                {/* <Button
+                  <Button
                     variant="outline"
                     size="sm"
                     onClick={() => setIsBulkEditDialogOpen(true)}
@@ -544,7 +520,7 @@ const KertasCheckerDialog = ({
                     <Settings className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
                     <span className="hidden xs:inline">Edit Semua DT</span>
                     <span className="xs:hidden">Edit</span>
-                  </Button> */}
+                  </Button>
                 {/* <Button
                     variant="outline"
                     size="sm"
@@ -1241,112 +1217,133 @@ const KertasCheckerDialog = ({
               </p>
             </DialogHeader>
             <div className="space-y-4 py-4">
-              {/* Shift */}
-              <div>
-                <Label className="text-sm font-medium text-slate-300 mb-2 block">
-                  Shift
-                </Label>
-                <SearchableSelect
-                  items={shiftOptions}
-                  value={bulkEditData.shift}
-                  onChange={(value) =>
-                    setBulkEditData({ ...bulkEditData, shift: value })
-                  }
-                  placeholder="Pilih shift atau kosongkan..."
-                  className="w-full"
-                />
-              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* Shift */}
+                <div>
+                  <Label className="text-sm font-medium text-slate-300 mb-2 block">
+                    Shift
+                  </Label>
+                  <SearchableSelect
+                    items={shiftOptions}
+                    value={bulkEditData.shift}
+                    onChange={(value) =>
+                      setBulkEditData({ ...bulkEditData, shift: value })
+                    }
+                    placeholder="Pilih shift atau kosongkan..."
+                    className="w-full"
+                  />
+                </div>
 
-              {/* Excavator */}
-              <div>
-                <Label className="text-sm font-medium text-slate-300 mb-2 block">
-                  Excavator
-                </Label>
-                <SearchableSelect
-                  items={excavatorOptions}
-                  value={bulkEditData.excavator}
-                  onChange={(value) =>
-                    setBulkEditData({ ...bulkEditData, excavator: value })
-                  }
-                  placeholder="Pilih excavator atau kosongkan..."
-                  className="w-full"
-                />
-              </div>
+                {/* Excavator */}
+                <div>
+                  <Label className="text-sm font-medium text-slate-300 mb-2 block">
+                    Excavator
+                  </Label>
+                  <SearchableSelect
+                    items={excavatorOptions}
+                    value={bulkEditData.excavator}
+                    onChange={(value) =>
+                      setBulkEditData({ ...bulkEditData, excavator: value })
+                    }
+                    placeholder="Pilih excavator atau kosongkan..."
+                    className="w-full"
+                  />
+                </div>
 
-              {/* Loading Location */}
-              <div>
-                <Label className="text-sm font-medium text-slate-300 mb-2 block">
-                  Loading Point
-                </Label>
-                <SearchableSelect
-                  items={loadingLocationOptions}
-                  value={bulkEditData.loading_location}
-                  onChange={(value) =>
-                    setBulkEditData({
-                      ...bulkEditData,
-                      loading_location: value,
-                    })
-                  }
-                  placeholder="Pilih loading point atau kosongkan..."
-                  className="w-full"
-                />
-              </div>
+                {/* Loading Location */}
+                <div>
+                  <Label className="text-sm font-medium text-slate-300 mb-2 block">
+                    Loading Point
+                  </Label>
+                  <SearchableSelect
+                    items={loadingLocationOptions}
+                    value={bulkEditData.loading_location}
+                    onChange={(value) =>
+                      setBulkEditData({
+                        ...bulkEditData,
+                        loading_location: value,
+                      })
+                    }
+                    placeholder="Pilih loading point atau kosongkan..."
+                    className="w-full"
+                  />
+                </div>
 
-              {/* Dumping Location */}
-              <div>
-                <Label className="text-sm font-medium text-slate-300 mb-2 block">
-                  Dumping Point
-                </Label>
-                <SearchableSelect
-                  items={dumpingLocationOptions}
-                  value={bulkEditData.dumping_location}
-                  onChange={(value) =>
-                    setBulkEditData({
-                      ...bulkEditData,
-                      dumping_location: value,
-                    })
-                  }
-                  placeholder="Pilih dumping point atau kosongkan..."
-                  className="w-full"
-                />
-              </div>
+                {/* Dumping Location */}
+                <div>
+                  <Label className="text-sm font-medium text-slate-300 mb-2 block">
+                    Dumping Point
+                  </Label>
+                  <SearchableSelect
+                    items={dumpingLocationOptions}
+                    value={bulkEditData.dumping_location}
+                    onChange={(value) =>
+                      setBulkEditData({
+                        ...bulkEditData,
+                        dumping_location: value,
+                      })
+                    }
+                    placeholder="Pilih dumping point atau kosongkan..."
+                    className="w-full"
+                  />
+                </div>
 
-              {/* Measurement Type */}
-              <div>
-                <Label className="text-sm font-medium text-slate-300 mb-2 block">
-                  Measurement Type
-                </Label>
-                <SearchableSelect
-                  items={measurementTypeOptions}
-                  value={bulkEditData.measurement_type}
-                  onChange={(value) =>
-                    setBulkEditData({
-                      ...bulkEditData,
-                      measurement_type: value,
-                    })
-                  }
-                  placeholder="Pilih measurement type atau kosongkan..."
-                  className="w-full"
-                />
-              </div>
+                {/* Jenis Batubara */}
+                <div>
+                  <Label className="text-sm font-medium text-slate-300 mb-2 block">
+                    Jenis Batubara
+                  </Label>
+                  <SearchableSelect
+                    items={coalTypeOptions}
+                    value={bulkEditData.coal_type}
+                    onChange={(value) =>
+                      setBulkEditData({
+                        ...bulkEditData,
+                        coal_type: value,
+                      })
+                    }
+                    placeholder="Pilih jenis batubara atau kosongkan..."
+                    className="w-full"
+                  />
+                </div>
 
-              {/* Distance */}
-              <div>
-                <Label className="text-sm font-medium text-slate-300 mb-2 block">
-                  Distance (meter)
-                </Label>
-                <Input
-                  type="number"
-                  value={bulkEditData.distance}
-                  onChange={(e) =>
-                    setBulkEditData({
-                      ...bulkEditData,
-                      distance: e.target.value,
-                    })
-                  }
-                  placeholder="Masukkan distance atau kosongkan..."
-                  className="w-full bg-slate-800 border-slate-700 text-white"
-                />
+                {/* Measurement Type */}
+                <div>
+                  <Label className="text-sm font-medium text-slate-300 mb-2 block">
+                    Measurement Type
+                  </Label>
+                  <SearchableSelect
+                    items={measurementTypeOptions}
+                    value={bulkEditData.measurement_type}
+                    onChange={(value) =>
+                      setBulkEditData({
+                        ...bulkEditData,
+                        measurement_type: value,
+                      })
+                    }
+                    placeholder="Pilih measurement type atau kosongkan..."
+                    className="w-full"
+                  />
+                </div>
+
+                {/* Distance */}
+                <div className="sm:col-span-2">
+                  <Label className="text-sm font-medium text-slate-300 mb-2 block">
+                    Distance (meter)
+                  </Label>
+                  <Input
+                    type="number"
+                    value={bulkEditData.distance}
+                    onChange={(e) =>
+                      setBulkEditData({
+                        ...bulkEditData,
+                        distance: e.target.value,
+                      })
+                    }
+                    placeholder="Masukkan distance atau kosongkan..."
+                    className="w-full bg-slate-800 border-slate-700 text-white"
+                  />
+                </div>
               </div>
 
               <div className="flex gap-2 pt-4 border-t border-slate-700">

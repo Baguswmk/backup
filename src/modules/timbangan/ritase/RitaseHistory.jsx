@@ -154,20 +154,23 @@ const RitaseHistory = () => {
 
   const loadSummaryData = useCallback(
     async (forceRefresh = false) => {
-      if (!currentDateRange.from || !currentDateRange.to || !viewingShift) {
+      // Gunakan latestParamsRef agar tidak stale saat dipanggil dari callback (e.g. handleRefreshAfterEdit)
+      const { dateRange, shift } = latestParamsRef.current;
+
+      if (!dateRange.from || !dateRange.to || !shift) {
         return { summaries: [], ritases: [], coal_flow: [] };
       }
 
       try {
         const result = await ritaseServices.fetchSummaryFleetByRitases({
           user,
-          dateRange: currentDateRange,
-          shift: viewingShift,
+          dateRange,
+          shift,
           forceRefresh,
         });
 
         if (result.success) {
-          setSummaryData({ ...result.data }); // Creating new object reference explicitly
+          setSummaryData({ ...result.data });
           return result.data;
         } else {
           console.error("❌ Failed to load summary data:", result.error);
@@ -180,7 +183,7 @@ const RitaseHistory = () => {
         return { summaries: [], ritases: [], coal_flow: [] };
       }
     },
-    [user, currentDateRange, viewingShift],
+    [user],
   );
 
 
@@ -392,8 +395,10 @@ const RitaseHistory = () => {
   }, []);
 
   const handleRefresh = useCallback(async () => {
+    const { dateRange, shift } = latestParamsRef.current;
+
     // ✅ Guard: jangan refresh kalau belum ada dateRange & shift
-    if (!currentDateRange.from || !currentDateRange.to || !viewingShift) {
+    if (!dateRange.from || !dateRange.to || !shift) {
       showToast.error("Silakan pilih tanggal dan shift terlebih dahulu");
       return;
     }
@@ -402,7 +407,8 @@ const RitaseHistory = () => {
     try {
       await Promise.all([
         loadFleetConfigsFromAPI(true, null),
-        loadSummaryData(true),
+        // Gunakan latestParamsRef agar selalu fresh saat dipanggil dari luar (e.g. KertasCheckerDialog)
+        loadSummaryDataWithParams({ dateRange, shift }),
       ]);
     } catch (error) {
       console.error("⚠️ Refresh error:", error);
@@ -412,9 +418,7 @@ const RitaseHistory = () => {
     }
   }, [
     loadFleetConfigsFromAPI,
-    loadSummaryData,
-    currentDateRange,
-    viewingShift,
+    loadSummaryDataWithParams,
   ]);
 
   const handleSubmitRitase = useCallback(

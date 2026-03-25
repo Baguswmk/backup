@@ -444,6 +444,55 @@ export const ritaseServices = {
     }
   },
 
+  async bulkEditRitase(payload) {
+    try {
+      logger.info(`📤 BULK EDIT Ritase Payload:`, payload);
+
+      const response = await offlineService.put(
+        "/v1/custom/ritase/checker-bulk-edit",
+        payload,
+      );
+
+      // Hapus cache agar pemanggilan read/API berikutnya mendapatkan data fresh
+      try {
+        if (typeof offlineService.clearCache === 'function') {
+          await offlineService.clearCache("ritases_");
+        }
+        if (typeof offlineService.clearCacheByPrefix === 'function') {
+          await offlineService.clearCacheByPrefix("ritases");
+          await offlineService.clearCacheByPrefix("summaries");
+        }
+      } catch (cacheError) {
+        logger.warn("⚠️ Failed to clear cache after bulk edit", cacheError);
+      }
+
+      const serverData = response.data || {};
+      logger.info("✅ Bulk Edit Ritase Success:", serverData);
+
+      return {
+        success: true,
+        data: serverData,
+        message: "Berhasil menyimpan perubahan data",
+      };
+    } catch (error) {
+      const errorMessage =
+        error.response?.data?.message ||
+        error.response?.data?.error?.message ||
+        error.message ||
+        "Gagal menyimpan perubahan data";
+
+      logger.error("❌ Failed to bulk edit ritase", {
+        error: errorMessage,
+        details: error.response?.data,
+      });
+
+      return {
+        success: false,
+        error: errorMessage,
+      };
+    }
+  },
+
   async duplicateRitase(data) {
     try {
       const payload = {
