@@ -129,6 +129,23 @@ export const DUMPING_POINT_GROUP = {
     "TAL - TAL UTARA BARAT",
     "TAL - TAL UTARA TIMUR",
     "TAL - TAL - TSBC",
+
+    // ✅ tambahan SEAM
+    "TAL-TAL-TSBC SEAM A1",
+    "TAL-TAL-TSBC SEAM A2",
+    "TAL-TAL-TSBC SEAM B",
+    "TAL-TAL-TSBC SEAM BE",
+    "TAL-TAL-TSBC SEAM BU",
+    "TAL-TAL-TSBC SEAM C",
+    "TAL-TAL-TSBC SEAM EN1",
+    "TAL-TAL-TSBC SEAM EN2",
+
+    "TAL-TAL UTARA BARAT SEAM EN",
+    "TAL-TAL UTARA TIMUR SEAM A1",
+    "TAL-TAL UTARA TIMUR SEAM A2",
+    "TAL-TAL UTARA TIMUR SEAM B1",
+    "TAL-TAL UTARA TIMUR SEAM B2",
+    "TAL-TAL UTARA TIMUR SEAM C",
   ],
 
   "BANKO 1 Mining Operations": [
@@ -137,6 +154,10 @@ export const DUMPING_POINT_GROUP = {
     "Banko Tengah - TS Merawan",
     "Banko Tengah - TS Mahoni",
     "Banko Tengah - TS INPIT BWE",
+
+    // ✅ tambahan SEAM
+    "BANKO TENGAH-BT-B PIT E SEAM D",
+    "BANKO TENGAH-BT-B PIT E SEAM E",
   ],
 
   "BANKO 2 Mining Operations": [
@@ -151,6 +172,19 @@ export const DUMPING_POINT_GROUP = {
     "Banko Tengah - TS Waringin",
     "Banko Tengah - Pit BT-A",
     "Banko Tengah - BT-B PIT SJS",
+
+    // ✅ tambahan SEAM
+    "BANKO TENGAH-BT-B PIT SJS SEAM A1",
+    "BANKO TENGAH-BT-B PIT SJS SEAM A2",
+    "BANKO TENGAH-BT-B PIT SJS SEAM B1",
+    "BANKO TENGAH-BT-B PIT SJS SEAM B2",
+    "BANKO TENGAH-BT-B PIT SJS SEAM C",
+
+    "BANKO TENGAH-PIT BT-A SEAM A1",
+    "BANKO TENGAH-PIT BT-A SEAM A2",
+    "BANKO TENGAH-PIT BT-A SEAM B1",
+    "BANKO TENGAH-PIT BT-A SEAM B2",
+    "BANKO TENGAH-PIT BT-A SEAM C",
   ],
 
   "West Block Coal Handling Operation": {
@@ -232,7 +266,7 @@ export const DUMPING_POINT_GROUP = {
     "Coal Handling Operations 5": {
       "Stockpile 5": ["Banko Barat - SP 5", "Banko Barat - DH 5"],
       "LS DH 5": ["Banko Barat - LS DH 5"],
-      "ROM RF 5": ["Banko Barat - RF 5"],
+      "ROM RF 5": ["Banko Barat - ROM RF 5"],
     },
     "Coal Handling Operations CHF SS 8": ["Banko Tengah - LS Sumsel 8"],
   },
@@ -243,6 +277,13 @@ export const DUMPING_POINT_GROUP = {
     "Banko Barat - TS Meranti",
     "Banko Barat - TS Lily",
     "Banko Barat - TS Green Belt 1",
+
+    // ✅ tambahan PIT 2 SEAM
+    "BANKO BARAT - PIT 2 SEAM A1",
+    "BANKO BARAT - PIT 2 SEAM A2",
+    "BANKO BARAT - PIT 2 SEAM B1",
+    "BANKO BARAT - PIT 2 SEAM B2",
+    "BANKO BARAT - PIT 2 SEAM C",
   ],
 
   "In-House Mining Operations 2": [
@@ -252,6 +293,14 @@ export const DUMPING_POINT_GROUP = {
     "Banko Tengah - TS Ext Sakura",
     "Banko Tengah - TS Aren",
     "Banko Tengah - TS PIT 3 Timur",
+
+    // ✅ tambahan PIT 3 TIMUR SEAM
+    "BANKO TENGAH - PIT 3 TIMUR SEAM A1",
+    "BANKO TENGAH - PIT 3 TIMUR SEAM A2",
+    "BANKO TENGAH - PIT 3 TIMUR SEAM B1",
+    "BANKO TENGAH - PIT 3 TIMUR SEAM B2",
+    "BANKO TENGAH - PIT 3 TIMUR SEAM C",
+    "BANKO TENGAH - PIT 3 TIMUR SEAM D",
   ],
 
   "Mine-Mouth Coal Transportation": [
@@ -274,6 +323,19 @@ export const DUMPING_POINT_GROUP = {
     "MTB - MTBU",
     "MTB - TS CCP MTB",
     "MTB - STOCK TS WESTHAM",
+
+    // ✅ tambahan SEAM
+    "MTB - MTBS SEAM A1",
+    "MTB - MTBS SEAM A2",
+    "MTB - MTBS SEAM B",
+    "MTB - MTBS SEAM C",
+
+    "MTB - MTBU SEAM A1",
+    "MTB - MTBU SEAM A2",
+    "MTB - MTBU SEAM B",
+    "MTB - MTBU SEAM BE",
+    "MTB - MTBU SEAM BU",
+    "MTB - MTBU SEAM C",
   ],
 };
 
@@ -282,6 +344,23 @@ export const LOADING_POINT_GROUP = {
     "TAL - TAL UTARA BARAT",
     "TAL - TAL UTARA TIMUR",
     "TAL - TAL-TSBC",
+
+    // ✅ tambahan SEAM
+    "TAL-TAL-TSBC SEAM A1",
+    "TAL-TAL-TSBC SEAM A2",
+    "TAL-TAL-TSBC SEAM B",
+    "TAL-TAL-TSBC SEAM BE",
+    "TAL-TAL-TSBC SEAM BU",
+    "TAL-TAL-TSBC SEAM C",
+    "TAL-TAL-TSBC SEAM EN1",
+    "TAL-TAL-TSBC SEAM EN2",
+
+    "TAL-TAL UTARA BARAT SEAM EN",
+    "TAL-TAL UTARA TIMUR SEAM A1",
+    "TAL-TAL UTARA TIMUR SEAM A2",
+    "TAL-TAL UTARA TIMUR SEAM B1",
+    "TAL-TAL UTARA TIMUR SEAM B2",
+    "TAL-TAL UTARA TIMUR SEAM C",
   ],
 
   "BANKO 1 Mining Operations": [
@@ -290,6 +369,10 @@ export const LOADING_POINT_GROUP = {
     "Banko Tengah - TS Merawan",
     "Banko Tengah - TS Merbau",
     "Banko Tengah - BT-B PIT E",
+
+    // ✅ tambahan SEAM
+    "BANKO TENGAH-BT-B PIT E SEAM D",
+    "BANKO TENGAH-BT-B PIT E SEAM E",
   ],
 
   "BANKO 2 Mining Operations": [
@@ -304,11 +387,25 @@ export const LOADING_POINT_GROUP = {
     "Banko Tengah - TS Waringin",
     "Banko Tengah - BT-B PIT SJS",
     "Banko Tengah - Pit BT-A",
+
+    // ✅ tambahan SEAM
+    "BANKO TENGAH-BT-B PIT SJS SEAM A1",
+    "BANKO TENGAH-BT-B PIT SJS SEAM A2",
+    "BANKO TENGAH-BT-B PIT SJS SEAM B1",
+    "BANKO TENGAH-BT-B PIT SJS SEAM B2",
+    "BANKO TENGAH-BT-B PIT SJS SEAM C",
+
+    "BANKO TENGAH-PIT BT-A SEAM A1",
+    "BANKO TENGAH-PIT BT-A SEAM A2",
+    "BANKO TENGAH-PIT BT-A SEAM B1",
+    "BANKO TENGAH-PIT BT-A SEAM B2",
+    "BANKO TENGAH-PIT BT-A SEAM C",
   ],
 
   "West Block Coal Handling Operation": {
     "Quary": ["Quary"],
     "TAL - TS Pabum": ["TAL - TS Pabum"],
+
     "Coal Handling Operations 1": {
       "Stockpile 1": [
         "TAL - Crusher PLTU BA",
@@ -333,6 +430,7 @@ export const LOADING_POINT_GROUP = {
         "TAL - SP 1 UTARA 9",
       ],
     },
+
     "Coal Handling Operations 2": {
       "Stockpile 2": [
         "TAL - SP 2 R5",
@@ -395,6 +493,13 @@ export const LOADING_POINT_GROUP = {
     "Banko Barat - TS Meranti",
     "Banko Barat - TS Pit 1E-1",
     "Banko Tengah - PIT 2",
+
+    // ✅ tambahan PIT 2 SEAM
+    "BANKO BARAT - PIT 2 SEAM A1",
+    "BANKO BARAT - PIT 2 SEAM A2",
+    "BANKO BARAT - PIT 2 SEAM B1",
+    "BANKO BARAT - PIT 2 SEAM B2",
+    "BANKO BARAT - PIT 2 SEAM C",
   ],
 
   "In-House Mining Operations 2": [
@@ -404,6 +509,14 @@ export const LOADING_POINT_GROUP = {
     "Banko Tengah - TS Sakura",
     "Banko Tengah - TS Tulip",
     "Banko Tengah - PIT 3 TIMUR",
+
+    // ✅ tambahan PIT 3 TIMUR SEAM
+    "BANKO TENGAH - PIT 3 TIMUR SEAM A1",
+    "BANKO TENGAH - PIT 3 TIMUR SEAM A2",
+    "BANKO TENGAH - PIT 3 TIMUR SEAM B1",
+    "BANKO TENGAH - PIT 3 TIMUR SEAM B2",
+    "BANKO TENGAH - PIT 3 TIMUR SEAM C",
+    "BANKO TENGAH - PIT 3 TIMUR SEAM D",
   ],
 
   "Mine-Mouth Coal Transportation": [
@@ -423,5 +536,18 @@ export const LOADING_POINT_GROUP = {
     "MTB - TS CCP MTB",
     "MTB - MTBS",
     "MTB - MTBU",
+
+    // ✅ tambahan SEAM
+    "MTB - MTBS SEAM A1",
+    "MTB - MTBS SEAM A2",
+    "MTB - MTBS SEAM B",
+    "MTB - MTBS SEAM C",
+
+    "MTB - MTBU SEAM A1",
+    "MTB - MTBU SEAM A2",
+    "MTB - MTBU SEAM B",
+    "MTB - MTBU SEAM BE",
+    "MTB - MTBU SEAM BU",
+    "MTB - MTBU SEAM C",
   ],
 };
