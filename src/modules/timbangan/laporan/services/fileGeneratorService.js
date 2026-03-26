@@ -127,6 +127,7 @@ export const generatePDF_DumpTruck = (data, params) => {
     item.input_type || "-",
     item.input_by || "-",
     item.nama_operator || "-",
+    item.inspector || "-",
     item.lokasi || "-",
     item.tonase_adjustment || "-",
     item.contract || "-",
@@ -153,6 +154,7 @@ export const generatePDF_DumpTruck = (data, params) => {
         "Input Type",
         "Input By",
         "Nama Operator",
+        "Nama Pengawas",
         "Lokasi",
         "Tonase Adjustment",
         "Contract",
@@ -304,6 +306,7 @@ export const generateExcel_DumpTruck = (data, params) => {
     "Input Type",
     "Input By",
     "Nama Operator",
+    "Nama Pengawas",
     "Tonase Adjustment",
     "Kategori Jam",
   ];
@@ -311,9 +314,8 @@ export const generateExcel_DumpTruck = (data, params) => {
   const columnWidths = [
     { wch: 12 }, { wch: 8 }, { wch: 15 }, { wch: 15 }, { wch: 12 },
     { wch: 10 }, { wch: 15 }, { wch: 25 }, { wch: 25 }, { wch: 10 },
-    { wch: 12 }, { wch: 12 }, { wch: 10 }, { wch: 25 }, { wch: 12 }, { wch: 12 },
-     { wch: 15 },  { wch: 15 }, 
-    { wch: 12 },
+    { wch: 12 }, { wch: 12 }, { wch: 10 }, { wch: 25 }, { wch: 12 }, 
+    { wch: 12 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 12 },
   ];
 
   // Transform data
@@ -336,6 +338,7 @@ export const generateExcel_DumpTruck = (data, params) => {
       item.input_type || "-",
       item.input_by || "-",
       item.operator || "-",
+      item.inspector || "-",
       item.tonase_adjustment || 0,
       item.kategori_jam || "-",
     ]);
