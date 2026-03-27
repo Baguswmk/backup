@@ -63,7 +63,7 @@ const PrintBukti = forwardRef(
 
     // Get current date, time, and shift info
     const getCurrentDateTime = () => {
-      const now = new Date(data.weighed_at || new Date());
+      const now = new Date(data.timestamp || data.weighed_at || data.createdAt || new Date());
       const shiftInfo = calculateCurrentShiftAndGroup(now);
 
       return {
