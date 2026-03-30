@@ -153,7 +153,9 @@ const AggregatedCoalFlow = ({
       item.loading_location
         ?.toLowerCase()
         .includes(searchLoadingPoint.toLowerCase());
-    return matchExcavator && matchDumping && matchLoading;
+        
+    const isValidFlow = item.loading_location !== item.dumping_location;
+    return matchExcavator && matchDumping && matchLoading && isValidFlow;
   });
 
   const locationMap = {};
@@ -223,11 +225,13 @@ const AggregatedCoalFlow = ({
         : [];
 
     locations.forEach(loc => {
-      const matchedCoalFlow = coalFlowList.filter((item) =>
-        type === "dumping"
+      const matchedCoalFlow = coalFlowList.filter((item) => {
+        const isTargetMatch = type === "dumping"
           ? item.dumping_location === loc
-          : item.loading_location === loc,
-      );
+          : item.loading_location === loc;
+        const isValidFlow = item.loading_location !== item.dumping_location;
+        return isTargetMatch && isValidFlow;
+      });
 
       matchedCoalFlow.forEach(item => {
         let fleet = parseInt(item.total_fleet) || 0;
