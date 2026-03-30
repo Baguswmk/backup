@@ -297,7 +297,9 @@ export const generateExcel_DumpTruck = (data, params) => {
     "Tonase",
     "Jam Dumping",
     "Loading Point",
+    "Seam",
     "Dumping Point",
+    "Compartment",
     "Jarak (m)",
     "Pengukuran",
     "Jenis BB",
@@ -313,9 +315,9 @@ export const generateExcel_DumpTruck = (data, params) => {
 
   const columnWidths = [
     { wch: 12 }, { wch: 8 }, { wch: 15 }, { wch: 15 }, { wch: 12 },
-    { wch: 10 }, { wch: 15 }, { wch: 25 }, { wch: 25 }, { wch: 10 },
-    { wch: 12 }, { wch: 12 }, { wch: 10 }, { wch: 25 }, { wch: 12 }, 
-    { wch: 12 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 12 },
+    { wch: 10 }, { wch: 15 }, { wch: 28 }, { wch: 10 }, { wch: 28 },
+    { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 10 }, { wch: 10 }, { wch: 30 }, 
+    { wch: 12 }, { wch: 15 }, { wch: 20 }, { wch: 20 }, { wch: 12 },{ wch: 10 },
   ];
 
   // Transform data
@@ -329,7 +331,9 @@ export const generateExcel_DumpTruck = (data, params) => {
       item.net_weight || 0,
       item.jam_dumping || "-",
       item.loading_location || "-",
+      item.seam || "-",
       item.dumping_location || "-",
+      item.compartment || "-",
       item.distance || 0,
       item.measurement_type || "-",
       item.coal_type || "-",
