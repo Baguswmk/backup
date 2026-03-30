@@ -195,15 +195,7 @@ const AggregatedRitase = ({
         ritase.loading_location
           ?.toLowerCase()
           .includes(searchLoadingPoint.toLowerCase());
-      const matchDumptruck =
-        !searchDumptruck ||
-        ritase.unit_dump_truck
-          ?.toLowerCase()
-          .includes(searchDumptruck.toLowerCase());
-          
-      const isValidFlow = ritase.loading_location !== ritase.dumping_location;
-
-      return matchExcavator && matchDumping && matchLoading && matchDumptruck && isValidFlow;
+      return matchExcavator && matchDumping && matchLoading && matchDumptruck;
     });
   }, [
     filteredRitaseData,
@@ -244,8 +236,7 @@ const AggregatedRitase = ({
     // Extract summaries data from new structure
     const rawSummaries =
       aggregatedData?.summaries?.data || aggregatedData || [];
-    const summariesData = (Array.isArray(rawSummaries) ? rawSummaries : [])
-      .filter(item => item.loading_location !== item.dumping_location);
+    const summariesData = Array.isArray(rawSummaries) ? rawSummaries : [];
 
     if (activeTab === "excavator") {
       return summariesData;
@@ -254,8 +245,7 @@ const AggregatedRitase = ({
     // summaries.data tidak punya field company; pakai filteredRitaseData langsung
     if (activeTab === "mitra") {
       const grouped = {};
-      const validMitraRitase = filteredRitaseData.filter(item => item.loading_location !== item.dumping_location);
-      validMitraRitase.forEach((ritase) => {
+      filteredRitaseData.forEach((ritase) => {
         const companyRaw = ritase.company;
         const company =
           companyRaw && companyRaw !== "-" && companyRaw.trim() !== ""
@@ -273,8 +263,13 @@ const AggregatedRitase = ({
         }
 
         grouped[company].items.push(ritase);
-        grouped[company].totalWeight += parseFloat(ritase.net_weight || 0);
-        grouped[company].totalTrips += 1;
+        
+        const locLoad = (ritase.loading_location || "").trim().toLowerCase();
+        const locDump = (ritase.dumping_location || "").trim().toLowerCase();
+        if (locLoad !== locDump) {
+          grouped[company].totalWeight += parseFloat(ritase.net_weight || 0);
+          grouped[company].totalTrips += 1;
+        }
       });
 
       return Object.values(grouped)

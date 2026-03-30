@@ -153,9 +153,7 @@ const AggregatedCoalFlow = ({
       item.loading_location
         ?.toLowerCase()
         .includes(searchLoadingPoint.toLowerCase());
-        
-    const isValidFlow = item.loading_location !== item.dumping_location;
-    return matchExcavator && matchDumping && matchLoading && isValidFlow;
+    return matchExcavator && matchDumping && matchLoading;
   });
 
   const locationMap = {};
@@ -198,14 +196,19 @@ const AggregatedCoalFlow = ({
     locations.forEach(loc => {
       const items = locationMap[loc] || [];
       items.forEach(item => {
-        totalTrips += parseInt(getTripCount(item)) || 0;
-        totalWeight += parseFloat(item.totalWeight || item.total_tonase || 0) || 0;
+        const locLoad = (item.loading_location || "").trim().toLowerCase();
+        const locDump = (item.dumping_location || "").trim().toLowerCase();
         
-        if (item.is_beltconveyor !== true) {
-          const excaId = item.unit_exca || `unknown-${Math.random()}`;
-          totalExcaSet.add(excaId);
-          if (isMMCTWorkUnit(item.pic_work_unit)) chtExcaSet.add(excaId);
-          else miningExcaSet.add(excaId);
+        if (locLoad !== locDump) {
+          totalTrips += parseInt(getTripCount(item)) || 0;
+          totalWeight += parseFloat(item.totalWeight || item.total_tonase || 0) || 0;
+          
+          if (item.is_beltconveyor !== true) {
+            const excaId = item.unit_exca || `unknown-${Math.random()}`;
+            totalExcaSet.add(excaId);
+            if (isMMCTWorkUnit(item.pic_work_unit)) chtExcaSet.add(excaId);
+            else miningExcaSet.add(excaId);
+          }
         }
       });
     });
@@ -229,7 +232,9 @@ const AggregatedCoalFlow = ({
         const isTargetMatch = type === "dumping"
           ? item.dumping_location === loc
           : item.loading_location === loc;
-        const isValidFlow = item.loading_location !== item.dumping_location;
+        const locLoad = (item.loading_location || "").trim().toLowerCase();
+        const locDump = (item.dumping_location || "").trim().toLowerCase();
+        const isValidFlow = locLoad !== locDump;
         return isTargetMatch && isValidFlow;
       });
 
