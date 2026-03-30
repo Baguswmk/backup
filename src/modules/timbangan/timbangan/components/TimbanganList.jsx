@@ -814,9 +814,9 @@ export const TimbanganList = () => {
                               #{globalIndex} - {data.hull_no || "-"}
                             </div>
                             <div className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                              {data.timestamp
+                              {data.timestamp || data.createdAt
                                 ? format(
-                                    new Date(data.timestamp),
+                                    new Date(data.timestamp || data.createdAt),
                                     "dd/MM/yyyy HH:mm:ss",
                                     { locale: localeId },
                                   )
@@ -1129,9 +1129,9 @@ export const TimbanganList = () => {
                           </div>
                         </TableCell>
                         <TableCell className="text-gray-700 dark:text-gray-300 font-medium">
-                          {data.timestamp
+                          {data.timestamp || data.createdAt
                             ? format(
-                                new Date(data.timestamp),
+                                new Date(data.timestamp || data.createdAt),
                                 "dd/MM/yyyy HH:mm:ss",
                                 { locale: localeId },
                               )

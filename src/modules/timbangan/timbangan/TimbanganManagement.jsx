@@ -26,6 +26,9 @@ const TimbanganManagement = () => {
   const [isRefreshingMasterData, setIsRefreshingMasterData] = useState(false);
   const [activeInputTab, setActiveInputTab] = useState("timbangan");
 
+  // Checker biasa = checker yang bukan checkpoint, tampilan mirip timbangan tapi tonase opsional
+  const isCheckerMode = user?.role === "checker" && !user?.username?.includes("checkpoint");
+
   const handleRefreshMasterData = useCallback(async () => {
     setIsRefreshingMasterData(true);
     try {
@@ -383,7 +386,7 @@ const TimbanganManagement = () => {
         <div className="grid grid-cols-1">
           {/* Input Section - Takes full width on mobile, 4 columns on large screens */}
           <section className="lg:col-span-4 xl:col-span-3">
-            <TimbanganInputCard fleetConfigs={dumptruckData} operatorName={operatorName} onTabChange={setActiveInputTab} />
+            <TimbanganInputCard fleetConfigs={dumptruckData} operatorName={operatorName} onTabChange={setActiveInputTab} mode={isCheckerMode ? "checker" : "default"} />
           </section>
 
           {/* Queue List Section - hidden on manual tab */}

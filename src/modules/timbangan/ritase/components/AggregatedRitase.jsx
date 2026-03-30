@@ -247,6 +247,50 @@ const AggregatedRitase = ({
     if (activeTab === "excavator") {
       return summariesData;
     }
+
+    // ── Tab Mitra: group langsung dari filteredRitaseData by company ──────────
+    // summaries.data tidak punya field company; company ada di masing-masing ritase
+    if (activeTab === "mitra") {
+      const grouped = {};
+      filteredRitaseData.forEach((ritase) => {
+        const companyRaw = ritase.company;
+        const key =
+          companyRaw && companyRaw !== "-" && companyRaw.trim() !== ""
+            ? companyRaw.trim()
+            : "Unknown Company";
+
+        if (!grouped[key]) {
+          grouped[key] = {
+            groupKey: key,
+            items: [],
+            totalWeight: 0,
+            totalTrips: 0,
+            uniqueExcavators: new Set(),
+          };
+        }
+
+        grouped[key].items.push(ritase);
+        grouped[key].totalWeight += parseFloat(ritase.net_weight || 0);
+        grouped[key].totalTrips += 1;
+        if (ritase.unit_exca && ritase.unit_exca !== "-") {
+          grouped[key].uniqueExcavators.add(ritase.unit_exca);
+        }
+      });
+
+      return Object.values(grouped)
+        .map((group) => ({
+          ...group,
+          totalWeight: parseFloat((group.totalWeight || 0).toFixed(2)),
+          excavatorCount: group.uniqueExcavators.size,
+          uniqueExcavators: undefined,
+        }))
+        .sort((a, b) =>
+          (a.groupKey || "").localeCompare(b.groupKey || "", "id", {
+            sensitivity: "base",
+          }),
+        );
+    }
+
     const grouped = {};
     summariesData.forEach((item) => {
       let key;
@@ -265,14 +309,6 @@ const AggregatedRitase = ({
           key = findLoadingOperationGroup(
             item.loading_location || firstRitase.loading_location,
           );
-          break;
-        case "mitra":
-          key =
-            item.company ||
-            firstRitase.company ||
-            item.unit_exca ||
-            firstRitase.unit_exca ||
-            "Unknown Company";
           break;
         default:
           key = "Unknown";
@@ -321,7 +357,7 @@ const AggregatedRitase = ({
           sensitivity: "base",
         }),
       );
-  }, [aggregatedData, activeTab]);
+  }, [aggregatedData, activeTab, filteredRitaseData]);
 
   // Filter groupedData based on search
   const filteredGroupedData = useMemo(() => {

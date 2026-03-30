@@ -55,7 +55,6 @@ const TimbanganInternalPage = () => {
         name: "Timbangan",
         icon: Scale,
         roles: ["operator_jt", "checker"],
-        customCheck: true,
         locationId: "timbangan",
       },
       {
@@ -91,7 +90,7 @@ const TimbanganInternalPage = () => {
       {
         name: "Ritase Pending",
         icon: History,
-        roles: ["admin", "super_admin", "ccr"],
+        roles: ["admin", "super_admin", "ccr", "checker"],
         locationId: "ritase-pending",
       },
       {
@@ -112,17 +111,7 @@ const TimbanganInternalPage = () => {
       {
         name: "Belt Conveyor",
         icon: Grid3x3,
-        roles: [
-          "checker",
-          "pic",
-          "pengawas",
-          "operator_jt",
-          "evaluator",
-          "mitra",
-          "admin",
-          "super_admin",
-          "ccr",
-        ],
+        roles: ["pic", "pengawas", "admin", "super_admin", "ccr"],
         locationId: "belt-conveyor",
       },
       {
@@ -153,28 +142,20 @@ const TimbanganInternalPage = () => {
     [],
   );
 
-  const isMenuAccessible = useCallback(
+ const isMenuAccessible = useCallback(
     (menuItem) => {
-      if (menuItem.customCheck && menuItem.name === "Timbangan") {
-        return isOperator || isCheckpoint;
-      }
-
       return menuItem?.roles?.includes(userRole);
     },
-    [userRole, isOperator, isCheckpoint],
+    [userRole],
   );
 
   const getDefaultMenu = useCallback(() => {
-    if (isOperator || isCheckpoint) {
+    if (isOperator || userRole === "checker") {
       return "Timbangan";
     }
 
-    if (userRole === "checker" && !isCheckpoint) {
-      return "Ritase";
-    }
-
     return "Setting Fleet";
-  }, [isOperator, isCheckpoint, userRole]);
+  }, [isOperator, userRole]);
 
   const getUrlMenu = useCallback(() => {
     const urlParams = new URLSearchParams(window.location.search);

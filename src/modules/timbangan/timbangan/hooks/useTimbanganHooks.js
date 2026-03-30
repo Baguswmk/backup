@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import { timbanganService } from "../services/TimbanganService";
 import { masterDataService } from "@/modules/timbangan/masterData/services/masterDataService";
 import { offlineService } from "@/shared/services/offlineService";
@@ -58,9 +58,10 @@ const DT_COOLDOWN_MS = 10 * 60 * 1000;
 
 // ─────────────────────────────────────────────────────────────────────────────
 
-export const useTimbanganHooks = () => {
+export const useTimbanganHooks = (mode = "default") => {
   const user = useAuthStore((state) => state.user);
   const submitTimerRef = useRef(null);
+  const isCheckerMode = mode === "checker";
 
   const [formData, setFormData] = useState({
     hull_no: "",
@@ -195,6 +196,18 @@ export const useTimbanganHooks = () => {
     };
   }, [availableUnits]);
 
+  const checkerFilteredUnits = useMemo(() => {
+    if (!isCheckerMode) return filteredUnits;
+    const userCompany = user?.company?.name || user?.company;
+    if (!userCompany) return filteredUnits;
+
+    return filteredUnits.filter((unit) => {
+      const unitCompany = unit.company || unit.companyName || "";
+      const companyMatch = unitCompany.toLowerCase() === userCompany.toLowerCase();
+      return companyMatch;
+    });
+  }, [isCheckerMode, filteredUnits, user?.company]);
+
   // ─── Auto-fill: Hull No -> Dumptruck ID & Tare ──────────────────────────────
   const handleHullNoChange = useCallback(
     (value) => {
@@ -289,12 +302,15 @@ export const useTimbanganHooks = () => {
     if (!formData.tare_weight || parseFloat(formData.tare_weight) < 0)
       newErrors.tare_weight = "Berat tare tidak valid (Cek Master Unit)";
 
-    if (isOperator) {
-      if (!formData.gross_weight || parseFloat(formData.gross_weight) <= 0)
-        newErrors.gross_weight = "Berat kotor harus lebih dari 0";
-    } else {
-      if (!formData.net_weight || parseFloat(formData.net_weight) <= 0)
-        newErrors.net_weight = "Berat bersih harus lebih dari 0";
+    // Checker mode: tonase opsional, skip weight validation
+    if (!isCheckerMode) {
+      if (isOperator) {
+        if (!formData.gross_weight || parseFloat(formData.gross_weight) <= 0)
+          newErrors.gross_weight = "Berat kotor harus lebih dari 0";
+      } else {
+        if (!formData.net_weight || parseFloat(formData.net_weight) <= 0)
+          newErrors.net_weight = "Berat bersih harus lebih dari 0";
+      }
     }
 
     setErrors(newErrors);
@@ -479,7 +495,7 @@ export const useTimbanganHooks = () => {
     errors,
     setErrors,
     isSubmitting,
-    availableUnits: filteredUnits,
+    availableUnits: isCheckerMode ? checkerFilteredUnits : filteredUnits,
     rawAvailableUnits: availableUnits,
     isUnitsLoading,
     refreshUnits,

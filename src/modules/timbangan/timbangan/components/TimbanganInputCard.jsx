@@ -42,10 +42,11 @@ import {
   TabsTrigger,
 } from "@/shared/components/ui/tabs";
 
-export const TimbanganInputCard = ({ onTabChange }) => {
+export const TimbanganInputCard = ({ onTabChange, mode = "default" }) => {
   const { user } = useAuthStore();
   const isOperator = user?.role.toLowerCase() === "operator_jt";
   const isChecker = user?.role.toLowerCase() === "checker";
+  const isCheckerMode = mode === "checker";
   const {
     formData,
     setFormData,
@@ -57,7 +58,7 @@ export const TimbanganInputCard = ({ onTabChange }) => {
     handleBypassSubmit,
     lastSubmittedData,
     availableUnits,
-  } = useTimbanganHooks();
+  } = useTimbanganHooks(mode);
 
   const scale = useWebSerialScale();
   const rfid = useRFIDWebSerial();
@@ -303,7 +304,6 @@ export const TimbanganInputCard = ({ onTabChange }) => {
     if (!Array.isArray(availableUnits) || availableUnits.length === 0) {
       return [];
     }
-
     const hullNos = new Map();
 
     availableUnits.forEach((dumptruck) => {
@@ -411,7 +411,11 @@ export const TimbanganInputCard = ({ onTabChange }) => {
   }, [isOperator, activeTab, handleSubmit, handleBypassSubmit, scale, rfid]);
   return (
     <Card className="shadow-lg border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800 transition-colors">
-      <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
+      <Tabs
+        value={activeTab}
+        onValueChange={handleTabChange}
+        className="w-full"
+      >
         <CardHeader className="border-b border-gray-200 dark:border-gray-800 ">
           {/* Row 1: Title-as-Tabs + Hardware Controls */}
           <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
@@ -424,14 +428,16 @@ export const TimbanganInputCard = ({ onTabChange }) => {
                 <Scale className="w-5 h-5 text-blue-600 dark:text-blue-400" />
                 Timbangan
               </TabsTrigger>
-              <TabsTrigger
-                value="manual"
-                className="flex items-center gap-2 px-5 text-xl font-semibold data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:text-gray-900 dark:data-[state=active]:text-gray-100 data-[state=inactive]:text-gray-400 dark:data-[state=inactive]:text-gray-600 data-[state=inactive]:hover:text-gray-600 dark:data-[state=inactive]:hover:text-gray-400 transition-colors rounded-none border-b-2  data-[state=inactive]:border-transparent pb-1 cursor-pointer"
-              >
-                <ClipboardList className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
-                Timbang Manual
-              </TabsTrigger>
-              {isChecker && (
+              {isOperator && (
+                <TabsTrigger
+                  value="manual"
+                  className="flex items-center gap-2 px-5 text-xl font-semibold data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:text-gray-900 dark:data-[state=active]:text-gray-100 data-[state=inactive]:text-gray-400 dark:data-[state=inactive]:text-gray-600 data-[state=inactive]:hover:text-gray-600 dark:data-[state=inactive]:hover:text-gray-400 transition-colors rounded-none border-b-2  data-[state=inactive]:border-transparent pb-1 cursor-pointer"
+                >
+                  <ClipboardList className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+                  Timbang Manual
+                </TabsTrigger>
+              )}
+              {isChecker && !isCheckerMode && (
                 <TabsTrigger
                   value="bypass"
                   className="flex items-center gap-2 px-0 pl-5 text-xl font-semibold data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:text-gray-900 dark:data-[state=active]:text-gray-100 data-[state=inactive]:text-gray-400 dark:data-[state=inactive]:text-gray-600 data-[state=inactive]:hover:text-gray-600 dark:data-[state=inactive]:hover:text-gray-400 transition-colors rounded-none border-b-2  data-[state=inactive]:border-transparent pb-1 cursor-pointer"
@@ -501,7 +507,7 @@ export const TimbanganInputCard = ({ onTabChange }) => {
 
             {/* Right: Hardware Controls */}
             <div className="flex flex-wrap gap-2">
-              {isOperator && (
+              {isOperator && !isCheckerMode && (
                 <>
                   {/* Scale Connection */}
                   <Button
@@ -594,6 +600,7 @@ export const TimbanganInputCard = ({ onTabChange }) => {
               )}
 
               {/* RFID Connection Button */}
+              {isOperator && !isCheckerMode && (
               <Button
                 variant={rfid.isConnected ? "default" : "outline"}
                 size="sm"
@@ -619,6 +626,7 @@ export const TimbanganInputCard = ({ onTabChange }) => {
                     : "RFID Terhubung"
                   : "Hubungkan RFID"}
               </Button>
+              )}
 
               {/* RFID Last Scan Badge */}
               {rfid.isConnected && rfid.lastScan && (
@@ -1155,13 +1163,32 @@ export const TimbanganInputCard = ({ onTabChange }) => {
                 </div>
               </div>
 
+              {/* Checker mode info banner */}
+              {isCheckerMode && (
+                <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg p-3 text-sm text-amber-700 dark:text-amber-400">
+                  <div className="flex items-center gap-2 font-medium">
+                    <Zap className="w-4 h-4" />
+                    Mode Checker — Tonase opsional
+                  </div>
+                  <p className="text-xs mt-1 text-amber-600 dark:text-amber-500">
+                    Unit yang ditampilkan difilter berdasarkan company Anda dan
+                    tipe Bypass/Beltscale.
+                  </p>
+                </div>
+              )}
+
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 {/* Gross Weight */}
                 <div
-                  className={`space-y-2 ${isOperator ? "order-1" : "order-2"}`}
+                  className={`space-y-2 ${isOperator ? "order-1" : "order-2"} ${isCheckerMode ? "opacity-60" : ""}`}
                 >
                   <Label className="flex items-center gap-2 text-gray-700 dark:text-gray-300 font-medium">
                     <Weight className="w-4 h-4" /> Berat Kotor (Ton)
+                    {isCheckerMode && (
+                      <span className="text-xs text-amber-600 dark:text-amber-400 font-normal">
+                        (opsional)
+                      </span>
+                    )}
                     {isOperator && (
                       <span className="text-xs text-blue-600 dark:text-blue-400 font-normal">
                         (Alt + T)
@@ -1188,14 +1215,14 @@ export const TimbanganInputCard = ({ onTabChange }) => {
                       placeholder="0.00"
                       value={formData.gross_weight}
                       onChange={handleGrossWeightChange}
-                      readOnly={!isOperator}
+                      readOnly={!isOperator && !isCheckerMode}
                       className={`bg-white dark:bg-gray-900 border-gray-300 dark:border-gray-700 
           focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400
           text-gray-900 dark:text-gray-100 
           placeholder:text-gray-400 dark:placeholder:text-gray-500 
           transition-colors
           ${errors.gross_weight ? "border-red-500 dark:border-red-400 focus:ring-red-500 dark:focus:ring-red-400" : ""} 
-          ${!isOperator ? "bg-gray-100 dark:bg-gray-800 cursor-not-allowed" : ""}`}
+          ${!isOperator && !isCheckerMode ? "bg-gray-100 dark:bg-gray-800 cursor-not-allowed" : ""}`}
                       disabled={isSubmitting}
                     />
                     {isOperator && scale.isConnected && (
@@ -1217,7 +1244,9 @@ export const TimbanganInputCard = ({ onTabChange }) => {
                 </div>
 
                 {/* Tare Weight */}
-                <div className="space-y-2 order-2">
+                <div
+                  className={`space-y-2 order-2 ${isCheckerMode ? "opacity-60" : ""}`}
+                >
                   <Label className="text-gray-700 dark:text-gray-300 font-medium">
                     Berat Kosong (Ton)
                   </Label>
@@ -1248,11 +1277,16 @@ export const TimbanganInputCard = ({ onTabChange }) => {
 
                 {/* Net Weight */}
                 <div
-                  className={`space-y-2 ${isOperator ? "order-3" : "order-1"}`}
+                  className={`space-y-2 ${isOperator ? "order-3" : "order-1"} ${isCheckerMode ? "opacity-60" : ""}`}
                 >
                   <Label className="flex items-center gap-2 text-gray-700 dark:text-gray-300 font-medium">
                     Berat Bersih (Ton)
-                    {!isOperator && (
+                    {isCheckerMode && (
+                      <span className="text-xs text-amber-600 dark:text-amber-400 font-normal">
+                        (opsional)
+                      </span>
+                    )}
+                    {!isOperator && !isCheckerMode && (
                       <span className="text-xs text-blue-600 dark:text-blue-400 font-normal">
                         (Alt + N)
                       </span>
@@ -1333,7 +1367,7 @@ export const TimbanganInputCard = ({ onTabChange }) => {
           </TabsContent>
 
           {/* Tab Bypass - Hanya Pilih DT */}
-          {!isChecker && (
+          {isChecker && !isCheckerMode && (
             <TabsContent value="bypass">
               <form
                 onSubmit={(e) => {
@@ -1459,8 +1493,8 @@ export const TimbanganInputCard = ({ onTabChange }) => {
           </TabsContent>
         </CardContent>
 
-        {/* Operator name automatically retrieved from localStorage ("operator_sib_name") */}
-        {lastSubmittedData && (
+        {/* Checker mode: tidak perlu print bukti */}
+        {lastSubmittedData && !isCheckerMode && (
           <div style={{ display: "none" }}>
             <PrintBukti
               ref={printButtonRef}
