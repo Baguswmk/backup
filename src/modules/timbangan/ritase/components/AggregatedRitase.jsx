@@ -247,47 +247,39 @@ const AggregatedRitase = ({
     if (activeTab === "excavator") {
       return summariesData;
     }
-
-    // ── Tab Mitra: group langsung dari filteredRitaseData by company ──────────
-    // summaries.data tidak punya field company; company ada di masing-masing ritase
+    // ── Tab Mitra: group by company (Kontraktor DT) ─────────────────────────
+    // summaries.data tidak punya field company; pakai filteredRitaseData langsung
     if (activeTab === "mitra") {
       const grouped = {};
       filteredRitaseData.forEach((ritase) => {
         const companyRaw = ritase.company;
-        const key =
+        const company =
           companyRaw && companyRaw !== "-" && companyRaw.trim() !== ""
             ? companyRaw.trim()
             : "Unknown Company";
 
-        if (!grouped[key]) {
-          grouped[key] = {
-            groupKey: key,
+        if (!grouped[company]) {
+          grouped[company] = {
+            groupKey: company,
+            company,
             items: [],
             totalWeight: 0,
             totalTrips: 0,
-            uniqueExcavators: new Set(),
           };
         }
 
-        grouped[key].items.push(ritase);
-        grouped[key].totalWeight += parseFloat(ritase.net_weight || 0);
-        grouped[key].totalTrips += 1;
-        if (ritase.unit_exca && ritase.unit_exca !== "-") {
-          grouped[key].uniqueExcavators.add(ritase.unit_exca);
-        }
+        grouped[company].items.push(ritase);
+        grouped[company].totalWeight += parseFloat(ritase.net_weight || 0);
+        grouped[company].totalTrips += 1;
       });
 
       return Object.values(grouped)
         .map((group) => ({
           ...group,
           totalWeight: parseFloat((group.totalWeight || 0).toFixed(2)),
-          excavatorCount: group.uniqueExcavators.size,
-          uniqueExcavators: undefined,
         }))
         .sort((a, b) =>
-          (a.groupKey || "").localeCompare(b.groupKey || "", "id", {
-            sensitivity: "base",
-          }),
+          (a.company || "").localeCompare(b.company || "", "id", { sensitivity: "base" }),
         );
     }
 
@@ -357,7 +349,7 @@ const AggregatedRitase = ({
           sensitivity: "base",
         }),
       );
-  }, [aggregatedData, activeTab, filteredRitaseData]);
+  }, [aggregatedData, activeTab]);
 
   // Filter groupedData based on search
   const filteredGroupedData = useMemo(() => {
@@ -743,6 +735,121 @@ const AggregatedRitase = ({
           minimumFractionDigits: 2,
           maximumFractionDigits: 2,
         });
+  };
+
+  // ── Render khusus tab Mitra: header = company, isi = list per DT ────────
+  const renderMitraGroupedView = () => {
+    if (!Array.isArray(paginatedData) || paginatedData.length === 0) return null;
+
+    return paginatedData.map((group, index) => {
+      if (!group || !Array.isArray(group.items) || group.items.length === 0) return null;
+
+      const groupId = `mitra-${index}`;
+      const isExpanded = expandedGroups[groupId] === true;
+
+      // Sub-group items per DT
+      const dtMap = {};
+      group.items.forEach((ritase) => {
+        const dt = ritase.unit_dump_truck || "-";
+        if (!dtMap[dt]) dtMap[dt] = { trips: 0, weight: 0 };
+        dtMap[dt].trips += 1;
+        dtMap[dt].weight += parseFloat(ritase.net_weight || 0);
+      });
+
+      const dtRows = Object.entries(dtMap)
+        .map(([dt, val]) => ({ dt, trips: val.trips, weight: parseFloat(val.weight.toFixed(2)) }))
+        .sort((a, b) => a.dt.localeCompare(b.dt, "id", { sensitivity: "base" }));
+
+      return (
+        <Collapsible
+          key={index}
+          open={isExpanded}
+          onOpenChange={(open) =>
+            setExpandedGroups((prev) => ({ ...prev, [groupId]: open }))
+          }
+          className="mb-2 sm:mb-3 last:mb-0"
+        >
+          <div className="bg-gray-100 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+            <CollapsibleTrigger className="w-full cursor-pointer p-2 sm:p-3 border-b-2 border-purple-500 dark:border-purple-400 hover:bg-gray-200 dark:hover:bg-gray-700/50 transition-colors">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                  {isExpanded ? (
+                    <ChevronUp className="h-3 w-3 sm:h-4 sm:w-4 text-gray-600 dark:text-gray-400 shrink-0" />
+                  ) : (
+                    <ChevronDown className="h-3 w-3 sm:h-4 sm:w-4 text-gray-600 dark:text-gray-400 shrink-0" />
+                  )}
+                  <div className="flex flex-col items-start min-w-0">
+                    <Badge className="bg-purple-600 dark:bg-purple-500 text-white text-xs px-2 max-w-full truncate">
+                      {group.company}
+                    </Badge>
+                    <span className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 ml-0.5">
+                      <span className="text-purple-600 dark:text-purple-400 font-medium">
+                        {dtRows.length} Dump Truck
+                      </span>
+                    </span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 sm:gap-4 shrink-0">
+                  <div className="text-right">
+                    <div className="text-xs text-gray-500 dark:text-gray-400">Total Ritase</div>
+                    <div className="text-sm font-bold text-blue-600 dark:text-blue-400">
+                      {group.totalTrips} rit
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-xs text-gray-500 dark:text-gray-400">Total Tonase</div>
+                    <div className="text-sm font-bold text-green-600 dark:text-green-400">
+                      {group.totalWeight.toLocaleString("en-US", {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      })}{" "}
+                      ton
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </CollapsibleTrigger>
+
+            <CollapsibleContent>
+              <div className="overflow-x-auto scrollbar-thin">
+                <Table className="text-xs">
+                  <TableHeader>
+                    <TableRow className="bg-gray-50 dark:bg-gray-900/30">
+                      <TableHead className="text-gray-700 dark:text-gray-300 font-semibold w-10 text-xs">No</TableHead>
+                      <TableHead className="text-gray-700 dark:text-gray-300 font-semibold text-xs">Dump Truck</TableHead>
+                      <TableHead className="text-right text-gray-700 dark:text-gray-300 font-semibold text-xs">Ritase</TableHead>
+                      <TableHead className="text-right text-gray-700 dark:text-gray-300 font-semibold text-xs">Tonase</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {dtRows.map((row, idx) => (
+                      <TableRow key={idx} className="hover:bg-gray-50 dark:hover:bg-gray-800/50">
+                        <TableCell className="text-gray-500 dark:text-gray-400 text-xs">{idx + 1}</TableCell>
+                        <TableCell>
+                          <Badge className="bg-gray-600 dark:bg-gray-500 text-white text-xs">
+                            {row.dt}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right font-semibold text-blue-600 dark:text-blue-400 text-xs">
+                          {row.trips} rit
+                        </TableCell>
+                        <TableCell className="text-right font-semibold text-green-600 dark:text-green-400 text-xs">
+                          {row.weight.toLocaleString("en-US", {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2,
+                          })}{" "}
+                          ton
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </CollapsibleContent>
+          </div>
+        </Collapsible>
+      );
+    });
   };
 
   const renderGroupedView = () => {
@@ -1357,7 +1464,9 @@ const AggregatedRitase = ({
                       </div>
                     ) : (
                       <>
-                        {renderGroupedView()}
+                        {tab === "mitra"
+                          ? renderMitraGroupedView()
+                          : renderGroupedView()}
                         {(totalPages > 1 ||
                           filteredGroupedData.length > 10) && (
                           <div className="mt-4">
