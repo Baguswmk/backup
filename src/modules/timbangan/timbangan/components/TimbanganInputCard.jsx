@@ -1163,20 +1163,6 @@ export const TimbanganInputCard = ({ onTabChange, mode = "default" }) => {
                 </div>
               </div>
 
-              {/* Checker mode info banner */}
-              {isCheckerMode && (
-                <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg p-3 text-sm text-amber-700 dark:text-amber-400">
-                  <div className="flex items-center gap-2 font-medium">
-                    <Zap className="w-4 h-4" />
-                    Mode Checker — Tonase opsional
-                  </div>
-                  <p className="text-xs mt-1 text-amber-600 dark:text-amber-500">
-                    Unit yang ditampilkan difilter berdasarkan company Anda dan
-                    tipe Bypass/Beltscale.
-                  </p>
-                </div>
-              )}
-
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 {/* Gross Weight */}
                 <div
