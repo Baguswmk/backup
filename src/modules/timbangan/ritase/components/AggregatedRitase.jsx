@@ -195,6 +195,11 @@ const AggregatedRitase = ({
         ritase.loading_location
           ?.toLowerCase()
           .includes(searchLoadingPoint.toLowerCase());
+      const matchDumptruck =
+        !searchDumptruck ||
+        ritase.unit_dump_truck
+          ?.toLowerCase()
+          .includes(searchDumptruck.toLowerCase());
       return matchExcavator && matchDumping && matchLoading && matchDumptruck;
     });
   }, [
