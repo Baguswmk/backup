@@ -239,7 +239,22 @@ const AggregatedCoalFlow = ({
           currentShift.toLowerCase() !== "semua shift" &&
           currentShift.toLowerCase() !== "all"
         ) {
-          tonase = tonase / 3;
+          let shiftTonase = tonase / 3;
+
+          let startHour = 6;
+          if (currentShift === "Shift 1") startHour = 6;
+          else if (currentShift === "Shift 2") startHour = 14;
+          else if (currentShift === "Shift 3") startHour = 22;
+
+          const now = new Date();
+          const currentHour = now.getHours();
+
+          let hoursOffset = currentHour - startHour;
+          if (hoursOffset < 0) hoursOffset += 24;
+
+          let elapsedHours = hoursOffset >= 8 ? 8 : hoursOffset;
+
+          tonase = (shiftTonase / 8) * Math.max(0, elapsedHours);
         }
 
         totalTarget += fleet;

@@ -24,9 +24,7 @@ import {
   Info,
   WifiOff,
   Download,
-  Edit2,
   Radio,
-  Wifi,
 } from "lucide-react";
 import { showToast } from "@/shared/utils/toast";
 import { ritaseServices } from "@/modules/timbangan/ritase/services/ritaseServices";
@@ -491,7 +489,9 @@ const RitaseInputModal = ({
         selectedFleet.measurementType ||
         MEASUREMENT_TYPES.TIMBANGAN;
       const hasWeighBridge = user?.weigh_bridge != null;
-      if (measurementType === MEASUREMENT_TYPES.TIMBANGAN) {
+      const isCheckerMode = user?.role === "checker";
+      
+      if (measurementType === MEASUREMENT_TYPES.TIMBANGAN && !isCheckerMode) {
         if (hasWeighBridge) {
           if (!grossWeight || parseFloat(grossWeight) <= 0) {
             newErrors.gross_weight = "Berat Kotor harus diisi dan lebih dari 0";
@@ -504,6 +504,10 @@ const RitaseInputModal = ({
           } else if (parseFloat(netWeight) > 999.99) {
             newErrors.net_weight = "Berat Bersih maksimal 999.99 ton";
           }
+        }
+      } else if (isCheckerMode) {
+        if (netWeight && parseFloat(netWeight) > 999.99) {
+          newErrors.net_weight = "Berat Bersih maksimal 999.99 ton";
         }
       }
     }
@@ -555,7 +559,9 @@ const RitaseInputModal = ({
         has_weigh_bridge: hasWeighBridge,
       };
 
-      if (measurementType === MEASUREMENT_TYPES.TIMBANGAN) {
+      const isCheckerMode = user?.role === "checker";
+
+      if (measurementType === MEASUREMENT_TYPES.TIMBANGAN && !isCheckerMode) {
         if (hasWeighBridge) {
           if (!grossWeight || parseFloat(grossWeight) <= 0) {
             throw new Error(
@@ -569,6 +575,10 @@ const RitaseInputModal = ({
               "Berat Bersih harus diisi untuk user tanpa jembatan timbang",
             );
           }
+          submissionData.net_weight = parseFloat(netWeight);
+        }
+      } else if (isCheckerMode) {
+        if (netWeight && parseFloat(netWeight) > 0) {
           submissionData.net_weight = parseFloat(netWeight);
         }
       }
@@ -653,11 +663,16 @@ const RitaseInputModal = ({
     selectedFleet?.measurementType ||
     MEASUREMENT_TYPES.TIMBANGAN;
   const isJembatan = user?.weigh_bridge != null;
+  const isCheckerMode = user?.role === "checker";
+  
   const showGrossWeight =
-    isJembatan && measurementType === MEASUREMENT_TYPES.TIMBANGAN;
+    isJembatan && measurementType === MEASUREMENT_TYPES.TIMBANGAN && !isCheckerMode;
   const showNetWeight =
-    !isJembatan && measurementType === MEASUREMENT_TYPES.TIMBANGAN;
+    (!isJembatan && measurementType === MEASUREMENT_TYPES.TIMBANGAN && !isCheckerMode) ||
+    isCheckerMode;
+    
   const showWeightFields = showGrossWeight || showNetWeight;
+  const isManualInput = isCheckerMode;
 
   const activeHiddenCount = useMemo(() => {
     const now = Date.now();
@@ -757,7 +772,6 @@ const RitaseInputModal = ({
               </div>
 
               {/* Fleet Info Display */}
-              {/* Fleet Info Display */}
               {selectedFleet && (
                 <>
                   <Alert className="border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/20">
@@ -814,13 +828,12 @@ const RitaseInputModal = ({
                   </Alert>
 
                   {/* Tare Weight Warning */}
-                  {(() => {
+                  {/* {(() => {
                     const currentUnit = selectedFleet.units?.find(
                       (unit) => unit.hull_no === hullNo,
                     );
 
                     if (!currentUnit) return null;
-
                     const tareDate = currentUnit.tareWeightUpdatedDate;
                     const needsTareUpdate =
                       !tareDate ||
@@ -857,7 +870,7 @@ const RitaseInputModal = ({
                         </AlertDescription>
                       </Alert>
                     );
-                  })()}
+                  })()} */}
                 </>
               )}
 
@@ -992,7 +1005,7 @@ const RitaseInputModal = ({
                     <div>
                       <Label className="flex items-center gap-2 mb-2 text-gray-700 dark:text-gray-300">
                         <Scale className="w-4 h-4" />
-                        Berat Bersih (ton) *
+                        Berat Bersih (ton) {isManualInput ? "(Opsional)" : "*"}
                       </Label>
 
                       <div className="flex items-center gap-2">
@@ -1000,21 +1013,56 @@ const RitaseInputModal = ({
                           <Input
                             type="text"
                             inputMode="decimal"
-                            value={displayWeight}
+                            value={isManualInput ? netWeight : displayWeight}
+                            onChange={(e) => {
+                              if (isManualInput) {
+                                let val = e.target.value.replace(/,/g, ".");
+                                val = val.replace(/[^0-9.]/g, "");
+                                
+                                const firstDotIndex = val.indexOf(".");
+                                if (firstDotIndex !== -1) {
+                                  const beforeDot = val.slice(0, firstDotIndex);
+                                  const afterDot = val.slice(firstDotIndex + 1).replace(/\./g, "");
+                                  val = `${beforeDot}.${afterDot}`;
+                                }
+                                
+                                const dotIndex = val.indexOf(".");
+                                if (dotIndex !== -1) {
+                                  const parts = val.split(".");
+                                  if (parts[0].length > 3) parts[0] = parts[0].substring(0, 3);
+                                  if (parts[1].length > 2) parts[1] = parts[1].substring(0, 2);
+                                  val = `${parts[0]}.${parts[1]}`;
+                                } else {
+                                  if (val.length > 3) val = val.substring(0, 3);
+                                }
+
+                                const numVal = parseFloat(val);
+                                if (!isNaN(numVal) && numVal > 100.99) {
+                                  val = "100.99";
+                                }
+
+                                setNetWeight(val);
+                                setDisplayWeight(val);
+                              }
+                            }}
                             placeholder="0.00"
                             disabled={isSubmitting}
-                            readOnly={true}
+                            readOnly={!isManualInput}
                             className={`${errors.net_weight ? "border-red-500 dark:border-red-400" : ""} ${
-                              insertedWeight !== null
-                                ? "bg-green-50 dark:bg-green-900/20 border-green-400 dark:border-green-600 font-bold"
-                                : wsConnected
-                                  ? "bg-blue-50 dark:bg-blue-900/20 border-blue-300 dark:border-blue-600"
-                                  : "bg-white dark:bg-gray-900"
+                              isManualInput && netWeight
+                                ? "bg-white dark:bg-gray-800 border-blue-400 dark:border-blue-600 focus:ring-blue-500"
+                                : insertedWeight !== null
+                                  ? "bg-green-50 dark:bg-green-900/20 border-green-400 dark:border-green-600 font-bold"
+                                  : wsConnected && !isManualInput
+                                    ? "bg-blue-50 dark:bg-blue-900/20 border-blue-300 dark:border-blue-600"
+                                    : "bg-white dark:bg-gray-900"
                             } border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500`}
                           />
 
                           <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                            {insertedWeight !== null ? (
+                            {isManualInput ? (
+                              <Weight className="w-4 h-4 text-gray-400 dark:text-gray-500" />
+                            ) : insertedWeight !== null ? (
                               <Download className="w-4 h-4 text-green-600 dark:text-green-400" />
                             ) : wsConnected ? (
                               <Radio className="w-4 h-4 text-blue-600 dark:text-blue-400 animate-pulse" />
@@ -1098,7 +1146,7 @@ const RitaseInputModal = ({
                     !hullNo ||
                     !selectedFleet ||
                     fleetConfigs.length === 0 ||
-                    (showWeightFields && insertedWeight === null)
+                    (showWeightFields && !isManualInput && insertedWeight === null)
                   }
                   className="min-w-32 bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white"
                 >
