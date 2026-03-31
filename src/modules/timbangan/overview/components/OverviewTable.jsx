@@ -14,8 +14,7 @@ import {
   MoreVertical,
   Calendar,
   RefreshCw,
-  Building2,
-  X,
+  ClipboardCheck,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -23,13 +22,6 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
 } from "@/shared/components/ui/dropdown-menu";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/shared/components/ui/select";
 import { formatDate } from "@/shared/utils/date";
 import { formatWeight } from "@/shared/utils/number";
 import Pagination from "@/shared/components/Pagination";
@@ -93,38 +85,6 @@ const getHoursByShift = (shift) => {
   }
 };
 
-const WorkUnitFilterBar = ({
-  workUnitOptions = [],
-  selectedWorkUnit,
-  onWorkUnitChange,
-  onClearWorkUnitFilter,
-}) => {
-  if (workUnitOptions.length === 0) return null;
-
-  return (
-    <div className="flex flex-wrap items-center gap-2 py-2">
-      <Select
-        value={selectedWorkUnit || "all"}
-        onValueChange={(val) => onWorkUnitChange(val === "all" ? null : val)}
-      >
-        <SelectTrigger className="h-7 text-xs w-56 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800">
-          <SelectValue placeholder="Semua Work Unit" />
-        </SelectTrigger>
-        <SelectContent className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 max-h-60">
-          <SelectItem value="all" className="text-xs font-medium">
-            Semua Work Unit
-          </SelectItem>
-          {workUnitOptions.map((wu) => (
-            <SelectItem key={wu} value={wu} className="text-xs">
-              {wu}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-    </div>
-  );
-};
-
 const OverviewTable = ({
   data,
   currentPage,
@@ -135,6 +95,7 @@ const OverviewTable = ({
   onViewDetail,
   onViewHourDetail,
   onExportPDF,
+  onViewKertasChecker,
   isLoading = false,
 
   dateRange,
@@ -153,12 +114,6 @@ const OverviewTable = ({
   searchPlaceholder = "Cari excavator, loading, dumping...",
   onItemsPerPageChange,
   totalItems,
-
-  // ✅ NEW: Work Unit Filter props (pic_work_unit dari tableData)
-  workUnitOptions = [],
-  selectedWorkUnit = null,
-  onWorkUnitChange,
-  onClearWorkUnitFilter,
 }) => {
   const displayHours = useMemo(() => {
     return getHoursByShift(shift);
@@ -171,8 +126,6 @@ const OverviewTable = ({
     if (dates.length === 1) return formatDate(dates[0]);
     return `${formatDate(dates[0])} - ${formatDate(dates[dates.length - 1])}`;
   };
-
-  const hasWorkUnitFilter = Boolean(selectedWorkUnit);
 
   return (
     <Card className="shadow-sm border-gray-200 dark:border-gray-700 bg-neutral-50 dark:bg-gray-800 text-gray-900 dark:text-gray-100">
@@ -188,16 +141,6 @@ const OverviewTable = ({
             )}
           </div>
           <div className="flex items-center gap-3">
-            {/* ✅ Badge work unit aktif di header */}
-            {hasWorkUnitFilter && (
-              <Badge
-                variant="secondary"
-                className="dark:bg-blue-900/40 dark:text-blue-300 bg-blue-100 text-blue-800 border border-blue-200 dark:border-blue-700 max-w-52 truncate"
-                title={selectedWorkUnit}
-              >
-                {selectedWorkUnit}
-              </Badge>
-            )}
             <Badge
               variant="secondary"
               className="dark:bg-gray-700 dark:text-gray-200"
@@ -227,19 +170,10 @@ const OverviewTable = ({
           searchPlaceholder={searchPlaceholder}
           isRefreshing={isLoading}
           onRefresh={onRefresh}
+          showFilter={true}
           filterExpanded={isFilterExpanded}
           onToggleFilter={onToggleFilter}
-          extraActions={
-            <WorkUnitFilterBar
-              workUnitOptions={workUnitOptions}
-              selectedWorkUnit={selectedWorkUnit}
-              onWorkUnitChange={onWorkUnitChange}
-              onClearWorkUnitFilter={onClearWorkUnitFilter}
-            />
-          }
         />
-
-        {/* ✅ Work Unit Filter Bar — derive options dari tableData langsung */}
 
         {/* Advanced Filter Panel */}
         {isFilterExpanded && (
@@ -365,13 +299,13 @@ const OverviewTable = ({
                       </svg>
                       <div className="text-gray-500 dark:text-gray-400">
                         <p className="font-medium text-base">
-                          {searchQuery || hasActiveFilters || hasWorkUnitFilter
+                          {searchQuery || hasActiveFilters
                             ? "Tidak ada data yang cocok dengan pencarian/filter"
                             : "Data tidak ditemukan"}
                         </p>
                         <p className="text-sm text-gray-400 dark:text-gray-500 mt-1">
-                          {searchQuery || hasActiveFilters || hasWorkUnitFilter
-                            ? "Coba ubah filter work unit atau kata kunci pencarian"
+                          {searchQuery || hasActiveFilters
+                            ? "Coba ubah kata kunci pencarian atau bersihkan filter"
                             : "Tidak ada data untuk periode dan filter yang dipilih"}
                         </p>
                       </div>
@@ -513,12 +447,19 @@ const OverviewTable = ({
                             Lihat Detail
                           </DropdownMenuItem>
                           <DropdownMenuItem
+                            onClick={() => onViewKertasChecker && onViewKertasChecker(row)}
+                            className="cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700"
+                          >
+                            <ClipboardCheck className="w-4 h-4 mr-2" />
+                            Kertas Checker
+                          </DropdownMenuItem>
+                          {/* <DropdownMenuItem
                             onClick={() => onExportPDF && onExportPDF(row)}
                             className="cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700"
                           >
                             <FileText className="w-4 h-4 mr-2" />
                             Export PDF
-                          </DropdownMenuItem>
+                          </DropdownMenuItem> */}
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </td>

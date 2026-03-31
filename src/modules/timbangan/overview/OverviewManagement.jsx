@@ -19,13 +19,14 @@ import { exportToPDF } from "@/shared/utils/pdf";
 import { showToast } from "@/shared/utils/toast";
 import { useDashboardDaily } from "@/modules/timbangan/dashboard/hooks/useDashboardDaily";
 import SupervisorInputModal from "@/modules/timbangan/overview/components/SupervisorInputModal";
+import KertasCheckerDialog from "@/modules/timbangan/ritase/components/KertasCheckerDialog";
 import { getCurrentShift } from "@/shared/utils/shift";
 import { useWorkUnitFilter } from "./hooks/useWorkUnitFilter";
 import {
   LOADING_POINT_GROUP,
   DUMPING_POINT_GROUP,
 } from "@/modules/timbangan/ritase/constant/ritaseConstants";
-  
+
 // Helper to flatten nested group objects into an array of strings in order
 const flattenGroupOrder = (groupObj) => {
   let result = [];
@@ -110,6 +111,11 @@ const OverviewManagement = () => {
   const [supervisorModal, setSupervisorModal] = useState({
     isOpen: false,
     rowData: null,
+  });
+
+  const [kertasCheckerModal, setKertasCheckerModal] = useState({
+    isOpen: false,
+    data: null,
   });
 
   // Tooltip state
@@ -226,13 +232,15 @@ const OverviewManagement = () => {
   }, [tableData]);
 
   const uniqueLoadings = useMemo(() => {
-    return [...new Set(tableData.map((r) => r.loading_location))]
+    const allLocations = tableData.flatMap((r) => r.loading_locations || []);
+    return [...new Set(allLocations)]
       .filter(Boolean)
       .map((v) => ({ value: v, label: v }));
   }, [tableData]);
 
   const uniqueDumpings = useMemo(() => {
-    return [...new Set(tableData.map((r) => r.dumping_location))]
+    const allLocations = tableData.flatMap((r) => r.dumping_locations || []);
+    return [...new Set(allLocations)]
       .filter(Boolean)
       .map((v) => ({ value: v, label: v }));
   }, [tableData]);
@@ -257,10 +265,14 @@ const OverviewManagement = () => {
         selectedExcavators.includes(item.unit_exca);
       const matchLoading =
         selectedLocations.length === 0 ||
-        selectedLocations.includes(item.loading_location);
+        (item.loading_locations || []).some((loc) =>
+          selectedLocations.includes(loc),
+        );
       const matchDumping =
         selectedDumpPoints.length === 0 ||
-        selectedDumpPoints.includes(item.dumping_location);
+        (item.dumping_locations || []).some((loc) =>
+          selectedDumpPoints.includes(loc),
+        );
 
       return matchMitra && matchExca && matchLoading && matchDumping;
     });
@@ -506,7 +518,7 @@ const OverviewManagement = () => {
     });
   }, [filteredTableData, sortConfig]);
 
-  const { filteredData, workUnitOptions, selectedWorkUnit, ...handlers } =
+  const { filteredData, workUnitOptions, selectedWorkUnits, ...handlers } =
     useWorkUnitFilter(sortedData);
 
   const totalPages = Math.ceil(filteredData.length / itemsPerPage);
@@ -549,25 +561,19 @@ const OverviewManagement = () => {
     setCurrentPage(1);
   }, []);
 
-  const handleWorkUnitChange = useCallback(
-    (value) => {
-      handlers.onWorkUnitChange(value);
-      setCurrentPage(1);
-    },
-    [handlers],
-  );
-
   const hasActiveFilters =
     selectedExcavators.length > 0 ||
     selectedLocations.length > 0 ||
-    selectedDumpPoints.length > 0;
+    selectedDumpPoints.length > 0 ||
+    selectedWorkUnits.length > 0;
 
   const handleResetFilters = useCallback(() => {
     setSelectedExcavators([]);
     setSelectedLocations([]);
     setSelectedDumpPoints([]);
+    handlers.onClearWorkUnitFilter();
     setCurrentPage(1);
-  }, []);
+  }, [handlers]);
 
   const handleRefresh = useCallback(async () => {
     setIsRefreshing(true);
@@ -605,6 +611,47 @@ const OverviewManagement = () => {
       isOpen: false,
       data: null,
       hour: null,
+    });
+  }, []);
+
+  const openKertasCheckerModal = useCallback((rowData) => {
+    const firstTrip = rowData.ritases?.[0] || {};
+    const formattedData = {
+      excavator: rowData.unit_exca || "-",
+      loading_location: Array.isArray(rowData.loading_locations)
+        ? rowData.loading_locations.join(", ")
+        : rowData.loading_locations || firstTrip.loading_location || "-",
+      dumping_location: Array.isArray(rowData.dumping_locations)
+        ? rowData.dumping_locations.join(", ")
+        : rowData.dumping_locations || firstTrip.dumping_location || "-",
+      distance: Array.isArray(rowData.distance)
+        ? [...new Set(rowData.distance.filter(Boolean))].join(", ")
+        : rowData.distance || firstTrip.distance || "-",
+      coal_type: Array.isArray(rowData.coal_type)
+        ? [...new Set(rowData.coal_type.filter(Boolean))].join(", ")
+        : rowData.coal_type || firstTrip.coal_type || "-",
+      measurement_type: Array.isArray(rowData.measurement_type)
+        ? [...new Set(rowData.measurement_type.filter(Boolean))].join(", ")
+        : rowData.measurement_type || firstTrip.measurement_type || "timbangan",
+      tripCount: rowData.ritases?.length || 0,
+      totalWeight: rowData.totalTonase || 0,
+      trips:
+        rowData.ritases?.map((r) => ({
+          ...r,
+          time:
+            r.createdAt ||
+            r.created_at ||
+            r.time ||
+            r.date ||
+            new Date().toISOString(),
+          hull_no: r.unit_dump_truck || r.hull_no || "-",
+          weight: r.net_weight || r.weight || 0,
+        })) || [],
+    };
+
+    setKertasCheckerModal({
+      isOpen: true,
+      data: formattedData,
     });
   }, []);
 
@@ -665,6 +712,17 @@ const OverviewManagement = () => {
   const filterGroups = useMemo(
     () => [
       {
+        id: "work_unit",
+        label: "Work Unit",
+        options: workUnitOptions.map((wu) => ({ value: wu, label: wu })),
+        value: selectedWorkUnits,
+        onChange: (newValue) => {
+          handlers.onWorkUnitsChange(newValue);
+          setCurrentPage(1);
+        },
+        placeholder: "Pilih Work Unit",
+      },
+      {
         id: "excavator",
         label: "Excavator",
         options: uniqueExcavators,
@@ -705,6 +763,9 @@ const OverviewManagement = () => {
       selectedExcavators,
       selectedLocations,
       selectedDumpPoints,
+      workUnitOptions,
+      selectedWorkUnits,
+      handlers,
     ],
   );
   return (
@@ -965,13 +1026,9 @@ const OverviewManagement = () => {
         </Card>
       </div>
 
-      {/* ✅ Table Component - Loading indicator di Card Title table */}
+      {/* ✅ Table Component */}
       <OverviewTable
         data={paginatedData}
-        workUnitOptions={workUnitOptions}
-        selectedWorkUnit={selectedWorkUnit}
-        onWorkUnitChange={handleWorkUnitChange}
-        onClearWorkUnitFilter={handlers.onClearWorkUnitFilter}
         currentPage={currentPage}
         totalPages={totalPages}
         itemsPerPage={itemsPerPage}
@@ -980,6 +1037,7 @@ const OverviewManagement = () => {
         onPageChange={handlePageChange}
         onViewDetail={openDetailModal}
         onViewHourDetail={openHourDetailModal}
+        onViewKertasChecker={openKertasCheckerModal}
         onExportPDF={handleExportPDF}
         isLoading={isRefreshing}
         dateRange={dateRange}
@@ -1019,6 +1077,14 @@ const OverviewManagement = () => {
         isLoading={false}
         locationPairs={supervisorModal.locationPairs || []}
       />
+
+      {kertasCheckerModal.isOpen && (
+        <KertasCheckerDialog
+          isOpen={kertasCheckerModal.isOpen}
+          onClose={() => setKertasCheckerModal({ isOpen: false, data: null })}
+          data={kertasCheckerModal.data}
+        />
+      )}
     </div>
   );
 };
