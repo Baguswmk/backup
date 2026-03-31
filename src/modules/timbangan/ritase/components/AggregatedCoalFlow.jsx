@@ -26,6 +26,7 @@ import {
   DUMPING_POINT_GROUP,
   LOADING_POINT_GROUP,
 } from "@/modules/timbangan/ritase/constant/ritaseConstants";
+import { SHIFT_CONFIG } from "@/shared/utils/shift";
 
 // Reusable badge dengan 3 sub-nilai
 function StatBadge({ label, accent, items }) {
@@ -250,20 +251,31 @@ const AggregatedCoalFlow = ({
         ) {
           let shiftTonase = tonase / 3;
 
-          let startHour = 6;
-          if (currentShift === "Shift 1") startHour = 6;
-          else if (currentShift === "Shift 2") startHour = 14;
-          else if (currentShift === "Shift 3") startHour = 22;
-
+          const shiftConfig = SHIFT_CONFIG[currentShift];
           const now = new Date();
           const currentHour = now.getHours();
 
-          let hoursOffset = currentHour - startHour;
-          if (hoursOffset < 0) hoursOffset += 24;
+          let elapsedHours = 0;
+          if (shiftConfig) {
+            const startHour = shiftConfig.start;
+            if (shiftConfig.crossesMidnight) {
+              // Shift 1: 22:00 - 06:00
+              // jam 22,23 → offset 0,1; jam 0,1,2,3,4,5 → offset 2,3,4,5,6,7
+              let hoursOffset;
+              if (currentHour >= startHour) {
+                hoursOffset = currentHour - startHour;
+              } else {
+                hoursOffset = (24 - startHour) + currentHour;
+              }
+              elapsedHours = Math.min(8, Math.max(0, hoursOffset));
+            } else {
+              // Shift 2 (06-14) dan Shift 3 (14-22)
+              const hoursOffset = currentHour - startHour;
+              elapsedHours = Math.min(8, Math.max(0, hoursOffset));
+            }
+          }
 
-          let elapsedHours = hoursOffset >= 8 ? 8 : hoursOffset;
-
-          tonase = (shiftTonase / 8) * Math.max(0, elapsedHours);
+          tonase = (shiftTonase / 8) * elapsedHours;
         }
 
         totalTarget += fleet;
@@ -451,20 +463,22 @@ const AggregatedCoalFlow = ({
                     { sub: "Aktif", value: metrics.chtActive },
                   ]}
                 />
-                  <StatBadge
-                    label="Total Fleet"
-                    accent="amber"
-                    items={[
-                      { sub: "Aktif", value: metrics.totalActive },
-                    ]}
-                  />
+                <StatBadge
+                  label="Total Fleet"
+                  accent="amber"
+                  items={[
+                    { sub: "Target", value: metrics.totalTarget },
+                    { sub: "Aktif", value: metrics.totalActive },
+                    { sub: "Sisa", value: Math.max(0, metrics.totalTarget - metrics.totalActive) },
+                  ]}
+                />
 
                 <div className="hidden sm:block h-8 w-px bg-gray-200 dark:bg-gray-700 mx-1" />
                 <SummaryValue label="Total Rit" value={`${metrics.totalTrips.toLocaleString("en-US")} rit`} />
-                  <SummaryValue
-                    label="Total Ton Rencana"
-                    value={`${metrics.totalTargetTonase.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ton`}
-                  />
+                <SummaryValue
+                  label="Total Ton Rencana"
+                  value={`${metrics.totalTargetTonase.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ton`}
+                />
                 <SummaryValue
                   label="Total Ton Aktual"
                   value={`${metrics.totalWeight.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ton`}
