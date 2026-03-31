@@ -111,6 +111,28 @@ export const FLEET_TYPE_ACCESS = {
       Beltscale: "Beltscale",
     },
   },
+  viewer: {
+    allowedTypes: ["Jembatan", "FOB", "Bypass", "Beltscale"],
+    readOnly: true,
+    autoWeighBridge: false,
+    canSelectWeighBridge: false,
+    measurementTypeMap: {
+      Jembatan: "Timbangan",
+      Bypass: "Bypass",
+      Beltscale: "Beltscale",
+    },
+  },
+  spph: {
+    allowedTypes: ["Jembatan", "FOB", "Bypass", "Beltscale"],
+    readOnly: true,
+    autoWeighBridge: false,
+    canSelectWeighBridge: false,
+    measurementTypeMap: {
+      Jembatan: "Timbangan",
+      Bypass: "Bypass",
+      Beltscale: "Beltscale",
+    },
+  },
 };
 
 export const ROLE_PERMISSIONS = {
@@ -207,6 +229,22 @@ export const ROLE_PERMISSIONS = {
     masterData: [],
     fleetTypes: ["Setting Fleet"],
     description: "Read only, filter by company",
+  },
+
+  viewer: {
+    timbangan: [PERMISSIONS.READ, PERMISSIONS.EXPORT],
+    fleet: [PERMISSIONS.READ],
+    masterData: [],
+    fleetTypes: ["Setting Fleet"],
+    description: "Read only + export, no FE filter (BE handles)",
+  },
+
+  spph: {
+    timbangan: [PERMISSIONS.READ, PERMISSIONS.EXPORT],
+    fleet: [PERMISSIONS.READ],
+    masterData: [],
+    fleetTypes: ["Setting Fleet"],
+    description: "Read only + export, no FE filter (BE filters by SPPH)",
   },
 
   super_admin: {
@@ -319,15 +357,11 @@ export const isReadOnly = (userRole) => {
     "pic",
     "evaluator",
     "mitra",
+    "viewer",
+    "spph",
   ];
   return readOnlyRoles.includes(roleLower);
 };
-
-/**
- * Filter data based on role filter type
- */
-// ✅ COMPLETE FIXED filterDataByRole function
-// Copy this entire function to replace the existing one in rolePermissions.js
 
 /**
  * Filter data based on role filter type

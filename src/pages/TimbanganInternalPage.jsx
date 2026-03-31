@@ -69,6 +69,8 @@ const TimbanganInternalPage = () => {
           "admin",
           "super_admin",
           "ccr",
+          "viewer",
+          "spph",
         ],
         locationId: "ritase",
       },
@@ -84,6 +86,8 @@ const TimbanganInternalPage = () => {
           "admin",
           "super_admin",
           "ccr",
+          "viewer",
+          "spph",
         ],
         locationId: "ritase-history",
       },
@@ -123,13 +127,21 @@ const TimbanganInternalPage = () => {
       {
         name: "Overview",
         icon: BarChart3,
-        roles: ["admin", "super_admin", "ccr", "pengawas", "pic"],
+        roles: [
+          "admin",
+          "super_admin",
+          "ccr",
+          "pengawas",
+          "pic",
+          "viewer",
+          "spph",
+        ],
         locationId: "overview",
       },
       {
         name: "Laporan",
         icon: BarChart3,
-        roles: ["admin", "super_admin", "ccr", "pic"],
+        roles: ["admin", "super_admin", "ccr", "pic", "viewer", "spph"],
         locationId: "laporan",
       },
       {
@@ -142,7 +154,7 @@ const TimbanganInternalPage = () => {
     [],
   );
 
- const isMenuAccessible = useCallback(
+  const isMenuAccessible = useCallback(
     (menuItem) => {
       return menuItem?.roles?.includes(userRole);
     },
@@ -152,6 +164,10 @@ const TimbanganInternalPage = () => {
   const getDefaultMenu = useCallback(() => {
     if (isOperator || userRole === "checker") {
       return "Timbangan";
+    }
+
+    if (userRole === "viewer" || userRole === "spph") {
+      return "Overview";
     }
 
     return "Setting Fleet";

@@ -24,6 +24,8 @@ export const ROLE_GROUPS = {
     "admin",
     "super_admin",
     "ccr",
+    "viewer",
+    "spph",
   ],
 
   TIMBANGAN_FOB: ["operator_timbangan_fob"],

@@ -247,6 +247,7 @@ export const authService = {
       // Generic roles
       user: "user",
       viewer: "viewer",
+      spph: "spph",
       editor: "editor",
       manager: "manager",
     };
