@@ -72,10 +72,9 @@ export const useBeltConveyor = (initialFilters = {}) => {
     const response = await beltConveyorService.fetchLatestPerLoader(loaderNames);
     if (!response.success || !Array.isArray(response.data)) return {};
 
-    // Build map: { "Loader A": 4100.5, "Loader B": 3980.0 }
     const map = {};
     response.data.forEach((record) => {
-      if (record?.loader) map[record.loader] = record.tonnage ?? null;
+      if (record?.loader) map[record.loader] = record.beltscale ?? record.tonnage ?? null;
     });
     return map;
   }, []);

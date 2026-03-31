@@ -69,21 +69,6 @@ export default function BeltConveyorList({
     );
   }
 
-  // ── Empty state ──────────────────────────────────────────────────────────────
-  if (!data || data.length === 0) {
-    return (
-      <div className="p-12 text-center text-slate-500 dark:text-slate-400 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700">
-        <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-slate-100 dark:bg-slate-700 mb-4">
-          <Activity className="h-8 w-8 text-slate-400 dark:text-slate-500" />
-        </div>
-        <h3 className="text-lg font-medium text-slate-900 dark:text-white mb-1">
-          Tidak ada data
-        </h3>
-        <p className="text-sm">Belum ada rekaman belt conveyor.</p>
-      </div>
-    );
-  }
-
   // ── Table ────────────────────────────────────────────────────────────────────
   return (
     <div className="w-full">
