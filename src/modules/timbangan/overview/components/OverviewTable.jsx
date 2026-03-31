@@ -87,6 +87,7 @@ const getHoursByShift = (shift) => {
 
 const OverviewTable = ({
   data,
+  allFilteredData = [],
   currentPage,
   totalPages,
   itemsPerPage,
@@ -118,6 +119,29 @@ const OverviewTable = ({
   const displayHours = useMemo(() => {
     return getHoursByShift(shift);
   }, [shift]);
+
+  const totals = useMemo(() => {
+    let grandTotal = 0;
+    const hourlyTotals = {};
+
+    displayHours.forEach((hour) => {
+      const hourKey = `${hour.toString().padStart(2, "0")}:00`;
+      hourlyTotals[hourKey] = 0;
+    });
+
+    const dataset = allFilteredData && allFilteredData.length > 0 ? allFilteredData : data;
+
+    (dataset || []).forEach((row) => {
+      grandTotal += Math.max(0, parseFloat(row.totalTonase) || 0);
+      displayHours.forEach((hour) => {
+        const hourKey = `${hour.toString().padStart(2, "0")}:00`;
+        const val = parseFloat(row.hourlyData?.[hourKey]) || 0;
+        hourlyTotals[hourKey] += Math.max(0, val);
+      });
+    });
+
+    return { grandTotal, hourlyTotals };
+  }, [allFilteredData, data, displayHours]);
 
   const getUniqueDates = (ritases) => {
     if (!ritases || ritases.length === 0) return "-";
@@ -468,6 +492,39 @@ const OverviewTable = ({
                 ))
               )}
             </tbody>
+            {data.length > 0 && !isLoading && (
+              <tfoot className="bg-orange-50 dark:bg-orange-900/20 border-t border-b border-orange-200 dark:border-orange-800 font-bold sticky bottom-0 z-20">
+                <tr>
+                  <td
+                    colSpan={3}
+                    className="px-3 py-4 text-right sticky left-0 z-30 bg-orange-50 dark:bg-[#3d2a1d] border-r border-orange-200 dark:border-orange-800 text-orange-900 dark:text-orange-100 text-xs sm:text-sm"
+                  >
+                    Total Tonase
+                  </td>
+                  {displayHours.map((hour) => {
+                    const hourKey = `${hour.toString().padStart(2, "0")}:00`;
+                    const value = totals.hourlyTotals[hourKey];
+                    return (
+                      <td
+                        key={hour}
+                        className="px-3 py-4 text-center border-r border-orange-200 dark:border-orange-800 text-orange-900 dark:text-orange-100"
+                      >
+                        {value > 0 ? formatWeight(value, 2) : "-"}
+                      </td>
+                    );
+                  })}
+                  <td className="px-3 py-4 text-center border-r border-orange-200 dark:border-orange-800">
+                    <span className="inline-block px-3 py-1.5 bg-orange-600 dark:bg-orange-600 text-white rounded-md font-bold text-sm shadow-sm ring-1 ring-orange-400 dark:ring-orange-800">
+                      {formatWeight(totals.grandTotal, 2)}
+                    </span>
+                  </td>
+                  <td
+                    colSpan={3}
+                    className="px-3 py-4 bg-orange-50 dark:bg-orange-900/20"
+                  ></td>
+                </tr>
+              </tfoot>
+            )}
           </table>
         </div>
 
