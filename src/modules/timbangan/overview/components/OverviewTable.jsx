@@ -165,6 +165,7 @@ const OverviewTable = ({
           currentShift={shift}
           viewingShift={shift}
           onShiftChange={onShiftChange}
+          datePickerMode="singleDay"
           searchQuery={searchQuery}
           onSearchChange={onSearchChange}
           searchPlaceholder={searchPlaceholder}

@@ -10,6 +10,7 @@ const TableToolbar = ({
   currentShift,
   viewingShift,
   onDateRangeChange,
+  datePickerMode = "range",
   shiftOptions,
   searchQuery = "",
   onSearchChange,
@@ -43,13 +44,14 @@ const TableToolbar = ({
     <div className="space-y-3">
       <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
         {activeDateRange && (
-          <DateRangePicker
+        <DateRangePicker
             dateRange={dateRange}
             currentShift={currentShift}
             viewingShift={viewingShift}
             onDateRangeChange={onDateRangeChange}
             isLoading={isRefreshing}
             shiftOptions={shiftOptions}
+            mode={datePickerMode}
           />
         )}
 

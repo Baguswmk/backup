@@ -125,6 +125,7 @@ const RitaseHistoryHeader = ({
                   viewingShift={viewingShift}
                   isLoading={isLoading || isSearching}
                   onDateRangeChange={onDateRangeChange}
+                  mode="singleDayNoAll"
                 />
               </div>
 

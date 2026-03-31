@@ -111,6 +111,11 @@ const RitaseHistory = () => {
         return;
       }
 
+      if (!shift || shift === "All") {
+        showToast.error("Silakan pilih shift yang spesifik (Shift 1 / 2 / 3)");
+        return;
+      }
+
       setIsInitialLoading(true);
 
       try {
@@ -157,7 +162,7 @@ const RitaseHistory = () => {
       // Gunakan latestParamsRef agar tidak stale saat dipanggil dari callback (e.g. handleRefreshAfterEdit)
       const { dateRange, shift } = latestParamsRef.current;
 
-      if (!dateRange.from || !dateRange.to || !shift) {
+      if (!dateRange.from || !dateRange.to || !shift || shift === "All") {
         return { summaries: [], ritases: [], coal_flow: [] };
       }
 

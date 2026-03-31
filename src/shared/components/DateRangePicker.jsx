@@ -14,7 +14,6 @@ import { showToast } from "@/shared/utils/toast";
 import {
   getTodayDateRange,
   validateDateRange,
-  formatDate,
 } from "@/shared/utils/date";
 import {
   getCurrentShift,
@@ -28,8 +27,17 @@ export const DateRangePicker = ({
   viewingShift,
   isLoading = false,
   onDateRangeChange,
+  mode = "range",
 }) => {
-  const shiftOptions = getShiftOptions(true);
+  const isSingleDay = mode === "singleDay" || mode === "singleDayNoAll";
+  const allowAllShift = mode !== "singleDayNoAll";
+
+  const shiftOptions = getShiftOptions(allowAllShift);
+
+  const getInitialShift = (incoming) => {
+    if (!allowAllShift && incoming === "All") return getCurrentShift();
+    return incoming || getCurrentShift();
+  };
 
   const [date, setDate] = useState(() => {
     if (dateRange.from && dateRange.to) {
@@ -45,9 +53,9 @@ export const DateRangePicker = ({
     };
   });
 
-  const [shift, setShift] = useState(() => {
-    return viewingShift || currentShift || getCurrentShift();
-  });
+  const [shift, setShift] = useState(() =>
+    getInitialShift(viewingShift || currentShift),
+  );
 
   const [isOpen, setIsOpen] = useState(false);
 
@@ -69,32 +77,42 @@ export const DateRangePicker = ({
 
   useEffect(() => {
     if (isOpen && viewingShift) {
-      setShift(viewingShift);
+      setShift(getInitialShift(viewingShift));
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
 
-  const handleSelect = useCallback((selectedRange) => {
-    setDate(selectedRange);
+  const handleShiftChange = useCallback((value) => {
+    setShift(value);
+    shiftRef.current = value;
   }, []);
-
-  const handleShiftChange = useCallback(
-    (value) => {
-      setShift(value);
-      shiftRef.current = value;
-    },
-    [shift],
-  );
 
   const handleApply = useCallback(() => {
     const finalShift = shiftRef.current;
 
     if (!date?.from) {
-      showToast.error("Silakan pilih tanggal mulai");
+      showToast.error("Silakan pilih tanggal terlebih dahulu");
       return;
     }
 
     if (!date?.to) {
       showToast.error("Silakan pilih tanggal akhir");
+      return;
+    }
+
+    // Validasi singleDay: from harus sama dengan to
+    if (isSingleDay) {
+      const fromStr = format(date.from, "yyyy-MM-dd");
+      const toStr = format(date.to, "yyyy-MM-dd");
+      if (fromStr !== toStr) {
+        showToast.error("Hanya boleh memilih satu hari");
+        return;
+      }
+    }
+
+    // Validasi singleDayNoAll: shift tidak boleh "All"
+    if (!allowAllShift && finalShift === "All") {
+      showToast.error("Pilih shift yang spesifik (bukan Semua Shift)");
       return;
     }
 
@@ -117,18 +135,18 @@ export const DateRangePicker = ({
 
     onDateRangeChange(payload);
     setIsOpen(false);
-  }, [date, onDateRangeChange, setIsOpen]);
+  }, [date, onDateRangeChange, isSingleDay, allowAllShift]);
 
   const handleReset = useCallback(() => {
     const today = getTodayDateRange();
-    const resetShift = currentShift || getCurrentShift();
-
+    const resetShift = getInitialShift(currentShift);
     setDate({
       from: new Date(today.from),
       to: new Date(today.to),
     });
     setShift(resetShift);
     shiftRef.current = resetShift;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentShift]);
 
   const currentYear = new Date().getFullYear();
@@ -139,6 +157,7 @@ export const DateRangePicker = ({
       ? format(dt, "dd MMM", { locale: id })
       : format(dt, "dd/MM/yy", { locale: id });
   };
+
   const shiftShort = getShiftLabel(shift)?.replace("Shift ", "S") || shift;
   const displayText = date?.from
     ? date.to
@@ -172,17 +191,34 @@ export const DateRangePicker = ({
           <div className="max-h-[min(85vh,600px)] overflow-y-auto scrollbar-thin overflow-x-hidden">
             <div className="p-3 sticky top-0 bg-neutral-50 dark:bg-gray-800 dark:border-gray-700 z-10">
               <p className="text-sm font-medium dark:text-gray-200">
-                Filter Tanggal & Shift
+                {isSingleDay
+                  ? "Filter Tanggal & Shift (1 Hari)"
+                  : "Filter Tanggal & Shift"}
               </p>
+              {isSingleDay && (
+                <p className="text-xs text-amber-600 dark:text-amber-400 mt-0.5">
+                  {mode === "singleDayNoAll"
+                    ? "Pilih tepat 1 hari dan 1 shift spesifik"
+                    : "Pilih 1 hari (bisa semua shift)"}
+                </p>
+              )}
             </div>
 
             <div className="p-3 dark:bg-gray-800">
               <Calendar
                 initialFocus
-                mode="range"
+                mode={isSingleDay ? "single" : "range"}
                 defaultMonth={date?.from}
-                selected={date}
-                onSelect={handleSelect}
+                selected={isSingleDay ? date?.from : date}
+                onSelect={(val) => {
+                  if (!val) return;
+                  if (isSingleDay) {
+                    // mode="single" → Calendar returns a single Date
+                    setDate({ from: val, to: val });
+                  } else {
+                    setDate(val);
+                  }
+                }}
                 numberOfMonths={1}
                 locale={id}
                 disabled={isLoading}
@@ -197,7 +233,6 @@ export const DateRangePicker = ({
                     Pilih Shift: {shift}
                   </label>
 
-                  {/* ✅ Native select as fallback for debugging */}
                   <select
                     ref={selectRef}
                     value={shift}
