@@ -1200,7 +1200,7 @@ const KertasCheckerDialog = ({
       )}
 
       {/* Bulk Edit Dialog */}
-      {isBulkEditDialogOpen && (
+      {isBulkEditDialogOpen && isCan && (
         <Dialog
           open={isBulkEditDialogOpen}
           onOpenChange={setIsBulkEditDialogOpen}

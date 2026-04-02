@@ -101,12 +101,6 @@ const TimbanganInternalPage = () => {
         name: "Adjustment Beltscale",
         icon: Scale,
         roles: [
-          "checker",
-          "pic",
-          "pengawas",
-          "operator_jt",
-          "evaluator",
-          "admin",
           "super_admin",
           "ccr",
         ],

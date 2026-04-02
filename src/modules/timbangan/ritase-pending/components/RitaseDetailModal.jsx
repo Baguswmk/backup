@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   X,
   Truck,
@@ -17,13 +17,26 @@ import {
 } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
 import { useRitasePendingSync } from "../hooks/useRitasePendingSync";
+import useAuthStore from "@/modules/auth/store/authStore";
 
-export const RitaseDetailModal = ({ group, onClose, onSyncSuccess }) => {
+export const RitaseDetailModal = ({ group, onClose, onSyncSuccess, isOpen }) => {
   const [sortBy, setSortBy] = useState("time");
   const [selectedIds, setSelectedIds] = useState(new Set());
-
+  const { user } = useAuthStore();
+  const isCCR = user?.role === "ccr";
   const { isSyncing, syncRitases } = useRitasePendingSync();
 
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "unset";
+    }
+
+    return () => {
+      document.body.style.overflow = "unset";
+    };
+  }, [isOpen]);
   // ─── Sorted list ──────────────────────────────────────────────────────────
 
   const sortedRitases = [...group.ritases].sort((a, b) => {
@@ -183,7 +196,7 @@ export const RitaseDetailModal = ({ group, onClose, onSyncSuccess }) => {
 
               {/* Sync selected / sync all */}
               <div className="flex items-center gap-2">
-                {someSelected ? (
+                {someSelected && isCCR ? (
                   <Button
                     onClick={handleBulkSync}
                     disabled={isSyncing}
@@ -196,6 +209,7 @@ export const RitaseDetailModal = ({ group, onClose, onSyncSuccess }) => {
                     Sync {selectedIds.size} Ritase
                   </Button>
                 ) : (
+                  isCCR && (
                   <Button
                     onClick={handleSyncAll}
                     disabled={isSyncing}
@@ -207,6 +221,7 @@ export const RitaseDetailModal = ({ group, onClose, onSyncSuccess }) => {
                     />
                     Sync Semua
                   </Button>
+                  ) 
                 )}
               </div>
             </div>
@@ -284,18 +299,20 @@ export const RitaseDetailModal = ({ group, onClose, onSyncSuccess }) => {
                         <span className="text-xs text-gray-400 dark:text-gray-500">
                           {getTimeAgo(ritase.createdAt)}
                         </span>
-                        <Button
-                          onClick={(e) => handleSyncOne(ritase, e)}
-                          disabled={isSyncing}
-                          variant="outline"
-                          size="sm"
-                          className="gap-1 border-green-300 dark:border-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 text-green-700 dark:text-green-400 h-7 px-2 text-xs"
-                        >
-                          <Send
-                            className={`w-3 h-3 ${isSyncing ? "animate-pulse" : ""}`}
-                          />
-                          Sync
-                        </Button>
+                        {isCCR && (
+                          <Button
+                            onClick={(e) => handleSyncOne(ritase, e)}
+                            disabled={isSyncing}
+                            variant="outline"
+                            size="sm"
+                            className="gap-1 border-green-300 dark:border-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 text-green-700 dark:text-green-400 h-7 px-2 text-xs"
+                          >
+                            <Send
+                              className={`w-3 h-3 ${isSyncing ? "animate-pulse" : ""}`}
+                            />
+                            Sync
+                          </Button>
+                        )}
                       </div>
                     </div>
 
@@ -399,7 +416,7 @@ export const RitaseDetailModal = ({ group, onClose, onSyncSuccess }) => {
             </span>
 
             <div className="flex items-center gap-2">
-              {someSelected && (
+              {someSelected && isCCR && (
                 <Button
                   onClick={handleBulkSync}
                   disabled={isSyncing}

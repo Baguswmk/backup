@@ -1029,6 +1029,7 @@ const OverviewManagement = () => {
       {/* ✅ Table Component */}
       <OverviewTable
         data={paginatedData}
+        allFilteredData={filteredData}
         currentPage={currentPage}
         totalPages={totalPages}
         itemsPerPage={itemsPerPage}

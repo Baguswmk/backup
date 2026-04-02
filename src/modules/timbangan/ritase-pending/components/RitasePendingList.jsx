@@ -35,7 +35,7 @@ export const RitasePendingList = ({ onRegisterRefresh }) => {
   const hasFetchedOnce = useRef(false);
   const user = useAuthStore((state) => state.user);
   const { isSyncing, syncRitases } = useRitasePendingSync();
-
+  const isCCR = user.role === "ccr";
   // ─── Fetch ─────────────────────────────────────────────────────────────────
 
   const fetchPendingRitases = async ({ silent = false } = {}) => {
@@ -251,7 +251,7 @@ export const RitasePendingList = ({ onRegisterRefresh }) => {
               </p>
             </div>
 
-            {someSelected && (
+            {someSelected && isCCR && (
               <Button
                 onClick={handleBulkSync}
                 disabled={isSyncing}
@@ -367,11 +367,12 @@ export const RitasePendingList = ({ onRegisterRefresh }) => {
 
                   {/* Action Buttons */}
                   <div className="flex items-center gap-2 flex-shrink-0">
-                    <Button
-                      onClick={(e) => handleSyncGroup(group, e)}
-                      disabled={isSyncing}
-                      variant="outline"
-                      size="sm"
+                    {isCCR && (
+                      <Button
+                        onClick={(e) => handleSyncGroup(group, e)}
+                        disabled={isSyncing}
+                        variant="outline"
+                        size="sm"
                       className="gap-1.5 border-green-300 dark:border-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 text-green-700 dark:text-green-400"
                       title={`Sync ${group.totalRit} ritase`}
                     >
@@ -380,6 +381,7 @@ export const RitasePendingList = ({ onRegisterRefresh }) => {
                       />
                       <span className="hidden sm:inline">Sync</span>
                     </Button>
+                    )}
 
                     <Button
                       onClick={() => setSelectedGroup(group)}
@@ -412,6 +414,7 @@ export const RitasePendingList = ({ onRegisterRefresh }) => {
       {/* Detail Modal */}
       {selectedGroup && (
         <RitaseDetailModal
+        isOpen={!!selectedGroup}
           group={selectedGroup}
           onClose={() => setSelectedGroup(null)}
           onSyncSuccess={() => fetchPendingRitases({ silent: false })}
