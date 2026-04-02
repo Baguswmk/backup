@@ -299,7 +299,7 @@ export const generateExcel_DumpTruck = (data, params) => {
     "Loading Point",
     "Seam",
     "Dumping Point",
-    "Compartment",
+    "Kompartemen",
     "Jarak (m)",
     "Pengukuran",
     "Jenis BB",
