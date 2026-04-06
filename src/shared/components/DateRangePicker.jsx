@@ -30,7 +30,7 @@ export const DateRangePicker = ({
   mode = "range",
 }) => {
   const isSingleDay = mode === "singleDay" || mode === "singleDayNoAll";
-  const allowAllShift = mode !== "singleDayNoAll";
+  const allowAllShift = mode !== "singleDayNoAll" && mode !== "rangeNoAll";
 
   const shiftOptions = getShiftOptions(allowAllShift);
 

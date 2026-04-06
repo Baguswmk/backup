@@ -22,22 +22,16 @@ export const Sidebar = ({
   const { checkMenuAccess } = useMenuAccess(menuItems, isMenuAccessible);
 
   const isActive = useMemo(() => {
-    return (item) => {
-      if (!item) return false;
-      if (item.name === activeMenu) return true;
-      if (item.children && Array.isArray(item.children)) {
-        return item.children.some((child) => {
-          if (child?.name === activeMenu) return true;
-          if (child?.children && Array.isArray(child.children)) {
-            return child.children.some(
-              (grandchild) => grandchild?.name === activeMenu,
-            );
-          }
-          return false;
-        });
+    const isNodeActive = (node) => {
+      if (!node) return false;
+      const nodeId = node.locationId || node.name;
+      if (nodeId === activeMenu) return true;
+      if (node.children && Array.isArray(node.children)) {
+        return node.children.some(isNodeActive);
       }
       return false;
     };
+    return isNodeActive;
   }, [activeMenu]);
 
   const handleMenuClick = useCallback(
@@ -141,7 +135,7 @@ export const Sidebar = ({
     if (!hasAccess) return null;
 
     const Icon = item.icon;
-    const itemPath = `${item.name}-${level}`;
+    const itemPath = item.locationId || item.name;
     const isDropdownOpen = openDropdowns[itemPath];
     const isItemActive = isActive(item);
 
@@ -186,14 +180,14 @@ export const Sidebar = ({
 
     return (
       <Button
-        key={item.name}
-        onClick={() => handleMenuClick(item.name, item)}
+        key={itemPath}
+        onClick={() => handleMenuClick(itemPath, item)}
         variant="ghost"
         className={cn(
           "w-full justify-start text-left transition-all duration-200 cursor-pointer",
           paddingLeft,
           "py-3",
-          activeMenu === item.name
+          activeMenu === itemPath
             ? "bg-[#ea661c] text-white hover:bg-[#ea661c] dark:bg-[#ea661c]"
             : "hover:bg-gray-100 dark:hover:bg-slate-800 dark:text-gray-200",
         )}
