@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useMemo, useEffect } from "react";
-import { Plus, Search, RefreshCw, Database, Calendar, MoreVertical, Eye, FileText, Pencil } from "lucide-react";
+import { Plus, RefreshCw,  MoreVertical, Eye,  Pencil } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
 import { useBeltConveyor } from "./hooks/useBeltConveyor";
 import TambahBeltConveyorModal from "./components/TambahBeltConveyorModal";
@@ -31,7 +31,6 @@ const getHoursByShift = (shift) => {
     case "Shift 1": return [22, 23, 0, 1, 2, 3, 4, 5];
     case "Shift 2": return [6, 7, 8, 9, 10, 11, 12, 13];
     case "Shift 3": return [14, 15, 16, 17, 18, 19, 20, 21];
-    case "All":
     default:
       return [6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 0, 1, 2, 3, 4, 5];
   }
@@ -43,13 +42,17 @@ const DashboardTab = ({
   isLoading,
   filters,
   onFiltersChange,
+  onCommitFilters,   // ← commit shift/date ke committedFilters (trigger actual fetch)
   onRefreshData,
   masters,
   fetchLatestBeltscale,
+  onUpdateCoalType,
+  onCreateSetting,
   onEdit,
   onDetail,
   onAdd,
   onAddWithConfig,
+  refreshTrigger,
 }) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [isFilterExpanded, setIsFilterExpanded] = useState(false);
@@ -58,6 +61,11 @@ const DashboardTab = ({
   const [editingCoalType, setEditingCoalType] = useState(null);
   const [tempCoalTypeValue, setTempCoalTypeValue] = useState("");
   const [pendingCoalChange, setPendingCoalChange] = useState(null);
+
+  const handleManualRefresh = useCallback(async () => {
+    if (onRefreshData) await onRefreshData();
+    // (refreshTrigger change now handled by parent when clicking refresh button)
+  }, [onRefreshData]);
 
   const coalTypeItems = useMemo(
     () =>
@@ -84,26 +92,62 @@ const DashboardTab = ({
         const loaders = DEFAULT_BELT_CONVEYOR_CONFIGS.map(c => c.loader);
         const scales = await fetchLatestBeltscale(loaders);
         if (isMounted) setLatestBeltscales(scales);
-      } catch (e) {}
+      } catch (e) {
+        console.error("[DashboardTab] Gagal fetch latest beltscale:", e);
+      }
     };
     loadScales();
     return () => { isMounted = false; };
-  }, [fetchLatestBeltscale, data]); // Refetch when data changes
+  }, [fetchLatestBeltscale, refreshTrigger]);
 
   const displayHours = useMemo(() => getHoursByShift(filters.shift), [filters.shift]);
 
-  const confirmCoalTypeChange = () => {
-    if (pendingCoalChange) {
-      const { loader, val } = pendingCoalChange;
-      if (val) {
-        localStorage.setItem(`batuBara_${loader}`, val);
-      } else {
-        localStorage.removeItem(`batuBara_${loader}`);
-      }
-      setCoalTypeConfigs((prev) => ({ ...prev, [loader]: val }));
+  const confirmCoalTypeChange = async () => {
+    if (!pendingCoalChange) return;
+
+    const { loader, val } = pendingCoalChange;
+    if (!val) {
       setPendingCoalChange(null);
       setEditingCoalType(null);
+      return;
     }
+
+    const settingId = latestBeltscales[loader]?.settingId;
+    const coalTypeNum = Number(val);
+
+    try {
+      if (settingId) {
+        // PATCH: update coal_type di setting yang sudah ada
+        await onUpdateCoalType({ id: settingId, payload: { coal_type: coalTypeNum } });
+      } else {
+        // POST: buat setting baru jika belum ada
+        const config = DEFAULT_BELT_CONVEYOR_CONFIGS.find(c => c.loader === loader);
+        if (!config) {
+          console.error("[confirmCoalTypeChange] Config tidak ditemukan untuk loader:", loader);
+          setPendingCoalChange(null);
+          setEditingCoalType(null);
+          return;
+        }
+        await onCreateSetting({
+          hauler:    config.hauler,   // hull_no string, BE resolve ke ID
+          loader:    config.loader,   // hull_no string, BE resolve ke ID
+          coal_type: coalTypeNum,
+        });
+      }
+
+      // Update state lokal agar UI langsung reflect
+      setCoalTypeConfigs(prev => ({ ...prev, [loader]: val }));
+
+      setRefreshTrigger(prev => prev + 1);
+
+    } catch (e) {
+      console.error("[confirmCoalTypeChange] Gagal simpan coal_type:", e);
+      localStorage.setItem(`batuBara_${loader}`, val);
+      setCoalTypeConfigs(prev => ({ ...prev, [loader]: val }));
+    }
+
+    setPendingCoalChange(null);
+    setEditingCoalType(null);
   };
 
   const openCoalEdit = (loaderName, currentVal) => {
@@ -112,20 +156,39 @@ const DashboardTab = ({
   };
 
   const checkIsAddLocked = useCallback((hour) => {
-    let targetDate = filters.dateRange?.from ? new Date(filters.dateRange.from) : new Date();
-    targetDate.setHours(0, 0, 0, 0); // reset time
+    // Hanya lock jam yang BELUM dimulai (future hours)
+    // Jam yang sedang berjalan atau sudah lewat = bisa diisi
+    const now = new Date();
+    const currentHour = now.getHours();
 
-    // Shift 1 crosses over to the next day for hours 0-5
-    if (hour >= 0 && hour <= 5) {
-      targetDate.setDate(targetDate.getDate() + 1);
+    // Jika filter dateRange bukan hari ini, unlock semua (data historis)
+    const filterDate = filters.dateRange?.from ? new Date(filters.dateRange.from) : null;
+    if (filterDate) {
+      const filterDay = new Date(filterDate);
+      filterDay.setHours(0, 0, 0, 0);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      // Kalau filter hari sebelumnya → semua jam bisa diisi
+      if (filterDay.getTime() < today.getTime()) return false;
     }
 
-    // You can only input AFTER the hour has passed: e.g., you can input 14:00 at 15:00.
-    targetDate.setHours(hour + 1, 0, 0, 0);
-    const now = new Date();
-    
-    // Lock if the current real time is strictly BEFORE the unlock time.
-    return now.getTime() < targetDate.getTime();
+    // Untuk shift 1 (jam 22-5), jam 22-23 ada di hari sebelumnya
+    // sedangkan jam 0-5 ada di hari berikutnya — kita cukup bandingkan jam saja
+    // Locked hanya jika jam tersebut belum dimulai (hour > currentHour)
+    if (hour >= 0 && hour <= 5) {
+      // Jam dini hari: hanya locked jika sudah melewati tengah malam tapi hour belum tercapai
+      // Misal: sekarang jam 01:xx, jam 3 masih terkunci
+      // Misal: sekarang jam 23:xx, jam 0-5 belum dimulai = terkunci
+      const isAfterMidnight = currentHour >= 0 && currentHour <= 5;
+      if (isAfterMidnight) {
+        return hour > currentHour;
+      }
+      // Sekarang masih sore/malam (jam >= 6), jam 0-5 belum datang = terkunci
+      return true;
+    }
+
+    // Jam normal (6-23): locked jika hour > jam sekarang
+    return hour > currentHour;
   }, [filters.dateRange]);
 
   const aggregatedData = useMemo(() => {
@@ -135,14 +198,15 @@ const DashboardTab = ({
       let totalTonase = 0;
       let hourlyData = {};
       let actualRecords = {};
-      
+
       records.forEach((record) => {
-        totalTonase += Number(record.tonnage || 0);
+        const recordDelta = Number(record.tonnage || 0);
+        totalTonase += recordDelta;
         if (record.date) {
-            const recordDate = new Date(record.date);
-            const hourKey = `${recordDate.getHours().toString().padStart(2, "0")}:00`;
-            hourlyData[hourKey] = (hourlyData[hourKey] || 0) + Number(record.tonnage || 0);
-            actualRecords[hourKey] = record;
+          const recordDate = new Date(record.date);
+          const hourKey = `${recordDate.getHours().toString().padStart(2, "0")}:00`;
+          hourlyData[hourKey] = (hourlyData[hourKey] || 0) + recordDelta;
+          actualRecords[hourKey] = record;
         }
       });
 
@@ -150,9 +214,9 @@ const DashboardTab = ({
       if (records.length > 0) {
         const dates = [...new Set(records.map((r) => r.date?.split("T")[0]).filter(Boolean))];
         if (dates.length === 1) {
-             dateStr = formatDate(dates[0]);
+          dateStr = formatDate(dates[0]);
         } else if (dates.length > 1) {
-             dateStr = `${formatDate(dates[0])} - ${formatDate(dates[dates.length - 1])}`;
+          dateStr = `${formatDate(dates[0])} - ${formatDate(dates[dates.length - 1])}`;
         }
       } else if (filters?.dateRange?.from) {
         try {
@@ -162,7 +226,24 @@ const DashboardTab = ({
           dateStr = String(filters.dateRange.from);
         }
       }
-      
+
+      let coalTypeIdMatched = coalTypeConfigs[config.loader] || "";
+      const beCoalType = latestBeltscales[config.loader]?.coal_type;
+
+      if (beCoalType) {
+        const found = coalTypeItems && coalTypeItems.find(c =>
+          String(c.label).trim().toLowerCase() === String(beCoalType).trim().toLowerCase() ||
+          String(c.value) === String(beCoalType)
+        );
+        if (found) {
+          coalTypeIdMatched = found.value;
+        } else {
+          coalTypeIdMatched = beCoalType;
+        }
+      }
+
+      const beBeltscale = latestBeltscales[config.loader]?.beltscale;
+
       return {
         ...config,
         records,
@@ -170,27 +251,32 @@ const DashboardTab = ({
         hourlyData,
         actualRecords,
         dateStr,
-        coalTypeId: coalTypeConfigs[config.loader] || "",
-        latestBeltscale: latestBeltscales[config.loader] || "-",
+        coalTypeId: coalTypeIdMatched,
+        latestBeltscale: beBeltscale != null ? beBeltscale : "-",
       };
     }).filter((item) => {
-        if (!searchTerm) return true;
-        const s = searchTerm.toLowerCase();
-        return item.loader.toLowerCase().includes(s) || 
-               item.hauler.toLowerCase().includes(s) || 
-               item.loading_point.toLowerCase().includes(s) || 
-               item.dumping_point.toLowerCase().includes(s);
+      if (!searchTerm) return true;
+      const s = searchTerm.toLowerCase();
+      return item.loader.toLowerCase().includes(s) ||
+        item.hauler.toLowerCase().includes(s) ||
+        item.loading_point.toLowerCase().includes(s) ||
+        item.dumping_point.toLowerCase().includes(s);
     });
-  }, [data, filters, searchTerm, coalTypeConfigs, latestBeltscales]);
+  }, [data, filters, searchTerm, coalTypeConfigs, latestBeltscales, coalTypeItems]);
 
   const handleDateRangeChange = useCallback(
     (range) => {
+      const updatedShift = range.shift || filters.shift;
+      
       onFiltersChange({
         dateRange: range,
-        shift: filters.shift,
+        shift: updatedShift,
       });
+      if (onCommitFilters) {
+        onCommitFilters({ dateRange: range, shift: updatedShift });
+      }
     },
-    [onFiltersChange, filters.shift],
+    [onFiltersChange, onCommitFilters, filters.shift],
   );
 
   return (
@@ -216,7 +302,7 @@ const DashboardTab = ({
               <span>Tambah Data</span>
             </Button>
             <Badge variant="secondary" className="dark:bg-slate-700 dark:text-slate-200">
-              {filters.shift === "All" ? "Semua Shift" : filters.shift} ({displayHours.length} jam)
+              {filters.shift} (8 jam)
             </Badge>
           </div>
         </CardTitle>
@@ -225,14 +311,14 @@ const DashboardTab = ({
         <TableToolbar
           dateRange={filters.dateRange}
           onDateRangeChange={handleDateRangeChange}
+          datePickerMode="rangeNoAll"
           currentShift={filters.shift}
           viewingShift={filters.shift}
-          onShiftChange={(shift) => onFiltersChange({ dateRange: filters.dateRange, shift })}
           searchQuery={searchTerm}
           onSearchChange={setSearchTerm}
           searchPlaceholder="Cari loader, hauler, loading..."
           isRefreshing={isLoading}
-          onRefresh={onRefreshData}
+          onRefresh={handleManualRefresh}
           filterExpanded={isFilterExpanded}
           onToggleFilter={() => setIsFilterExpanded(!isFilterExpanded)}
         />
@@ -240,7 +326,7 @@ const DashboardTab = ({
         {isFilterExpanded && (
           <AdvancedFilter
             isExpanded={isFilterExpanded}
-            filterGroups={[]} // bisa diisi field filter lain jika perlu di masa depan
+            filterGroups={[]}
             hasActiveFilters={false}
             onResetFilters={() => {}}
           />
@@ -279,17 +365,19 @@ const DashboardTab = ({
                     {row.latestBeltscale !== "-" ? Number(row.latestBeltscale).toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 2 }) : "-"}
                   </td>
                   <td className="px-2 py-1 sticky left-[315px] z-10 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 text-xs text-center border-t border-b">
-                    <button 
+                    <button
                       onClick={() => openCoalEdit(row.loader, row.coalTypeId)}
                       className="w-full text-left bg-slate-50 hover:bg-slate-100 dark:bg-slate-800/80 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded px-2 py-1.5 focus:outline-none transition-colors flex items-center justify-between group"
                     >
                       <span className="truncate mr-2 font-medium">
-                        {row.coalTypeId ? coalTypeItems.find(c => c.value === String(row.coalTypeId))?.label || "Batu Bara" : "Pilih..."}
+                        {row.coalTypeId
+                          ? coalTypeItems.find(c => c.value === String(row.coalTypeId))?.label || "Batu Bara"
+                          : "Pilih..."}
                       </span>
                       <Pencil className="w-3 h-3 shrink-0 text-slate-400 group-hover:text-teal-600 opacity-60 group-hover:opacity-100" />
                     </button>
                   </td>
-                  
+
                   {displayHours.map((hour) => {
                     const hourKey = `${hour.toString().padStart(2, "0")}:00`;
                     const hasData = row.hourlyData[hourKey] > 0;
@@ -302,7 +390,7 @@ const DashboardTab = ({
                     return (
                       <td key={hour} className="px-2 py-3 text-center border-r border-slate-200 dark:border-slate-700">
                         {hasData ? (
-                          <Button 
+                          <Button
                             className="inline-block px-2 py-1 rounded text-xs font-medium cursor-pointer hover:opacity-80 transition-all hover:scale-105 bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-300 border border-green-300 dark:border-green-700 hover:bg-green-200 dark:hover:bg-green-900/60"
                             onClick={() => onEdit(record)}
                             title={`${value.toFixed(2)} ton - Klik untuk edit`}
@@ -310,7 +398,7 @@ const DashboardTab = ({
                             {Number(value).toLocaleString("id-ID", { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
                           </Button>
                         ) : isLocked ? (
-                          <span 
+                          <span
                             className="inline-flex w-8 h-8 items-center justify-center text-slate-300 dark:text-slate-700 cursor-not-allowed"
                             title={`Terkunci: Tunggu jam ${unlockHourLabel} untuk mengisi data jam ${hourKey}`}
                           >
@@ -330,44 +418,32 @@ const DashboardTab = ({
                       </td>
                     );
                   })}
-                  
+
                   <td className="px-3 py-3 text-center bg-blue-50 dark:bg-blue-900/30 border-r border-slate-200 dark:border-slate-700">
-                    <span className="inline-block px-3 py-1 bg-blue-600 dark:bg-blue-700 text-white rounded font-bold text-sm">
+                    <span className="inline-block px-3 py-1 bg-blue-600 dark:bg-blue-700 text-white rounded text-xs font-bold">
                       {Number(row.totalTonase).toLocaleString("id-ID", { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
                     </span>
                   </td>
-                  
-                  <td className="px-3 py-3 text-slate-700 dark:text-slate-300 border-r border-slate-200 dark:border-slate-700 text-xs">
-                    <div className="flex items-start gap-1.5">
-                      <span className="text-blue-500 text-xs mt-0.5">•</span>
-                      <span>{row.loading_point}</span>
-                    </div>
+                  <td className="px-3 py-3 text-slate-600 dark:text-slate-400 text-xs border-r border-slate-200 dark:border-slate-700">
+                    {row.loading_point}
                   </td>
-                  <td className="px-3 py-3 text-slate-700 dark:text-slate-300 border-r border-slate-200 dark:border-slate-700 text-xs">
-                    <div className="flex items-start gap-1.5">
-                      <span className="text-green-500 text-xs mt-0.5">•</span>
-                      <span>{row.dumping_point}</span>
-                    </div>
+                  <td className="px-3 py-3 text-slate-600 dark:text-slate-400 text-xs border-r border-slate-200 dark:border-slate-700">
+                    {row.dumping_point}
                   </td>
-
-                  <td className="px-3 py-3 text-center">
-                    <DropdownMenu>
+                  <td className="px-3 py-3 text-center ">
+                    <DropdownMenu className="">
                       <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0 hover:bg-slate-100 dark:hover:bg-slate-700">
+                        <Button variant="ghost" size="icon" className="h-8 w-8">
                           <MoreVertical className="h-4 w-4" />
                         </Button>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-48 bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100">
+                      <DropdownMenuContent align="end" className="dark:text-neutral-50 bg-white dark:bg-slate-700 border-none">
                         {row.records.length > 0 && (
-                          <DropdownMenuItem className="cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700" onClick={() => onDetail(row.records[0])}>
-                            <Eye className="w-4 h-4 mr-2" />
-                            Lihat Detail Terakhir
+                          <DropdownMenuItem className="cursor-pointer" onClick={() => onDetail(row.records[row.records.length - 1])}>
+                            <Eye className="mr-2 h-4 w-4" />
+                            Detail Terakhir
                           </DropdownMenuItem>
                         )}
-                        <DropdownMenuItem className="cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700" onClick={() => alert("Cetak PDF untuk " + row.loader)}>
-                          <FileText className="w-4 h-4 mr-2" />
-                          Cetak PDF
-                        </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </td>
@@ -378,6 +454,7 @@ const DashboardTab = ({
         </div>
       </CardContent>
 
+      {/* Dialog edit coal type */}
       <Dialog open={!!editingCoalType} onOpenChange={() => setEditingCoalType(null)}>
         <DialogContent className="sm:max-w-md bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800">
           <DialogHeader className="border-b border-slate-100 dark:border-slate-800 pb-3">
@@ -396,10 +473,10 @@ const DashboardTab = ({
           </div>
           <DialogFooter className="border-t border-slate-100 dark:border-slate-800 pt-3">
             <Button variant="outline" onClick={() => setEditingCoalType(null)}>Batal</Button>
-            <Button 
+            <Button
               onClick={() => {
                 setPendingCoalChange({ loader: editingCoalType.loader, val: tempCoalTypeValue });
-              }} 
+              }}
               className="bg-teal-600 hover:bg-teal-700 text-white"
             >
               Simpan
@@ -428,14 +505,21 @@ const BeltConveyorManagement = () => {
     isLoading,
     deleteData,
     updateData,
+    updateSetting,
+    createSetting,
     filters,
     updateFilters,
+    onApply,
     refetch,
     masters,
     mastersLoading,
     refreshMasters,
     fetchLatestBeltscale,
-  } = useBeltConveyor();
+  } = useBeltConveyor({
+    filterMode: "daily",           // BeltConveyorManagement: input harian operasional
+    // shift default = workInfo.shift (dari hook base defaults)
+    // dateRange default = hari ini (dari hook base defaults)
+  });
 
   const [selectedItem, setSelectedItem] = useState(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -443,6 +527,12 @@ const BeltConveyorManagement = () => {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+
+  const handleRefreshAll = useCallback(() => {
+    refetch();
+    setRefreshTrigger((prev) => prev + 1);
+  }, [refetch]);
 
   const handleEdit = useCallback((item) => {
     setSelectedItem(item);
@@ -463,9 +553,10 @@ const BeltConveyorManagement = () => {
         await updateData({ id: selectedItem.id, payload: formData });
         setIsEditModalOpen(false);
         setSelectedItem(null);
+        handleRefreshAll();
       }
     },
-    [selectedItem, updateData],
+    [selectedItem, updateData, handleRefreshAll],
   );
 
   const handleConfirmDelete = useCallback(async () => {
@@ -473,8 +564,9 @@ const BeltConveyorManagement = () => {
       await deleteData(selectedItem.id);
       setIsDeleteDialogOpen(false);
       setSelectedItem(null);
+      handleRefreshAll();
     }
-  }, [selectedItem, deleteData]);
+  }, [selectedItem, deleteData, handleRefreshAll]);
 
   const handleRefreshMaster = useCallback(() => {
     refreshMasters({ forceRefresh: true });
@@ -490,7 +582,7 @@ const BeltConveyorManagement = () => {
     setInitialModalData({
       ...config,
       dateStr: targetDate.toISOString(),
-      shift: filters.shift !== "All" ? filters.shift : "Shift 2",
+      shift: filters.shift,
       isHourlyInput: true,
       hourLabel: `${hour}:00`,
       coal_type_id: config.coalTypeId || "",
@@ -505,11 +597,21 @@ const BeltConveyorManagement = () => {
         isLoading={isLoading}
         filters={filters}
         onFiltersChange={updateFilters}
-        onRefreshData={refetch}
+        onCommitFilters={(newFilters) => {
+          // Saat shift diubah di dashboard, commit langsung supaya data refetch
+          updateFilters(newFilters);
+          // Force commit: update committedFilters via updateFilters
+          // (daily-like auto-commit sudah dihandle di hook via onApply)
+          onApply();
+        }}
+        onRefreshData={handleRefreshAll}
+        refreshTrigger={refreshTrigger}
         onRefreshMaster={handleRefreshMaster}
         mastersLoading={mastersLoading}
         masters={masters}
         fetchLatestBeltscale={fetchLatestBeltscale}
+        onUpdateCoalType={updateSetting}
+        onCreateSetting={createSetting}
         onEdit={handleEdit}
         onDetail={handleDetail}
         onDelete={handleDelete}
@@ -526,9 +628,11 @@ const BeltConveyorManagement = () => {
         onSuccess={() => {
           setIsAddModalOpen(false);
           setInitialModalData(null);
-          refetch();
+          handleRefreshAll();
         }}
         initialData={initialModalData}
+        masters={masters}
+        fetchLatestBeltscale={fetchLatestBeltscale}
       />
 
       {/* Edit Modal */}

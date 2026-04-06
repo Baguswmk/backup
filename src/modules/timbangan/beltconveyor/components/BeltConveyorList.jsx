@@ -79,9 +79,9 @@ export default function BeltConveyorList({
               <TableHead className="font-semibold text-slate-600 dark:text-slate-300 w-[4%]">No</TableHead>
               <TableHead className="font-semibold text-slate-600 dark:text-slate-300 w-[12%]">Tanggal</TableHead>
               <TableHead className="font-semibold text-slate-600 dark:text-slate-300 w-[8%] text-center">Shift</TableHead>
-              <TableHead className="font-semibold text-slate-600 dark:text-slate-300 w-[10%] text-right">Beltscale (T)</TableHead>
-              <TableHead className="font-semibold text-slate-600 dark:text-slate-300 w-[10%] text-right">Tonase (T)</TableHead>
-              {/* <TableHead className="font-semibold text-slate-600 dark:text-slate-300 w-[8%] text-right">Delta (Δ)</TableHead> */}
+              <TableHead className="font-semibold text-slate-600 dark:text-slate-300 w-[10%] text-right">Beltscale Sebelumnya (T)</TableHead>
+              <TableHead className="font-semibold text-slate-600 dark:text-slate-300 w-[10%] text-right">Beltscale Saat Ini (T)</TableHead>
+              <TableHead className="font-semibold text-slate-600 dark:text-slate-300 w-[10%] text-right">Tonase / Delta (T)</TableHead>
               <TableHead className="font-semibold text-slate-600 dark:text-slate-300 w-[10%]">Loader</TableHead>
               <TableHead className="font-semibold text-slate-600 dark:text-slate-300 w-[10%]">Hauler</TableHead>
               <TableHead className="font-semibold text-slate-600 dark:text-slate-300 w-[9%] text-center">Status</TableHead>
@@ -92,7 +92,14 @@ export default function BeltConveyorList({
           <TableBody className="bg-white dark:bg-slate-800 divide-y divide-slate-100 dark:divide-slate-700/50">
             {paginatedData.map((item, index) => {
               const globalIndex = (currentPage - 1) * itemsPerPage + index + 1;
-              const delta = item.delta ?? null;
+              // beltscale di DB = Beltscale Saat Ini (kumulatif)
+              const beltscaleCurr = item.beltscale ?? null;
+              // tonnage di DB = delta/selisih
+              const delta = item.tonnage ?? null;
+              // Beltscale Sebelumnya = kumulatif - delta (dihitung FE, hanya untuk display)
+              const beltscalePrev = (beltscaleCurr != null && delta != null)
+                ? Number(beltscaleCurr) - Number(delta)
+                : beltscaleCurr;
               const isPositiveDelta = delta !== null && delta >= 0;
 
               return (
@@ -119,27 +126,25 @@ export default function BeltConveyorList({
                     </span>
                   </TableCell>
 
-                  {/* Beltscale */}
-                  <TableCell className="text-right font-mono text-slate-600 dark:text-slate-300">
-                    {fmtNum(item.beltscale)}
+                  {/* Beltscale Sebelumnya */}
+                  <TableCell className="text-right font-mono text-slate-500 dark:text-slate-400">
+                    {fmtNum(beltscalePrev)}
                   </TableCell>
 
-                  {/* Tonase */}
-                  <TableCell className="text-right font-mono font-semibold text-slate-900 dark:text-slate-100">
-                    {fmtNum(item.tonnage)}
+                  {/* Beltscale Saat Ini */}
+                  <TableCell className="text-right font-mono text-slate-700 dark:text-slate-300">
+                    {fmtNum(beltscaleCurr)}
                   </TableCell>
 
-                  {/* Delta */}
-                  {/* <TableCell className="text-right">
+                  {/* Tonase / Delta */}
+                  <TableCell className="text-right">
                     {delta !== null ? (
-                      <span
-                        className={cn(
-                          "inline-flex items-center gap-1 font-mono text-xs font-medium",
-                          isPositiveDelta
-                            ? "text-emerald-600 dark:text-emerald-400"
-                            : "text-red-500 dark:text-red-400",
-                        )}
-                      >
+                      <span className={cn(
+                        "inline-flex items-center gap-1 font-mono font-semibold text-sm",
+                        isPositiveDelta
+                          ? "text-emerald-600 dark:text-emerald-400"
+                          : "text-red-500 dark:text-red-400",
+                      )}>
                         {isPositiveDelta ? (
                           <TrendingUp className="w-3 h-3 shrink-0" />
                         ) : (
@@ -150,7 +155,7 @@ export default function BeltConveyorList({
                     ) : (
                       <span className="text-slate-400 text-xs">-</span>
                     )}
-                  </TableCell> */}
+                  </TableCell>
 
                   {/* Loader */}
                   <TableCell className="text-slate-700 dark:text-slate-300 text-sm">

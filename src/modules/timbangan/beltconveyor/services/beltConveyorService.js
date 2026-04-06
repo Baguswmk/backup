@@ -44,6 +44,15 @@ const unwrapOne = (response) => {
  *
  * ⚠️  delta = tonnage − beltscale is computed entirely in the FE.
  *      The backend stores it as-is — never re-calculates it.
+ *
+ * Konvensi field (berlaku di semua modal):
+ *   formData.tonnage   = "Beltscale Saat Ini"  → nilai kumulatif yang user input
+ *   formData.beltscale = "Beltscale Sebelumnya" → nilai kumulatif record sebelumnya
+ *   delta (computed)   = formData.tonnage - formData.beltscale
+ *
+ *   payload.beltscale  = formData.tonnage   (kumulatif terkini → disimpan di DB)
+ *   payload.tonnage    = delta              (selisih / produksi riil → disimpan di DB)
+ *   payload.delta      = delta              (field redundan, sama dengan tonnage)
  */
 export const beltConveyorService = {
   // ── GET list ──────────────────────────────────────────────────────────────
@@ -101,21 +110,18 @@ export const beltConveyorService = {
         return { success: true, data: [] };
       }
 
-      // BE expects: ?loader[]=Loader+A&loader[]=Loader+B
-      const params = new URLSearchParams();
-      loaders.forEach((l) => params.append("loader[]", l));
-
-      const url = `${BASE_URL}/latest?${params.toString()}`;
+      const url = `/v1/custom/setting-belt-conveyor`;
 
       logger.info("🔍 [BeltConveyor] fetchLatestPerLoader", { loaders });
 
-      // forceRefresh → bypass offlineService 5-min cache so refresh button works
       const response = await offlineService.get(url, { forceRefresh: true });
       const { items } = unwrapList(response);
 
-      logger.info(`✅ [BeltConveyor] fetchLatestPerLoader — ${items.length} records`);
+      const validItems = items.filter(Boolean);
 
-      return { success: true, data: items };
+      logger.info(`✅ [BeltConveyor] fetchLatestPerLoader — ${validItems.length} records`);
+
+      return { success: true, data: validItems };
     } catch (error) {
       const errorMessage = extractErrorMessage(error);
       logger.error("❌ [BeltConveyor] fetchLatestPerLoader failed", {
@@ -255,6 +261,73 @@ export const beltConveyorService = {
       const errorMessage = extractErrorMessage(error);
       logger.error("❌ [BeltConveyor] deleteData failed", {
         id,
+        error: errorMessage,
+        details: error?.response?.data,
+      });
+      return { success: false, error: errorMessage };
+    }
+  },
+
+  // ── PATCH setting (coal_type) ───────────────────────────────────────────────
+
+  /**
+   * Update the setting-belt-conveyor record (e.g. change coal_type).
+   * Calls PATCH /v1/custom/setting-belt-conveyor/:id
+   *
+   * @param {string|number} id      - setting-belt-conveyor ID
+   * @param {Object}        payload - e.g. { coal_type: <id> }
+   */
+  async updateSetting(id, payload) {
+    try {
+      logger.info("📡 [BeltConveyor] updateSetting", { id, payload });
+
+      const response = await offlineService.patch(
+        `/v1/custom/setting-belt-conveyor/${id}`,
+        payload,
+      );
+      const data = unwrapOne(response);
+
+      logger.info("✅ [BeltConveyor] updateSetting success", { id });
+
+      return { success: true, data };
+    } catch (error) {
+      const errorMessage = extractErrorMessage(error);
+      logger.error("❌ [BeltConveyor] updateSetting failed", {
+        id,
+        error: errorMessage,
+        details: error?.response?.data,
+      });
+      return { success: false, error: errorMessage };
+    }
+  },
+
+  // ── POST setting (create baru) ─────────────────────────────────────────────
+
+  /**
+   * Buat setting-belt-conveyor baru jika belum ada.
+   * Calls POST /v1/custom/setting-belt-conveyor
+   *
+   * @param {Object} payload
+   *   hauler    : hull_no string atau numeric ID hauler
+   *   loader    : hull_no string atau numeric ID loader
+   *   coal_type : numeric ID coal_type
+   */
+  async createSetting(payload) {
+    try {
+      logger.info("📡 [BeltConveyor] createSetting", { payload });
+
+      const response = await offlineService.post(
+        "/v1/custom/setting-belt-conveyor",
+        payload,
+      );
+      const data = unwrapOne(response);
+
+      logger.info("✅ [BeltConveyor] createSetting success");
+
+      return { success: true, data };
+    } catch (error) {
+      const errorMessage = extractErrorMessage(error);
+      logger.error("❌ [BeltConveyor] createSetting failed", {
         error: errorMessage,
         details: error?.response?.data,
       });

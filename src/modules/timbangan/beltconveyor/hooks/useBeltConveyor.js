@@ -19,14 +19,18 @@ export const useBeltConveyor = (initialFilters = {}) => {
   const queryClient = useQueryClient();
   const workInfo = getWorkShiftInfo();
 
-  const [filters, setFilters] = useState({
-    dateRange: {
-      from: workInfo.date,
-      to: workInfo.date,
-    },
-    shift: workInfo.shift,
-    ...initialFilters,
-  });
+  const currentMonth = new Date().toISOString().slice(0, 7); // "YYYY-MM"
+
+  // Base defaults — setiap consumer bisa override via initialFilters
+  const baseFilters = {
+    filterMode: "month",
+    month: currentMonth,
+    dateRange: { from: workInfo.date, to: workInfo.date },
+    shift: workInfo.shift,   // default: shift saat ini
+  };
+
+  const [filters, setFilters] = useState({ ...baseFilters, ...initialFilters });
+  const [committedFilters, setCommittedFilters] = useState({ ...baseFilters, ...initialFilters });
 
   // ── Masters from fleet module (same BE DB) ────────────────────────────────
   const { masters, mastersLoading, refreshMasters } = useFleet(null, "beltscale");
@@ -35,13 +39,25 @@ export const useBeltConveyor = (initialFilters = {}) => {
   const generateQueryParams = useCallback((currentFilters) => {
     const params = {};
 
-    // Date range → dateFrom / dateTo (BE expects YYYY-MM-DD)
-    if (currentFilters.dateRange?.from) params.dateFrom = currentFilters.dateRange.from;
-    if (currentFilters.dateRange?.to)   params.dateTo   = currentFilters.dateRange.to;
+    // Handle date ranges based on filterMode
+    if (currentFilters.filterMode === "month" && currentFilters.month) {
+      const [y, m] = currentFilters.month.split("-").map(Number);
+      // Construct exact YYYY-MM-DD
+      const start = new Date(Date.UTC(y, m - 1, 1)).toISOString().split("T")[0];
+      const end = new Date(Date.UTC(y, m, 0)).toISOString().split("T")[0];
+      params.dateFrom = start;
+      params.dateTo = end;
+    } else {
+      if (currentFilters.dateRange?.from) params.dateFrom = currentFilters.dateRange.from;
+      if (currentFilters.dateRange?.to)   params.dateTo   = currentFilters.dateRange.to;
+    }
 
-    // Shift — skip "All" (BE interprets absence as all shifts)
-    if (currentFilters.shift && currentFilters.shift !== "All") {
-      params.shift = currentFilters.shift;
+    // Shift — selalu kirim ke BE (BE wajib menerima shift).
+    params.shift = currentFilters.shift || workInfo.shift;
+
+    // Status — pass as is if not "All"
+    if (currentFilters.status && currentFilters.status !== "All") {
+      params.status = currentFilters.status;
     }
 
     return params;
@@ -55,26 +71,36 @@ export const useBeltConveyor = (initialFilters = {}) => {
     error,
     refetch,
   } = useQuery({
-    queryKey: ["belt-conveyor", filters],
+    queryKey: ["belt-conveyor", committedFilters],
     queryFn: async () => {
-      const params = generateQueryParams(filters);
+      const params = generateQueryParams(committedFilters);
       const response = await beltConveyorService.fetchData({ params });
       if (!response.success) throw new Error(response.error || "Gagal mengambil data");
       return response.data;
     },
-    staleTime: 5 * 60 * 1000,
-    keepPreviousData: true,
   });
 
-  // ── Fetch latest beltscale per loader (for Tambah modal beltscale pre-fill)
-  const fetchLatestBeltscale = useCallback(async (loaderNames = []) => {
+  // ── Fetch latest beltscale per loader
+  const fetchLatestBeltscale = useCallback(async (loaderNames = [], customFilters = {}) => {
     if (!loaderNames.length) return {};
-    const response = await beltConveyorService.fetchLatestPerLoader(loaderNames);
+    const response = await beltConveyorService.fetchLatestPerLoader(loaderNames, customFilters);
     if (!response.success || !Array.isArray(response.data)) return {};
 
     const map = {};
     response.data.forEach((record) => {
-      if (record?.loader) map[record.loader] = record.beltscale ?? record.tonnage ?? null;
+      if (record?.loader) {
+         const entry = {
+           settingId: record.id ?? null,  // ID setting untuk PATCH coal_type
+           beltscale: record.beltscale ?? null,
+           coal_type: record.coal_type || null,
+         };
+
+         if (record?.hauler) {
+            const key = `${record.loader}_${record.hauler}`;
+            if (!map[key]) map[key] = entry;
+         }
+         if (!map[record.loader]) map[record.loader] = entry;
+      }
     });
     return map;
   }, []);
@@ -82,22 +108,64 @@ export const useBeltConveyor = (initialFilters = {}) => {
   // ── Mutations ─────────────────────────────────────────────────────────────
   const createMutation = useMutation({
     mutationFn: (payload) => beltConveyorService.createData(payload),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["belt-conveyor"] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["belt-conveyor"] });
+      queryClient.invalidateQueries({ queryKey: ["latest-beltscales"] });
+    },
   });
 
   const updateMutation = useMutation({
     mutationFn: ({ id, payload }) => beltConveyorService.updateData(id, payload),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["belt-conveyor"] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["belt-conveyor"] });
+      queryClient.invalidateQueries({ queryKey: ["latest-beltscales"] });
+    },
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id) => beltConveyorService.deleteData(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["belt-conveyor"] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["belt-conveyor"] });
+      queryClient.invalidateQueries({ queryKey: ["latest-beltscales"] });
+    },
+  });
+
+  const updateSettingMutation = useMutation({
+    mutationFn: ({ id, payload }) => beltConveyorService.updateSetting(id, payload),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["setting-belt-conveyor"] }),
+  });
+
+  const createSettingMutation = useMutation({
+    mutationFn: (payload) => beltConveyorService.createSetting(payload),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["setting-belt-conveyor"] }),
   });
 
   const updateFilters = useCallback((newFilters) => {
-    setFilters((prev) => ({ ...prev, ...newFilters }));
-  }, []);
+    setFilters((prev) => {
+      const next = { ...prev, ...newFilters };
+
+      // Saat switch mode: pastikan kita tidak pakai "All" karena BC tidak support "All" shift
+      if (newFilters.filterMode !== undefined && newFilters.filterMode !== prev.filterMode) {
+        next.shift = workInfo.shift;
+      }
+
+      // Daily mode: auto-commit so data refreshes immediately
+      if (next.filterMode === "daily") {
+        setCommittedFilters(next);
+      }
+      return next;
+    });
+  }, [workInfo.shift]);
+
+  // Explicitly commit current filters → triggers fetch (used by "Terapkan" button)
+  const commit = useCallback(() => {
+    setCommittedFilters((prev) => ({ ...filters }));
+  }, [filters]);
+
+  // onApply: called by the date-filter "Terapkan" button in the management component
+  const onApply = useCallback(() => {
+    commit();
+  }, [commit]);
 
   return {
     // Data
@@ -109,6 +177,7 @@ export const useBeltConveyor = (initialFilters = {}) => {
     // Filters
     filters,
     updateFilters,
+    onApply,
     refetch,
 
     // Masters
@@ -126,5 +195,10 @@ export const useBeltConveyor = (initialFilters = {}) => {
     isUpdating: updateMutation.isPending,
     deleteData: deleteMutation.mutateAsync,
     isDeleting: deleteMutation.isPending,
+
+    // Setting CRUD
+    updateSetting: updateSettingMutation.mutateAsync,
+    createSetting: createSettingMutation.mutateAsync,
+    isUpdatingSetting: updateSettingMutation.isPending,
   };
 };

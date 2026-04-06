@@ -1,4 +1,10 @@
-import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import React, {
+  useState,
+  useEffect,
+  useMemo,
+  useCallback,
+  useRef,
+} from "react";
 import {
   Dialog,
   DialogContent,
@@ -18,6 +24,7 @@ import { showToast } from "@/shared/utils/toast";
 import { format } from "date-fns";
 import { calculateCurrentShiftAndGroup } from "@/shared/utils/group";
 import { DEFAULT_BELT_CONVEYOR_CONFIGS } from "../BeltConveyorManagement";
+
 // ── Constants ─────────────────────────────────────────────────────────────────
 const LOADER_OPTIONS = [
   { value: "Reclaim Feeder SBR 03", label: "Reclaim Feeder SBR 03" },
@@ -65,16 +72,31 @@ const EMPTY_FORM = {
 
 const findPointIdFuzzy = (locations, searchName) => {
   if (!locations || !searchName || !Array.isArray(locations)) return "";
-  const normalize = (s) => String(s || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+  const normalize = (s) =>
+    String(s || "")
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, "");
   const target = normalize(searchName);
-  const found = locations.find(l => normalize(l.name || l.location_name) === target);
+  const found = locations.find(
+    (l) => normalize(l.name || l.location_name) === target,
+  );
   return found ? found.id : "";
 };
 
 // ── Component ─────────────────────────────────────────────────────────────────
-const TambahBeltConveyorModal = ({ isOpen, onClose, onSuccess, initialData }) => {
-  const { createData, isCreating, masters, fetchLatestBeltscale } =
-    useBeltConveyor();
+const TambahBeltConveyorModal = ({
+  isOpen,
+  onClose,
+  onSuccess,
+  initialData,
+  masters: mastersProp,          // dari parent — tidak perlu fetch ulang
+  fetchLatestBeltscale: fetchLatestBeltscaleProp,  // dari parent
+}) => {
+  // Gunakan props dari parent jika ada, fallback ke hook sendiri
+  const hookResult = useBeltConveyor();
+  const { createData, isCreating } = hookResult;
+  const masters = mastersProp ?? hookResult.masters;
+  const fetchLatestBeltscale = fetchLatestBeltscaleProp ?? hookResult.fetchLatestBeltscale;
   const [isFetchingBeltscale, setIsFetchingBeltscale] = useState(false);
   const [beltscaleEditable, setBeltscaleEditable] = useState(false);
 
@@ -93,15 +115,24 @@ const TambahBeltConveyorModal = ({ isOpen, onClose, onSuccess, initialData }) =>
     }
   }, [formData.date, formData.shift]);
 
+  // ── FIX: handleLoaderChange tidak overwrite coal_type_id yang sudah ada ──
   const handleLoaderChange = useCallback(
     async (loaderName) => {
       handleChange("loader", loaderName);
 
       const m = mastersRef.current;
-      const config = DEFAULT_BELT_CONVEYOR_CONFIGS.find(c => c.loader === loaderName);
+      const config = DEFAULT_BELT_CONVEYOR_CONFIGS.find(
+        (c) => c.loader === loaderName,
+      );
       if (config) {
-        const lpId = findPointIdFuzzy(m?.loadingLocations, config.loading_point);
-        const dpId = findPointIdFuzzy(m?.dumpingLocations, config.dumping_point);
+        const lpId = findPointIdFuzzy(
+          m?.loadingLocations,
+          config.loading_point,
+        );
+        const dpId = findPointIdFuzzy(
+          m?.dumpingLocations,
+          config.dumping_point,
+        );
 
         setFormData((prev) => ({
           ...prev,
@@ -110,6 +141,8 @@ const TambahBeltConveyorModal = ({ isOpen, onClose, onSuccess, initialData }) =>
           dumping_point_id: dpId || prev.dumping_point_id,
           distance: config.distance || prev.distance,
           status: config.status || prev.status,
+          // ↓ jangan overwrite coal_type_id yang sudah diisi dari initialData
+          coal_type_id: prev.coal_type_id || "",
         }));
       }
 
@@ -119,7 +152,10 @@ const TambahBeltConveyorModal = ({ isOpen, onClose, onSuccess, initialData }) =>
         const map = await fetchLatestBeltscale([loaderName]);
         const prev = map[loaderName];
         if (prev != null) {
-          setFormData((f) => ({ ...f, beltscale: String(prev) }));
+          setFormData((f) => ({
+            ...f,
+            beltscale: prev.beltscale != null ? String(prev.beltscale) : "",
+          }));
         }
       } catch (e) {
         console.warn("fetchLatestBeltscale error", e);
@@ -131,6 +167,7 @@ const TambahBeltConveyorModal = ({ isOpen, onClose, onSuccess, initialData }) =>
   );
 
   // Derive delta (display only)
+  // delta = Beltscale Saat Ini (formData.tonnage) - Beltscale Sebelumnya (formData.beltscale)
   const delta = useMemo(() => {
     const t = parseFloat(sanitizeTonase(formData.tonnage));
     const b = parseFloat(formData.beltscale);
@@ -184,12 +221,20 @@ const TambahBeltConveyorModal = ({ isOpen, onClose, onSuccess, initialData }) =>
         };
 
         if (initialData) {
-          const lpId = findPointIdFuzzy(m?.loadingLocations, initialData.loading_point);
-          const dpId = findPointIdFuzzy(m?.dumpingLocations, initialData.dumping_point);
+          const lpId = findPointIdFuzzy(
+            m?.loadingLocations,
+            initialData.loading_point,
+          );
+          const dpId = findPointIdFuzzy(
+            m?.dumpingLocations,
+            initialData.dumping_point,
+          );
 
           newData = {
             ...newData,
-            date: toDatetimeLocal(initialData.dateStr || new Date().toISOString()),
+            date: toDatetimeLocal(
+              initialData.dateStr || new Date().toISOString(),
+            ),
             shift: initialData.shift || getCurrentShift(),
             loader: initialData.loader || "",
             hauler: initialData.hauler || "",
@@ -197,6 +242,8 @@ const TambahBeltConveyorModal = ({ isOpen, onClose, onSuccess, initialData }) =>
             dumping_point_id: dpId,
             distance: initialData.distance || "",
             status: initialData.status || newData.status,
+            // ↓ Pastikan coal_type_id dari initialData (config BeltConveyorList) ikut masuk
+            coal_type_id: initialData.coal_type_id || "",
           };
         }
 
@@ -211,7 +258,12 @@ const TambahBeltConveyorModal = ({ isOpen, onClose, onSuccess, initialData }) =>
             if (isSubscribed) {
               const prev = map[initialData.loader];
               if (prev != null) {
-                setFormData(f => ({ ...f, beltscale: String(prev) }));
+                setFormData((f) => ({
+                  ...f,
+                  beltscale: prev.beltscale != null
+                    ? String(prev.beltscale)
+                    : "",
+                }));
               }
             }
           } catch (e) {
@@ -248,7 +300,11 @@ const TambahBeltConveyorModal = ({ isOpen, onClose, onSuccess, initialData }) =>
       !formData.tonnage ||
       isNaN(parseFloat(sanitizeTonase(formData.tonnage)))
     )
-      errs.tonnage = "Beltscale Saat Ini wajib diisi (gunakan titik, bukan koma)";
+      errs.tonnage =
+        "Beltscale Saat Ini wajib diisi (gunakan titik, bukan koma)";
+    if (formData.beltscale === "" || isNaN(parseFloat(formData.beltscale))) {
+      errs.beltscale = "Beltscale Sebelumnya wajib diisi (ketik manual jika kosong)";
+    }
     if (!formData.loader) errs.loader = "Loader wajib dipilih";
     if (!formData.status) errs.status = "Status wajib dipilih";
     setErrors(errs);
@@ -264,10 +320,10 @@ const TambahBeltConveyorModal = ({ isOpen, onClose, onSuccess, initialData }) =>
         measurement_type: "Beltscale",
         date: new Date(formData.date).toISOString(),
         shift: formData.shift,
-        beltscale:
-          formData.tonnage !== "" ? parseFloat(sanitizeTonase(formData.tonnage)) : null,
-        // group dihitung otomatis dari date + shift di FE
+        // beltscale di DB = Beltscale Saat Ini (kumulatif) = formData.tonnage
+        beltscale: formData.tonnage !== "" ? parseFloat(sanitizeTonase(formData.tonnage)) : null,
         group: computedGroup !== "-" ? computedGroup : null,
+        // tonnage di DB = delta/selisih (Beltscale Saat Ini - Beltscale Sebelumnya)
         tonnage: delta !== null ? parseFloat(delta) : null,
         delta: delta !== null ? parseFloat(delta) : null,
         // Relation IDs — BE uses the field names without "_id" suffix
@@ -312,67 +368,95 @@ const TambahBeltConveyorModal = ({ isOpen, onClose, onSuccess, initialData }) =>
           >
             {isHourlyInput && (
               <div className="mb-4 p-4 bg-teal-50 dark:bg-teal-900/20 rounded-lg text-teal-800 dark:text-teal-200 border border-teal-200 dark:border-teal-800">
-                <p className="font-semibold text-base">{initialData?.loader} - Shift {initialData?.shift} - Jam {initialData?.hourLabel}</p>
+                <p className="font-semibold text-base">
+                  {initialData?.loader} - Shift {initialData?.shift} - Jam{" "}
+                  {initialData?.hourLabel}
+                </p>
                 <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-y-2 gap-x-4 text-sm opacity-95">
                   <div className="bg-white/50 dark:bg-slate-900/30 px-3 py-2 rounded sm:col-span-2">
-                    <span className="block text-xs uppercase tracking-wider opacity-70 mb-0.5">Batu Bara</span>
-                    <span className="font-medium">{coalTypeItems.find(c => String(c.value) === String(initialData?.coal_type_id))?.label || "-"}</span>
+                    <span className="block text-xs uppercase tracking-wider opacity-70 mb-0.5">
+                      Batu Bara
+                    </span>
+                    <span className="font-medium">
+                      {coalTypeItems.find(
+                        (c) =>
+                          String(c.value) === String(initialData?.coal_type_id),
+                      )?.label || "-"}
+                    </span>
                   </div>
                   <div className="bg-white/50 dark:bg-slate-900/30 px-3 py-2 rounded sm:col-span-2">
-                    <span className="block text-xs uppercase tracking-wider opacity-70 mb-0.5">Total Kumulatif Tonase</span>
-                    <span className="font-medium">{initialData?.latestBeltscale !== "-" && initialData?.latestBeltscale != null ? Number(initialData?.latestBeltscale).toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 2 }) : "-"} Ton</span>
+                    <span className="block text-xs uppercase tracking-wider opacity-70 mb-0.5">
+                      Total Kumulatif Tonase
+                    </span>
+                    <span className="font-medium">
+                      {initialData?.latestBeltscale !== "-" &&
+                      initialData?.latestBeltscale != null
+                        ? Number(initialData.latestBeltscale).toLocaleString(
+                            "en-US",
+                            {
+                              minimumFractionDigits: 0,
+                              maximumFractionDigits: 2,
+                            },
+                          )
+                        : "-"}
+                    </span>
                   </div>
                 </div>
               </div>
             )}
 
-            {!isHourlyInput && (
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div className="space-y-2">
-                  <Label className="text-slate-700 dark:text-slate-300">
-                    Tanggal & Waktu *
-                  </Label>
-                  <Input
-                    type="datetime-local"
-                    value={formData.date}
-                    onChange={(e) => handleChange("date", e.target.value)}
-                    className="dark:bg-slate-800 dark:border-slate-700 dark:text-white"
-                  />
-                  {errors.date && (
-                    <p className="text-red-500 text-xs">{errors.date}</p>
-                  )}
-                </div>
+            {/* Row: date + shift + group */}
+            {/* <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label className="text-slate-700 dark:text-slate-300">
+                  Tanggal & Waktu *
+                </Label>
+                <Input
+                  type="datetime-local"
+                  value={formData.date}
+                  onChange={(e) => handleChange("date", e.target.value)}
+                  className="dark:bg-slate-800 dark:border-slate-700 dark:text-white"
+                  disabled={isHourlyInput}
+                />
+                {errors.date && (
+                  <p className="text-red-500 text-xs">{errors.date}</p>
+                )}
+              </div>
 
-                <div className="space-y-2">
-                  <Label className="text-slate-700 dark:text-slate-300">
-                    Shift *
-                  </Label>
-                  <SearchableSelect
-                    items={SHIFT_OPTIONS}
-                    value={formData.shift}
-                    onChange={(val) => handleChange("shift", val)}
-                    placeholder="Pilih shift"
-                  />
-                  {errors.shift && (
-                    <p className="text-red-500 text-xs">{errors.shift}</p>
-                  )}
-                </div>
+              <div className="space-y-2">
+                <Label className="text-slate-700 dark:text-slate-300">
+                  Shift *
+                </Label>
+                <SearchableSelect
+                  items={SHIFT_OPTIONS}
+                  value={formData.shift}
+                  onChange={(val) => handleChange("shift", val)}
+                  placeholder="Pilih shift"
+                  disabled={isHourlyInput}
+                />
+                {errors.shift && (
+                  <p className="text-red-500 text-xs">{errors.shift}</p>
+                )}
+              </div>
 
+              {computedGroup !== "-" && (
                 <div className="space-y-2">
-                  <Label className="text-slate-700 dark:text-slate-300">
-                    Group{" "}
-                    <span className="text-slate-400 text-xs">(otomatis)</span>
+                  <Label className="text-slate-500 dark:text-slate-400">
+                    Group
+                    <span className="ml-1 text-xs text-slate-400">
+                      (otomatis)
+                    </span>
                   </Label>
-                  <div className="flex items-center h-10 px-3 rounded-md border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800">
+                  <div className="flex items-center gap-2 h-10 px-3 rounded-md border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
                     <span
-                      className={`inline-flex items-center justify-center w-7 h-7 rounded-full text-sm font-bold mr-2 ${
-                        computedGroup === "q A"
+                      className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold ${
+                        computedGroup === "A"
                           ? "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300"
-                          : computedGroup === "Group B"
+                          : computedGroup === "B"
                             ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300"
-                            : computedGroup === "Group C"
+                            : computedGroup === "C"
                               ? "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300"
-                              : computedGroup === "Group D"
+                              : computedGroup === "D"
                                 ? "bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300"
                                 : "bg-slate-100 text-slate-400"
                       }`}
@@ -384,24 +468,12 @@ const TambahBeltConveyorModal = ({ isOpen, onClose, onSuccess, initialData }) =>
                     </span>
                   </div>
                 </div>
-              </div>
-            )}
+              )}
+            </div> */}
 
+            {/* Row: loader + hauler */}
             {!isHourlyInput && (
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div className="space-y-2">
-                  <Label className="text-slate-700 dark:text-slate-300">
-                    Coal Type
-                  </Label>
-                  <SearchableSelect
-                    items={coalTypeItems}
-                    value={formData.coal_type_id}
-                    onChange={(val) => handleChange("coal_type_id", val)}
-                    placeholder="Pilih coal type"
-                    allowClear
-                  />
-                </div>
-
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label className="text-slate-700 dark:text-slate-300">
                     Loader *
@@ -416,7 +488,6 @@ const TambahBeltConveyorModal = ({ isOpen, onClose, onSuccess, initialData }) =>
                     <p className="text-red-500 text-xs">{errors.loader}</p>
                   )}
                 </div>
-
                 <div className="space-y-2">
                   <Label className="text-slate-700 dark:text-slate-300">
                     Hauler
@@ -424,73 +495,66 @@ const TambahBeltConveyorModal = ({ isOpen, onClose, onSuccess, initialData }) =>
                   <Input
                     value={formData.hauler}
                     onChange={(e) => handleChange("hauler", e.target.value)}
-                    placeholder="Contoh: HD785-1"
+                    placeholder="Nama hauler"
                     className="dark:bg-slate-800 dark:border-slate-700 dark:text-white"
                   />
                 </div>
               </div>
             )}
 
-            {/* Row: beltscale (prev, readonly) + tonnage input + delta */}
+            {/* Row: beltscale sebelumnya + beltscale saat ini + delta */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <Label className="text-slate-700 dark:text-slate-300">
                     Beltscale Sebelumnya
                   </Label>
-                  <div className="flex items-center gap-1.5">
-                    {/* Refresh dari API */}
-                    <button
-                      type="button"
-                      title="Refresh dari data terakhir"
-                      disabled={!formData.loader || isFetchingBeltscale}
-                      onClick={() =>
-                        formData.loader && handleLoaderChange(formData.loader)
-                      }
-                      className="flex items-center gap-1 text-xs text-teal-600 dark:text-teal-400 hover:text-teal-700 dark:hover:text-teal-300 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                    >
-                      {isFetchingBeltscale ? (
-                        <Loader2 className="w-3 h-3 animate-spin" />
-                      ) : (
-                        <RefreshCw className="w-3 h-3" />
-                      )}
-                    </button>
-                    {/* Toggle edit manual */}
-                    <button
-                      type="button"
-                      title={
-                        beltscaleEditable
-                          ? "Kunci (pakai nilai auto)"
-                          : "Edit manual"
-                      }
-                      onClick={() => setBeltscaleEditable((v) => !v)}
-                      className={`flex items-center gap-1 text-xs transition-colors ${
-                        beltscaleEditable
-                          ? "text-amber-600 dark:text-amber-400 hover:text-amber-700"
-                          : "text-slate-400 dark:text-slate-500 hover:text-slate-600"
-                      }`}
-                    >
-                      {beltscaleEditable ? (
-                        <Lock className="w-3 h-3" />
-                      ) : (
-                        <Pencil className="w-3 h-3" />
-                      )}
-                    </button>
-                  </div>
+                  <Button
+                    type="button"
+                    title={beltscaleEditable ? "Kunci (kembali readonly)" : "Edit manual"}
+                    onClick={() => setBeltscaleEditable((v) => !v)}
+                    className={`flex items-center gap-1 text-xs transition-colors ${
+                      beltscaleEditable
+                        ? "text-amber-600 dark:text-amber-400 hover:text-amber-700"
+                        : "text-slate-400 dark:text-slate-500 hover:text-slate-600"
+                    }`}
+                  >
+                    {beltscaleEditable ? (
+                      <Lock className="w-3 h-3" />
+                    ) : (
+                      <Pencil className="w-3 h-3" />
+                    )}
+                  </Button>
                 </div>
-                <Input
-                  type="number"
-                  step="0.01"
-                  disabled={!beltscaleEditable}
-                  value={formData.beltscale}
-                  onChange={(e) => handleChange("beltscale", e.target.value)}
-                  placeholder={isFetchingBeltscale ? "Mengambil data..." : "—"}
-                  className={`dark:bg-slate-800 dark:border-slate-700 dark:text-white ${
-                    beltscaleEditable
-                      ? "border-amber-400 dark:border-amber-500"
-                      : "text-slate-500 cursor-default"
-                  }`}
-                />
+                <div className="relative">
+                  <Input
+                    type="number"
+                    step="0.01"
+                    disabled={!beltscaleEditable}
+                    value={
+                      isFetchingBeltscale
+                        ? ""
+                        : formData.beltscale !== ""
+                          ? formData.beltscale
+                          : ""
+                    }
+                    onChange={(e) => handleChange("beltscale", e.target.value)}
+                    placeholder={isFetchingBeltscale ? "Mengambil data..." : "—"}
+                    className={`dark:bg-slate-800 dark:border-slate-700 dark:text-white ${
+                      beltscaleEditable
+                        ? "border-amber-400 dark:border-amber-500"
+                        : "text-slate-500 cursor-default"
+                    }`}
+                  />
+                  {isFetchingBeltscale && (
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                      <Loader2 className="w-4 h-4 animate-spin text-slate-400" />
+                    </div>
+                  )}
+                </div>
+                {errors.beltscale && (
+                  <p className="text-red-500 text-xs">{errors.beltscale}</p>
+                )}
               </div>
 
               <div className="space-y-2">
@@ -563,17 +627,29 @@ const TambahBeltConveyorModal = ({ isOpen, onClose, onSuccess, initialData }) =>
                   </div>
                 </div>
 
-                {/* Row: distance + status */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* Row: coal_type + distance + status */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div className="space-y-2">
                     <Label className="text-slate-700 dark:text-slate-300">
-                      Jarak (meter)
+                      Coal Type
+                    </Label>
+                    <SearchableSelect
+                      items={coalTypeItems}
+                      value={formData.coal_type_id}
+                      onChange={(val) => handleChange("coal_type_id", val)}
+                      placeholder="Pilih coal type"
+                      allowClear
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-slate-700 dark:text-slate-300">
+                      Jarak (m)
                     </Label>
                     <Input
                       type="number"
                       value={formData.distance}
                       onChange={(e) => handleChange("distance", e.target.value)}
-                      placeholder="Contoh: 3500"
+                      placeholder="0"
                       className="dark:bg-slate-800 dark:border-slate-700 dark:text-white"
                     />
                   </div>
@@ -597,23 +673,29 @@ const TambahBeltConveyorModal = ({ isOpen, onClose, onSuccess, initialData }) =>
           </form>
         </ScrollArea>
 
-        <DialogFooter className="px-6 py-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60">
+        <DialogFooter className="px-6 py-4 border-t border-slate-100 dark:border-slate-800 gap-3">
           <Button
             type="button"
             variant="outline"
             onClick={onClose}
-            disabled={isCreating}
-            className="dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+            className="border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700"
           >
             Batal
           </Button>
           <Button
-            form="tambah-form"
             type="submit"
+            form="tambah-form"
             disabled={isCreating}
-            className="bg-teal-600 hover:bg-teal-700 text-white"
+            className="bg-teal-600 hover:bg-teal-700 text-white gap-2"
           >
-            {isCreating ? "Menyimpan..." : "Simpan"}
+            {isCreating ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Menyimpan...
+              </>
+            ) : (
+              "Simpan"
+            )}
           </Button>
         </DialogFooter>
       </DialogContent>
