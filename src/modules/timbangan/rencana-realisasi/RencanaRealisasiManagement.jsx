@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useCallback, useMemo } from "react";
-import { Plus, RefreshCcw, UploadCloud } from "lucide-react";
+import React, { useState, useEffect, useCallback,  useRef } from "react";
+import { Plus, RefreshCcw } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
 import { DateRangePicker } from "@/shared/components/DateRangePicker";
 import { useRencanaRealisasi } from "./hooks/useRencanaRealisasi";
@@ -39,7 +39,12 @@ export default function RencanaRealisasiManagement() {
   const { user } = useAuthStore();
   const { masters } = useFleet(user);
 
+  const lastFetchRef = useRef(null);
   useEffect(() => {
+    const fetchArgs = JSON.stringify({ s: dateRange.startDate, e: dateRange.endDate });
+    if (lastFetchRef.current === fetchArgs) return; // Prevent double fetch in dev
+    lastFetchRef.current = fetchArgs;
+    
     fetchData({
       startDate: dateRange.startDate,
       endDate: dateRange.endDate,

@@ -17,6 +17,10 @@ import {
   History,
   ClipboardList,
   Grid3x3,
+  Truck,
+  Train,
+  LayoutDashboard,
+  FileText,
 } from "lucide-react";
 import FleetManagement from "@/modules/timbangan/fleet/FleetManagement";
 import MasterDataManagement from "@/modules/timbangan/masterData/MasterDataManagement";
@@ -32,6 +36,9 @@ import TimbanganManagement from "@/modules/timbangan/timbangan/TimbanganManageme
 import RitasePendingManagement from "@/modules/timbangan/ritase-pending/RitasePendingManagement";
 import RencanaRealisasiManagement from "@/modules/timbangan/rencana-realisasi/RencanaRealisasiManagement";
 import BeltConveyorManagement from "@/modules/timbangan/beltconveyor/BeltConveyorManagement";
+import PengeluaranFOTManagement from "@/modules/timbangan/fot/PengeluaranFOTManagement";
+import PengeluaranBCManagement from "@/modules/timbangan/beltconveyor/PengeluaranBCManagement";
+import PengeluaranKAManagement from "@/modules/timbangan/pengeluaran-ka/PengeluaranKAManagement";
 // import RitasePendingManagement from "@/modules/timbangan/ritase-pending/RitasePendingManagement";
 
 const TimbanganInternalPage = () => {
@@ -100,10 +107,7 @@ const TimbanganInternalPage = () => {
       {
         name: "Adjustment Beltscale",
         icon: Scale,
-        roles: [
-          "super_admin",
-          "ccr",
-        ],
+        roles: ["super_admin", "ccr"],
         locationId: "beltscale",
       },
       {
@@ -112,6 +116,7 @@ const TimbanganInternalPage = () => {
         roles: ["pic", "pengawas", "admin", "super_admin", "ccr"],
         locationId: "belt-conveyor",
       },
+
       {
         name: "Rencana Coal Flow",
         icon: ClipboardList,
@@ -144,6 +149,71 @@ const TimbanganInternalPage = () => {
         roles: ["super_admin", "operator_jt", "ccr", "admin"],
         locationId: "master-data",
       },
+
+      {
+        name: "Pengeluaran Via KA",
+        icon: Train,
+        roles: ["pic", "pengawas", "admin", "super_admin", "ccr"],
+        children: [
+          {
+            name: "Dashboard",
+            icon: LayoutDashboard,
+            roles: ["pic", "pengawas", "admin", "super_admin", "ccr"],
+            locationId: "dashboard-ka",
+          },
+          {
+            name: "Laporan",
+            icon: FileText,
+            roles: ["pic", "pengawas", "admin", "super_admin", "ccr"],
+            locationId: "laporan-ka",
+          },
+        ],
+      },
+      {
+        name: "Pengeluaran UPTE",
+        icon: Truck,
+        roles: ["pic", "pengawas", "admin", "super_admin", "ccr"],
+        children: [
+                    {
+            name: "Pengeluaran Belt Conveyor",
+            icon: Grid3x3,
+            roles: ["pic", "pengawas", "admin", "super_admin", "ccr"],
+            children: [
+              {
+                name: "Dashboard",
+                icon: LayoutDashboard,
+                roles: ["pic", "pengawas", "admin", "super_admin", "ccr"],
+                locationId: "dashboard-bc",
+              },
+              {
+                name: "Laporan",
+                icon: FileText,
+                roles: ["pic", "pengawas", "admin", "super_admin", "ccr"],
+                locationId: "laporan-bc",
+              },
+            ],
+          },
+          {
+            name: "FOT",
+            icon: Truck,
+            roles: ["pic", "pengawas", "admin", "super_admin", "ccr"],
+            children: [
+              {
+                name: "Dashboard",
+                icon: LayoutDashboard,
+                roles: ["pic", "pengawas", "admin", "super_admin", "ccr"],
+                locationId: "dashboard-fot",
+              },
+              {
+                name: "Laporan",
+                icon: FileText,
+                roles: ["pic", "pengawas", "admin", "super_admin", "ccr"],
+                locationId: "laporan-fot",
+              },
+            ],
+          },
+        ],
+      },
     ],
     [],
   );
@@ -167,6 +237,17 @@ const TimbanganInternalPage = () => {
     return "Setting Fleet";
   }, [isOperator, userRole]);
 
+  const findMenuRecursively = useCallback((items, menuName) => {
+    for (const item of items) {
+      if ((item.locationId || item.name) === menuName) return item;
+      if (item.children) {
+        const found = findMenuRecursively(item.children, menuName);
+        if (found) return found;
+      }
+    }
+    return null;
+  }, []);
+
   const getUrlMenu = useCallback(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const menuParam = urlParams.get("menu");
@@ -175,23 +256,30 @@ const TimbanganInternalPage = () => {
       return null;
     }
 
-    const targetMenu = menuItems.find((item) => item.name === menuParam);
+    const targetMenu = findMenuRecursively(menuItems, menuParam);
     return targetMenu && isMenuAccessible(targetMenu) ? menuParam : null;
-  }, [menuItems, isMenuAccessible]);
+  }, [menuItems, isMenuAccessible, findMenuRecursively]);
 
   const [activeMenu, setActiveMenuState] = useState(
     () => getUrlMenu() || getDefaultMenu(),
   );
 
   const selectedMenu = useMemo(() => {
-    const currentMenu = menuItems.find((item) => item.name === activeMenu);
+    const currentMenu = findMenuRecursively(menuItems, activeMenu);
 
     if (currentMenu && isMenuAccessible(currentMenu)) {
       return activeMenu;
     }
 
     return getUrlMenu() || getDefaultMenu();
-  }, [activeMenu, menuItems, isMenuAccessible, getUrlMenu, getDefaultMenu]);
+  }, [
+    activeMenu,
+    menuItems,
+    isMenuAccessible,
+    getUrlMenu,
+    getDefaultMenu,
+    findMenuRecursively,
+  ]);
 
   const setActiveMenu = useCallback((menuName) => {
     const newUrl = new URL(window.location);
@@ -316,31 +404,40 @@ const TimbanganInternalPage = () => {
             )}
           >
             {/* ===== ROUTING SECTION ===== */}
-            {/* Fleet */}
             {selectedMenu === "Setting Fleet" ? (
               <FleetManagement Type="Setting Fleet" />
-            ) : selectedMenu === "Timbangan" ? (
+            ) : selectedMenu === "timbangan" ? (
               <TimbanganManagement Type="Timbangan" />
-            ) : selectedMenu === "Penerimaan Batubara" ? (
+            ) : selectedMenu === "ritase" ? (
               <RitaseManagement Type="Penerimaan Batubara" />
-            ) : selectedMenu === "Belt Conveyor" ? (
+            ) : selectedMenu === "belt-conveyor" ? (
               <BeltConveyorManagement />
-            ) : selectedMenu === "Ritase Pending" ? (
+            ) : selectedMenu === "dashboard-fot" ? (
+              <PengeluaranFOTManagement Type="Dashboard" />
+            ) : selectedMenu === "laporan-fot" ? (
+              <PengeluaranFOTManagement Type="Laporan" />
+            ) : selectedMenu === "dashboard-bc" ? (
+              <PengeluaranBCManagement Type="Dashboard" />
+            ) : selectedMenu === "laporan-bc" ? (
+              <PengeluaranBCManagement Type="Laporan" />
+            ) : selectedMenu === "dashboard-ka" ? (
+              <PengeluaranKAManagement Type="Dashboard" />
+            ) : selectedMenu === "laporan-ka" ? (
+              <PengeluaranKAManagement Type="Laporan" />
+            ) : selectedMenu === "ritase-pending" ? (
               <RitasePendingManagement Type="Ritase Pending" />
-            ) : selectedMenu === "Penerimaan Batubara History" ? (
+            ) : selectedMenu === "ritase-history" ? (
               <RitaseHistory Type="Penerimaan Batubara History" />
-            ) : selectedMenu === "Adjustment Beltscale" ? (
+            ) : selectedMenu === "beltscale" ? (
               <BeltscaleManagement Type="Adjustment Beltscale" />
-            ) : selectedMenu === "Overview" ? (
+            ) : selectedMenu === "overview" ? (
               <OverviewPage />
-            ) : selectedMenu === "Rencana Coal Flow" ? (
+            ) : selectedMenu === "rencana-coal-flow" ? (
               <RencanaRealisasiManagement />
-            ) : selectedMenu === "Laporan" ? (
+            ) : selectedMenu === "laporan" ? (
               <LaporanManagement />
-            ) : selectedMenu === "Master Data" ? (
+            ) : selectedMenu === "master-data" ? (
               <MasterDataManagement />
-            ) : selectedMenu === "Laporan" ? (
-              <LaporanManagement />
             ) : (
               <div className="flex flex-col items-center justify-center h-full py-16">
                 <div
