@@ -15,6 +15,12 @@ import { PengeluaranDashboardLayout } from "@/shared/components/pengeluaran/layo
 import { PengeluaranDateFilter } from "@/shared/components/pengeluaran/layout/PengeluaranDateFilter";
 import { formatNumber } from "@/shared/utils/number";
 import { Button } from "@/shared/components/ui/button";
+import { format } from "date-fns";
+
+const safeFormat = (iso, fmt = "dd/MM/yyyy HH:mm") => {
+  if (!iso) return "—";
+  try { return format(new Date(iso), fmt); } catch { return "—"; }
+};
 
 
 // ---------------------------------------------------------------------------
@@ -205,6 +211,8 @@ const PengeluaranKAManagement = ({ Type }) => {
         { header: "Tujuan", key: "destination", truncate: true },
         { header: "Stockpile", key: "stockpileLocation", truncate: true },
         { header: "TLS", key: "tlsLocation", truncate: true },
+        { header: "Mulai Muat", key: "startTime", render: (val) => safeFormat(val) },
+        { header: "Selesai Muat", key: "endTime",  render: (val) => safeFormat(val) },
         { header: "Tonase (ton)", key: "totalTonnage", align: "right", render: (val) => formatNumber(val, 2) },
         { header: "Shift", key: "shift", align: "center" },
       ];
@@ -216,6 +224,8 @@ const PengeluaranKAManagement = ({ Type }) => {
       { header: "Produk", key: "product", truncate: true },
       { header: "Stockpile", key: "stockpileLocation", truncate: true },
       { header: "TLS", key: "tlsLocation", truncate: true },
+      { header: "Mulai Muat", key: "startTime", render: (val) => safeFormat(val) },
+      { header: "Selesai Muat", key: "endTime",  render: (val) => safeFormat(val) },
       { header: "Dur. (min)", key: "durationMinutes", align: "right", render: (val) => formatNumber(val) },
       { header: "Tonase (ton)", key: "totalTonnage", align: "right", render: (val) => formatNumber(val, 2) },
       { header: "Shift", key: "shift", align: "center" },
@@ -303,8 +313,8 @@ const PengeluaranKAManagement = ({ Type }) => {
       canWrite={true}
       onAdd={() => setIsAddModalOpen(true)}
       onViewDetail={(row) => setSelectedDetail(row)}
-      onEdit={(row) => alert(`Edit requested for ${row.trainId || row.id}`)}
-      onDelete={(row) => alert(`Delete requested for ${row.trainId || row.id}`)}
+      // onEdit={(row) => alert(`Edit requested for ${row.trainId || row.id}`)}
+      // onDelete={(row) => alert(`Delete requested for ${row.trainId || row.id}`)}
       modalsComponent={Modals}
       onRefreshData={laporanHook.refetch}
       isRefreshingData={isLaporanLoading}

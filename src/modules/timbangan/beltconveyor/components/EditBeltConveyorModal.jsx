@@ -322,7 +322,7 @@ const EditBeltConveyorModal = ({ isOpen, onClose, data, onSubmit, fullEdit = fal
                     Beltscale Sebelumnya
                   </Label>
                   {/* Toggle edit manual */}
-                  <Button
+                  <button
                     type="button"
                     disabled={!isEditableHour}
                     title={beltscaleEditable ? "Kunci (kembali readonly)" : "Edit manual"}
@@ -340,7 +340,7 @@ const EditBeltConveyorModal = ({ isOpen, onClose, data, onSubmit, fullEdit = fal
                     ) : (
                       <Pencil className="w-3 h-3" />
                     )}
-                  </Button>
+                  </button>
                 </div>
                 <Input
                   type="number"

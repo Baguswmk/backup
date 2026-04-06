@@ -1,5 +1,6 @@
 import React from "react";
 import { formatNumber } from "@/shared/utils/number";
+import { format, parseISO, isValid } from "date-fns";
 import {
   LineChart,
   Line,
@@ -11,14 +12,24 @@ import {
 } from "recharts";
 
 export const TrendChartPanel = ({ chartData = [] }) => {
-  // chartData expected to be: [{ day: 1, tonnage: 154, count: 5 }, ...]
+  // chartData expected to be: [{ day: "2026-...", tonnage: 154, count: 5 }, ...]
+
+  const formatLabel = (label) => {
+    if (!label) return "";
+    // Jika label berupa ISO date, kita format. Jika memang sudah string pendek, biarkan.
+    const dateObj = new Date(label);
+    if (isValid(dateObj) && String(label).includes("T")) {
+      return format(dateObj, "dd/MM HH:mm");
+    }
+    return label;
+  };
 
   const CustomTooltip = ({ active, payload, label }) => {
     if (active && payload && payload.length) {
       return (
-        <div className="bg-white dark:bg-slate-800  rounded shadow-sm p-2 text-xs">
+        <div className="bg-white dark:bg-slate-800 rounded shadow-sm p-2 text-xs">
           <p className="font-bold text-gray-700 dark:text-gray-300 mb-1">
-            Tanggal {label}
+            Waktu: {formatLabel(label)}
           </p>
           <p className="text-blue-600">
             Tonase: {formatNumber(payload[0].value, 2)} Ton
@@ -62,6 +73,7 @@ export const TrendChartPanel = ({ chartData = [] }) => {
                 tickLine={false}
                 axisLine={false}
                 padding={{ left: 10, right: 10 }}
+                tickFormatter={formatLabel}
               />
               <YAxis
                 tick={{ fontSize: 10, fill: "currentColor" }}

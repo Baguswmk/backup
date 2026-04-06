@@ -193,25 +193,25 @@ const TimbanganInternalPage = () => {
               },
             ],
           },
-          {
-            name: "FOT",
-            icon: Truck,
-            roles: ["pic", "pengawas", "admin", "super_admin", "ccr"],
-            children: [
-              {
-                name: "Dashboard",
-                icon: LayoutDashboard,
-                roles: ["pic", "pengawas", "admin", "super_admin", "ccr"],
-                locationId: "dashboard-fot",
-              },
-              {
-                name: "Laporan",
-                icon: FileText,
-                roles: ["pic", "pengawas", "admin", "super_admin", "ccr"],
-                locationId: "laporan-fot",
-              },
-            ],
-          },
+          // {
+          //   name: "FOT",
+          //   icon: Truck,
+          //   roles: ["pic", "pengawas", "admin", "super_admin", "ccr"],
+          //   children: [
+          //     {
+          //       name: "Dashboard",
+          //       icon: LayoutDashboard,
+          //       roles: ["pic", "pengawas", "admin", "super_admin", "ccr"],
+          //       locationId: "dashboard-fot",
+          //     },
+          //     {
+          //       name: "Laporan",
+          //       icon: FileText,
+          //       roles: ["pic", "pengawas", "admin", "super_admin", "ccr"],
+          //       locationId: "laporan-fot",
+          //     },
+          //   ],
+          // },
         ],
       },
     ],

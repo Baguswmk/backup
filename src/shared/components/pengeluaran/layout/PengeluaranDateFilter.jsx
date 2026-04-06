@@ -5,23 +5,24 @@ import { Input } from "@/shared/components/ui/input";
 import { DateRangePicker } from "@/shared/components/DateRangePicker";
 import { Button } from "../../ui/button";
 
-/**
- * Polished Date Filter component for Pengeluaran modules.
- * Supports switching between "Month" and "Date Range" modes.
- *
- * onApply (optional): called when user confirms the filter.
- *   - Month mode: called when user clicks the "Terapkan" button.
- *   - Range mode: called after DateRangePicker fires onDateRangeChange
- *     (DateRangePicker already has its own Terapkan button — no extra button needed).
- */
+const SHIFT_OPTIONS = [
+  { value: "Shift 1", label: "Shift 1" },
+  { value: "Shift 2", label: "Shift 2" },
+  { value: "Shift 3", label: "Shift 3" },
+];
+
 export const PengeluaranDateFilter = ({
-  filterMode = "month", // "month" | "range"
+  filterMode = "month", 
   onModeChange,
   month = "",
   startDate = "",
   endDate = "",
-  onUpdateFilter, // (key, value) => void
-  onApply,        // () => void  — optional, for "draft+apply" pattern
+  onUpdateFilter,
+  onApply,       
+  // Shift
+  showShift = false,
+  shift = "",
+  onShiftChange,
   className,
 }) => {
   return (
@@ -71,6 +72,28 @@ export const PengeluaranDateFilter = ({
                 onChange={(e) => onUpdateFilter("month", e.target.value)}
               />
             </div>
+
+            {/* Shift selector — hanya tampil jika showShift=true */}
+            {showShift && onShiftChange && (
+              <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm shrink-0">
+                {SHIFT_OPTIONS.map((opt) => (
+                  <Button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => onShiftChange(opt.value)}
+                    className={cn(
+                      "px-2.5 py-1 text-[10px] uppercase tracking-wider font-bold rounded-md transition-all whitespace-nowrap",
+                      shift === opt.value
+                        ? "bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm"
+                        : "text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+                    )}
+                  >
+                    {opt.label}
+                  </Button>
+                ))}
+              </div>
+            )}
+
             {/* Terapkan button — needed for modules with draft+apply pattern */}
             {onApply && (
               <Button
@@ -94,8 +117,6 @@ export const PengeluaranDateFilter = ({
                 if (payload.shift) {
                   onUpdateFilter("shift", payload.shift !== "All" ? payload.shift : "");
                 }
-                // DateRangePicker already has its own Terapkan button,
-                // so we just need to commit the draft to applied here.
                 onApply?.();
               }}
             />
@@ -105,5 +126,4 @@ export const PengeluaranDateFilter = ({
     </div>
   );
 };
-
 

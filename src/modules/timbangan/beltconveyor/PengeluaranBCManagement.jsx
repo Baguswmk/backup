@@ -184,7 +184,11 @@ const PengeluaranBCManagement = ({ Type }) => {
     },
     // Terapkan — hanya aktif di mode bulanan; harian auto-commit di hook
     onApply,
-  }), [filters, updateFilters, onApply]);
+    // Shift selector (hanya mode bulanan)
+    showShift: true,
+    shift: filters.shift || "",
+    onShiftChange: handleShiftChange,
+  }), [filters, updateFilters, onApply, handleShiftChange]);
 
   // ── Data Transformations ───────────────────────────────────────────────────
   const getText = (val) => {
@@ -330,16 +334,20 @@ const PengeluaranBCManagement = ({ Type }) => {
     { 
       header: "Waktu", 
       key: "date", 
-      render: (val, row) => (
-        <div className="flex flex-col">
-          <span className="font-mono text-[11px] dark:text-gray-200">
-            {val || (row.createdAt ? format(new Date(row.createdAt), "dd/MM/yyyy") : "—")}
-          </span>
-          <span className="text-[10px] text-gray-400">
-            {row.createdAt ? format(new Date(row.createdAt), "HH:mm") : ""}
-          </span>
-        </div>
-      )
+      render: (val, row) => {
+        const d = val ? new Date(val) : (row.createdAt ? new Date(row.createdAt) : null);
+        if (!d || isNaN(d.getTime())) return <span className="text-gray-400">—</span>;
+        return (
+          <div className="flex flex-col">
+            <span className="font-mono text-[11px] font-medium text-slate-700 dark:text-gray-200">
+              {format(d, "dd/MM/yyyy")}
+            </span>
+            <span className="text-[10px] text-slate-500 dark:text-gray-400">
+              {format(d, "HH:mm")}
+            </span>
+          </div>
+        );
+      }
     },
     { header: "Loader", key: "loader", className: "font-bold text-blue-600 dark:text-blue-400", render: getText },
     { header: "Hauler", key: "hauler", render: getText },
@@ -418,37 +426,10 @@ const PengeluaranBCManagement = ({ Type }) => {
     </>
   );
 
-  const SHIFT_OPTIONS = [
-    { value: "Shift 1", label: "Shift 1" },
-    { value: "Shift 2", label: "Shift 2" },
-    { value: "Shift 3", label: "Shift 3" },
-  ];
-
   const FilterToolbarInline = (
     <div className="flex flex-col xl:flex-row gap-4 items-start xl:items-center justify-between w-full">
       <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center w-full xl:w-auto">
         <PengeluaranDateFilter {...dateFilterProps} className="w-full xl:w-auto overflow-x-auto pb-1 xl:pb-0" />
-
-        {/* Shift selector — hanya tampil saat mode bulanan */}
-        {isMonthly && (
-          <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800 p-1 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm shrink-0">
-            {SHIFT_OPTIONS.map((opt) => (
-              <button
-                key={opt.value}
-                type="button"
-                onClick={() => handleShiftChange(opt.value)}
-                className={cn(
-                  "px-2.5 py-1 text-[10px] uppercase tracking-wider font-bold rounded-md transition-all whitespace-nowrap",
-                  activeShift === opt.value
-                    ? "bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm"
-                    : "text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
-                )}
-              >
-                {opt.label}
-              </button>
-            ))}
-          </div>
-        )}
       </div>
 
       <div className="w-full xl:w-auto flex-1 max-w-xl">

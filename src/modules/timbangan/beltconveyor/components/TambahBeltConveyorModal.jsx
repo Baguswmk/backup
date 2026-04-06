@@ -386,18 +386,17 @@ const TambahBeltConveyorModal = ({
                   </div>
                   <div className="bg-white/50 dark:bg-slate-900/30 px-3 py-2 rounded sm:col-span-2">
                     <span className="block text-xs uppercase tracking-wider opacity-70 mb-0.5">
-                      Total Kumulatif Tonase
+                      Total Tonase Sudah Diinput (Shift Ini)
                     </span>
                     <span className="font-medium">
-                      {initialData?.latestBeltscale !== "-" &&
-                      initialData?.latestBeltscale != null
-                        ? Number(initialData.latestBeltscale).toLocaleString(
+                      {initialData?.totalTonase != null
+                        ? Number(initialData.totalTonase).toLocaleString(
                             "en-US",
                             {
                               minimumFractionDigits: 0,
                               maximumFractionDigits: 2,
                             },
-                          )
+                          ) + " ton"
                         : "-"}
                     </span>
                   </div>
@@ -509,7 +508,7 @@ const TambahBeltConveyorModal = ({
                   <Label className="text-slate-700 dark:text-slate-300">
                     Beltscale Sebelumnya
                   </Label>
-                  <Button
+                  <button
                     type="button"
                     title={beltscaleEditable ? "Kunci (kembali readonly)" : "Edit manual"}
                     onClick={() => setBeltscaleEditable((v) => !v)}
@@ -524,7 +523,7 @@ const TambahBeltConveyorModal = ({
                     ) : (
                       <Pencil className="w-3 h-3" />
                     )}
-                  </Button>
+                  </button>
                 </div>
                 <div className="relative">
                   <Input

@@ -52,19 +52,25 @@ function shapeLaporanData(raw) {
   };
 
   // One table row per id_rangkaian
-  const tableData = records.map((r) => ({
-    id: r.id_rangkaian,
-    trainId: r.id_rangkaian,
-    tlsLocation: r.tls,
-    stockpileLocation: r.stockpile,
-    destination: r.destination,
-    totalTonnage: r.totalLoadWeight,
-    durationMinutes: r.duration,
-    product: Array.isArray(r.coal_type) ? r.coal_type.join(", ") : r.coal_type,
-    shift: r.shift ? (String(r.shift).startsWith("Shift") ? r.shift : `Shift ${r.shift}`) : "—",
-    operator: r.operator,
-    carriages: carriageByRangkaian[r.id_rangkaian] || [],
-  }));
+  const tableData = records.map((r) => {
+    const carriagesForRow = carriageByRangkaian[r.id_rangkaian] || [];
+    const firstCarriage   = carriagesForRow[0] || null;
+    return {
+      id: r.id_rangkaian,
+      trainId: r.id_rangkaian,
+      tlsLocation: r.tls,
+      stockpileLocation: r.stockpile,
+      destination: r.destination,
+      totalTonnage: r.totalLoadWeight,
+      durationMinutes: r.duration,
+      product: Array.isArray(r.coal_type) ? r.coal_type.join(", ") : r.coal_type,
+      shift: r.shift ? (String(r.shift).startsWith("Shift") ? r.shift : `Shift ${r.shift}`) : "—",
+      operator: r.operator,
+      startTime: r.start_loading_time || firstCarriage?.start_loading_time || null,
+      endTime:   r.end_loading_time   || firstCarriage?.end_loading_time   || null,
+      carriages: carriagesForRow,
+    };
+  });
 
   // One table row per (id_rangkaian x coal_type)
   const tableDataByProduct = [];
@@ -100,6 +106,8 @@ function shapeLaporanData(raw) {
         product: productName,
         shift: r.shift ? (String(r.shift).startsWith("Shift") ? r.shift : `Shift ${r.shift}`) : "—",
         operator: r.operator,
+        startTime: r.start_loading_time || carriagesForRecord[0]?.start_loading_time || null,
+        endTime:   r.end_loading_time   || carriagesForRecord[0]?.end_loading_time   || null,
         carriages: carriagesForRecord,
       });
     });
