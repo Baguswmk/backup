@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useMemo } from "react";
 import {
   Card,
   CardContent,
@@ -17,6 +17,8 @@ import {
 import { Button } from "@/shared/components/ui/button";
 import { Trash2, Edit, Eye, Package, ListTodo } from "lucide-react";
 import { format } from "date-fns";
+import TableToolbar from "@/shared/components/TableToolbar";
+import Pagination from "@/shared/components/Pagination";
 
 export default function RencanaRealisasiList({
   data,
@@ -25,6 +27,37 @@ export default function RencanaRealisasiList({
   onDetail,
   isLoading,
 }) {
+  const [searchQuery, setSearchQuery] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+
+  const filteredData = useMemo(() => {
+    if (!data) return [];
+    if (!searchQuery.trim()) return data;
+    
+    const lowerQuery = searchQuery.toLowerCase();
+    return data.filter((item) => {
+      return (
+        item.loading_location?.toLowerCase().includes(lowerQuery) ||
+        item.dumping_location?.toLowerCase().includes(lowerQuery) ||
+        item.pic_work_unit?.toLowerCase().includes(lowerQuery)
+      );
+    });
+  }, [data, searchQuery]);
+
+  const totalItems = filteredData.length;
+  const totalPages = Math.max(1, Math.ceil(totalItems / itemsPerPage));
+
+  const paginatedData = useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage;
+    return filteredData.slice(start, start + itemsPerPage);
+  }, [filteredData, currentPage, itemsPerPage]);
+
+  const handleSearchChange = (query) => {
+    setSearchQuery(query);
+    setCurrentPage(1);
+  };
+
   if (isLoading) {
     return (
       <Card className="bg-white dark:bg-gray-800 border-none shadow-none">
@@ -70,6 +103,15 @@ export default function RencanaRealisasiList({
         </div>
       </CardHeader>
       <CardContent className="pt-4 overflow-x-auto scrollbar-thin">
+        <div className="mb-4">
+          <TableToolbar
+            activeDateRange={false}
+            searchQuery={searchQuery}
+            onSearchChange={handleSearchChange}
+            searchPlaceholder="Cari lokasi, PIC..."
+            canSearch={!isLoading}
+          />
+        </div>
         <Table className="text-xs w-full">
           <TableHeader>
             <TableRow className="bg-gray-50 dark:bg-gray-900/50 hover:bg-gray-50 dark:hover:bg-gray-900/50">
@@ -84,10 +126,13 @@ export default function RencanaRealisasiList({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {data.map((item, index) => (
-              <TableRow key={item.id} className="border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800/50 h-8">
-                <TableCell className="text-gray-700 dark:text-gray-300">{index + 1}</TableCell>
-                <TableCell className="text-gray-700 dark:text-gray-300">
+            {paginatedData.length > 0 ? (
+              paginatedData.map((item, index) => (
+                <TableRow key={item.id} className="border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800/50 h-8">
+                  <TableCell className="text-gray-700 dark:text-gray-300">
+                    {(currentPage - 1) * itemsPerPage + index + 1}
+                  </TableCell>
+                  <TableCell className="text-gray-700 dark:text-gray-300">
                   {item.createdAt 
                     ? format(new Date(item.createdAt), "dd MMM yyyy, HH:mm")
                     : "-"}
@@ -136,9 +181,32 @@ export default function RencanaRealisasiList({
                   </div>
                 </TableCell>
               </TableRow>
-            ))}
+            ))
+            ) : (
+              <TableRow>
+                <TableCell colSpan={8} className="text-center py-8 text-gray-500">
+                  Tidak ada data yang sesuai dengan pencarian.
+                </TableCell>
+              </TableRow>
+            )}
           </TableBody>
         </Table>
+
+        {totalItems > 0 && (
+          <div className="mt-4">
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              totalItems={totalItems}
+              itemsPerPage={itemsPerPage}
+              onPageChange={setCurrentPage}
+              onItemsPerPageChange={(val) => {
+                setItemsPerPage(val);
+                setCurrentPage(1);
+              }}
+            />
+          </div>
+        )}
       </CardContent>
     </Card>
   );
