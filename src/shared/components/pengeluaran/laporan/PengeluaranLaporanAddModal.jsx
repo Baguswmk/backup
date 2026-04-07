@@ -112,7 +112,7 @@ const ManualForm = ({ loadingLocations, dumpingLocations, isLoadingLocations, is
     return null;
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     const err = validate();
     if (err) { setFormError(err); return; }
     setFormError("");
@@ -132,7 +132,7 @@ const ManualForm = ({ loadingLocations, dumpingLocations, isLoadingLocations, is
       load_weight:        Number(wagon.load_weight),
     }));
 
-    onSubmit(payload);
+    await onSubmit(payload);
   };
 
   const inputCls =
@@ -495,7 +495,7 @@ export const PengeluaranLaporanAddModal = ({
     }
   };
 
-  const handleSubmitUpload = () => {
+  const handleSubmitUpload = async () => {
     if (parsedData.length === 0) {
       setErrorMsg("Tidak ada data valid yang bisa diunggah.");
       return;
@@ -511,7 +511,10 @@ export const PengeluaranLaporanAddModal = ({
     }));
 
     if (onSubmitExcel) {
-      onSubmitExcel(finalPayload);
+      const success = await onSubmitExcel(finalPayload);
+      if (success) {
+        handleClose();
+      }
     }
   };
 
@@ -537,7 +540,7 @@ export const PengeluaranLaporanAddModal = ({
     }
   }, []);
 
-  const handleOverrideSubmit = () => {
+  const handleOverrideSubmit = async () => {
     if (!overrideNote.trim()) {
       setUploadError("Catatan / Berita Acara wajib diisi.");
       return;
@@ -548,9 +551,10 @@ export const PengeluaranLaporanAddModal = ({
     }
     if (onSubmitOverride && duplicateError?.payload) {
       setUploadError("");
-      onSubmitOverride(duplicateError.payload, overrideNote.trim(), evidenceId).then(() => {
+      const success = await onSubmitOverride(duplicateError.payload, overrideNote.trim(), evidenceId);
+      if (success) {
         handleClose();
-      });
+      }
     }
   };
 
@@ -856,8 +860,13 @@ export const PengeluaranLaporanAddModal = ({
               dumpingLocations={dumpingLocations}
               isLoadingLocations={isLoadingLocations}
               isSubmitting={isSubmitting}
-              onSubmit={(payload) => {
-                if (onSubmitManual) onSubmitManual(payload);
+              onSubmit={async (payload) => {
+                if (onSubmitManual) {
+                  const success = await onSubmitManual(payload);
+                  if (success) {
+                    handleClose();
+                  }
+                }
               }}
               onClose={handleClose}
             />

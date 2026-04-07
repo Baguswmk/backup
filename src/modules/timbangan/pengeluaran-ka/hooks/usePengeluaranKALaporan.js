@@ -204,6 +204,7 @@ export function usePengeluaranKALaporan() {
       showToast.safeDismiss(loadingId);
       showToast.success(`✅ ${payload.length} data gerbong berhasil disimpan`);
       if (lastParamsRef.current) await fetchLaporan(lastParamsRef.current);
+      return true;
     } catch (err) {
       if (err.status === 409 || (err.message && err.message.toLowerCase().includes("duplikasi"))) {
         showToast.safeDismiss(loadingId);
@@ -211,6 +212,7 @@ export function usePengeluaranKALaporan() {
       } else {
         showToast.apiErrorWithCleanup({ message: err.message }, loadingId);
       }
+      return false;
     } finally {
       if (isMountedRef.current) setIsSubmitting(false);
     }
@@ -225,6 +227,7 @@ export function usePengeluaranKALaporan() {
       showToast.safeDismiss(loadingId);
       showToast.success(`✅ ${manualPayload.length} data gerbong berhasil disimpan`);
       if (lastParamsRef.current) await fetchLaporan(lastParamsRef.current);
+      return true;
     } catch (err) {
       if (err.status === 409 || (err.message && err.message.toLowerCase().includes("duplikat"))) {
         showToast.safeDismiss(loadingId);
@@ -232,6 +235,7 @@ export function usePengeluaranKALaporan() {
       } else {
         showToast.apiErrorWithCleanup({ message: err.message }, loadingId);
       }
+      return false;
     } finally {
       if (isMountedRef.current) setIsSubmitting(false);
     }
@@ -251,8 +255,10 @@ export function usePengeluaranKALaporan() {
       showToast.safeDismiss(loadingId);
       showToast.success(`✅ ${overridePayload.length} data gerbong berhasil ditimpa (override)`);
       if (lastParamsRef.current) await fetchLaporan(lastParamsRef.current);
+      return true;
     } catch (err) {
       showToast.apiErrorWithCleanup({ message: err.message }, loadingId);
+      return false;
     } finally {
       if (isMountedRef.current) setIsSubmitting(false);
     }
