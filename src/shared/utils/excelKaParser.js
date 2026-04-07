@@ -44,9 +44,16 @@ const parseExcelDate = (value) => {
  * Normalize tonase values:
  * If > 1000, we assume operator inputted grams/kg and divide by 1000.
  * If <= 1000, we assume it's already in Metric Tons.
+ * Also handles comma as decimal separator.
  */
 const normalizeTonase = (val) => {
-  const num = Number(val);
+  let cleaned = val;
+  if (typeof val === "string") {
+    // Convert indonesian comma decimals to dot decimals
+    cleaned = val.replace(/,/g, ".");
+  }
+  
+  const num = Number(cleaned);
   if (isNaN(num) || num <= 0) return 0;
   if (num > 1000) return num / 1000;
   return num;
