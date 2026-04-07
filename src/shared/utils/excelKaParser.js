@@ -40,6 +40,35 @@ const parseExcelDate = (value) => {
   return null;
 };
 
+/**
+ * Normalize tonase values:
+ * If > 1000, we assume operator inputted grams/kg and divide by 1000.
+ * If <= 1000, we assume it's already in Metric Tons.
+ */
+const normalizeTonase = (val) => {
+  const num = Number(val);
+  if (isNaN(num) || num <= 0) return 0;
+  if (num > 1000) return num / 1000;
+  return num;
+};
+
+/**
+ * Normalize capacity based on destination:
+ * Tarahan -> 50 MT
+ * Kertapati -> 45 MT
+ * Otherwise, attempt to extract number from raw value (e.g. "50 MT" -> 50).
+ */
+const normalizeCapacity = (tujuan, rawCapacity) => {
+  const t = String(tujuan || "").toLowerCase();
+  // Hard rules based on location
+  if (t.includes("tarahan")) return 50;
+  if (t.includes("kertapati")) return 45;
+
+  // Fallback: extract integers
+  const match = String(rawCapacity).match(/\d+/);
+  return match ? Number(match[0]) : 45;
+};
+
 export const parsePengeluaranExcel = async (file) => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -107,12 +136,12 @@ export const parsePengeluaranExcel = async (file) => {
             bbr:      String(globalData.bbr),
             tujuan:   globalData.tujuan,
             satuan:   globalData.satuan,
-            kapasitas: Number(globalData.kapasitas) || globalData.kapasitas,
+            kapasitas: normalizeCapacity(globalData.tujuan, globalData.kapasitas),
 
             // Detail fields
             nomor_gerbong: String(nomor_gerbong),
             jenis_bb:      String(jenis_bb),
-            tonase:        Number(tonase) || tonase,
+            tonase:        normalizeTonase(tonase),
           });
         }
 
