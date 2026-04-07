@@ -78,7 +78,6 @@ const TimbanganInternalPage = () => {
           "ccr",
           "viewer",
           "spph",
-          "operator",
         ],
         locationId: "ritase",
       },
@@ -96,7 +95,6 @@ const TimbanganInternalPage = () => {
           "ccr",
           "viewer",
           "spph",
-          "operator",
         ],
         locationId: "ritase-history",
       },
@@ -115,7 +113,7 @@ const TimbanganInternalPage = () => {
       {
         name: "Belt Conveyor",
         icon: Grid3x3,
-        roles: ["pic", "pengawas", "admin", "super_admin", "ccr", "operator"],
+        roles: [ "admin", "super_admin", "ccr", "operator"],
         locationId: "belt-conveyor",
       },
 
@@ -148,7 +146,7 @@ const TimbanganInternalPage = () => {
       {
         name: "Master Data",
         icon: Database,
-        roles: ["super_admin", "operator_jt", "ccr", "admin", "operator"],
+        roles: ["super_admin", "operator_jt", "ccr"],
         locationId: "master-data",
       },
 
@@ -179,18 +177,18 @@ const TimbanganInternalPage = () => {
                     {
             name: "Pengeluaran Belt Conveyor",
             icon: Grid3x3,
-            roles: ["pic", "pengawas", "admin", "super_admin", "ccr", "operator"],
+            roles: ["pic", "pengawas", "admin", "super_admin", "ccr"],
             children: [
               {
                 name: "Dashboard",
                 icon: LayoutDashboard,
-                roles: ["pic", "pengawas", "admin", "super_admin", "ccr", "operator"],
+                roles: ["pic", "pengawas", "admin", "super_admin", "ccr"],
                 locationId: "dashboard-bc",
               },
               {
                 name: "Laporan",
                 icon: FileText,
-                roles: ["pic", "pengawas", "admin", "super_admin", "ccr", "operator"],
+                roles: ["pic", "pengawas", "admin", "super_admin", "ccr"],
                 locationId: "laporan-bc",
               },
             ],
