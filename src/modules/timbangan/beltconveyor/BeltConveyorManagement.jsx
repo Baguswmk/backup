@@ -746,7 +746,7 @@ const BeltConveyorManagement = () => {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const { user } = useAuthStore();
-  console.log(user)
+
   const handleRefreshAll = useCallback(() => {
     refetch();
     setRefreshTrigger((prev) => prev + 1);

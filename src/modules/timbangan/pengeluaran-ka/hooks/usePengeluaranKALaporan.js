@@ -205,7 +205,6 @@ export function usePengeluaranKALaporan() {
       showToast.success(`✅ ${payload.length} data gerbong berhasil disimpan`);
       if (lastParamsRef.current) await fetchLaporan(lastParamsRef.current);
     } catch (err) {
-      console.log(err)
       if (err.status === 409 || (err.message && err.message.toLowerCase().includes("duplikasi"))) {
         showToast.safeDismiss(loadingId);
         setDuplicateError({ payload: transformExcelPayload(parsedItems), message: err.message });
