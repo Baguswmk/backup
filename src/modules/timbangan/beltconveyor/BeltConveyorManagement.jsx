@@ -38,6 +38,8 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/shared/components/ui/dialog";
+import useAuthStore from "@/modules/auth/store/authStore";
+import { checkHaulerAccess } from "@/shared/permissions/usePermissions";
 
 export const DEFAULT_BELT_CONVEYOR_CONFIGS = [
   {
@@ -147,6 +149,7 @@ const DashboardTab = ({
   onAdd,
   onAddWithConfig,
   refreshTrigger,
+  user,
 }) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [isFilterExpanded, setIsFilterExpanded] = useState(false);
@@ -532,8 +535,13 @@ const DashboardTab = ({
                   </td>
                   <td className="px-2 py-1 sticky left-[315px] z-10 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 text-xs text-center border-t border-b">
                     <button
-                      onClick={() => openCoalEdit(row.loader, row.coalTypeId)}
-                      className="w-full text-left bg-slate-50 hover:bg-slate-100 dark:bg-slate-800/80 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded px-2 py-1.5 focus:outline-none transition-colors flex items-center justify-between group"
+                      onClick={() => {
+                        if (!checkHaulerAccess(user?.username, user?.role, row.hauler)) return;
+                        openCoalEdit(row.loader, row.coalTypeId);
+                      }}
+                      disabled={!checkHaulerAccess(user?.username, user?.role, row.hauler)}
+                      className={`w-full text-left bg-slate-50 hover:bg-slate-100 dark:bg-slate-800/80 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded px-2 py-1.5 focus:outline-none transition-colors flex items-center justify-between group ${!checkHaulerAccess(user?.username, user?.role, row.hauler) ? "opacity-50 cursor-not-allowed" : ""}`}
+                      title={!checkHaulerAccess(user?.username, user?.role, row.hauler) ? "Akses ditolak: Hauler tidak sesuai" : ""}
                     >
                       <span className="truncate mr-2 font-medium">
                         {row.coalTypeId
@@ -562,9 +570,12 @@ const DashboardTab = ({
                       >
                         {hasData ? (
                           <Button
-                            className="inline-block px-2 py-1 rounded text-xs font-medium cursor-pointer hover:opacity-80 transition-all hover:scale-105 bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-300 border border-green-300 dark:border-green-700 hover:bg-green-200 dark:hover:bg-green-900/60"
-                            onClick={() => onEdit(record)}
-                            title={`${value.toFixed(2)} ton - Klik untuk edit`}
+                            className={`inline-block px-2 py-1 rounded text-xs font-medium transition-all bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-300 border border-green-300 dark:border-green-700 ${!checkHaulerAccess(user?.username, user?.role, row.hauler) ? "opacity-50 cursor-not-allowed" : "cursor-pointer hover:opacity-80 hover:scale-105 hover:bg-green-200 dark:hover:bg-green-900/60"}`}
+                            onClick={() => {
+                              if (!checkHaulerAccess(user?.username, user?.role, row.hauler)) return;
+                              onEdit(record);
+                            }}
+                            title={!checkHaulerAccess(user?.username, user?.role, row.hauler) ? "Akses ditolak: Hauler tidak sesuai" : `${value.toFixed(2)} ton - Klik untuk edit`}
                           >
                             {Number(value).toLocaleString("id-ID", {
                               minimumFractionDigits: 0,
@@ -578,7 +589,7 @@ const DashboardTab = ({
                           >
                             -
                           </span>
-                        ) : (
+                        ) : checkHaulerAccess(user?.username, user?.role, row.hauler) ? (
                           <Button
                             size="sm"
                             variant="ghost"
@@ -588,6 +599,13 @@ const DashboardTab = ({
                           >
                             <Plus className="w-4 h-4" />
                           </Button>
+                        ) : (
+                          <span
+                            className="inline-flex w-8 h-8 items-center justify-center text-slate-300 dark:text-slate-700 cursor-not-allowed"
+                            title="Akses ditolak: Hauler tidak sesuai"
+                          >
+                            -
+                          </span>
                         )}
                       </td>
                     );
@@ -727,7 +745,8 @@ const BeltConveyorManagement = () => {
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
-
+  const { user } = useAuthStore();
+  console.log(user)
   const handleRefreshAll = useCallback(() => {
     refetch();
     setRefreshTrigger((prev) => prev + 1);
@@ -824,6 +843,7 @@ const BeltConveyorManagement = () => {
           setIsAddModalOpen(true);
         }}
         onAddWithConfig={handleAddWithConfig}
+        user={user}
       />
 
       <TambahBeltConveyorModal

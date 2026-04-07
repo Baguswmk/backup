@@ -133,6 +133,15 @@ export const FLEET_TYPE_ACCESS = {
       Beltscale: "Beltscale",
     },
   },
+  operator: {
+    allowedTypes: ["Beltscale"],
+    readOnly: false,
+    autoWeighBridge: false,
+    canSelectWeightBridge: false,
+    measurementTypeMap: {
+      Beltscale: "Beltscale",
+    },
+  },
 };
 
 export const ROLE_PERMISSIONS = {
@@ -278,6 +287,18 @@ export const ROLE_PERMISSIONS = {
     fleetTypes: ["Setting Fleet"],
     canSelectWeighBridge: true,
     description: "Full access, no filter",
+  },
+  operator: {
+    timbangan: [
+      PERMISSIONS.READ,
+      PERMISSIONS.CREATE,
+      PERMISSIONS.UPDATE,
+      PERMISSIONS.EXPORT,
+    ],
+    fleet: [PERMISSIONS.READ],
+    masterData: [PERMISSIONS.READ],
+    fleetTypes: ["Setting Fleet"],
+    description: "Operator khusus Belt Conveyor dengan restriksi hauler",
   },
 };
 

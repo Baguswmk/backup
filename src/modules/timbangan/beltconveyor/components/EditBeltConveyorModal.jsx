@@ -18,6 +18,8 @@ import { showToast } from "@/shared/utils/toast";
 import { format } from "date-fns";
 import { calculateCurrentShiftAndGroup } from "@/shared/utils/group";
 import { DEFAULT_BELT_CONVEYOR_CONFIGS } from "../BeltConveyorManagement";
+import useAuthStore from "@/modules/auth/store/authStore";
+import { checkHaulerAccess } from "@/shared/permissions/usePermissions";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const LOADER_OPTIONS = [
@@ -66,6 +68,17 @@ const EditBeltConveyorModal = ({ isOpen, onClose, data, onSubmit, fullEdit = fal
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [beltscaleEditable, setBeltscaleEditable] = useState(false);
+  const { user } = useAuthStore();
+
+  const filteredLoaderOptions = useMemo(() => {
+    return LOADER_OPTIONS.filter((option) => {
+      const config = DEFAULT_BELT_CONVEYOR_CONFIGS.find(
+        (c) => c.loader === option.value,
+      );
+      if (!config) return true;
+      return checkHaulerAccess(user?.username, user?.role, config.hauler);
+    });
+  }, [user]);
 
   // Jam saat ini check — diabaikan kalau fullEdit=true
   const isEditableHour = useMemo(() => {
@@ -418,7 +431,7 @@ const EditBeltConveyorModal = ({ isOpen, onClose, data, onSubmit, fullEdit = fal
                     Loader *
                   </Label>
                   <SearchableSelect
-                    items={LOADER_OPTIONS}
+                    items={filteredLoaderOptions}
                     value={formData.loader || ""}
                     onChange={handleLoaderChange}
                     placeholder="Pilih loader"

@@ -24,6 +24,8 @@ import { showToast } from "@/shared/utils/toast";
 import { format } from "date-fns";
 import { calculateCurrentShiftAndGroup } from "@/shared/utils/group";
 import { DEFAULT_BELT_CONVEYOR_CONFIGS } from "../BeltConveyorManagement";
+import useAuthStore from "@/modules/auth/store/authStore";
+import { checkHaulerAccess } from "@/shared/permissions/usePermissions";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const LOADER_OPTIONS = [
@@ -102,7 +104,18 @@ const TambahBeltConveyorModal = ({
 
   const [formData, setFormData] = useState(EMPTY_FORM);
   const [errors, setErrors] = useState({});
+  const { user } = useAuthStore();
   const isHourlyInput = initialData?.isHourlyInput || false;
+
+  const filteredLoaderOptions = useMemo(() => {
+    return LOADER_OPTIONS.filter((option) => {
+      const config = DEFAULT_BELT_CONVEYOR_CONFIGS.find(
+        (c) => c.loader === option.value,
+      );
+      if (!config) return true;
+      return checkHaulerAccess(user?.username, user?.role, config.hauler);
+    });
+  }, [user]);
 
   // Auto-compute group from current date + shift
   const computedGroup = useMemo(() => {
@@ -478,7 +491,7 @@ const TambahBeltConveyorModal = ({
                     Loader *
                   </Label>
                   <SearchableSelect
-                    items={LOADER_OPTIONS}
+                    items={filteredLoaderOptions}
                     value={formData.loader}
                     onChange={handleLoaderChange}
                     placeholder="Pilih loader"

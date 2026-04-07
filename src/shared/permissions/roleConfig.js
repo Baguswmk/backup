@@ -26,6 +26,7 @@ export const ROLE_GROUPS = {
     "ccr",
     "viewer",
     "spph",
+    "operator",
   ],
 
   TIMBANGAN_FOB: ["operator_timbangan_fob"],
@@ -38,7 +39,8 @@ export const ROLE_GROUPS = {
     "mitra",
     "admin",
     "super_admin",
-    "ccr",],
+    "ccr",
+    "operator",],
   SUPERVISOR: ["supervisor_timbangan", "kepala_timbangan"],
 };
 

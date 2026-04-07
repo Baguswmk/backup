@@ -190,7 +190,31 @@ export const usePermissions = (module = "timbangan") => {
     getFleetFormConfig,
 
     PERMISSIONS,
+    checkHaulerAccess,
   };
+};
+
+export const checkHaulerAccess = (username, role, haulerName) => {
+  if (!username || !role || !haulerName) return false;
+  const roleLower = role.toLowerCase();
+
+  // If not operator, allow all (admin/ccr/etc)
+  if (roleLower !== "operator") return true;
+
+  // Normalize by removing spaces, underscores, and dashes
+  const userNorm = username.toLowerCase().replace(/[\s_-]/g, "");
+  const haulerNorm = haulerName.toLowerCase().replace(/[\s_-]/g, "");
+
+  // Keywords to check based on user request -> normalized (e.g., chf4, chf5, ss8, bpi, pltuba)
+  const keywords = ["chf4", "chf5", "ss8", "bpi", "pltuba"];
+
+  for (const kw of keywords) {
+    if (userNorm.includes(kw) && haulerNorm.includes(kw)) {
+      return true;
+    }
+  }
+
+  return false;
 };
 
 export const useFleetPermissions = () => {
