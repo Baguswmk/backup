@@ -94,6 +94,7 @@ const pengeluaranKAService = {
 
     const response = await offlineService.post(UPLOAD_BASE, formData, {
       headers: { "Content-Type": "multipart/form-data" },
+      bypassQueue: true,
     });
 
     // Strapi upload response variants
