@@ -147,8 +147,8 @@ export const parsePengeluaranExcel = async (file) => {
             kapasitas: normalizeCapacity(globalData.tujuan, globalData.kapasitas),
 
             // Detail fields
-            nomor_gerbong: String(nomor_gerbong),
-            jenis_bb:      String(jenis_bb),
+            nomor_gerbong: String(nomor_gerbong).trim(),
+            jenis_bb:      String(jenis_bb).trim(),
             tonase:        normalizeTonase(tonase),
           });
         }
