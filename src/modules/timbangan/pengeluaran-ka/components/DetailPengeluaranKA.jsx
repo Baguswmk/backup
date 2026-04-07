@@ -200,6 +200,7 @@ export const DetailPengeluaranKA = ({ isOpen, onClose, data }) => {
                       <th className="px-3 py-3 text-center w-8">#</th>
                       <th className="px-3 py-3 text-left min-w-[120px]">No. Gerbong</th>
                       <th className="px-3 py-3 text-left min-w-[100px]">Produk</th>
+                      <th className="px-3 py-3 text-left ">Source</th>
                       <th className="px-3 py-3 text-right w-24">Kapasitas</th>
                       <th className="px-3 py-3 text-right w-28">Berat (ton)</th>
                     </tr>
@@ -230,6 +231,9 @@ export const DetailPengeluaranKA = ({ isOpen, onClose, data }) => {
                             {c.coal_type || "—"}
                           </span>
                         </td>
+                        <td className="px-3 py-3 tabular-nums text-slate-500 dark:text-slate-400">
+                          {c.origin || "—"}
+                        </td>
                         <td className="px-3 py-3 text-right tabular-nums text-slate-500 dark:text-slate-400">
                           {formatNumber(c.capasity, 0)}
                           <span className="text-slate-400 dark:text-slate-500 ml-0.5 text-[10px]">ton</span>
@@ -259,7 +263,7 @@ export const DetailPengeluaranKA = ({ isOpen, onClose, data }) => {
                           </span>
                           <span className="text-slate-400 dark:text-slate-500 ml-1 text-[10px]">ton</span>
                         </td>
-                        <td />
+                        <td colSpan={2} />
                       </tr>
                     </tfoot>
                   )}
