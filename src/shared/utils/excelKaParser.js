@@ -118,11 +118,12 @@ export const parsePengeluaranExcel = async (file) => {
 
         const payloads = [];
 
-        // Detail rows start at index 5 (rows 2-4 are empty/trash)
-        for (let i = 5; i < raw.length; i++) {
+        // Detail rows start after global data (index > 1)
+        // We start scanning from index 2 and skip any row that doesn't contain actual gerbong info
+        for (let i = 2; i < raw.length; i++) {
           const detailRow = raw[i];
 
-          // Skip empty rows
+          // Skip completely empty rows
           if (!detailRow || detailRow.length === 0) continue;
 
           // [0] = seq number, [1] = carriage_number, [2] = jenis_bb, [3] = tonase
@@ -130,7 +131,7 @@ export const parsePengeluaranExcel = async (file) => {
           const jenis_bb      = detailRow[2] || globalData.jenis; // fallback to header jenis
           const tonase        = detailRow[3];
 
-          // Skip rows without a carriage number or tonnage
+          // Skip rows that don't have valid carriage numbers or tonnages (like spacer rows or headers)
           if (!nomor_gerbong || tonase == null || tonase === "") continue;
 
           payloads.push({
