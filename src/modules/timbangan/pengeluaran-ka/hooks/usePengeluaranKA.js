@@ -145,7 +145,12 @@ export const usePengeluaranKA = () => {
     setIsLoading(true);
     try {
       const raw = await pengeluaranKAService.getAll(params);
-      const records = Array.isArray(raw) ? raw : [];
+      let records = [];
+      if (Array.isArray(raw)) {
+        records = raw;
+      } else if (raw && Array.isArray(raw.record)) {
+        records = raw.record;
+      }
 
       if (isMountedRef.current) {
         const grouped = groupCarriageRecords(records);

@@ -11,7 +11,7 @@ import { showToast } from "@/shared/utils/toast";
  */
 function shapeDashboardData(raw) {
   const s = raw?.summaries || {};
-  const tls = raw?.tls || [];
+  const tls = s.tls || raw?.tls || [];
   const destination = raw?.destination || [];
   const product = raw?.product || [];
   const dailyRecord = raw?.record || [];
@@ -23,10 +23,10 @@ function shapeDashboardData(raw) {
   };
 
   const tlsList = tls.map((t) => ({
-    tls: t.origin,
-    tonnage: t.totalTonnage,
+    tls: t.tls || t.origin,
+    tonnage: t.totalTonnage || t.tonnage || 0,
     count: t.count,
-    totalWagons: 0,
+    totalWagons: t.total_carriage || t.totalWagons || 0,
   }));
 
   const avgKA =

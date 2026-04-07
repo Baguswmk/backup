@@ -10,7 +10,7 @@ import { monthToDateRange } from "./useShipmentLogBase";
  */
 function shapeLaporanData(raw) {
   const s = raw?.summaries || {};
-  const tls = raw?.tls || [];
+  const tls = s.tls || raw?.tls || [];
   const destinations = raw?.destination || [];
   const records = raw?.record || [];
   const carriages = raw?.carriage || [];
@@ -24,10 +24,10 @@ function shapeLaporanData(raw) {
   });
 
   const byTls = tls.map((t) => ({
-    tls: t.origin,
+    tls: t.tls || t.origin,
     count: t.count,
-    tonnage: t.totalTonnage,
-    avgDuration: t.avgDuration,
+    tonnage: t.totalTonnage || t.tonnage || 0,
+    avgDuration: t.avgDuration || 0,
   }));
 
   const summaryData = {

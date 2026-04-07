@@ -17,12 +17,7 @@ export const SummaryOverviewCards = ({ data = {} }) => {
 
   if (!total.totalCount && !tujuan.length) return null;
 
-  const semuaTLSSync = [
-    ...new Set([
-      ...tujuan.flatMap((d) => (d.byTls || []).map((t) => t.tls)),
-      ...(total.byTls || []).map((t) => t.tls),
-    ]),
-  ].sort();
+  const semuaTLSSync = []; // Keeping this fallback to avoid breaking OvCard signature if used elsewhere
 
   const OvCard = ({ judul, jumlah, totalTon, avgDurasi, byTls, semuaTLS, isTotal }) => {
     const tlsMap = {};
@@ -55,27 +50,14 @@ export const SummaryOverviewCards = ({ data = {} }) => {
                 <td className="px-2 py-1 text-right tabular-nums text-gray-900 dark:text-gray-100">{formatNumber(totalTon, 3)}</td>
                 <td className="px-2 py-1 text-right tabular-nums text-gray-900 dark:text-gray-100">{avgDurasi ? formatNumber(avgDurasi, 2) : "—"}</td>
               </tr>
-              {semuaTLS.map((nama) => {
-                const t = tlsMap[nama];
-                if (!t) {
-                  return (
-                    <tr key={nama} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
-                      <td className="px-2 py-1 text-gray-600 dark:text-gray-400">{nama}</td>
-                      <td className="px-2 py-1 text-center text-gray-400">-</td>
-                      <td className="px-2 py-1 text-right text-gray-400">-</td>
-                      <td className="px-2 py-1 text-right text-gray-400">-</td>
-                    </tr>
-                  );
-                }
-                return (
-                  <tr key={nama} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 text-gray-600 dark:text-gray-300">
-                    <td className="px-2 py-1">{nama}</td>
+              {(byTls || []).map((t) => (
+                  <tr key={t.tls} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 text-gray-600 dark:text-gray-300">
+                    <td className="px-2 py-1">{t.tls}</td>
                     <td className="px-2 py-1 text-center tabular-nums">{formatNumber(t.count)}</td>
                     <td className="px-2 py-1 text-right tabular-nums">{formatNumber(t.tonnage, 3)}</td>
                     <td className="px-2 py-1 text-right tabular-nums">{t.avgDuration ? formatNumber(t.avgDuration, 2) : "—"}</td>
                   </tr>
-                );
-              })}
+              ))}
             </tbody>
           </table>
         </div>

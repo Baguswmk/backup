@@ -906,7 +906,7 @@ export const PengeluaranLaporanAddModal = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto bg-white dark:bg-slate-900 dark:text-neutral-50 flex flex-col">
+      <DialogContent className="max-w-3xl max-h-[90vh] scrollbar-thin overflow-y-auto bg-white dark:bg-slate-900 dark:text-neutral-50 flex flex-col">
         <DialogHeader>
           <DialogTitle className="text-xl font-bold text-gray-900 dark:text-white">
             Tambah Laporan Pengeluaran
@@ -1064,7 +1064,7 @@ export const PengeluaranLaporanAddModal = ({
                     </div>
                     <div className="overflow-x-auto overflow-y-auto max-h-[280px] scrollbar-thin">
                       <table className="w-full text-left border-collapse text-xs whitespace-nowrap">
-                        <thead className="bg-slate-50 dark:bg-slate-800/50 text-gray-500 border-b dark:border-slate-700 sticky top-0 z-10">
+                        <thead className="bg-slate-50 dark:bg-slate-800 dark:text-neutral-50 text-gray-500 border-b dark:border-slate-700 sticky top-0 z-10">
                           <tr>
                             {showLocation2 && (
                               <th className="px-3 py-2 font-medium text-center border-l border-gray-200 dark:border-slate-700 bg-blue-50/80 dark:bg-blue-900/20">
