@@ -1092,6 +1092,7 @@ export const PengeluaranLaporanAddModal = ({
                                 </div>
                               </th>
                             )}
+                            <th className="px-3 py-2 font-medium text-center w-10">No</th>
                             <th className="px-3 py-2 font-medium">BBR</th>
                             <th className="px-3 py-2 font-medium">Shift</th>
                             <th className="px-3 py-2 font-medium">Gerbong</th>
@@ -1126,6 +1127,9 @@ export const PengeluaranLaporanAddModal = ({
                                   />
                                 </td>
                               )}
+                              <td className="px-3 py-2 text-center text-gray-500 font-mono text-[10px] bg-slate-50/50 dark:bg-slate-800/20">
+                                {row.seq_no ?? i + 1}
+                              </td>
                               <td className="px-3 py-2 font-mono text-blue-600 dark:text-blue-400">
                                 {row.bbr}
                               </td>

@@ -138,7 +138,7 @@ function transformExcelPayload(items) {
     capasity:           Number(item.kapasitas) || 0,
     load_weight:        Number(item.tonase)    || 0,
     coal_type:          item.jenis_bb,
-    seq_no:             Number(item.urut)      || 0,
+    seq_no:             item.seq_no ? Number(item.seq_no) : (Number(item.urut) || 0),
     operator:           item.operator,
     shift:              item.shift ? (String(item.shift).startsWith("Shift") ? String(item.shift) : `Shift ${item.shift}`) : "",
   }));
