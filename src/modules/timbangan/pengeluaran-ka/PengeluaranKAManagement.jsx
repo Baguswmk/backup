@@ -207,10 +207,10 @@ const PengeluaranKAManagement = ({ Type }) => {
       // Per Produk: 1 row per (rangkaian × product) — ID Rangkaian + Produk both visible
       return [
         { header: "ID Rangkaian", key: "trainId", className: "font-mono font-bold text-blue-600 dark:text-blue-400" },
-        { header: "Produk", key: "product", className: "font-semibold text-emerald-700 dark:text-emerald-400" },
-        { header: "Tujuan", key: "destination", truncate: true },
-        { header: "Stockpile", key: "stockpileLocation", truncate: true },
-        { header: "TLS", key: "tlsLocation", truncate: true },
+        { header: "Produk", key: "product", className: "font-semibold text-emerald-700 dark:text-emerald-400 min-w-[150px]" },
+        { header: "Tujuan", key: "destination", className: "min-w-[100px]" },
+        { header: "Stockpile", key: "stockpileLocation", className: "min-w-[150px]" },
+        { header: "TLS", key: "tlsLocation" },
         { header: "Mulai Muat", key: "startTime", render: (val) => safeFormat(val) },
         { header: "Selesai Muat", key: "endTime",  render: (val) => safeFormat(val) },
         { header: "Tonase (ton)", key: "totalTonnage", align: "right", render: (val) => formatNumber(val, 2) },
@@ -220,10 +220,10 @@ const PengeluaranKAManagement = ({ Type }) => {
     // Per Rangkaian: 1 row per rangkaian — products comma-joined in Produk column
     return [
       { header: "ID Rangkaian", key: "trainId", className: "font-mono font-bold text-blue-600 dark:text-blue-400" },
-      { header: "Tujuan", key: "destination", truncate: true },
-      { header: "Produk", key: "product", truncate: true },
-      { header: "Stockpile", key: "stockpileLocation", truncate: true },
-      { header: "TLS", key: "tlsLocation", truncate: true },
+      { header: "Tujuan", key: "destination", className: "min-w-[80px]" },
+      { header: "Produk", key: "product", className: "min-w-[100px]" },
+      { header: "Stockpile", key: "stockpileLocation", className: "min-w-[180px]" },
+      { header: "TLS", key: "tlsLocation" },
       { header: "Mulai Muat", key: "startTime", render: (val) => safeFormat(val) },
       { header: "Selesai Muat", key: "endTime",  render: (val) => safeFormat(val) },
       { header: "Dur. (min)", key: "durationMinutes", align: "right", render: (val) => formatNumber(val) },

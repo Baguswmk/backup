@@ -55,11 +55,15 @@ function shapeLaporanData(raw) {
   const tableData = records.map((r) => {
     const carriagesForRow = carriageByRangkaian[r.id_rangkaian] || [];
     const firstCarriage   = carriagesForRow[0] || null;
+
+    const uniqueOrigins = [...new Set(carriagesForRow.map(c => c.origin).filter(Boolean))];
+    const combinedOrigin = uniqueOrigins.length > 0 ? uniqueOrigins.join(", ") : r.stockpile;
+
     return {
       id: r.id_rangkaian,
       trainId: r.id_rangkaian,
       tlsLocation: r.tls,
-      stockpileLocation: r.stockpile,
+      stockpileLocation: combinedOrigin,
       destination: r.destination,
       totalTonnage: r.totalLoadWeight,
       durationMinutes: r.duration,
@@ -95,20 +99,24 @@ function shapeLaporanData(raw) {
     });
 
     Object.entries(productGroups).forEach(([productName, agg]) => {
+      const filteredCarriages = carriagesForRecord.filter(c => (c.coal_type || "—") === productName);
+      const uniqueOrigins = [...new Set(filteredCarriages.map(c => c.origin).filter(Boolean))];
+      const combinedOrigin = uniqueOrigins.length > 0 ? uniqueOrigins.join(", ") : r.stockpile;
+
       tableDataByProduct.push({
         id: `${r.id_rangkaian}__${productName}`,
         trainId: r.id_rangkaian,
         tlsLocation: r.tls,
-        stockpileLocation: r.stockpile,
+        stockpileLocation: combinedOrigin,
         destination: r.destination,
         totalTonnage: agg.totalWeight,
         durationMinutes: r.duration,
         product: productName,
         shift: r.shift ? (String(r.shift).startsWith("Shift") ? r.shift : `Shift ${r.shift}`) : "—",
         operator: r.operator,
-        startTime: r.start_loading_time || carriagesForRecord[0]?.start_loading_time || null,
-        endTime:   r.end_loading_time   || carriagesForRecord[0]?.end_loading_time   || null,
-        carriages: carriagesForRecord,
+        startTime: r.start_loading_time || filteredCarriages[0]?.start_loading_time || null,
+        endTime:   r.end_loading_time   || filteredCarriages[0]?.end_loading_time   || null,
+        carriages: filteredCarriages,
       });
     });
   });
