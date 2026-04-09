@@ -24,17 +24,25 @@ import * as XLSX from "xlsx";
 const parseExcelDate = (value) => {
   if (!value) return null;
 
+  const pad = (n) => String(n).padStart(2, "0");
+
   // Excel serial date (stored as number)
   if (typeof value === "number") {
     const date = new Date((value - 25569) * 86400 * 1000);
-    return isNaN(date.getTime()) ? null : date.toISOString();
+    if (isNaN(date.getTime())) return null;
+    // Excel serial dates align with UTC time, so we read UTC components
+    return `${date.getUTCFullYear()}-${pad(date.getUTCMonth() + 1)}-${pad(date.getUTCDate())}T${pad(date.getUTCHours())}:${pad(date.getUTCMinutes())}:${pad(date.getUTCSeconds())}.000Z`;
   }
 
   // String date: "27-Mar-2026, 14:15" or similar
   if (typeof value === "string") {
     const cleaned = value.replace(",", "").trim();
     const date = new Date(cleaned);
-    return isNaN(date.getTime()) ? null : date.toISOString();
+    if (isNaN(date.getTime())) return null;
+    
+    // We extract LOCAL components so the exact hours/days in Excel 
+    // are sent to the payload without being shifted by timezone offsets!
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}.000Z`;
   }
 
   return null;
