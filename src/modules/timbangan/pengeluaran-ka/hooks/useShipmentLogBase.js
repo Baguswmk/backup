@@ -3,14 +3,14 @@ import pengeluaranKAService from "../services/pengeluaranKAService";
 
 /**
  * Convert a "YYYY-MM" month string to { start_date, end_date } ISO strings
- * covering the full month.
- * e.g. "2026-04" -> { start_date: "2026-04-01T00:00:00.000Z", end_date: "2026-04-30T23:59:59.999Z" }
+ * covering the full month in local time.
+ * e.g. "2026-04" -> { start_date: "2026-03-31T17:00:00.000Z", end_date: "2026-04-30T16:59:59.999Z" } depending on timezone offset
  */
 export function monthToDateRange(month) {
   if (!month) return { start_date: null, end_date: null };
   const [y, m] = month.split("-").map(Number);
-  const start = new Date(Date.UTC(y, m - 1, 1, 0, 0, 0, 0));
-  const end = new Date(Date.UTC(y, m, 0, 23, 59, 59, 999)); // last day of month
+  const start = new Date(y, m - 1, 1, 0, 0, 0, 0);
+  const end = new Date(y, m, 0, 23, 59, 59, 999); // last day of month
   return {
     start_date: start.toISOString(),
     end_date: end.toISOString(),
@@ -18,14 +18,16 @@ export function monthToDateRange(month) {
 }
 
 /**
- * Convert a "YYYY-MM-DD" date string to the start/end of that day (UTC).
+ * Convert a "YYYY-MM-DD" date string to the start/end of that day in local time.
  */
 function dayToRange(dateStr) {
   if (!dateStr) return { start_date: null, end_date: null };
   const [y, m, d] = dateStr.split("-").map(Number);
+  const start = new Date(y, m - 1, d, 0, 0, 0, 0);
+  const end = new Date(y, m - 1, d, 23, 59, 59, 999);
   return {
-    start_date: new Date(Date.UTC(y, m - 1, d, 0, 0, 0, 0)).toISOString(),
-    end_date: new Date(Date.UTC(y, m - 1, d, 23, 59, 59, 999)).toISOString(),
+    start_date: start.toISOString(),
+    end_date: end.toISOString(),
   };
 }
 
@@ -36,22 +38,28 @@ function dayToRange(dateStr) {
  * Data hanya di-fetch ketika user eksplisit tekan Terapkan
  * → PengeluaranKAManagement.onApply panggil getDateParams() lalu fetch.
  */
-export function useShipmentLogBase() {
-  const currentMonth = new Date().toISOString().slice(0, 7); // "YYYY-MM"
+export function useShipmentLogBase(initialMode = "month") {
+  const currentDate = new Date();
+  const yyyy = currentDate.getFullYear();
+  const mm = String(currentDate.getMonth() + 1).padStart(2, "0");
+  const dd = String(currentDate.getDate()).padStart(2, "0");
+
+  const currentMonth = `${yyyy}-${mm}`;
+  const todayDateStr = `${yyyy}-${mm}-${dd}`;
 
   const initialFilters = {
     month: currentMonth,
-    startDate: "",
-    endDate: "",
+    startDate: todayDateStr,
+    endDate: todayDateStr,
     destination: "all",
   };
 
-  const [filterMode, setFilterMode] = useState("month");
+  const [filterMode, setFilterMode] = useState(initialMode);
   const [filters, setFilters] = useState(initialFilters);
 
   // Refs — selalu up-to-date secara synchronous
   const filtersRef = useRef(initialFilters);
-  const filterModeRef = useRef("month");
+  const filterModeRef = useRef(initialMode);
 
   const [destinationOptions, setDestinationOptions] = useState([]);
   const [isFetchingDestinations, setIsFetchingDestinations] = useState(false);

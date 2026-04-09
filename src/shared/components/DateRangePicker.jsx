@@ -28,6 +28,7 @@ export const DateRangePicker = ({
   isLoading = false,
   onDateRangeChange,
   mode = "range",
+  hideShift = false,
 }) => {
   const isSingleDay = mode === "singleDay" || mode === "singleDayNoAll";
   const allowAllShift = mode !== "singleDayNoAll" && mode !== "rangeNoAll";
@@ -159,11 +160,12 @@ export const DateRangePicker = ({
   };
 
   const shiftShort = getShiftLabel(shift)?.replace("Shift ", "S") || shift;
+  const shiftText = hideShift ? "" : ` | ${shiftShort}`;
   const displayText = date?.from
     ? date.to
-      ? `${fmtDate(date.from)}–${fmtDate(date.to)} | ${shiftShort}`
-      : `${fmtDate(date.from)} | ${shiftShort}`
-    : "Pilih tanggal & shift";
+      ? `${fmtDate(date.from)}–${fmtDate(date.to)}${shiftText}`
+      : `${fmtDate(date.from)}${shiftText}`
+    : `Pilih tanggal${hideShift ? "" : " & shift"}`;
 
   return (
     <div>
@@ -192,8 +194,8 @@ export const DateRangePicker = ({
             <div className="p-3 sticky top-0 bg-neutral-50 dark:bg-gray-800 dark:border-gray-700 z-10">
               <p className="text-sm font-medium dark:text-gray-200">
                 {isSingleDay
-                  ? "Filter Tanggal & Shift (1 Hari)"
-                  : "Filter Tanggal & Shift"}
+                  ? `Filter Tanggal${hideShift ? "" : " & Shift"} (1 Hari)`
+                  : `Filter Tanggal${hideShift ? "" : " & Shift"}`}
               </p>
               {isSingleDay && (
                 <p className="text-xs text-amber-600 dark:text-amber-400 mt-0.5">
@@ -228,25 +230,27 @@ export const DateRangePicker = ({
 
             <div className="p-3 bg-neutral-50 dark:bg-gray-800 dark:border-gray-700 sticky bottom-0">
               <div className="space-y-3">
-                <div>
-                  <label className="text-sm font-medium mb-2 block dark:text-gray-200">
-                    Pilih Shift: {shift}
-                  </label>
+                {!hideShift && (
+                  <div>
+                    <label className="text-sm font-medium mb-2 block dark:text-gray-200">
+                      Pilih Shift: {shift}
+                    </label>
 
-                  <select
-                    ref={selectRef}
-                    value={shift}
-                    onChange={(e) => handleShiftChange(e.target.value)}
-                    disabled={isLoading}
-                    className="w-full p-2 border rounded cursor-pointer dark:bg-gray-700 dark:text-gray-200"
-                  >
-                    {shiftOptions.map((opt) => (
-                      <option key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                    <select
+                      ref={selectRef}
+                      value={shift}
+                      onChange={(e) => handleShiftChange(e.target.value)}
+                      disabled={isLoading}
+                      className="w-full p-2 border rounded cursor-pointer dark:bg-gray-700 dark:text-gray-200"
+                    >
+                      {shiftOptions.map((opt) => (
+                        <option key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
 
                 <div className="flex gap-2">
                   <Button

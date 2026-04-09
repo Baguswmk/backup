@@ -37,7 +37,7 @@ const PengeluaranKAManagement = ({ Type }) => {
     getDateParams,
     destinationOptions,
     fetchDestinationOptions,
-  } = useShipmentLogBase();
+  } = useShipmentLogBase(isDashboard ? "month" : "range");
 
   const laporanHook = usePengeluaranKALaporan();
   const dashboardHook = usePengeluaranKADashboard({
@@ -236,7 +236,7 @@ const PengeluaranKAManagement = ({ Type }) => {
     const FilterToolbar = {
     inline: (
       <div className="flex flex-col xl:flex-row gap-4 items-start xl:items-center justify-between w-full ">
-        <PengeluaranDateFilter {...dateFilterProps} className="w-full xl:w-auto overflow-x-auto pb-1 xl:pb-0" />
+        <PengeluaranDateFilter {...dateFilterProps} hideRangeShift={true} className="w-full xl:w-auto overflow-x-auto pb-1 xl:pb-0" />
         <div className="w-full xl:w-auto flex-1 max-w-xl">
           <TableToolbar
           activeDateRange={false}

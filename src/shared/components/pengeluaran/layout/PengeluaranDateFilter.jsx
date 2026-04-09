@@ -21,6 +21,7 @@ export const PengeluaranDateFilter = ({
   onApply,       
   // Shift
   showShift = false,
+  hideRangeShift = false,
   shift = "",
   onShiftChange,
   className,
@@ -110,6 +111,7 @@ export const PengeluaranDateFilter = ({
           <div className="flex items-center gap-1.5">
             <DateRangePicker
               mode="range"
+              hideShift={hideRangeShift}
               dateRange={{ from: startDate, to: endDate }}
               onDateRangeChange={(payload) => {
                 onUpdateFilter("startDate", payload.startDate);
