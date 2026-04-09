@@ -48,6 +48,7 @@ const pengeluaranKAService = {
       start_date: params.start_date,
       end_date: params.end_date,
       destination: params.destination,
+      shift: params.shift,
     });
 
     // return existing inflight promise if same request is already ongoing

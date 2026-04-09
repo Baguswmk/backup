@@ -113,6 +113,7 @@ export const PengeluaranDateFilter = ({
               mode="range"
               hideShift={hideRangeShift}
               dateRange={{ from: startDate, to: endDate }}
+              viewingShift={shift}
               onDateRangeChange={(payload) => {
                 onUpdateFilter("startDate", payload.startDate);
                 onUpdateFilter("endDate", payload.endDate);
