@@ -110,17 +110,17 @@ export const APP_METADATA = {
     loadingMessage: "Loading Batubara Tracking System...",
   },
 
-  "pengeluaran-batubara": {
-    name: "Train Loading System",
-    description: "Train Loading System",
-    type: "external",
-    url: "https://btrace.bukitasam.co.id/pengeluaran-batubara/auth/login",
-    authMode: "jwt",
-    path: null,
-    icon: "Train",
-    color: "bg-green-500 hover:bg-green-600",
-    loadingMessage: "Loading Train Loading System...",
-  },
+  // "pengeluaran-batubara": {
+  //   name: "Train Loading System",
+  //   description: "Train Loading System",
+  //   type: "external",
+  //   url: "https://btrace.bukitasam.co.id/pengeluaran-batubara/auth/login",
+  //   authMode: "jwt",
+  //   path: null,
+  //   icon: "Train",
+  //   color: "bg-green-500 hover:bg-green-600",
+  //   loadingMessage: "Loading Train Loading System...",
+  // },
 };
 
 export const getRolesInGroup = (groupName) => {
