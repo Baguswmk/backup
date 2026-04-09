@@ -64,15 +64,14 @@ const PengeluaranKAManagement = ({ Type }) => {
     }
   }, []);
 
-  // Populate destination dropdown once on mount (dashboard only)
-  // We do NOT re-fetch destinations on every dateParams change to avoid double-hit;
-  // users can refresh by clicking Terapkan.
   useEffect(() => {
+    const params = getDateParams();
     if (isDashboard) {
-      fetchDestinationOptions(getDateParams());
+      fetchDestinationOptions(params);
+      dashboardHook.fetch(params, filters.destination);
+    } else {
+      laporanHook.fetch(params);
     }
-    // intentionally run once on mount
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isDashboard]);
 
   const dateFilterProps = {
