@@ -16,6 +16,7 @@ import { PengeluaranDateFilter } from "@/shared/components/pengeluaran/layout/Pe
 import { formatNumber } from "@/shared/utils/number";
 import { Button } from "@/shared/components/ui/button";
 import { format } from "date-fns";
+import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
 
 const safeFormat = (iso, fmt = "dd/MM/yyyy HH:mm") => {
   if (!iso) return "—";
@@ -51,6 +52,7 @@ const PengeluaranKAManagement = ({ Type }) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(25);
+  const [sortBy, setSortBy] = useState("startTime-desc");
 
   const handleRefreshMasterData = useCallback(async () => {
     setIsRefreshingMaster(true);
@@ -179,7 +181,7 @@ const PengeluaranKAManagement = ({ Type }) => {
   const { filteredData: semiFilteredData, filterGroups: additionalFilterGroups, activeFiltersCount, resetFilters } = useOfflineFilters(currentData, KA_FILTER_CONFIGS);
 
   const filteredTableData = useMemo(() => {
-    let list = semiFilteredData || [];
+    let list = semiFilteredData ? [...semiFilteredData] : [];
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       list = list.filter((r) => 
@@ -191,8 +193,28 @@ const PengeluaranKAManagement = ({ Type }) => {
         (r.id_rangkaian && String(r.id_rangkaian).toLowerCase().includes(q))
       );
     }
+    
+    if (!isDashboard) {
+      list.sort((a, b) => {
+        if (sortBy === "startTime-desc") {
+          return new Date(b.startTime || 0) - new Date(a.startTime || 0);
+        } else if (sortBy === "startTime-asc") {
+          return new Date(a.startTime || 0) - new Date(b.startTime || 0);
+        } else if (sortBy === "endTime-desc") {
+          return new Date(b.endTime || 0) - new Date(a.endTime || 0);
+        } else if (sortBy === "endTime-asc") {
+          return new Date(a.endTime || 0) - new Date(b.endTime || 0);
+        } else if (sortBy === "trainId-asc") {
+          return (a.trainId || "").localeCompare(b.trainId || "");
+        } else if (sortBy === "trainId-desc") {
+          return (b.trainId || "").localeCompare(a.trainId || "");
+        }
+        return 0;
+      });
+    }
+
     return list;
-  }, [semiFilteredData, searchQuery]);
+  }, [semiFilteredData, searchQuery, sortBy, isDashboard]);
 
   const totalItems = filteredTableData.length;
   const totalPages = Math.max(1, Math.ceil(totalItems / itemsPerPage));
@@ -202,36 +224,70 @@ const PengeluaranKAManagement = ({ Type }) => {
     return filteredTableData.slice(start, start + itemsPerPage);
   }, [filteredTableData, currentPage, itemsPerPage]);
 
+  const handleSort = useCallback((key) => {
+    setSortBy((prev) => {
+      if (prev.startsWith(key)) {
+        return prev.endsWith("-desc") ? `${key}-asc` : `${key}-desc`;
+      }
+      return `${key}-desc`;
+    });
+  }, []);
+
+  const renderSortableHeader = useCallback((title, sortKey) => {
+    const isSorted = sortBy.startsWith(sortKey);
+    const isAsc = sortBy.endsWith("-asc");
+    
+    return (
+      <div 
+        className="flex items-center gap-1.5 cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 select-none group"
+        onClick={() => handleSort(sortKey)}
+      >
+        <span>{title}</span>
+        <div className="flex flex-col items-center justify-center transition-opacity">
+          {isSorted ? (
+            isAsc ? (
+              <ArrowUp className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 opacity-100" />
+            ) : (
+              <ArrowDown className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 opacity-100" />
+            )
+          ) : (
+            <ArrowUpDown className="w-3.5 h-3.5 opacity-30 group-hover:opacity-60" />
+          )}
+        </div>
+      </div>
+    );
+  }, [sortBy, handleSort]);
+
   // --- Table Columns ---
   const columns = useMemo(() => {
     if (laporanMode === "product") {
       // Per Produk: 1 row per (rangkaian × product) — ID Rangkaian + Produk both visible
       return [
-        { header: "ID Rangkaian", key: "trainId", className: "font-mono font-bold text-blue-600 dark:text-blue-400" },
+        { header: renderSortableHeader("ID Rangkaian", "trainId"), key: "trainId", className: "font-mono font-bold text-blue-600 dark:text-blue-400" },
         { header: "Produk", key: "product", className: "font-semibold text-emerald-700 dark:text-emerald-400 min-w-[150px]" },
         { header: "Tujuan", key: "destination", className: "min-w-[100px]" },
         { header: "Stockpile", key: "stockpileLocation", className: "min-w-[150px]" },
         { header: "TLS", key: "tlsLocation" },
-        { header: "Mulai Muat", key: "startTime", render: (val) => safeFormat(val) },
-        { header: "Selesai Muat", key: "endTime",  render: (val) => safeFormat(val) },
+        { header: renderSortableHeader("Mulai Muat", "startTime"), key: "startTime", render: (val) => safeFormat(val) },
+        { header: renderSortableHeader("Selesai Muat", "endTime"), key: "endTime", render: (val) => safeFormat(val) },
         { header: "Tonase (ton)", key: "totalTonnage", align: "right", render: (val) => formatNumber(val, 2) },
         { header: "Shift", key: "shift", align: "center" },
       ];
     }
     // Per Rangkaian: 1 row per rangkaian — products comma-joined in Produk column
     return [
-      { header: "ID Rangkaian", key: "trainId", className: "font-mono font-bold text-blue-600 dark:text-blue-400" },
+      { header: renderSortableHeader("ID Rangkaian", "trainId"), key: "trainId", className: "font-mono font-bold text-blue-600 dark:text-blue-400" },
       { header: "Tujuan", key: "destination", className: "min-w-[80px]" },
       { header: "Produk", key: "product", className: "min-w-[100px]" },
       { header: "Stockpile", key: "stockpileLocation", className: "min-w-[180px]" },
       { header: "TLS", key: "tlsLocation" },
-      { header: "Mulai Muat", key: "startTime", render: (val) => safeFormat(val) },
-      { header: "Selesai Muat", key: "endTime",  render: (val) => safeFormat(val) },
+      { header: renderSortableHeader("Mulai Muat", "startTime"), key: "startTime", render: (val) => safeFormat(val) },
+      { header: renderSortableHeader("Selesai Muat", "endTime"), key: "endTime", render: (val) => safeFormat(val) },
       { header: "Dur. (min)", key: "durationMinutes", align: "right", render: (val) => formatNumber(val) },
       { header: "Tonase (ton)", key: "totalTonnage", align: "right", render: (val) => formatNumber(val, 2) },
       { header: "Shift", key: "shift", align: "center" },
     ];
-  }, [laporanMode]);
+  }, [laporanMode, renderSortableHeader]);
 
 
 
