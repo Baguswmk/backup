@@ -1,7 +1,7 @@
 import { DetailPengeluaranKA } from "./components/DetailPengeluaranKA";
 import { useShipmentLogBase } from "./hooks/useShipmentLogBase";
 import { usePengeluaranKALaporan } from "./hooks/usePengeluaranKALaporan";
-import { usePengeluaranKADashboard } from "./hooks/usePengeluaranKADashboard";
+import { usePengeluaranKADashboardStats } from "./hooks/usePengeluaranKADashboard";
 import { masterDataService } from "@/modules/timbangan/masterData/services/masterDataService";
 import { showToast } from "@/shared/utils/toast";
 import React, { useMemo, useState, useCallback, useEffect } from "react";
@@ -41,9 +41,6 @@ const PengeluaranKAManagement = ({ Type }) => {
   } = useShipmentLogBase(isDashboard ? "month" : "range");
 
   const laporanHook = usePengeluaranKALaporan();
-  const dashboardHook = usePengeluaranKADashboard({
-    destination: filters.destination,
-  });
 
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [selectedDetail, setSelectedDetail] = useState(null);
@@ -68,11 +65,9 @@ const PengeluaranKAManagement = ({ Type }) => {
 
   useEffect(() => {
     const params = getDateParams();
+    laporanHook.fetch(params);
     if (isDashboard) {
       fetchDestinationOptions(params);
-      dashboardHook.fetch(params, filters.destination);
-    } else {
-      laporanHook.fetch(params);
     }
   }, [isDashboard]);
 
@@ -84,14 +79,9 @@ const PengeluaranKAManagement = ({ Type }) => {
     endDate: filters.endDate,
     shift: filters.shift,
     onUpdateFilter: updateFilter,
-    // onApply: hitung params dari state saat ini, lalu fetch langsung
     onApply: () => {
       const params = getDateParams();
-      if (isDashboard) {
-        dashboardHook.fetch(params, filters.destination);
-      } else {
-        laporanHook.fetch(params);
-      }
+      laporanHook.fetch(params);
     },
   };
 
@@ -216,6 +206,9 @@ const PengeluaranKAManagement = ({ Type }) => {
     return list;
   }, [semiFilteredData, searchQuery, sortBy, isDashboard]);
 
+  // Dashboard Offline Calculation
+  const dashboardData = usePengeluaranKADashboardStats(filteredTableData);
+
   const totalItems = filteredTableData.length;
   const totalPages = Math.max(1, Math.ceil(totalItems / itemsPerPage));
 
@@ -298,18 +291,14 @@ const PengeluaranKAManagement = ({ Type }) => {
         <div className="w-full xl:w-auto flex-1 max-w-xl">
           <TableToolbar
           activeDateRange={false}
-          searchQuery={isDashboard ? undefined : searchQuery}
-          onSearchChange={
-            isDashboard
-              ? undefined
-              : (q) => {
-                  setSearchQuery(q);
-                  setCurrentPage(1);
-                }
-          }
+          searchQuery={searchQuery}
+          onSearchChange={(q) => {
+             setSearchQuery(q);
+             setCurrentPage(1);
+          }}
           searchPlaceholder="Cari ID, Nomor KA, Lokasi..."
-          isRefreshing={isDashboard ? dashboardHook.isLoading : laporanHook.isLoading}
-          onRefresh={isDashboard ? dashboardHook.refetch : laporanHook.refetch}
+          isRefreshing={laporanHook.isLoading}
+          onRefresh={laporanHook.refetch}
           showFilter={true}
           onToggleFilter={() => setIsAdvancedFilterOpen(!isAdvancedFilterOpen)}
           extraActions={ViewModeToggle}
@@ -328,8 +317,6 @@ const PengeluaranKAManagement = ({ Type }) => {
   };
 
 
-    const dashboardData = dashboardHook;
-
   if (isDashboard) {
     return (
       <PengeluaranDashboardLayout
@@ -340,7 +327,7 @@ const PengeluaranKAManagement = ({ Type }) => {
         chartData={dashboardData.chartData}
         kpiData={dashboardData.kpiData}
         topProducts={dashboardData.topProducts}
-        isLoading={dashboardHook.isLoading}
+        isLoading={laporanHook.isLoading}
         filters={
           <div className="flex flex-col gap-3 w-full">
             {FilterToolbar.inline}
