@@ -47,8 +47,6 @@ const TimbanganInternalPage = () => {
   const userRole = user?.role;
 
   const isOperator = userRole === "operator_jt";
-  const isCheckpoint =
-    userRole === "checker" && user.username.includes("checkpoint");
 
   const menuItems = useMemo(
     () => [
@@ -231,11 +229,11 @@ const TimbanganInternalPage = () => {
     }
 
     if (isOperator || userRole === "checker") {
-      return "Timbangan";
+      return "timbangan";
     }
 
     if (userRole === "viewer" || userRole === "spph") {
-      return "Overview";
+      return "overview";
     }
 
     return "Setting Fleet";
