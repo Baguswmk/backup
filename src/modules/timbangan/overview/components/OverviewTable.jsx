@@ -367,7 +367,7 @@ const OverviewTable = ({
                       return (
                         <td
                           key={hour}
-                          className="px-2 py-3 text-center border-r border-gray-200 dark:border-gray-700"
+                          className="px-2 py-3 text-center border-r border-gray-200 dark:border-gray-700 p-0"
                         >
                           {hasData ? (
                             <Button
@@ -386,9 +386,7 @@ const OverviewTable = ({
                               {formatWeight(value, 2)}
                             </Button>
                           ) : (
-                            <span className="text-gray-300 dark:text-gray-600 font-medium">
-                              -
-                            </span>
+                            <span className="text-gray-300 dark:text-gray-600 font-medium">-</span>
                           )}
                         </td>
                       );

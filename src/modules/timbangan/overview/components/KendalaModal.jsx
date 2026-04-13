@@ -405,7 +405,7 @@ const KendalaModal = ({
       isProcessing={isSubmitting}
       icon={AlertTriangle}
     >
-      <div className="space-y-4 max-h-[60vh] overflow-y-auto px-1">
+      <div className="space-y-4 max-h-[60vh] overflow-y-auto scrollbar-thin px-1">
         {/* Info Box */}
         <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-md p-3">
           <div className="flex gap-2">

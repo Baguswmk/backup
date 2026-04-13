@@ -35,6 +35,7 @@ import {
 import { format } from "date-fns";
 import { id as localeId } from "date-fns/locale";
 import PrintBukti from "@/modules/timbangan/timbangan/components/PrintBukti";
+import useAuthStore from "@/modules/auth/store/authStore";
 
 export const TimbanganList = () => {
   const { syncStatus, isOnline } = useOffline();
@@ -60,7 +61,7 @@ export const TimbanganList = () => {
   const [syncError, setSyncError] = useState(null);
   const [statusFilter, setStatusFilter] = useState("all"); // "all" | "pending" | "failed" | "sent"
   const [searchTerm, setSearchTerm] = useState("");
-
+  const { user }= useAuthStore()
   /**
    * Returns true only for valid queue item objects (not Axios error objects).
    * Axios errors have a `config` key; real queue items never do.
@@ -613,7 +614,7 @@ export const TimbanganList = () => {
                 </div>
                 <div>
                   <CardTitle className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-                    Antrian Data Timbangan
+                    {user?.role === "checker" ? "Antrian Data Checker" : "Antrian Data Timbangan"}
                   </CardTitle>
                   <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
                     {statusFilter === "all"

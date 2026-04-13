@@ -2,7 +2,17 @@ import React, { useEffect, useCallback, useState } from "react";
 import { TimbanganInputCard } from "./components/TimbanganInputCard";
 import { TimbanganList } from "./components/TimbanganList";
 import LoadingOverlay from "@/shared/components/LoadingOverlay";
-import { WifiOff, Wifi, Maximize, Minimize, ExternalLink, User, Edit2, RefreshCw, Database } from "lucide-react";
+import {
+  WifiOff,
+  Wifi,
+  Maximize,
+  Minimize,
+  ExternalLink,
+  User,
+  Edit2,
+  RefreshCw,
+  Database,
+} from "lucide-react";
 import { useOffline } from "@/shared/components/OfflineProvider";
 import { useFleet } from "../fleet/hooks/useFleet";
 import { calculateCurrentShiftAndGroup } from "@/shared/utils/group";
@@ -27,7 +37,8 @@ const TimbanganManagement = () => {
   const [activeInputTab, setActiveInputTab] = useState("timbangan");
 
   // Checker biasa = checker yang bukan checkpoint, tampilan mirip timbangan tapi tonase opsional
-  const isCheckerMode = user?.role === "checker" && !user?.username?.includes("checkpoint");
+  const isCheckerMode =
+    user?.role === "checker" && !user?.username?.includes("checkpoint");
 
   const handleRefreshMasterData = useCallback(async () => {
     setIsRefreshingMasterData(true);
@@ -71,8 +82,9 @@ const TimbanganManagement = () => {
 
   const handleOpenRitase = useCallback(() => {
     // Buka halaman dengan menu Ritase di tab baru
-    const url = window.location.origin + window.location.pathname + '?menu=Ritase';
-    window.open(url, '_blank');
+    const url =
+      window.location.origin + window.location.pathname + "?menu=Ritase";
+    window.open(url, "_blank");
   }, []);
 
   // const handleRefresh = useCallback(async () => {
@@ -89,7 +101,6 @@ const TimbanganManagement = () => {
   //     setIsRefreshing(false);
   //   }
   // }, []);
-
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -119,7 +130,6 @@ const TimbanganManagement = () => {
   };
 
   const dumptruckData = masters?.dumpTruck;
-
 
   const toggleFullscreen = useCallback(() => {
     if (!document.fullscreenElement) {
@@ -200,13 +210,13 @@ const TimbanganManagement = () => {
         {/* Header Section - Responsive Layout */}
         <div className="space-y-4">
           {/* Title and Welcome */}
-          <div className="flex flex-col md:flex-row items-center text-center md:text-left md:justify-between gap-3">
-            <div>
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+            <div className="min-w-0">
               <h1 className="text-xl sm:text-2xl md:text-3xl font-bold tracking-tight text-gray-900 dark:text-gray-100">
-                Timbangan
+                {isCheckerMode ? "Checker" : "Timbangan"}
               </h1>
-              <div className="flex items-center gap-2 mt-1 justify-center md:justify-start">
-                <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
+              <div className="flex items-center gap-2 mt-1">
+                <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 truncate">
                   Operator:{" "}
                   <span className="font-semibold text-gray-900 dark:text-white">
                     {operatorName || user?.name || user?.username || "User"}
@@ -214,141 +224,109 @@ const TimbanganManagement = () => {
                 </p>
                 <Button
                   onClick={handleOpenOperatorModal}
-                  className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors cursor-pointer"
+                  className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors cursor-pointer shrink-0"
                   title="Edit Nama Operator"
                 >
                   <Edit2 className="w-3.5 h-3.5" />
                 </Button>
               </div>
             </div>
-            {/* Date, Time, Shift Info - Responsive Grid */}
-            <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-2 text-xs sm:text-sm md:text-base ">
-              <div className="flex items-center gap-2">
-                <span className="font-medium text-gray-900 dark:text-white">
+
+            {/* Right: Date/Time/Shift + Actions */}
+            <div className="flex flex-col xs:flex-row sm:items-center gap-2 sm:gap-3 w-full sm:w-auto">
+              {/* Date, Time, Shift Info */}
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs sm:text-sm">
+                <span className="font-medium text-gray-900 dark:text-white whitespace-nowrap">
                   {formatDayDate()}
                 </span>
-              </div>
-
-              <span className="hidden sm:inline text-gray-400 dark:text-gray-500">
-                |
-              </span>
-
-              <div className="flex items-center gap-2">
+                <span className="text-gray-400 dark:text-gray-500">|</span>
                 <span className="font-semibold text-blue-600 dark:text-blue-400 tabular-nums">
                   {formatTime()}
                 </span>
-              </div>
-
-              <span className="hidden sm:inline text-gray-400 dark:text-gray-500">
-                |
-              </span>
-
-              {/* Group dan Shift dalam satu wrapper agar selalu 1 baris di bawah md */}
-              <div className="flex items-center gap-x-3">
-                <div className="flex items-center gap-2">
-                  <span className="text-gray-700 dark:text-gray-300">
-                    Group{" "}
-                    <span className="font-semibold text-gray-900 dark:text-white">
-                      {shiftInfo.activeGroup}
-                    </span>
-                  </span>
-                </div>
-
                 <span className="text-gray-400 dark:text-gray-500">|</span>
-
-                <div className="flex items-center gap-2">
-                  <span className="font-medium text-gray-900 dark:text-white">
-                    {shiftInfo.currentShift}
+                <span className="text-gray-700 dark:text-gray-300 whitespace-nowrap">
+                  Grp{" "}
+                  <span className="font-semibold text-gray-900 dark:text-white">
+                    {shiftInfo.activeGroup}
                   </span>
-                </div>
-              </div>
-            </div>
-
-            {/* Status Indicators - Mobile: Stack, Desktop: Inline */}
-            <div className="flex flex-row items-center gap-2">
-              {/* Online/Offline Status */}
-              <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-100 dark:bg-slate-800 text-xs sm:text-sm font-medium border border-slate-200 dark:border-slate-700">
-                {isOnline ? (
-                  <>
-                    <Wifi className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-green-500 dark:text-green-400" />
-                    <span className="text-green-600 dark:text-green-400 hidden sm:inline">
-                      Online
-                    </span>
-                  </>
-                ) : (
-                  <>
-                    <WifiOff className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-orange-500 dark:text-orange-400" />
-                    <span className="text-orange-600 dark:text-orange-400 hidden sm:inline">
-                      Offline
-                    </span>
-                  </>
-                )}
-              </div>
-
-              {/* Button Refresh Master Data */}
-              <Button
-                onClick={handleRefreshMasterData}
-                disabled={isRefreshingMasterData}
-                className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-100 dark:bg-slate-800 text-xs sm:text-sm font-medium border border-green-300 dark:border-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 text-green-700 dark:text-green-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors "
-                title="Refresh Master Data (Unit, Operator, dll)"
-              >
-                <Database className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${isRefreshingMasterData ? "animate-spin" : ""}`} />
-                <span className="hidden sm:inline">Master</span>
-              </Button>
-
-              {/* Button Refresh Timbangan */}
-              {/* <Button
-                onClick={handleRefresh}
-                disabled={isRefreshing}
-                className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-100 dark:bg-slate-800 text-xs sm:text-sm font-medium border border-slate-200 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed dark:text-neutral-50"
-                title="Refresh Data Timbangan"
-              >
-                <RefreshCw className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${isRefreshing ? "animate-spin" : ""}`} />
-                <span className="hidden sm:inline">Refresh</span>
-              </Button> */}
-
-              {/* Button Buka Ritase di Tab Baru */}
-              <Button
-                onClick={handleOpenRitase}
-                className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-100 dark:bg-slate-800 text-xs sm:text-sm font-medium border border-slate-200 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
-                title="Buka Ritase di Tab Baru"
-              >
-                <ExternalLink className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-purple-500 dark:text-purple-400" />
-                <span className="text-purple-600 dark:text-purple-400 hidden sm:inline">
-                  Ritase
                 </span>
-              </Button>
+                <span className="text-gray-400 dark:text-gray-500">|</span>
+                <span className="font-medium text-gray-900 dark:text-white whitespace-nowrap">
+                  {shiftInfo.currentShift}
+                </span>
+              </div>
 
-              {/* Fullscreen Toggle Button */}
-              <Button
-                onClick={toggleFullscreen}
-                className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-100 dark:bg-slate-800 text-xs sm:text-sm font-medium border border-slate-200 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
-                title="Toggle Fullscreen (F11 atau Alt+F)"
-              >
-                {isFullscreen ? (
-                  <>
-                    <Minimize className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-blue-500 dark:text-blue-400" />
-                    <span className="text-blue-600 dark:text-blue-400 hidden sm:inline">
-                      Exit
-                    </span>
-                    <span className="text-blue-600 dark:text-blue-400 sm:hidden">
-                      Exit Fullscreen
-                    </span>
-                  </>
-                ) : (
-                  <>
-                    <Maximize className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-blue-500 dark:text-blue-400" />
-                    <span className="text-blue-600 dark:text-blue-400 hidden sm:inline">
-                      Fullscreen
-                    </span>
-                  </>
-                )}
-              </Button>
+              {/* Status Indicators */}
+              <div className="flex flex-row items-center gap-2 shrink-0">
+                {/* Online/Offline Status */}
+                <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-slate-100 dark:bg-slate-800 text-xs font-medium border border-slate-200 dark:border-slate-700">
+                  {isOnline ? (
+                    <>
+                      <Wifi className="w-3.5 h-3.5 text-green-500 dark:text-green-400" />
+                      <span className="text-green-600 dark:text-green-400 hidden sm:inline">
+                        Online
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <WifiOff className="w-3.5 h-3.5 text-orange-500 dark:text-orange-400" />
+                      <span className="text-orange-600 dark:text-orange-400 hidden sm:inline">
+                        Offline
+                      </span>
+                    </>
+                  )}
+                </div>
+
+                {/* Refresh Master Data */}
+                <Button
+                  onClick={handleRefreshMasterData}
+                  disabled={isRefreshingMasterData}
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-slate-100 dark:bg-slate-800 text-xs font-medium border border-green-300 dark:border-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 text-green-700 dark:text-green-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  title="Refresh Master Data"
+                >
+                  <Database
+                    className={`w-3.5 h-3.5 ${isRefreshingMasterData ? "animate-spin" : ""}`}
+                  />
+                  <span className="hidden sm:inline">Master</span>
+                </Button>
+
+                {/* Buka Ritase */}
+                <Button
+                  onClick={handleOpenRitase}
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-slate-100 dark:bg-slate-800 text-xs font-medium border border-slate-200 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+                  title="Buka Ritase di Tab Baru"
+                >
+                  <ExternalLink className="w-3.5 h-3.5 text-purple-500 dark:text-purple-400" />
+                  <span className="text-purple-600 dark:text-purple-400 hidden sm:inline">
+                    Ritase
+                  </span>
+                </Button>
+
+                {/* Fullscreen Toggle */}
+                <Button
+                  onClick={toggleFullscreen}
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-slate-100 dark:bg-slate-800 text-xs font-medium border border-slate-200 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+                  title="Toggle Fullscreen (F11)"
+                >
+                  {isFullscreen ? (
+                    <>
+                      <Minimize className="w-3.5 h-3.5 text-blue-500 dark:text-blue-400" />
+                      <span className="text-blue-600 dark:text-blue-400 hidden sm:inline">
+                        Exit
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <Maximize className="w-3.5 h-3.5 text-blue-500 dark:text-blue-400" />
+                      <span className="text-blue-600 dark:text-blue-400 hidden sm:inline">
+                        Fullscreen
+                      </span>
+                    </>
+                  )}
+                </Button>
+              </div>
             </div>
-
           </div>
-
-
         </div>
 
         {/* Keyboard Shortcuts Info - Responsive */}
@@ -386,7 +364,12 @@ const TimbanganManagement = () => {
         <div className="grid grid-cols-1">
           {/* Input Section - Takes full width on mobile, 4 columns on large screens */}
           <section className="lg:col-span-4 xl:col-span-3">
-            <TimbanganInputCard fleetConfigs={dumptruckData} operatorName={operatorName} onTabChange={setActiveInputTab} mode={isCheckerMode ? "checker" : "default"} />
+            <TimbanganInputCard
+              fleetConfigs={dumptruckData}
+              operatorName={operatorName}
+              onTabChange={setActiveInputTab}
+              mode={isCheckerMode ? "checker" : "default"}
+            />
           </section>
 
           {/* Queue List Section - hidden on manual tab */}

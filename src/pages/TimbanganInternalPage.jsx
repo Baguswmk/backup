@@ -35,11 +35,13 @@ import BeltscaleManagement from "@/modules/timbangan/ritase/BeltScaleManagement"
 import TimbanganManagement from "@/modules/timbangan/timbangan/TimbanganManagement";
 import RitasePendingManagement from "@/modules/timbangan/ritase-pending/RitasePendingManagement";
 import RencanaRealisasiManagement from "@/modules/timbangan/rencana-realisasi/RencanaRealisasiManagement";
+import { RakorSpphManagement } from "@/modules/timbangan/rakor-target/RakorSpphManagement";
 import BeltConveyorManagement from "@/modules/timbangan/beltconveyor/BeltConveyorManagement";
 import PengeluaranFOTManagement from "@/modules/timbangan/fot/PengeluaranFOTManagement";
 import PengeluaranBCManagement from "@/modules/timbangan/beltconveyor/PengeluaranBCManagement";
 import PengeluaranKAManagement from "@/modules/timbangan/pengeluaran-ka/PengeluaranKAManagement";
 // import RitasePendingManagement from "@/modules/timbangan/ritase-pending/RitasePendingManagement";
+import KinerjaProduksiManagement from "@/modules/timbangan/kinerja-produksi/KinerjaProduksiManagement";
 
 const TimbanganInternalPage = () => {
   const { isAuthenticated } = useAuth();
@@ -111,15 +113,8 @@ const TimbanganInternalPage = () => {
       {
         name: "Belt Conveyor",
         icon: Grid3x3,
-        roles: [ "admin", "super_admin", "ccr", "operator"],
+        roles: ["admin", "super_admin", "ccr", "operator"],
         locationId: "belt-conveyor",
-      },
-
-      {
-        name: "Rencana Coal Flow",
-        icon: ClipboardList,
-        roles: ["admin", "super_admin", "ccr"],
-        locationId: "rencana-coal-flow",
       },
       {
         name: "Overview",
@@ -147,7 +142,37 @@ const TimbanganInternalPage = () => {
         roles: ["super_admin", "operator_jt", "ccr"],
         locationId: "master-data",
       },
-
+      {
+        name: "Rencana",
+        icon: ClipboardList,
+        roles: ["admin", "super_admin", "ccr"],
+        children: [
+          {
+            name: "Coal Flow Harian",
+            icon: LayoutDashboard,
+            roles: ["admin", "super_admin", "ccr"],
+            locationId: "coal-flow",
+          },
+          {
+            name: "Rakor Bulanan",
+            icon: FileText,
+            roles: ["admin", "super_admin", "ccr"],
+            locationId: "rakor-bulanan",
+          },
+          {
+            name: "SPPH",
+            icon: FileText,
+            roles: ["admin", "super_admin", "ccr"],
+            locationId: "spph",
+          },
+          {
+            name: "Kinerja Produksi",
+            icon: BarChart3,
+            roles: ["admin", "super_admin", "ccr", "pic", "pengawas", "viewer"], // include viewer roles just in case
+            locationId: "kinerja-produksi",
+          },
+        ],
+      },
       {
         name: "Pengeluaran Via KA",
         icon: Train,
@@ -172,7 +197,7 @@ const TimbanganInternalPage = () => {
         icon: Truck,
         roles: ["pic", "pengawas", "admin", "super_admin", "ccr"],
         children: [
-                    {
+          {
             name: "Pengeluaran Belt Conveyor",
             icon: Grid3x3,
             roles: ["pic", "pengawas", "admin", "super_admin", "ccr"],
@@ -302,7 +327,6 @@ const TimbanganInternalPage = () => {
     };
     return checkAccess(menuItems);
   }, [menuItems, isMenuAccessible]);
-
 
   const handleBackToHub = useCallback(() => {
     window.location.href = "/timbangan-internal/hub";
@@ -435,8 +459,14 @@ const TimbanganInternalPage = () => {
               <BeltscaleManagement Type="Adjustment Beltscale" />
             ) : selectedMenu === "overview" ? (
               <OverviewPage />
-            ) : selectedMenu === "rencana-coal-flow" ? (
+            ) : selectedMenu === "coal-flow" ? (
               <RencanaRealisasiManagement />
+            ) : selectedMenu === "rakor-bulanan" ? (
+              <RakorSpphManagement mode="rakor" />
+            ) : selectedMenu === "spph" ? (
+              <RakorSpphManagement mode="spph" />
+            ) : selectedMenu === "kinerja-produksi" ? (
+              <KinerjaProduksiManagement />
             ) : selectedMenu === "laporan" ? (
               <LaporanManagement />
             ) : selectedMenu === "master-data" ? (

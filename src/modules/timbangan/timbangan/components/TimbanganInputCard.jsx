@@ -12,6 +12,14 @@ import { Input } from "@/shared/components/ui/input";
 import { Label } from "@/shared/components/ui/label";
 import SearchableSelect from "@/shared/components/SearchableSelect";
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/shared/components/ui/dialog";
+import {
   Truck,
   Weight,
   Scale,
@@ -19,6 +27,7 @@ import {
   Loader2,
   Usb,
   Radio,
+  Bell,
   Zap,
   Lock,
   Unlock,
@@ -27,11 +36,13 @@ import {
   ChevronUp,
   Target,
   ClipboardList,
+  AlertTriangle,
 } from "lucide-react";
 import { useTimbanganHooks } from "../hooks/useTimbanganHooks";
 import useAuthStore from "@/modules/auth/store/authStore";
 import { useWebSerialScale } from "@/shared/hooks/useWebSerialScale";
 import { useRFIDWebSerial } from "@/shared/hooks/useRFIDWebSerial";
+import { useBellWebSerial } from "@/shared/hooks/useBellWebSerial";
 import { Badge } from "@/shared/components/ui/badge";
 import PrintBukti from "@/modules/timbangan/timbangan/components/PrintBukti";
 import ManualWeighTab from "@/modules/timbangan/timbangan/components/ManualWeighTab";
@@ -62,9 +73,33 @@ export const TimbanganInputCard = ({ onTabChange, mode = "default" }) => {
 
   const scale = useWebSerialScale();
   const rfid = useRFIDWebSerial();
+  const bell = useBellWebSerial();
 
   // State untuk active tab
   const [activeTab, setActiveTab] = useState("timbangan");
+  const [showTareWarning, setShowTareWarning] = useState(false);
+  const [tareWarningDays, setTareWarningDays] = useState(0);
+
+  // Cek tanggal tare weight
+  useEffect(() => {
+    if (formData.hull_no && formData.tare_weight_updated_date) {
+      const updatedDate = new Date(formData.tare_weight_updated_date);
+      const now = new Date();
+      if (!isNaN(updatedDate.getTime())) {
+        const diffTime = now.getTime() - updatedDate.getTime();
+        const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+        
+        if (diffDays > 30) {
+          setTareWarningDays(diffDays);
+          setShowTareWarning(true);
+        } else {
+          setShowTareWarning(false);
+        }
+      }
+    } else {
+      setShowTareWarning(false);
+    }
+  }, [formData.hull_no, formData.tare_weight_updated_date]);
 
   // Notify parent when tab changes
   const handleTabChange = useCallback(
@@ -239,13 +274,21 @@ export const TimbanganInputCard = ({ onTabChange, mode = "default" }) => {
     WEIGHT_LIMITS.GROSS.MAX,
   ]);
 
-  // Auto-print ticket after successful submission
+  // Auto-print + ring bell after successful submission
   useEffect(() => {
-    if (lastSubmittedData && printButtonRef.current) {
+    if (!lastSubmittedData) return;
+
+    // Auto-print
+    if (printButtonRef.current) {
       const timer = setTimeout(() => {
         printButtonRef.current.click();
       }, 500);
-      return () => clearTimeout(timer);
+      // cleanup handled below
+    }
+
+    // Ring bell jika terhubung (opt-in — skip jika tidak ada bell)
+    if (bell.isConnected) {
+      bell.ringBell(2000); // bunyi 2 detik
     }
   }, [lastSubmittedData]);
 
@@ -410,15 +453,16 @@ export const TimbanganInputCard = ({ onTabChange, mode = "default" }) => {
     return () => window.removeEventListener("keydown", handleKeyPress);
   }, [isOperator, activeTab, handleSubmit, handleBypassSubmit, scale, rfid]);
   return (
+    <>
     <Card className="shadow-lg border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800 transition-colors">
       <Tabs
         value={activeTab}
         onValueChange={handleTabChange}
         className="w-full"
       >
-        <CardHeader className="border-b border-gray-200 dark:border-gray-800 ">
+        <CardHeader className="border-b border-gray-200 dark:border-gray-800 pb-4">
           {/* Row 1: Title-as-Tabs + Hardware Controls */}
-          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
+          <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
             {/* Left: Title merged with Tabs */}
             <TabsList className="h-auto bg-transparent p-0 gap-0 shrink-0">
               <TabsTrigger
@@ -426,7 +470,7 @@ export const TimbanganInputCard = ({ onTabChange, mode = "default" }) => {
                 className="flex items-center gap-2 px-0 pr-5 text-xl font-semibold data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:text-gray-900 dark:data-[state=active]:text-gray-100 data-[state=inactive]:text-gray-400 dark:data-[state=inactive]:text-gray-600 data-[state=inactive]:hover:text-gray-600 dark:data-[state=inactive]:hover:text-gray-400 transition-colors rounded-none border-b-2  data-[state=inactive]:border-transparent pb-1 cursor-pointer"
               >
                 <Scale className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-                Timbangan
+                {isCheckerMode ? "Checker" : "Timbangan"}
               </TabsTrigger>
               {isOperator && (
                 <TabsTrigger
@@ -625,6 +669,29 @@ export const TimbanganInputCard = ({ onTabChange, mode = "default" }) => {
                     ? "RFID Scanning..."
                     : "RFID Terhubung"
                   : "Hubungkan RFID"}
+              </Button>
+              )}
+
+              {/* Bell Connection Button */}
+              {isOperator && !isCheckerMode && (
+              <Button
+                variant={bell.isConnected ? "default" : "outline"}
+                size="sm"
+                onClick={bell.isConnected ? bell.disconnect : bell.connect}
+                disabled={bell.isConnecting}
+                className={`text-xs flex items-center gap-1.5 ${
+                  bell.isConnected
+                    ? "bg-amber-500 hover:bg-amber-600 dark:bg-amber-500 dark:hover:bg-amber-600 text-white"
+                    : "border-gray-300 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300"
+                }`}
+                title="Hubungkan perangkat Bell via Serial"
+              >
+                {bell.isConnecting ? (
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                ) : (
+                  <Bell className="w-3 h-3" />
+                )}
+                {bell.isConnected ? "Bell Terhubung" : "Hubungkan Bell"}
               </Button>
               )}
 
@@ -1008,96 +1075,64 @@ export const TimbanganInputCard = ({ onTabChange, mode = "default" }) => {
             </div>
           )}
 
-          {/* Keyboard Shortcuts Info */}
-          <div className="mt-3 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 text-[11px] text-blue-700 dark:text-blue-400">
-              <div>
-                <kbd className="px-1.5 py-0.5 bg-white dark:bg-slate-800 border border-blue-300 dark:border-blue-700 rounded text-[10px]">
-                  Alt
+          {/* Keyboard Shortcuts Info - Sembunyikan di layar sangat kecil */}
+          <div className="hidden sm:block mt-4 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5 text-[11px] text-blue-700 dark:text-blue-400">
+              <div className="flex items-center gap-1.5">
+                <kbd className="px-1.5 py-0.5 bg-white dark:bg-slate-800 border border-blue-300 dark:border-blue-700 rounded text-[10px] font-mono shadow-sm">
+                  Alt+D
                 </kbd>
-                {" + "}
-                <kbd className="px-1.5 py-0.5 bg-white dark:bg-slate-800 border border-blue-300 dark:border-blue-700 rounded text-[10px]">
-                  D
-                </kbd>
-                {" - Input DT"}
+                <span>- Input DT</span>
               </div>
               {isOperator && (
-                <div>
-                  <kbd className="px-1.5 py-0.5 bg-white dark:bg-slate-800 border border-blue-300 dark:border-blue-700 rounded text-[10px]">
-                    Alt
+                <div className="flex items-center gap-1.5">
+                  <kbd className="px-1.5 py-0.5 bg-white dark:bg-slate-800 border border-blue-300 dark:border-blue-700 rounded text-[10px] font-mono shadow-sm">
+                    Alt+T
                   </kbd>
-                  {" + "}
-                  <kbd className="px-1.5 py-0.5 bg-white dark:bg-slate-800 border border-blue-300 dark:border-blue-700 rounded text-[10px]">
-                    T
-                  </kbd>
-                  {" - Input Tonase"}
+                  <span>- Input Tonase</span>
                 </div>
               )}
               {!isOperator && (
-                <div>
-                  <kbd className="px-1.5 py-0.5 bg-white dark:bg-slate-800 border border-blue-300 dark:border-blue-700 rounded text-[10px]">
-                    Alt
+                <div className="flex items-center gap-1.5">
+                  <kbd className="px-1.5 py-0.5 bg-white dark:bg-slate-800 border border-blue-300 dark:border-blue-700 rounded text-[10px] font-mono shadow-sm">
+                    Alt+N
                   </kbd>
-                  {" + "}
-                  <kbd className="px-1.5 py-0.5 bg-white dark:bg-slate-800 border border-blue-300 dark:border-blue-700 rounded text-[10px]">
-                    N
-                  </kbd>
-                  {" - Input Net"}
+                  <span>- Input Net</span>
                 </div>
               )}
               {isOperator && (
-                <div>
-                  <kbd className="px-1.5 py-0.5 bg-white dark:bg-slate-800 border border-blue-300 dark:border-blue-700 rounded text-[10px]">
-                    Alt
+                <div className="flex items-center gap-1.5">
+                  <kbd className="px-1.5 py-0.5 bg-white dark:bg-slate-800 border border-blue-300 dark:border-blue-700 rounded text-[10px] font-mono shadow-sm">
+                    Alt+C
                   </kbd>
-                  {" + "}
-                  <kbd className="px-1.5 py-0.5 bg-white dark:bg-slate-800 border border-blue-300 dark:border-blue-700 rounded text-[10px]">
-                    C
-                  </kbd>
-                  {" - Connect Scale"}
+                  <span>- Connect Scale</span>
                 </div>
               )}
               {isOperator && (
-                <div>
-                  <kbd className="px-1.5 py-0.5 bg-white dark:bg-slate-800 border border-blue-300 dark:border-blue-700 rounded text-[10px]">
-                    Alt
+                <div className="flex items-center gap-1.5">
+                  <kbd className="px-1.5 py-0.5 bg-white dark:bg-slate-800 border border-blue-300 dark:border-blue-700 rounded text-[10px] font-mono shadow-sm">
+                    Alt+L
                   </kbd>
-                  {" + "}
-                  <kbd className="px-1.5 py-0.5 bg-white dark:bg-slate-800 border border-blue-300 dark:border-blue-700 rounded text-[10px]">
-                    L
-                  </kbd>
-                  {" - Lock/Unlock Berat"}
+                  <span>- Lock/Unlock Berat</span>
                 </div>
               )}
-              <div>
-                <kbd className="px-1.5 py-0.5 bg-white dark:bg-slate-800 border border-blue-300 dark:border-blue-700 rounded text-[10px]">
-                  Alt
+              <div className="flex items-center gap-1.5">
+                <kbd className="px-1.5 py-0.5 bg-white dark:bg-slate-800 border border-blue-300 dark:border-blue-700 rounded text-[10px] font-mono shadow-sm">
+                  Alt+R
                 </kbd>
-                {" + "}
-                <kbd className="px-1.5 py-0.5 bg-white dark:bg-slate-800 border border-blue-300 dark:border-blue-700 rounded text-[10px]">
-                  R
-                </kbd>
-                {" - Connect/Scan RFID"}
+                <span>- Connect/Scan RFID</span>
               </div>
-              <div>
-                <kbd className="px-1.5 py-0.5 bg-white dark:bg-slate-800 border border-blue-300 dark:border-blue-700 rounded text-[10px]">
-                  Alt
+              <div className="flex items-center gap-1.5">
+                <kbd className="px-1.5 py-0.5 bg-white dark:bg-slate-800 border border-blue-300 dark:border-blue-700 rounded text-[10px] font-mono shadow-sm">
+                  Alt+S
                 </kbd>
-                {" + "}
-                <kbd className="px-1.5 py-0.5 bg-white dark:bg-slate-800 border border-blue-300 dark:border-blue-700 rounded text-[10px]">
-                  S
-                </kbd>
-                {" - Submit"}
+                <span>- Submit</span>
               </div>
-              <div>
-                <kbd className="px-1.5 py-0.5 bg-white dark:bg-slate-800 border border-blue-300 dark:border-blue-700 rounded text-[10px]">
-                  Ctrl
+              <div className="flex items-center gap-1.5">
+                <kbd className="px-1.5 py-0.5 bg-white dark:bg-slate-800 border border-blue-300 dark:border-blue-700 rounded text-[10px] font-mono shadow-sm">
+                  Ctrl+Enter
                 </kbd>
-                {" + "}
-                <kbd className="px-1.5 py-0.5 bg-white dark:bg-slate-800 border border-blue-300 dark:border-blue-700 rounded text-[10px]">
-                  Enter
-                </kbd>
-                {" - Submit"}
+                <span>- Submit</span>
               </div>
             </div>
           </div>
@@ -1491,5 +1526,37 @@ export const TimbanganInputCard = ({ onTabChange, mode = "default" }) => {
         )}
       </Tabs>
     </Card>
+
+      {/* Tare Staleness Warning Dialog */}
+      <Dialog open={showTareWarning} onOpenChange={setShowTareWarning}>
+        <DialogContent className="sm:max-w-md border-orange-200 dark:border-orange-800 bg-white dark:bg-gray-900">
+          <DialogHeader className="flex flex-col items-center sm:items-start">
+            <div className="flex items-center gap-3">
+              <div className="p-3 bg-orange-100 dark:bg-orange-900/30 rounded-full">
+                <AlertTriangle className="w-6 h-6 text-orange-600 dark:text-orange-500" />
+              </div>
+              <DialogTitle className="text-xl font-bold text-orange-700 dark:text-orange-500">
+                Peringatan: Timbang Kosong Ulang!
+              </DialogTitle>
+            </div>
+            <DialogDescription className="text-sm mt-3 text-gray-700 dark:text-gray-300">
+              Data berat kosong (Tare) untuk unit <strong>{formData.hull_no}</strong> ini tercatat sudah <strong>{tareWarningDays} hari</strong> tidak diperbarui.
+              <br /><br />
+              Sesuai SOP, unit yang data tare-nya lebih dari 30 hari diharuskan melakukan <strong>timbang kosongan ulang</strong> untuk menghindari ketidakakuratan data berat bersih.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="mt-4 sm:justify-start">
+            <Button
+              type="button"
+              variant="default"
+              onClick={() => setShowTareWarning(false)}
+              className="bg-orange-600 hover:bg-orange-700 text-white w-full sm:w-auto"
+            >
+              Mengerti, Tutup Peringatan
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 };

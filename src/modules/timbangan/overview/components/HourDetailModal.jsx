@@ -136,31 +136,24 @@ const HourDetailModal = ({ isOpen, data, hour, onClose }) => {
       const targetTonnage = (ritaseCount / totalRitases) * TARGET_PER_HOUR;
       const actualTonnage = ritases.reduce((sum, r) => sum + r.net_weight, 0);
 
-      // Filter kendala untuk company ini
-      const companyKendala = kendalaList.filter((k) => k.company === company);
-
       return {
         company,
         ritases,
         targetTonnage,
         actualTonnage,
         isBelowTarget: actualTonnage < targetTonnage,
-        kendalaList: companyKendala,
       };
     });
-  }, [isOpen, data, hour, kendalaList]);
+  }, [isOpen, data, hour]);
 
   const totalTonnage = useMemo(() => {
     return companyData.reduce((sum, cd) => sum + cd.actualTonnage, 0);
   }, [companyData]);
 
-  const totalTarget = useMemo(() => {
-    return companyData.reduce((sum, cd) => sum + cd.targetTonnage, 0);
-  }, [companyData]);
+  const totalTarget = 250; // Flat target for the excavator per hour
 
-  const hasCompaniesWithIssues = useMemo(() => {
-    return companyData.some((cd) => cd.isBelowTarget);
-  }, [companyData]);
+  // The excavator has issues if total tonnage is below target (250) or if it's explicitly 0
+  const isBelowTarget = totalTonnage < totalTarget;
 
   const totalKendala = useMemo(() => {
     return kendalaList.length;
@@ -346,7 +339,7 @@ const HourDetailModal = ({ isOpen, data, hour, onClose }) => {
               </div>
 
               <div className="flex gap-2">
-                {hasCompaniesWithIssues && (
+                {isBelowTarget && (
                   <Button
                     variant="outline"
                     onClick={() => {
@@ -354,7 +347,7 @@ const HourDetailModal = ({ isOpen, data, hour, onClose }) => {
                       setSelectedKendala(null);
                       setShowKendalaModal(true);
                     }}
-                    className="cursor-pointer dark:hover:bg-orange-900/20 dark:border-orange-600 text-orange-600 dark:text-orange-400 hover:bg-orange-50"
+                    className="cursor-pointer dark:hover:bg-orange-900/20 dark:border-orange-600 bg-orange-50 dark:bg-orange-900/10 text-orange-600 dark:text-orange-400 hover:bg-orange-100"
                   >
                     <AlertTriangle className="w-4 h-4 mr-2" />
                     Input Kendala
@@ -363,19 +356,36 @@ const HourDetailModal = ({ isOpen, data, hour, onClose }) => {
               </div>
             </div>
 
+            {/* General Kendala Table for the Excavator in this Hour */}
+            {kendalaList.length > 0 && (
+              <div className="mb-6">
+                <KendalaTable 
+                  kendalaList={kendalaList} 
+                  isLoading={isLoadingKendala}
+                  onEdit={handleEditKendala}
+                  onDelete={handleDeleteKendala}
+                />
+              </div>
+            )}
+
             {companyData.length === 0 ? (
-              <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+              <div className="text-center py-8 text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-800/20 rounded-lg border border-dashed border-gray-300 dark:border-gray-700">
                 <p className="text-base font-medium">
-                  Tidak ada data ritase pada jam ini
+                  Tidak ada data ritase (0 Ton) pada jam ini
                 </p>
                 <p className="text-sm mt-1">
                   Jam {hour.toString().padStart(2, "0")}:00 -{" "}
                   {(hour + 1).toString().padStart(2, "0")}:00
                 </p>
+                {isBelowTarget && kendalaList.length === 0 && (
+                  <p className="mt-4 text-orange-600 dark:text-orange-400 text-sm font-medium">
+                    Mohon input kendala karena tidak ada produksi.
+                  </p>
+                )}
               </div>
             ) : (
               <div className="space-y-4">
-                {/* List Ritase per Company dengan Kendala */}
+                {/* List Ritase per Company */}
                 {companyData.map((cd) => (
                   <CompanySection
                     key={cd.company}
@@ -384,7 +394,7 @@ const HourDetailModal = ({ isOpen, data, hour, onClose }) => {
                     hour={hour}
                     targetTonnage={cd.targetTonnage}
                     actualTonnage={cd.actualTonnage}
-                    kendalaList={cd.kendalaList}
+                    kendalaList={[]} // Kendala now handled globally above
                     onEdit={handleEdit}
                     onDetail={handleDetail}
                     onDelete={handleDelete}
