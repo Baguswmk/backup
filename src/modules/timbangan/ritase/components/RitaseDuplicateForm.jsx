@@ -16,7 +16,7 @@ const SHIFT_OPTIONS = [
 
 const RitaseDuplicateForm = ({ sourceRitase, onSubmit, onCancel }) => {
   const { user } = useAuthStore();
-  const { masters, mastersLoading } = useFleet(user ? { user } : null, null);
+  const { masters, mastersLoading, fleetConfigs } = useFleet(user ? { user } : null, null);
   
   // Safe access to created_by_user - handle both object and direct ID
   const getCreatedByUserId = () => {
@@ -235,7 +235,9 @@ const RitaseDuplicateForm = ({ sourceRitase, onSubmit, onCancel }) => {
       const tare_weight = selectedDumpTruck?.tare_weight || 0;
       
       const settingFleetId = getSettingFleet();
-      
+      const matchedFleet = fleetConfigs?.find(f => 
+        String(f.id) === String(settingFleetId) || String(f.setting_fleet_id) === String(settingFleetId)
+      );
       const duplicatedData = {
         unit_dump_truck: selectedDumpTruck?.hull_no || selectedDumpTruck?.name || "",
         operator: selectedOperator?.name || "",
@@ -258,10 +260,10 @@ const RitaseDuplicateForm = ({ sourceRitase, onSubmit, onCancel }) => {
         pic_work_unit: getValueFromSource('pic_work_unit'),
         pic_dumping_point: getValueFromSource('pic_dumping_point'),
         pic_loading_point: getValueFromSource('pic_loading_point'),
-        checker: getValueFromSource('checker'),
-        inspector: getValueFromSource('inspector'),
-        weigh_bridge: getValueFromSource('weigh_bridge'),
-        spph: getValueFromSource('spph'),
+        checker: getValueFromSource('checker') || matchedFleet?.checker || matchedFleet?.checker_name || matchedFleet?.fleet_checker || null,
+        inspector: getValueFromSource('inspector') || matchedFleet?.inspector ||  matchedFleet?.inspector_name || matchedFleet?.fleet_inspector || null,
+        weigh_bridge: getValueFromSource('weigh_bridge') || matchedFleet?.weigh_bridge?.name || matchedFleet?.weighBridgeId || matchedFleet?.fleet_weigh_bridge || null,
+        spph: getValueFromSource('spph') || matchedFleet?.spph || null,
         
         // Setting fleet
         setting_fleet: settingFleetId,

@@ -440,7 +440,24 @@ const AggregatedRitase = ({
   };
 
   const handleDuplicate = (ritase) => {
-    setSelectedRitase(ritase);
+    let sourceData = { ...ritase };
+    
+    // Jika data yang dikirim adalah summary (tidak memiliki id), cari ritase yang sesuai
+    // untuk mendapatkan detail tambahan seperti checker, inspector, id_setting_fleet, dll.
+    if (!sourceData.id && aggregatedData?.ritases) {
+      const matchingTrip = aggregatedData.ritases.find(
+        (r) =>
+          r.unit_exca === sourceData.unit_exca &&
+          r.loading_location === sourceData.loading_location &&
+          r.dumping_location === sourceData.dumping_location &&
+          r.measurement_type === sourceData.measurement_type
+      );
+      if (matchingTrip) {
+        sourceData.ritases = [matchingTrip];
+      }
+    }
+
+    setSelectedRitase(sourceData);
     setIsDuplicateModalOpen(true);
   };
 
