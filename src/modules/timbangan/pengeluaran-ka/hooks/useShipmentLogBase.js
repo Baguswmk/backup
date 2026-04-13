@@ -51,7 +51,7 @@ export function useShipmentLogBase(initialMode = "month") {
     month: currentMonth,
     startDate: todayDateStr,
     endDate: todayDateStr,
-    shift: "",
+    shift: initialMode === "month" ? "" : "All",
     destination: "all",
   };
 
@@ -103,12 +103,13 @@ export function useShipmentLogBase(initialMode = "month") {
   const getDateParams = useCallback(() => {
     const mode = filterModeRef.current;
     const f = filtersRef.current;
+    const shift = f.shift && f.shift !== "All" ? f.shift : undefined;
     if (mode === "month") {
-      return { ...monthToDateRange(f.month), shift: f.shift || undefined };
+      return { ...monthToDateRange(f.month), shift };
     }
     const { start_date } = dayToRange(f.startDate);
     const { end_date } = dayToRange(f.endDate);
-    return { start_date, end_date, shift: f.shift || undefined };
+    return { start_date, end_date, shift };
   }, []);
 
   return {
